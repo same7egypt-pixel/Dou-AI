@@ -4,3 +4,5 @@ __pycache__/
 dou.db
 .DS_Store
 *.log
+venv/
+test_*.db

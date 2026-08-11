@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DOU | تطبيق المندوب</title>
+<meta name="description" content="حضور، مهام وأرباح مندوبي التوصيل">
+<meta name="theme-color" content="#11161d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/static/manifest.json">
+<link rel="icon" type="image/png" href="/static/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -244,8 +251,32 @@ function loginView(){
           style="width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:16px">
         <button class="btn primary" id="loginBtn" onclick="doLogin()">دخول</button>
         <p style="font-size:10px;color:var(--muted);margin:10px 0 0;text-align:center">تجرّب الدخول: 966551112233 / dou123456</p>
+        <div id="installBar" style="display:none;margin-top:12px;text-align:center">
+          <button class="btn ghost" id="installBtn" onclick="installApp()">📲 ثبّت التطبيق على جوالك</button>
+        </div>
       </div>
     </div>`;
+}
+
+let deferredInstall = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstall = e;
+  const bar = document.getElementById("installBar");
+  if (bar) bar.style.display = "block";
+});
+window.addEventListener("appinstalled", () => {
+  const bar = document.getElementById("installBar");
+  if (bar) bar.style.display = "none";
+});
+function installApp(){
+  if (!deferredInstall) { alert("استخدم قائمة المتصفح → أضف إلى الشاشة الرئيسية"); return; }
+  deferredInstall.prompt();
+  deferredInstall.userChoice.then(() => { deferredInstall = null; });
+}
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/static/sw.js").catch(() => {});
 }
 
 async function doLogin(){

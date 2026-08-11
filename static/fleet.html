@@ -91,6 +91,8 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 .ruleNum{width:130px;flex-shrink:0}
 .avatarDot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:6px}
 .avatarDot.on{background:var(--green)}.avatarDot.off{background:#d3d7de}
+.lineItem{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px}
+.lineItem span{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -112,6 +114,8 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
   <div class="group">الإدارة</div>
   <button class="nav" data-view="tickets"><i>🎫</i><span>التذاكر</span></button>
   <button class="nav" data-view="companies" id="navCompanies"><i>🏢</i><span>شركات التشغيل</span></button>
+  <div class="group">الاشتراك</div>
+  <button class="nav" data-view="billing"><i>💳</i><span>الاشتراك والفواتير</span></button>
   <div class="group">الإعدادات</div>
   <button class="nav" data-view="rules"><i>⚙</i><span>قواعد النظام</span></button>
   <button class="nav" data-view="shipping"><i>🚚</i><span>شركات الشحن</span></button>
@@ -384,6 +388,18 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       </div>
     </section>
 
+    <section id="view-billing" style="display:none">
+      <div class="header"><div><div class="kicker">الفواتير والدفع</div><h1>الاشتراك والفواتير</h1></div>
+        <button class="btn ghost" onclick="loadBilling()">↻ تحديث</button></div>
+      <div class="cards" id="billingCards"></div>
+      <div class="card" id="invoiceCard" style="display:none">
+        <h3>الفاتورة الحالية</h3>
+        <div id="invoiceBody"></div>
+        <button class="btn blue" onclick="payInvoice()" style="margin-top:12px">💳 سداد الفاتورة الآن</button>
+        <span id="billingMsg" class="msg"></span>
+      </div>
+    </section>
+
     <section id="view-shipping" style="display:none">
       <div class="header"><div><div class="kicker">الشحن البعيد</div><h1>شركات الشحن</h1></div>
         <button class="btn blue" onclick="toggleAddCompany()">+ إضافة شركة</button></div>
@@ -523,9 +539,9 @@ const TICKETS = [
 
 function go(v){
   document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
-  const views = ["overview","dispatch","couriers","orders","shifts","attendance","performance","payouts","channels","compliance","tickets","companies","rules","shipping"];
+  const views = ["overview","dispatch","couriers","orders","shifts","attendance","performance","payouts","channels","compliance","tickets","companies","rules","shipping","billing"];
   views.forEach(x=>{ const el=document.getElementById("view-"+x); if(el) el.style.display = x===v?"block":"none"; });
-  const names = {overview:"نظرة عامة",dispatch:"الإرسال والتحكم",couriers:"المناديب",orders:"الطلبات",shifts:"الورديات",attendance:"تتبع الحضور",performance:"أداء المناديب",payouts:"الرواتب",channels:"القنوات",compliance:"الامتثال",tickets:"التذاكر",companies:"شركات التشغيل",rules:"قواعد النظام",shipping:"شركات الشحن"};
+  const names = {overview:"نظرة عامة",dispatch:"الإرسال والتحكم",couriers:"المناديب",orders:"الطلبات",shifts:"الورديات",attendance:"تتبع الحضور",performance:"أداء المناديب",payouts:"الرواتب",channels:"القنوات",compliance:"الامتثال",tickets:"التذاكر",companies:"شركات التشغيل",rules:"قواعد النظام",shipping:"شركات الشحن",billing:"الاشتراك"};
   document.getElementById("crumb").textContent = names[v];
   loadAll();
   if(v==="performance") loadPerformance();
@@ -533,6 +549,7 @@ function go(v){
   if(v==="compliance") loadCompliance();
   if(v==="tickets") renderTickets();
   if(v==="attendance") loadAttendance();
+  if(v==="billing") loadBilling();
 }
 document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
 
@@ -793,6 +810,38 @@ function renderTickets(){
         <button class="btn ghost small" onclick="alert('فتح الرد على التذكرة (UI)')">الرد</button>
       </div>
     </div>`).join("") || '<p class="msg" style="text-align:center">لا تذاكر مطابقة</p>';
+}
+
+async function loadBilling(){
+  try{
+    const st = await api("/billing/status");
+    const inv = await api("/billing/invoice");
+    const planNames = {TRIAL:"تجربة مجانية", PRO:"احترافية", ENTERPRISE:"شركات"};
+    const statusTags = {ACTIVE:'<span class="tag green">مفعّل</span>', OVERDUE:'<span class="tag amber">متأخر</span>', SUSPENDED:'<span class="tag red">معطّل</span>'};
+    document.getElementById("billingCards").innerHTML = `
+      <div class="metric"><b>${planNames[st.plan]||st.plan}</b><span>الخطة</span></div>
+      <div class="metric"><b>${st.monthly_fee} ر.س</b><span>الاشتراك الشهري</span></div>
+      <div class="metric">${statusTags[st.status]}</div>
+      <div class="metric ${st.days_left<=3?'alert':''}"><b>${st.days_left??"–"} يوم</b><span>متبقٍ على الاستحقاق</span></div>`;
+    document.getElementById("invoiceCard").style.display = "block";
+    document.getElementById("invoiceBody").innerHTML = `
+      <div class="lineItem"><span>رقم الفاتورة</span><b>${inv.invoice_no}</b></div>
+      <div class="lineItem"><span>الفترة</span><b>${inv.period.from} ← ${inv.period.to}</b></div>
+      <div class="lineItem"><span>المبلغ</span><b>${inv.amount} ر.س</b></div>
+      <div class="lineItem"><span>تاريخ الاستحقاق</span><b>${inv.due_date}</b></div>
+      <div class="lineItem"><span>الحالة</span><b>${statusTags[inv.status]}</b></div>`;
+    document.getElementById("billingMsg").textContent = "";
+  }catch(e){ document.getElementById("invoiceCard").style.display="none"; }
+}
+async function payInvoice(){
+  const msg = document.getElementById("billingMsg");
+  msg.textContent = "⏳ جاري معالجة الدفع..."; msg.style.color = "var(--muted)";
+  try{
+    const r = await api("/billing/pay", {method:"POST"});
+    msg.style.color = "var(--green)";
+    msg.textContent = "✅ تم سداد الفاتورة — اشتراكك مفعّل حتى " + r.due_date;
+    loadBilling();
+  }catch(e){ msg.style.color="var(--red)"; msg.textContent="❌ "+e.message; }
 }
 
 init();

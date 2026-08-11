@@ -18,6 +18,8 @@ def _scope(user: User, db: Session):
     - COMPANY: مناديب وطلبات شركته فقط
     - DOU_OPS/DOU_ADMIN: كل البيانات"""
     if user.role == UserRole.COMPANY:
+        from .billing import check_active
+        check_active(user, db)
         return user.tenant_id
     return None
 

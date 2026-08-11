@@ -93,7 +93,9 @@ def main():
 
     # ===== Tenants / Fleets =====
     tenant_dou = Tenant(name="DOU Platform", country=SA, is_dou_internal=True, created_at=now)
-    tenant_fleet = Tenant(name="دو فليت الرياض", country=SA, contact_email="fleet@dou.sa", created_at=now)
+    tenant_fleet = Tenant(name="دو فليت الرياض", country=SA, contact_email="fleet@dou.sa",
+                          plan="PRO", monthly_fee=499, billing_day=1, subscription_status="ACTIVE",
+                          due_date=now + timedelta(days=30), created_at=now)
     tenant_eg = Tenant(name="دو مصر", country=EG, contact_email="egypt@dou.com", created_at=now)
     db.add_all([tenant_dou, tenant_fleet, tenant_eg])
     db.commit()

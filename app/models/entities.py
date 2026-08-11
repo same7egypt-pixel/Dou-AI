@@ -76,6 +76,12 @@ class Tenant(Base):
     contact_email = Column(String(120))
     contact_phone = Column(String(40))
     is_dou_internal = Column(Boolean, default=False)  # فريق Dou ops
+    plan = Column(String(20), default="PRO")          # TRIAL / PRO / ENTERPRISE
+    monthly_fee = Column(Float, default=0)            # رسوم الاشتراك الشهري
+    billing_day = Column(Integer, default=1)          # يوم الفوترة بالشهر
+    due_date = Column(DateTime)                       # تاريخ استحقاق الفاتورة القادم
+    subscription_status = Column(String(20), default="ACTIVE")  # ACTIVE / OVERDUE / SUSPENDED
+    last_paid_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     fleets = relationship("Fleet", back_populates="tenant")

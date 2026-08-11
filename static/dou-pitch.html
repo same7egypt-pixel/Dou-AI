@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DOU Fleet Partners — عرض تقديمي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#172033;--muted:#728096;--nav:#11161d;--orange:#ff5a13;--warm:#fff2eb;--green:#16a46b;--green2:#e8f8f1;--blue:#246bfd;--blue2:#eaf1ff;--amber:#f59e0b;--amber2:#fef4e2;--red:#ef5d67}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:Alexandria,sans-serif;color:var(--ink);background:#0d1117}
+.slide{display:none;min-height:100vh;padding:60px 72px;flex-direction:column;justify-content:center;background:#fff;position:relative;overflow:hidden}
+.slide.active{display:flex}
+.slide.dark{background:linear-gradient(135deg,#0f1724,#1b2330);color:#fff}
+.grad{background:linear-gradient(135deg,#fff6f0,#ffe7d8)}
+.brand{position:absolute;top:28px;right:40px;font-weight:900;letter-spacing:-1px;font-size:20px;display:flex;align-items:center;gap:8px;color:var(--ink)}
+.slide.dark .brand{color:#fff}
+.brand i{font-style:normal;width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#ff8a55,#ff5a13);display:grid;place-items:center;color:#fff;font-weight:800}
+.pageno{position:absolute;bottom:22px;left:40px;font-size:12px;color:var(--muted)}
+.navbtns{position:fixed;bottom:22px;right:40px;display:flex;gap:10px;z-index:10}
+.navbtns button{font-family:inherit;border:0;border-radius:10px;padding:11px 20px;font-weight:700;cursor:pointer;font-size:13px;background:#fff;color:var(--nav);box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.navbtns button.primary{background:var(--orange);color:#fff}
+h1{font-size:44px;font-weight:900;letter-spacing:-1px;margin:0 0 14px;line-height:1.25}
+h2{font-size:30px;font-weight:800;margin:0 0 10px;line-height:1.3}
+.sub{font-size:17px;color:var(--muted);margin:0 0 26px;line-height:1.8}
+.slide.dark .sub{color:#9fb0cc}
+.badge{display:inline-block;background:var(--warm);color:var(--orange);font-weight:700;font-size:12px;padding:7px 14px;border-radius:20px;margin-bottom:16px}
+.slide.dark .badge{background:rgba(255,90,19,.15);color:#ff8a55}
+.grid{display:grid;gap:16px;margin-top:12px}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.tile{background:#fff;border:1px solid #e7ebf1;border-radius:16px;padding:22px;box-shadow:0 12px 28px rgba(26,42,72,.06)}
+.slide.dark .tile{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.08)}
+.tile .ic{font-size:26px;margin-bottom:10px}
+.tile b{display:block;font-size:15px;margin-bottom:6px}
+.tile small{color:var(--muted);font-size:12px;line-height:1.7;display:block}
+.slide.dark .tile small{color:#a9b8d2}
+.big{font-size:52px;font-weight:900;color:var(--orange);line-height:1}
+.big + span{color:var(--muted);font-size:13px;display:block;margin-top:4px}
+.problem{font-size:24px;font-weight:700;line-height:1.9;border-right:5px solid var(--orange);padding-right:22px;margin:18px 0}
+.pill{display:inline-block;background:var(--blue2);color:var(--blue);font-weight:700;border-radius:20px;padding:6px 14px;font-size:12px;margin:4px 6px 4px 0}
+.slide.dark .pill{background:rgba(36,107,253,.18);color:#7fb0ff}
+.plan{border:2px solid var(--line);border-radius:18px;padding:26px;text-align:center;background:#fff;position:relative}
+.plan.hot{border-color:var(--orange);box-shadow:0 18px 40px rgba(255,90,19,.15)}
+.plan .price{font-size:38px;font-weight:900;margin:10px 0 4px}
+.plan .price small{font-size:14px;color:var(--muted);font-weight:600}
+.plan ul{list-style:none;padding:0;margin:16px 0 0;text-align:right}
+.plan li{font-size:12.5px;color:var(--muted);padding:7px 0;border-bottom:1px dashed var(--line)}
+.plan li b{color:var(--ink)}
+.plan .cta{margin-top:18px;display:block;background:var(--nav);color:#fff;border:0;border-radius:10px;padding:12px;font-family:inherit;font-weight:700;width:100%;cursor:pointer;font-size:13px}
+.plan.hot .cta{background:var(--orange)}
+.quote{border-right:4px solid var(--green);padding-right:18px;font-size:17px;color:var(--muted);line-height:2;margin-top:10px}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:13px}
+th{color:var(--muted);text-align:right;padding:10px;border-bottom:2px solid var(--line);font-size:12px}
+td{padding:12px 10px;border-bottom:1px solid var(--line)}
+.check{color:var(--green);font-weight:800}
+.cross{color:#c3c8d1}
+.hero-emoji{font-size:74px;margin-bottom:16px}
+.steps{counter-reset:step}
+.step{display:flex;gap:16px;align-items:flex-start;padding:14px 0;border-bottom:1px dashed var(--line)}
+.step:last-child{border-bottom:0}
+.step .num{width:34px;height:34px;border-radius:50%;background:var(--orange);color:#fff;font-weight:800;display:grid;place-items:center;flex-shrink:0}
+.step b{display:block;font-size:15px}.step small{color:var(--muted);font-size:12.5px;line-height:1.8}
+.foot{position:absolute;bottom:28px;right:40px;font-size:12px;color:var(--muted)}
+.btn{background:var(--orange);color:#fff;border:0;border-radius:14px;padding:16px 34px;font-family:inherit;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 12px 30px rgba(255,90,19,.3);margin-top:10px}
+.btn.ghost{background:transparent;border:2px solid rgba(255,255,255,.4);box-shadow:none}
+@media print{
+  .navbtns{display:none}
+  .slide{display:flex!important;page-break-after:always}
+  body{background:#fff}
+}
+@media(max-width:800px){
+  .slide{padding:40px 26px}
+  h1{font-size:30px}h2{font-size:22px}
+  .g2,.g3,.g4{grid-template-columns:1fr}
+  .big{font-size:38px}
+}
+</style>
+</head>
+<body>
+
+<div class="navbtns">
+  <button onclick="prev()">→ السابق</button>
+  <button class="primary" onclick="next()">التالي ←</button>
+</div>
+
+<!-- 1: افتتاحية -->
+<section class="slide dark active">
+  <div class="brand"><i>↗</i>DOU <span style="font-size:10px;color:#88a0c4;font-weight:600;letter-spacing:1px">FLEET PARTNERS</span></div>
+  <div class="hero-emoji">🚚</div>
+  <div class="badge">منصة عمليات مندوبي التوصيل</div>
+  <h1>تحكّم كامل في مناديبك<br>من حضور ورواتب حتى الأداء</h1>
+  <p class="sub">منصة سحابية تدير مناديب شركات التوصيل: حضور GPS لحظي، رواتب وبونصات تلقائية، وملفات موظفين كاملة — بدون جداول Excel وتطبيقات مبعثرة.</p>
+  <button class="btn" onclick="next()">عرض الحل ←</button>
+  <div class="foot">DOU Fleet Partners · عرض لشركات التوصيل اللوجستية</div>
+</section>
+
+<!-- 2: المشكلة -->
+<section class="slide grad">
+  <div class="brand"><i>↗</i>DOU</div>
+  <div class="badge">التحدي الحالي</div>
+  <h1>إدارة المناديب أصبحت فوضى</h1>
+  <div class="grid g2">
+    <div>
+      <div class="problem">"فين مندوبي الآن؟ مين حاضر ومين غايب؟ مين يستاهل البونص هذا الشهر؟"</div>
+      <p class="sub">أصحاب شركات التوصيل يواجهون يومياً:</p>
+      <div class="grid g2">
+        <div class="tile"><div class="ic">📊</div><b>جداول Excel</b><small>حضور ورواتب متناثرة في ملفات يصعب جمعها كل نهاية شهر</small></div>
+        <div class="tile"><div class="ic">📱</div><b>تطبيقات متعددة</b><small>مناديبك يتواصلون عبر واتساب ولا يوجد سجل موثوق للدوام</small></div>
+        <div class="tile"><div class="ic">💰</div><b>رواتب تخمينية</b><small>لا يعرف أحد كم التوصيلات الحقيقية لكل مندوب وبونصه المستحق</small></div>
+        <div class="tile"><div class="ic">🧾</div><b>مخاطرة عمالية</b><small>مستندات منتهية ومخالفات تأمينات تكتشفها بعد فوات الأوان</small></div>
+      </div>
+    </div>
+    <div style="background:#fff;border-radius:20px;padding:30px;display:flex;flex-direction:column;justify-content:center;border:1px solid #ffd6c2">
+      <div class="badge">النتيجة</div>
+      <div class="grid g2" style="grid-template-columns:1fr">
+        <div class="tile" style="text-align:center;border:0;box-shadow:none"><div class="big">37%</div><span>أرباح مناديب تضيع شهرياً في حسابات غير دقيقة</span></div>
+        <div class="tile" style="text-align:center;border:0;box-shadow:none"><div class="big">2.5 يوم</div><span>معدل الوقت المستغرق لاحتساب رواتب الشهر يدوياً</span></div>
+        <div class="tile" style="text-align:center;border:0;box-shadow:none"><div class="big">40%</div><span>من المناديب يتركون العمل بسبب عدم وضوح الأرباح</span></div>
+      </div>
+      <p class="sub" style="margin-top:14px;font-size:14px">كل هذه المشاكل تنتهي بحل واحد... 👈</p>
+    </div>
+  </div>
+</section>
+
+<!-- 3: الحل -->
+<section class="slide">
+  <div class="brand"><i>↗</i>DOU</div>
+  <div class="badge">الحل</div>
+  <h1>DOU Fleet Partners — نظام تشغيل مناديبك</h1>
+  <p class="sub">لوحة واحدة لمدير الأسطول + تطبيق جوال للمندوب. بدون كيبلات وبدون تجهيزات — يعمل من المتصفح والجوال مباشرة.</p>
+  <div class="grid g4">
+    <div class="tile"><div class="ic">📡</div><b>حضور GPS لحظي</b><small>المندوب يسجّل دخول وخروج من جواله بموقعه الجغرافي — تعرف من أين يبدأ وينتهي</small></div>
+    <div class="tile"><div class="ic">🧾</div><b>رواتب تلقائية</b><small>ثابت + أجر لكل توصيلة + بونص — يُحتسب فوراً بنهاية كل شهر</small></div>
+    <div class="tile"><div class="ic">👤</div><b>ملف موظف كامل</b><small>عقد، راتب، IBAN، حالة موظف، مستندات — كل شيء في سجل واحد</small></div>
+    <div class="tile"><div class="ic">📈</div><b>أداء قابل للقياس</b><small>قبول، التزام، إنجاز، نقاط — تكافئ الأفضل وتعالج المقصر</small></div>
+  </div>
+  <div class="grid g2" style="margin-top:8px">
+    <div class="tile"><b>🖥️ لوحة Fleet Partners (للمدير)</b><small>نظرة عامة حية، إدارة المناديب، تتبع حضور بخريطة، رواتب وبونصات، ورديات، وامتثال المستندات</small></div>
+    <div class="tile"><b>📲 تطبيق المندوب</b><small>دخول بمجرد تسجيل الشركة للمندوب — يسجّل حضوره بموقعه ويرى ملفه وأرباحه، ويُثبَّت كتطبيق على جواله</small></div>
+  </div>
+  <button class="btn" onclick="next()">كيف يبدو النظام؟ ←</button>
+</section>
+
+<!-- 4: شاشات حقيقية -->
+<section class="slide dark">
+  <div class="brand"><i>↗</i>DOU <span style="font-size:10px;color:#88a0c4;font-weight:600">FLEET PARTNERS</span></div>
+  <div class="badge">لقطات من النظام الحقيقي</div>
+  <h1>لوحة قيادة حية لأسطولك</h1>
+  <div class="grid g3">
+    <div class="tile"><div class="ic">▦</div><b>نظرة عامة</b><small>مناديب متصلون، طلبات حية، إيراد الفترة، والتزام التسليم في الموعد — كلها بلحظتها</small></div>
+    <div class="tile"><div class="ic">⏱</div><b>تتبع الحضور</b><small>جدول حضور/انصراف بموقع الخريطة لكل مندوب، مع كشف المتأخرين اليوم</small></div>
+    <div class="tile"><div class="ic">₪</div><b>الرواتب والحوافز</b><small>قائمة تفصيلية: الثابت، أجر التوصيلات، البونص، والإجمالي لكل مندوب مع IBAN</small></div>
+    <div class="tile"><div class="ic">👤</div><b>ملف الموظف</b><small>اضغط على أي مندوب لترى عقده وراتبه ونقاطه ومستنداته — وعدّلها فوراً</small></div>
+    <div class="tile"><div class="ic">🎯</div><b>الإرسال والتحكم</b><small>أعد توجيه الطلبات، اعرض الاستثناءات، وادير التصعيد للشركاء الخارجيين</small></div>
+    <div class="tile"><div class="ic">💳</div><b>الاشتراك والفواتير</b><small>فاتورتك الشهرية وحالة اشتراكك واضحة داخل اللوحة نفسها</small></div>
+  </div>
+  <button class="btn ghost" style="background:var(--orange);box-shadow:none" onclick="next()">كم التكلفة؟ ←</button>
+</section>
+
+<!-- 5: الأسعار -->
+<section class="slide grad">
+  <div class="brand"><i>↗</i>DOU</div>
+  <div class="badge">باقات مرنة</div>
+  <h1>ابدأ مجاناً 14 يوماً — بلا بطاقة</h1>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="plan">
+      <b>تجربة</b>
+      <div class="price">مجاناً<small> / 14 يوم</small></div>
+      <ul>
+        <li><b>10 مناديب</b> كحد أقصى</li>
+        <li>حضور GPS وملفات موظفين</li>
+        <li>لوحة Fleet كاملة</li>
+        <li>دعم عبر واتساب</li>
+      </ul>
+      <button class="cta">مناسب للاختبار</button>
+    </div>
+    <div class="plan hot">
+      <b>احترافية</b>
+      <div class="price">499 ر.س<small> / شهرياً</small></div>
+      <ul>
+        <li><b>مناديب بلا حدود</b></li>
+        <li>رواتب وبونصات تلقائية</li>
+        <li>تتبع حضور بخريطة</li>
+        <li>تقارير أداء شهرية</li>
+        <li>دعم أولوية</li>
+      </ul>
+      <button class="cta">الأكثر شيوعاً</button>
+    </div>
+    <div class="plan">
+      <b>شركات</b>
+      <div class="price">حسب الطلب<small> / شهرياً</small></div>
+      <ul>
+        <li><b>أساطيل متعددة</b> في المدن</li>
+        <li>تكامل مع شركات الشحن</li>
+        <li>مسؤول عمليات مخصص</li>
+        <li>عقد سنوي</li>
+      </ul>
+      <button class="cta">تواصل معنا</button>
+    </div>
+  </div>
+  <button class="btn" onclick="next()">كيف نبدأ؟ ←</button>
+</section>
+
+<!-- 6: خطوات البدء -->
+<section class="slide">
+  <div class="brand"><i>↗</i>DOU</div>
+  <div class="badge">البدء</div>
+  <h1>تعمل مع مناديبك خلال يوم واحد</h1>
+  <div class="steps" style="margin-top:14px">
+    <div class="step"><div class="num">1</div><div><b>نضيف شركتك على المنصة</b><small>خلال لقاء واحد — نحصل على اسم الشركة ورقم جوال المدير، وينشأ حسابك فوراً</small></div></div>
+    <div class="step"><div class="num">2</div><div><b>تضيف مناديبك</b><small>اسم + جوال + راتب — كل مندوب يحصل على حساب دخول تلقائياً لتطبيق الجوال</small></div></div>
+    <div class="step"><div class="num">3</div><div><b>يثبّت المناديب التطبيق</b><small>رابط واحد يفتحونه على جوالاتهم ويضيفونه للشاشة الرئيسية كتطبيق حقيقي</small></div></div>
+    <div class="step"><div class="num">4</div><div><b>تبدأ الرقابة من اليوم الأول</b><small>حضور GPS، رواتب، وأداء — من اللحظة التي يدخل فيها أول مندوب</small></div></div>
+  </div>
+  <div class="quote">"من تجربة المنصة على أسطول الرياض، تحتاج فقط 10 دقائق لإضافة مندوب جديد بكل بياناته واشتراكه."</div>
+  <button class="btn" onclick="next()">الخطوة الأخيرة ←</button>
+</section>
+
+<!-- 7: الختام -->
+<section class="slide dark">
+  <div class="brand"><i>↗</i>DOU <span style="font-size:10px;color:#88a0c4;font-weight:600">FLEET PARTNERS</span></div>
+  <div class="hero-emoji">🚀</div>
+  <h1>جاهز نبدأ؟</h1>
+  <p class="sub">خلال 24 ساعة من اللقاء، نفعّل حساب شركتك وتدخل مناديبك الأوائل. التجربة 14 يوماً مجاناً — بدون بطاقة وبدون التزام.</p>
+  <div class="grid g2" style="max-width:720px;margin:0 auto">
+    <div class="tile" style="text-align:center"><div class="big">14 يوم</div><span>تجربة مجانية كاملة</span></div>
+    <div class="tile" style="text-align:center"><div class="big">يوم</div><span>لتفعيل حساب الشركة</span></div>
+  </div>
+  <div style="text-align:center;margin-top:28px">
+    <button class="btn" onclick="print()">🖨️ اطبع العرض (PDF)</button>
+    <div style="margin-top:14px;color:#9fb0cc;font-size:14px">سؤال؟ فريق DOU جاهز — نحدد موعد تفعيلك الآن.</div>
+  </div>
+  <div class="foot" style="right:auto;left:40px;color:#8b94a3">DOU Fleet Partners · do-u.sa</div>
+</section>
+
+<script>
+let i = 0;
+const slides = document.querySelectorAll(".slide");
+function show(){
+  slides.forEach((s,idx)=>s.classList.toggle("active", idx===i));
+  window.scrollTo(0,0);
+}
+function next(){ if(i<slides.length-1){i++;show();} }
+function prev(){ if(i>0){i--;show();} }
+document.addEventListener("keydown",e=>{ if(e.key==="ArrowRight") next(); if(e.key==="ArrowLeft") prev(); });
+show();
+</script>
+</body>
+</html>
