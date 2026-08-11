@@ -199,7 +199,8 @@
         <h3>التوفر والحضور</h3>
         <div class="lineItem"><span>الحالة</span><b id="profOnline">غير متصل</b></div>
         <div class="lineItem"><span>ساعات العمل اليوم</span><b>0 ساعة</b></div>
-        <button class="btn danger" style="margin-top:10px" onclick="alert('تم إرسال طلب الدعم (UI)')">🛟 رفع تذكرة (دعم)</button>
+        <button class="btn danger" style="margin-top:10px" onclick="logout()">🚪 تسجيل الخروج</button>
+        <button class="btn danger" style="margin-top:8px" onclick="alert('تم إرسال طلب الدعم (UI)')">🛟 رفع تذكرة (دعم)</button>
       </div>
     </div>
 
@@ -211,70 +212,103 @@
 </div>
 
 <script>
-const COURIER_ID = 1;
 const API = "";
+let TOKEN = localStorage.getItem("dou_token");
+let COURIER = null;
 let online = false;
 let checkedIn = false;
 
-const NOTIFS = [
-  {ic:"📦", c:"#eaf1ff", t:"عرض طلب جديد #1204 — 12 ر.س", s:"قبل دقيقتين"},
-  {ic:"🔔", c:"#fff2eb", t:"تذكير: ورديتك تبدأ 16:00 اليوم", s:"قبل 30 دقيقة"},
-  {ic:"⚠️", c:"#fff0f1", t:"مخالفة محتملة: تأخرت في طلب #1187", s:"أمس"},
-  {ic:"💰", c:"#eaf8f0", t:"تم إيداع أرباح الأسبوع الماضي", s:"الأحد"}
-];
-
-const EARNINGS = [
-  {order:1204, src:"Jahez", earn:12, type:"On-demand"},
-  {order:1203, src:"DOU App", earn:12, type:"On-demand"},
-  {order:1199, src:"DOU App", earn:12, type:"On-demand"},
-  {order:1196, src:"HungerStation", earn:13, type:"Dedicated"}
-];
-
 async function api(path, opts={}){
-  const r = await fetch(API+path, Object.assign({headers:{"Content-Type":"application/json"}},opts));
+  const headers = {"Content-Type":"application/json"};
+  if(TOKEN) headers["Authorization"] = "Bearer "+TOKEN;
+  const r = await fetch(API+path, Object.assign({headers}, opts));
+  if(r.status===401){ logout(); throw new Error("انتهت الجلسة — سجّل دخولك مجدداً"); }
   if(!r.ok) throw new Error((await r.text())||r.status);
   return r.json();
 }
-function tag(s){ s=String(s); return `<span class="tag ${/DELIVER/i.test(s)?"green":/ACCEPT/i.test(s)?"blue":/OFFER/i.test(s)?"orange":"gray"}">${s.replace(/_/g," ")}</span>`; }
-function typeTag(t){ return `<span class="tag ${t==="Dedicated"?"blue":"gray"}">${t}</span>`; }
 
-function go(v){
-  const map = {home:"الرئيسية",earnings:"الأرباح",profile:"حسابي",notifs:"تنبيهات"};
-  ["home","earnings","profile","notifs"].forEach(x=>document.getElementById("view-"+x).classList.toggle("active",x===v));
-  document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active", b.textContent.includes(map[v])));
-  if(v==="earnings") loadEarnings();
-  if(v==="notifs") renderNotifs();
+function loginView(){
+  const stage = document.querySelector(".stage");
+  stage.innerHTML = `
+    <div style="display:flex;flex-direction:column;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(160deg,#141a24,#1f2a3a)">
+      <div style="text-align:center;margin-bottom:22px">
+        <div class="logo" style="color:#fff;font-size:28px">D<i></i>ou <span style="font-size:11px;color:#ff7a42;letter-spacing:1px">COURIER</span></div>
+        <p style="color:#8b94a3;font-size:12px;margin:8px 0 0">سجّل دخولك لاستقبال المهام والورديات</p>
+      </div>
+      <div style="background:#fff;border-radius:18px;padding:20px">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">رقم الجوال (بمفتاح الدولة)</label>
+        <input id="loginPhone" type="tel" dir="ltr" placeholder="966551112233" value="966551112233"
+          style="width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:12px">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">كلمة المرور</label>
+        <input id="loginPass" type="password" dir="ltr" placeholder="••••••••" value="dou123456"
+          style="width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:16px">
+        <button class="btn primary" id="loginBtn" onclick="doLogin()">دخول</button>
+        <p style="font-size:10px;color:var(--muted);margin:10px 0 0;text-align:center">تجرّب الدخول: 966551112233 / dou123456</p>
+      </div>
+    </div>`;
 }
-function toggleNotifPanel(e){ e.stopPropagation(); }
-document.addEventListener("click",()=>{});
 
-function renderNotifs(){
-  document.getElementById("notifList").innerHTML = NOTIFS.map(n=>`
-    <div class="notifItem"><div class="ic" style="background:${n.c}">${n.ic}</div>
-      <div><b>${n.t}</b><small>${n.s}</small></div></div>`).join("");
+async function doLogin(){
+  const btn = document.getElementById("loginBtn");
+  btn.disabled = true; btn.textContent = "جاري الدخول...";
+  try{
+    const res = await api("/auth/login", {method:"POST", body:JSON.stringify({
+      phone: document.getElementById("loginPhone").value.trim(),
+      password: document.getElementById("loginPass").value
+    })});
+    TOKEN = res.access_token;
+    localStorage.setItem("dou_token", TOKEN);
+    location.reload();
+  }catch(e){ btn.disabled=false; btn.textContent="دخول"; alert("❌ "+e.message); }
 }
-function loadEarnings(){
-  document.getElementById("todayEarn").textContent = EARNINGS.reduce((s,e)=>s+e.earn,0)+" ر.س";
-  document.getElementById("weekEarn").textContent = (EARNINGS.reduce((s,e)=>s+e.earn,0)*4)+" ر.س";
-  document.getElementById("incentiveEarn").textContent = "48 ر.س";
-  document.getElementById("earningList").innerHTML = EARNINGS.map(e=>`
-    <div class="lineItem"><div><b>طلب #${e.order}</b> <span class="tag gray">${e.src}</span></div>
-      <div style="display:flex;gap:6px;align-items:center">${typeTag(e.type)} <b style="color:var(--green)">+${e.earn} ر.س</b></div></div>`).join("");
+
+function logout(){
+  TOKEN = null; localStorage.removeItem("dou_token"); COURIER = null; loginView();
 }
+
+async function init(){
+  if(!TOKEN){ loginView(); return; }
+  try{
+    COURIER = await api("/couriers/me");
+    document.querySelectorAll(".tabs").forEach(t=>t.style.display="flex");
+    fillProfile();
+    await Promise.all([loadProfile(), loadTasks()]);
+  }catch(e){
+    logout();
+  }
+}
+
+function fillProfile(){
+  if(!COURIER) return;
+  document.querySelectorAll(".lineItem").forEach(el=>{
+    const span = el.querySelector("span");
+    if(span && span.textContent==="الاسم") el.querySelector("b").textContent = COURIER.name || "—";
+    if(span && span.textContent==="الهاتف") el.querySelector("b").textContent = COURIER.phone || "—";
+  });
+  document.querySelector(".head .logo").insertAdjacentHTML("beforeend",
+    `<div style="font-size:9px;color:#5be0a3;margin-top:2px">${COURIER.name||""}</div>`);
+}
+
+const NOTIFS = [
+  {ic:"📦", c:"#eaf1ff", t:"عرض طلب جديد — 12 ر.س", s:"قبل دقيقتين"},
+  {ic:"🔔", c:"#fff2eb", t:"تذكير: ورديتك تبدأ 16:00 اليوم", s:"قبل 30 دقيقة"},
+  {ic:"⚠️", c:"#fff0f1", t:"مخالفة محتملة: تأخرت في طلب سابق", s:"أمس"},
+  {ic:"💰", c:"#eaf8f0", t:"تم إيداع أرباح الأسبوع الماضي", s:"الأحد"}
+];
 
 async function loadTasks(){
-  const tasks = await api("/couriers/"+COURIER_ID+"/tasks");
+  if(!COURIER) return;
+  const tasks = await api("/couriers/"+COURIER.id+"/tasks");
   document.getElementById("tasks").innerHTML = tasks.length ? tasks.map(t=>{
-    const batch = t.batch_orders || [t.order_id];
     return `
     <div class="task">
-      <div class="top"><b>مهمة #${t.id} ${batch.length>1?`<span class="tag orange">Batch ${batch.length} طلبات</span>`:""}</b> ${tag(t.status)}</div>
-      <div class="row"><span>الطلب</span><b>${batch.join(" + ")}</b></div>
-      <div class="row"><span>النوع</span>${typeTag("Dedicated")}</div>
-      <div class="row"><span>المسافة</span><b>4.2 كم</b></div>
-      <div class="row"><span>الربح المتوقع</span><b style="color:var(--green)">12 ر.س</b></div>
-      <div class="row"><span>الاستلام</span><b>مقهى بن القهوة</b></div>
-      <div class="row"><span>التسليم</span><b>حي الملقا — شارع أنس</b></div>
+      <div class="top"><b>مهمة #${t.id}</b> ${tag(t.status)}</div>
+      <div class="row"><span>الطلب</span><b>#${t.order_id}</b></div>
+      <div class="row"><span>من</span><b>${t.merchant_name||"—"} · ${t.merchant_district||""}</b></div>
+      <div class="row"><span>العميل</span><b>${t.customer_name||"—"}</b></div>
+      <div class="row"><span>العنوان</span><b>${t.customer_address||"—"}</b></div>
+      <div class="row"><span>المسافة</span><b>${t.distance_km||0} كم</b></div>
+      <div class="row"><span>قيمة الطلب</span><b style="color:var(--green)">${t.total||0} ر.س</b></div>
       ${t.status==="OFFERED" ? `<div class="btn-group">
         <button class="btn green" onclick="act(${t.id},'accept')">قبول</button>
         <button class="btn ghost" onclick="act(${t.id},'reject')">رفض</button>
@@ -303,25 +337,25 @@ function renderTaskSteps(t){
 
 async function act(taskId, action){
   try{
-    await api(`/couriers/${COURIER_ID}/tasks/${taskId}/${action}`,
-      action==="reject" ? {method:"POST",body:JSON.stringify({courier_id:COURIER_ID,task_id:taskId})} : {method:"POST"});
+    await api(`/couriers/${COURIER.id}/tasks/${taskId}/${action}`,
+      action==="reject" ? {method:"POST",body:JSON.stringify({courier_id:COURIER.id,task_id:taskId})} : {method:"POST"});
     await Promise.all([loadTasks(), loadProfile()]);
   }catch(e){ alert("❌ "+e.message); }
 }
 
 async function loadProfile(){
-  const [couriers, tasks] = await Promise.all([api("/couriers"), api("/couriers/"+COURIER_ID+"/tasks")]);
-  const me = couriers.find(c=>c.id===COURIER_ID);
-  if(me){
-    document.getElementById("acceptRate").textContent = me.acceptance_rate+"%";
-    document.getElementById("score").textContent = me.score;
-    online = me.is_online;
-    document.getElementById("switch").classList.toggle("on",online);
-    document.getElementById("statusText").textContent = online?"متصل":"غير متصل";
-    document.getElementById("statusDot").style.color = online?"#5be0a3":"#8b94a3";
-    document.getElementById("profOnline").textContent = online?"متصل":"غير متصل";
-  }
-  document.getElementById("doneCount").textContent = tasks.filter(t=>t.status==="DELIVERED").length;
+  if(!COURIER) return;
+  COURIER = await api("/couriers/me");
+  document.getElementById("acceptRate").textContent = COURIER.acceptance_rate+"%";
+  document.getElementById("score").textContent = COURIER.score;
+  online = COURIER.is_online;
+  document.getElementById("switch").classList.toggle("on",online);
+  document.getElementById("statusText").textContent = online?"متصل":"غير متصل";
+  document.getElementById("statusDot").style.color = online?"#5be0a3":"#8b94a3";
+  document.getElementById("profOnline").textContent = online?"متصل":"غير متصل";
+  document.getElementById("doneCount").textContent = COURIER.current_load||0;
+  const tasks = await api("/couriers/"+COURIER.id+"/tasks");
+  document.getElementById("doneCount").textContent = tasks.filter(t=>t.status==="DELIVERED").length || COURIER.current_load||0;
 }
 
 function updateShiftClock(){
@@ -331,14 +365,17 @@ function updateShiftClock(){
 }
 
 async function toggleOnline(){
-  if(!online){ await api("/couriers/"+COURIER_ID+"/online",{method:"POST"}); }
-  else{ await api("/couriers/"+COURIER_ID+"/offline",{method:"POST"}); }
-  loadProfile();
+  if(!COURIER) return;
+  try{
+    if(!online){ await api("/couriers/"+COURIER.id+"/online",{method:"POST"}); }
+    else{ await api("/couriers/"+COURIER.id+"/offline",{method:"POST"}); }
+    loadProfile();
+  }catch(e){ alert("❌ "+e.message); }
 }
 
 async function checkIn(){
   try{
-    await api("/shifts/attendance/check-in",{method:"POST",body:JSON.stringify({courier_id:COURIER_ID})});
+    await api("/shifts/attendance/check-in",{method:"POST",body:JSON.stringify({courier_id:COURIER.id})});
     checkedIn = true;
     document.getElementById("shiftTitle").textContent = "الوردية الحالية — وردية المساء";
     document.getElementById("shiftInfo").textContent = "في وردية (16:00 - 00:00) · المنطقة: الملقا";
@@ -347,14 +384,14 @@ async function checkIn(){
     document.getElementById("checkinBtn").disabled = true;
     document.getElementById("checkoutBtn").disabled = false;
     document.getElementById("statusText").textContent = "متصل";
-    alert("✅ تم تسجيل الحضور — أنت الآن متصل ومتاح (وردية مُفرَضة: 16:00 - 00:00)");
-    await api("/couriers/"+COURIER_ID+"/online",{method:"POST"});
+    alert("✅ تم تسجيل الحضور — أنت الآن متصل ومتاح");
+    await api("/couriers/"+COURIER.id+"/online",{method:"POST"});
     loadProfile();
   }catch(e){ alert("❌ "+e.message); }
 }
 async function checkOut(){
   try{
-    await api("/shifts/attendance/check-out",{method:"POST",body:JSON.stringify({courier_id:COURIER_ID})});
+    await api("/shifts/attendance/check-out",{method:"POST",body:JSON.stringify({courier_id:COURIER.id})});
     checkedIn = false;
     document.getElementById("shiftTitle").textContent = "الوردية الحالية";
     document.getElementById("shiftInfo").textContent = "غير مسجّل الحضور";
@@ -362,13 +399,30 @@ async function checkOut(){
     document.getElementById("checkinBtn").textContent = "تسجيل دخول (حضور GPS)";
     document.getElementById("checkinBtn").disabled = false;
     document.getElementById("checkoutBtn").disabled = true;
-    alert("✅ تم تسجيل الخروج — انتهت ورديتك. تم إيقاف استقبال الطلبات تلقائياً (Auto-offline)");
+    alert("✅ تم تسجيل الخروج — انتهت ورديتك. تم إيقاف استقبال الطلبات تلقائياً");
   }catch(e){ alert("❌ "+e.message); }
 }
 
+function go(v){
+  const map = {home:"الرئيسية",earnings:"الأرباح",profile:"حسابي",notifs:"تنبيهات"};
+  ["home","earnings","profile","notifs"].forEach(x=>document.getElementById("view-"+x).classList.toggle("active",x===v));
+  document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active", b.textContent.includes(map[v])));
+  if(v==="notifs") renderNotifs();
+}
+function toggleNotifPanel(e){ e.stopPropagation(); }
+document.addEventListener("click",()=>{});
+
+function renderNotifs(){
+  document.getElementById("notifList").innerHTML = NOTIFS.map(n=>`
+    <div class="notifItem"><div class="ic" style="background:${n.c}">${n.ic}</div>
+      <div><b>${n.t}</b><small>${n.s}</small></div></div>`).join("");
+}
+
+document.querySelectorAll(".tabs").forEach(t=>t.style.display="none");
+document.getElementById("view-home").classList.remove("active");
 renderNotifs();
-loadProfile(); loadTasks();
-setInterval(()=>{ loadTasks(); }, 8000);
+init();
+setInterval(()=>{ if(TOKEN&&COURIER) loadTasks(); }, 8000);
 setInterval(()=>{ updateShiftClock(); }, 30000);
 </script>
 </body>

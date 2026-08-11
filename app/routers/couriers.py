@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models.entities import Courier, CourierTask, CourierTaskStatus, Order, OrderStatus
+from ..models.entities import Courier, CourierTask, CourierTaskStatus, Merchant, Order, OrderStatus, User, UserRole
 from ..schemas.dou import CourierCreate, CourierOut, TaskActionIn
 from ..services.dispatch_engine import dispatch_order
+from .auth import get_current_user
 
 router = APIRouter(prefix="/couriers", tags=["couriers"])
 
@@ -43,6 +44,17 @@ def set_offline(courier_id: int, db: Session = Depends(get_db)):
     courier.shift_active = False
     db.commit()
     return {"ok": True, "courier_id": courier_id, "online": False}
+
+
+@router.get("/me", response_model=CourierOut)
+def my_profile(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """يرجع ملف المندوب الخاص بالحساب المسجّل دخوله."""
+    if user.role != UserRole.COURIER or not user.courier_id:
+        raise HTTPException(403, "This account is not a courier")
+    courier = db.get(Courier, user.courier_id)
+    if not courier:
+        raise HTTPException(404, "Courier not found")
+    return courier
 
 
 @router.get("/{courier_id}/tasks")
