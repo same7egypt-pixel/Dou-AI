@@ -115,7 +115,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
   <div class="group">الإعدادات</div>
   <button class="nav" data-view="rules"><i>⚙</i><span>قواعد النظام</span></button>
   <button class="nav" data-view="shipping"><i>🚚</i><span>شركات الشحن</span></button>
-  <div class="user"><div class="photo">✓</div><div><b id="roleName">فريق DOU</b><small id="roleDesc">مشرف العمليات</small></div></div>
+  <div class="user"><div class="photo">✓</div><div><b id="roleName">فريق DOU</b><small id="roleDesc">مشرف العمليات</small></div><button class="btn ghost small" onclick="logout()" style="margin-top:8px;width:100%">🚪 خروج</button></div>
 </aside>
 <div class="overlay" id="overlay" onclick="toggleSide()"></div>
 <main class="main" id="main">
@@ -123,8 +123,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     <div class="breadcrumb"><button class="hamburger" onclick="toggleSide()">☰</button> DOU / Fleet Partners / <b id="crumb">نظرة عامة</b></div>
     <div class="topActions">
       <div class="rolebar" style="margin:0">
-        <button class="active" onclick="setRole('dou')">فريق DOU</button>
-        <button onclick="setRole('company')">الشركة اللوجستية</button>
+        <button class="active">حساب الشركة</button>
       </div>
       <button class="btn ghost" onclick="alert('تم تصدير التقرير (PDF) — UI')">⬇ تصدير</button>
     </div>
@@ -409,14 +408,78 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
 <script>
 const API = "";
-let role = "dou";
-const COMPANY = {id:2, name:"شركة النقل الذكي", fleet:"أسطول مقهى بن القهوة"};
+let TOKEN = localStorage.getItem("dou_token");
+let META = null;
+let role = "company";
 
 async function api(path, opts={}){
-  const r = await fetch(API+path, Object.assign({headers:{"Content-Type":"application/json"}},opts));
+  const headers = {"Content-Type":"application/json"};
+  if(TOKEN) headers["Authorization"] = "Bearer "+TOKEN;
+  const r = await fetch(API+path, Object.assign({headers}, opts));
+  if(r.status===401){ logout(); throw new Error("انتهت الجلسة — سجّل دخولك مجدداً"); }
   if(!r.ok) throw new Error((await r.text())||r.status);
   return r.json();
 }
+
+function loginView(){
+  document.querySelector(".layout").style.display = "none";
+  const body = document.body;
+  body.innerHTML = `
+    <div style="display:flex;flex-direction:column;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(160deg,#11161d,#1b2330)">
+      <div style="text-align:center;margin-bottom:22px">
+        <div style="font:800 26px Alexandria;letter-spacing:-1px;color:#fff">DOU <span style="font-size:11px;color:#ff7a42;letter-spacing:2px">FLEET PARTNERS</span></div>
+        <p style="color:#8b94a3;font-size:12px;margin:8px 0 0">سجّل دخول شركتك اللوجستية لإدارة مناديبك</p>
+      </div>
+      <div style="background:#fff;border-radius:18px;padding:20px">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">رقم الجوال (بمفتاح الدولة)</label>
+        <input id="loginPhone" type="tel" dir="ltr" placeholder="966581112233" value="966581112233"
+          style="width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:12px">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">كلمة المرور</label>
+        <input id="loginPass" type="password" dir="ltr" placeholder="••••••••" value="dou123456"
+          style="width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:16px">
+        <button class="btn" id="loginBtn" onclick="doLogin()" style="width:100%;padding:13px;font-size:13px">دخول الشركة</button>
+        <p style="font-size:10px;color:var(--muted);margin:10px 0 0;text-align:center">تجرّب: 966581112233 / dou123456</p>
+      </div>
+    </div>`;
+}
+
+async function doLogin(){
+  const btn = document.getElementById("loginBtn");
+  btn.disabled = true; btn.textContent = "جاري الدخول...";
+  try{
+    const res = await api("/auth/login", {method:"POST", body:JSON.stringify({
+      phone: document.getElementById("loginPhone").value.trim(),
+      password: document.getElementById("loginPass").value
+    })});
+    if(res.role!=="COMPANY" && res.role!=="DOU_OPS" && res.role!=="DOU_ADMIN"){
+      throw new Error("هذا الحساب ليس حساب شركة لوجستية");
+    }
+    TOKEN = res.access_token;
+    localStorage.setItem("dou_token", TOKEN);
+    location.reload();
+  }catch(e){ btn.disabled=false; btn.textContent="دخول الشركة"; alert("❌ "+e.message); }
+}
+
+function logout(){
+  TOKEN = null; localStorage.removeItem("dou_token"); META = null; location.reload();
+}
+
+async function init(){
+  if(!TOKEN){ loginView(); return; }
+  try{
+    META = await api("/fleet/me");
+    const name = META.name || "شركة لوجستية";
+    const tenant = META.tenant ? META.tenant.name : "";
+    document.getElementById("roleName").textContent = name;
+    document.getElementById("roleDesc").textContent = tenant || "حساب الشركة";
+    if(META.role!=="DOU_OPS" && META.role!=="DOU_ADMIN"){
+      document.getElementById("navCompanies").style.display = "none";
+      const el = document.getElementById("view-companies"); if(el) el.style.display="none";
+    }
+    go("overview");
+  }catch(e){ logout(); }
+}
+
 function tag(s){ s=String(s); return `<span class="tag ${/DELIVER|COMPLETE/i.test(s)?"green":/ASSIGN|ACCEPT|READY|PICK/i.test(s)?"blue":/SHIPPING|PREPAR/i.test(s)?"amber":/CANCEL|FAIL/i.test(s)?"red":"gray"}">${s.replace(/_/g," ")}</span>`; }
 
 const TICKETS = [
@@ -452,85 +515,56 @@ function toggleSide(){
   }
 }
 
-function setRole(r){
-  role = r;
-  document.querySelectorAll(".rolebar button").forEach(b=>b.classList.remove("active"));
-  event.currentTarget.classList.add("active");
-  document.getElementById("roleName").textContent = r==="dou"?"فريق DOU":"شركة لوجستية";
-  document.getElementById("roleDesc").textContent = r==="dou"?"مشرف العمليات (كل الشركات)":"حساب الشركة (أسطولك فقط)";
-  const companyNav = document.getElementById("navCompanies");
-  if(r==="company"){
-    companyNav.style.display = "none";
-    const el = document.getElementById("view-companies"); if(el) el.style.display="none";
-    if(document.getElementById("view-companies").style.display==="block") go("overview");
-  } else {
-    companyNav.style.display = "";
-  }
-  renderOverview();
-}
-
-function scoped(list){
-  if(role==="company") return list;
-  return list;
-}
-
 async function loadAll(){
-  const [couriers, orders, merchants, companies] = await Promise.all([
-    api("/couriers"), api("/orders"), api("/merchants"), api("/shipping/companies")
-  ]);
-  renderOverview();
-  document.getElementById("couriersBody").innerHTML = couriers.map(c=>`
-    <tr><td>${c.name}</td><td><span class="tag gray">${c.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
-    <td>${c.is_online?'<span class="tag green">متصل</span>':'<span class="tag gray">غير متصل</span>'}</td>
-    <td><span class="tag ${c.id%2?"blue":"gray"}">${c.id%2?"أسطول مقهى بن القهوة":"أسطول مندوبي الشمال"}</span></td>
-    <td>${c.acceptance_rate}%</td><td>${c.score}</td><td>${c.current_load}</td>
-    <td>${c.id%3? '<span class="tag green">موثّق</span>':'<span class="tag amber">قيد المراجعة</span>'}</td>
-    <td style="display:flex;gap:6px">
-      <button class="btn ghost small" onclick="alert('تم حظر المندوب (UI)')">حظر</button>
-      <button class="btn green small" onclick="alert('تمت الموافقة (UI)')">اعتماد</button>
-    </td></tr>`).join("");
+  if(!TOKEN) return;
+  try{
+    const [ov, couriers, orders, shifts, companies] = await Promise.all([
+      api("/fleet/overview"), api("/fleet/couriers"), api("/fleet/orders"),
+      api("/fleet/shifts"), api("/shipping/companies")
+    ]);
+    renderOverview(ov);
+    document.getElementById("couriersBody").innerHTML = couriers.map(c=>`
+      <tr><td>${c.name}</td><td><span class="tag gray">${c.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
+      <td>${c.is_online?'<span class="tag green">متصل</span>':'<span class="tag gray">غير متصل</span>'}</td>
+      <td><span class="tag blue">${c.fleet||"—"}</span></td>
+      <td>${c.acceptance_rate}%</td><td>${c.score}</td><td>${c.current_load}</td>
+      <td>${c.documents_valid?'<span class="tag green">موثّق</span>':'<span class="tag red">منتهي</span>'}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn ghost small" onclick="alert('فتح ملف المندوب (UI)')">ملف</button>
+        <button class="btn ${c.is_online?"red":"green"} small" onclick="alert('تحديد حالة (UI)')">${c.is_online?"إيقاف":"تفعيل"}</button>
+      </td></tr>`).join("") || '<tr><td colspan="9" style="color:var(--muted)">لا مناديب</td></tr>';
 
-  document.getElementById("ordersBody").innerHTML = orders.slice().reverse().map(o=>`
-    <tr><td>${o.id}</td><td>${o.customer_name}</td><td>${o.merchant_id}</td><td>${tag(o.status)}</td>
-    <td><span class="tag ${o.id%2?"blue":"gray"}">${o.id%2?"Dedicated":"On-demand"}</span></td>
-    <td><span class="tag gray">${o.delivery_method}</span></td><td>${o.distance_km?o.distance_km.toFixed(1):"–"}</td><td>${o.courier_id||"—"}</td></tr>`).join("") || '<tr><td colspan="8" style="color:var(--muted)">لا طلبات</td></tr>';
+    document.getElementById("ordersBody").innerHTML = orders.map(o=>`
+      <tr><td>${o.id}</td><td>${o.customer_name||"—"}</td><td>${o.merchant_name||"—"}</td><td>${tag(o.status)}</td>
+      <td><span class="tag gray">${o.delivery_method||"—"}</span></td>
+      <td><span class="tag gray">${o.courier_name||"بدون مندوب"}</span></td><td>${o.distance_km?o.distance_km.toFixed(1):"–"}</td>
+      <td>${o.total||0} ر.س</td></tr>`).join("") || '<tr><td colspan="8" style="color:var(--muted)">لا طلبات</td></tr>';
 
-  const shifts = await api("/shifts");
-  document.getElementById("shiftsBody").innerHTML = shifts.map(s=>`
-    <tr><td>${s.name}</td><td>${s.zone||"—"}</td><td>${s.start_time}-${s.end_time}</td>
-    <td>${s.required_couriers}</td><td><span class="tag gray">${s.id%2?"أسطول مقهى بن القهوة":"كل الأساطيل"}</span></td>
-    <td><span class="tag gray">${s.status||"SCHEDULED"}</span></td></tr>`).join("") || '<tr><td colspan="6" style="color:var(--muted)">لا ورديات</td></tr>';
+    document.getElementById("shiftsBody").innerHTML = shifts.map(s=>`
+      <tr><td>${s.name}</td><td>${s.zone||"—"}</td><td>${s.start_time}-${s.end_time}</td>
+      <td>${s.required_couriers}</td><td><span class="tag blue">${s.fleet||"—"}</span></td>
+      <td><span class="tag gray">${s.status||"SCHEDULED"}</span></td></tr>`).join("") || '<tr><td colspan="6" style="color:var(--muted)">لا ورديات</td></tr>';
 
-  document.getElementById("companiesBody2").innerHTML = companies.map(c=>`
-    <tr><td>${c.name}</td><td>${c.code}</td><td>${c.country}</td>
-    <td>${c.is_active?'<span class="tag green">مفعّلة</span>':'<span class="tag gray">غير مفعّلة</span>'}</td></tr>`).join("") || '<tr><td colspan="4" style="color:var(--muted)">لا شركات</td></tr>';
-
-  document.getElementById("companiesBody").innerHTML = [
-    {name:"شركة النقل الذكي", fleets:"أسطول مقهى بن القهوة", couriers:4, perf:"92%", on:true},
-    {name:"شركة الإمداد السريع", fleets:"أسطول مندوبي الشمال", couriers:8, perf:"88%", on:true},
-    {name:"شركة الخدمات اللوجستية", fleets:"—", couriers:0, perf:"—", on:false}
-  ].map(c=>`<tr><td>${c.name}</td><td>${c.fleets}</td><td>${c.couriers}</td><td><span class="tag ${c.on?"green":"gray"}">${c.perf}</span></td>
-    <td>${c.on?'<span class="tag green">نشطة</span>':'<span class="tag gray">غير نشطة</span>'}</td></tr>`).join("");
+    document.getElementById("companiesBody2").innerHTML = companies.map(c=>`
+      <tr><td>${c.name}</td><td>${c.code}</td><td>${c.country}</td>
+      <td>${c.is_active?'<span class="tag green">مفعّلة</span>':'<span class="tag gray">غير مفعّلة</span>'}</td></tr>`).join("") || '<tr><td colspan="4" style="color:var(--muted)">لا شركات</td></tr>';
+  }catch(e){ /* الصفرة تعرض بياناتها الثابتة */ }
 }
 
-function renderOverview(){
-  const dateFilter = document.getElementById("oDateFilter") ? document.getElementById("oDateFilter").value : "هذا الأسبوع";
-  const mul = dateFilter==="اليوم"?0.2: dateFilter==="هذا الشهر"?4:1;
-  const company = role==="company";
-  document.getElementById("mCouriers").textContent = company? "4 (أسطولك)":"12";
-  document.getElementById("mOnline").textContent = company? "3":"8";
-  document.getElementById("mOrders").textContent = company? Math.round(142*mul):Math.round(320*mul);
-  document.getElementById("mActive").textContent = company? "9":"27";
-  document.getElementById("mUnassigned").textContent = company? "2":"7";
-  document.getElementById("mRevenue").textContent = "ر.س "+Math.round((company?18000:42000)*mul).toLocaleString();
-  document.getElementById("mUtil").textContent = "68%";
-  document.getElementById("mOntime").textContent = "93%";
-  document.getElementById("poolCompany").textContent = company? "3":"5";
-  document.getElementById("poolFreelance").textContent = "3";
+function renderOverview(ov){
+  if(!ov) return;
+  document.getElementById("mCouriers").textContent = ov.couriers_total;
+  document.getElementById("mOnline").textContent = ov.couriers_online;
+  document.getElementById("mOrders").textContent = ov.orders_total;
+  document.getElementById("mActive").textContent = ov.orders_active;
+  document.getElementById("mUnassigned").textContent = ov.orders_unassigned;
+  document.getElementById("mRevenue").textContent = "ر.س "+ov.revenue_total.toLocaleString();
+  document.getElementById("mUtil").textContent = ov.avg_acceptance+"%";
+  document.getElementById("mOntime").textContent = ov.on_time_rate+"%";
+  document.getElementById("poolCompany").textContent = ov.company_couriers;
+  document.getElementById("poolFreelance").textContent = ov.freelance_couriers;
   document.getElementById("poolShipping").textContent = "2";
-  document.getElementById("recentOrders").innerHTML = ["DELIVERED","IN_TRANSIT","ASSIGNED","DELIVERED","PICKED_UP","READY","IN_TRANSIT","DELIVERED"].map((s,i)=>`
-    <tr><td>${1200+i}</td><td>${tag(s)}</td><td><span class="tag gray">${i%3?"PLATFORM":"SHIPPING"}</span></td>
-    <td>${(2.1+i%5).toFixed(1)} كم</td><td>${company?"4":(i%3)+1}</td></tr>`).join("");
+  document.getElementById("recentOrders").innerHTML = "";
 }
 
 function renderOrders(){
@@ -654,7 +688,7 @@ function renderTickets(){
     </div>`).join("") || '<p class="msg" style="text-align:center">لا تذاكر مطابقة</p>';
 }
 
-go("overview");
+init();
 </script>
 </body>
 </html>
