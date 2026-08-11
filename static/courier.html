@@ -409,6 +409,7 @@ function go(v){
   document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active", b.textContent.includes(map[v])));
   if(v==="notifs") renderNotifs();
 }
+function tag(s){ s=String(s); return `<span class="tag ${/DELIVER/i.test(s)?"green":/ACCEPT/i.test(s)?"blue":/OFFER/i.test(s)?"orange":"gray"}">${s.replace(/_/g," ")}</span>`; }
 function toggleNotifPanel(e){ e.stopPropagation(); }
 document.addEventListener("click",()=>{});
 
