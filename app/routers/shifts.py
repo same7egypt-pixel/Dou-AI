@@ -64,6 +64,8 @@ def check_out(payload: AttendanceIn, db: Session = Depends(get_db)):
     if not record:
         raise HTTPException(404, "No open attendance")
     record.check_out = datetime.utcnow()
+    record.check_out_lat = payload.lat
+    record.check_out_lng = payload.lng
     courier.is_online = False
     courier.shift_active = False
     db.commit()

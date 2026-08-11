@@ -119,6 +119,13 @@ class Courier(Base):
     score = Column(Float, default=5.0)
     documents_valid = Column(Boolean, default=True)  # مستندات سارية
     shift_active = Column(Boolean, default=False)
+    # ===== حقول HR =====
+    base_salary = Column(Float, default=0.0)         # راتب ثابت شهري (ر.س)
+    per_delivery_rate = Column(Float, default=6.0)   # أجر كل توصيلة
+    bonus_target = Column(Float, default=0.0)        # نسبة/مبلغ البونص الشهري
+    employment_status = Column(String(20), default="ACTIVE")  # ACTIVE / SUSPENDED / TERMINATED
+    hired_at = Column(DateTime, default=datetime.utcnow)      # تاريخ التعيين
+    bank_iban = Column(String(34))                   # IBAN لتحويل الراتب
     created_at = Column(DateTime, default=datetime.utcnow)
 
     tenant = relationship("Tenant", back_populates="couriers")
@@ -258,6 +265,8 @@ class Attendance(Base):
     check_out = Column(DateTime)
     check_in_lat = Column(Float)
     check_in_lng = Column(Float)
+    check_out_lat = Column(Float)
+    check_out_lng = Column(Float)
     is_late = Column(Boolean, default=False)
 
 

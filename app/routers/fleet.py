@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.entities import (
-    Attendance, Courier, CourierTask, CourierTaskStatus, Merchant,
+    Attendance, Courier, CourierTask, CourierTaskStatus, Country, CourierType, Merchant,
     Order, OrderStatus, Shift, ShiftStatus, Tenant, User, UserRole, Fleet,
 )
 from .auth import get_current_user
@@ -99,10 +99,150 @@ def fleet_couriers(user: User = Depends(get_current_user), db: Session = Depends
             "on_time_rate": c.on_time_rate, "completion_rate": c.completion_rate,
             "score": c.score, "documents_valid": c.documents_valid, "shift_active": c.shift_active,
             "lat": c.lat, "lng": c.lng,
+            "base_salary": c.base_salary or 0, "per_delivery_rate": c.per_delivery_rate or 0,
+            "bonus_target": c.bonus_target or 0, "employment_status": c.employment_status or "ACTIVE",
+            "hired_at": c.hired_at.isoformat() if c.hired_at else None,
+            "bank_iban": c.bank_iban,
             "fleet": (db.get(Fleet, c.fleet_id).name if c.fleet_id else None),
         }
         for c in q.all()
     ]
+
+
+@router.post("/couriers")
+def add_courier(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """إضافة مندوب جديد + إنشاء حساب دخول له في تطبيق السواقين.
+    يُرجع كلمة المرور المبدئية (ترسلها الشركة للمندوب)."""
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    name = (payload.get("name") or "").strip()
+    phone = (payload.get("phone") or "").strip()
+    if not name or not phone:
+        raise HTTPException(400, "Name and phone are required")
+    if db.query(Courier).filter(Courier.phone == phone).first():
+        raise HTTPException(400, "Courier phone already exists")
+    country = Country(payload.get("country") or "SA")
+    ctype = CourierType(payload.get("courier_type") or "COMPANY")
+    tenant_id = user.tenant_id
+    fleet = db.query(Fleet).filter(Fleet.tenant_id == tenant_id).first() if tenant_id else None
+    courier = Courier(
+        tenant_id=tenant_id, fleet_id=fleet.id if fleet else None,
+        name=name, phone=phone, courier_type=ctype, country=country,
+        lat=payload.get("lat"), lng=payload.get("lng"),
+        base_salary=float(payload.get("base_salary") or 0),
+        per_delivery_rate=float(payload.get("per_delivery_rate") or 0),
+        bonus_target=float(payload.get("bonus_target") or 0),
+        bank_iban=payload.get("bank_iban"),
+    )
+    db.add(courier)
+    db.flush()
+    password = payload.get("password") or "dou123456"
+    from .auth import hash_password
+    db.add(User(
+        phone="966" + phone.lstrip("0") if not phone.startswith("966") else phone,
+        name=name, password_hash=hash_password(password),
+        role=UserRole.COURIER, courier_id=courier.id,
+        tenant_id=tenant_id, country=country, is_active=True,
+    ))
+    db.commit()
+    db.refresh(courier)
+    login_phone = courier.phone if courier.phone.startswith("966") else "966" + courier.phone.lstrip("0")
+    return {"ok": True, "id": courier.id, "login_phone": login_phone, "password": password}
+
+
+@router.patch("/couriers/{cid}")
+def update_courier(cid: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """تعديل بيانات مندوب (راتب، بونص، حالة توظيف، مستندات…)."""
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    courier = db.get(Courier, cid)
+    if not courier:
+        raise HTTPException(404, "Courier not found")
+    allowed = {
+        "name", "phone", "courier_type", "base_salary", "per_delivery_rate",
+        "bonus_target", "employment_status", "bank_iban", "documents_valid",
+        "is_online", "is_available", "shift_active", "lat", "lng",
+    }
+    for k, v in payload.items():
+        if k in allowed:
+            setattr(courier, k, v)
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/couriers/{cid}")
+def courier_profile(cid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """ملف مندوب كامل: بيانات + مهام + حضور + أرباح (HR)."""
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    courier = db.get(Courier, cid)
+    if not courier:
+        raise HTTPException(404, "Courier not found")
+    tasks = db.query(CourierTask).filter(CourierTask.courier_id == cid).all()
+    delivered = [t for t in tasks if t.status == CourierTaskStatus.DELIVERED]
+    attendances = db.query(Attendance).filter(Attendance.courier_id == cid).all()
+    hours = 0.0
+    for a in attendances:
+        if a.check_in and a.check_out:
+            hours += (a.check_out - a.check_in).total_seconds() / 3600
+    per_delivery = courier.per_delivery_rate or 0
+    bonus = courier.bonus_target or 0
+    if bonus and delivered and courier.score and courier.score >= 4.7:
+        bonus = round(bonus * 0.8, 2)
+    return {
+        "id": courier.id, "name": courier.name, "phone": courier.phone,
+        "courier_type": courier.courier_type.value, "country": courier.country.value,
+        "is_online": courier.is_online, "is_available": courier.is_available,
+        "current_load": courier.current_load, "acceptance_rate": courier.acceptance_rate,
+        "on_time_rate": courier.on_time_rate, "completion_rate": courier.completion_rate,
+        "score": courier.score, "documents_valid": courier.documents_valid,
+        "shift_active": courier.shift_active, "lat": courier.lat, "lng": courier.lng,
+        "base_salary": courier.base_salary or 0, "per_delivery_rate": per_delivery,
+        "bonus_target": courier.bonus_target or 0, "bonus_earned": bonus,
+        "employment_status": courier.employment_status or "ACTIVE",
+        "hired_at": courier.hired_at.isoformat() if courier.hired_at else None,
+        "bank_iban": courier.bank_iban,
+        "deliveries_done": len(delivered),
+        "deliveries_total": len(tasks),
+        "hours_worked": round(hours, 1),
+        "attendance_days": len(attendances),
+        "estimated_monthly": round((courier.base_salary or 0) + len(delivered) * per_delivery + bonus, 2),
+    }
+
+
+@router.get("/payouts")
+def fleet_payouts(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """الرواتب والبونص لكل مندوب في الشركة — بتفصيل (HR Payroll)."""
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    tenant_id = _scope(user, db)
+    q = db.query(Courier)
+    if tenant_id is not None:
+        q = q.filter(Courier.tenant_id == tenant_id)
+    rows = []
+    for c in q.all():
+        done = db.query(CourierTask).filter(
+            CourierTask.courier_id == c.id,
+            CourierTask.status == CourierTaskStatus.DELIVERED,
+        ).count()
+        per_delivery = c.per_delivery_rate or 6.0
+        fixed = c.base_salary or 0.0
+        bonus = c.bonus_target or 0.0
+        if bonus and c.score and c.score >= 4.7 and done > 0:
+            bonus = round(bonus * 0.8, 2)
+        rows.append({
+            "id": c.id, "name": c.name,
+            "courier_type": c.courier_type.value,
+            "employment_status": c.employment_status or "ACTIVE",
+            "deliveries": done,
+            "fixed": round(fixed, 2),
+            "per_delivery_rate": per_delivery,
+            "per_delivery_earned": round(done * per_delivery, 2),
+            "incentive": round(bonus, 2),
+            "estimated_total": round(fixed + done * per_delivery + bonus, 2),
+            "bank_iban": c.bank_iban,
+        })
+    return rows
 
 
 @router.get("/orders")
@@ -146,6 +286,49 @@ def fleet_shifts(user: User = Depends(get_current_user), db: Session = Depends(g
     ]
 
 
+@router.post("/shifts")
+def fleet_create_shift(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "Shift name is required")
+    fleet = db.query(Fleet).filter(Fleet.tenant_id == user.tenant_id).first() if user.tenant_id else None
+    shift = Shift(
+        tenant_id=user.tenant_id, fleet_id=fleet.id if fleet else None,
+        name=name, zone=payload.get("zone") or "",
+        start_time=payload.get("start_time") or "09:00",
+        end_time=payload.get("end_time") or "17:00",
+        required_couriers=int(payload.get("required_couriers") or 0),
+    )
+    db.add(shift)
+    db.commit()
+    db.refresh(shift)
+    return {"ok": True, "id": shift.id, "name": shift.name}
+
+
+@router.post("/orders/{order_id}/reassign")
+def fleet_reassign(order_id: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """إعادة تعيين طلب لمندوب معين من نطاق الشركة."""
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    order = db.get(Order, order_id)
+    if not order:
+        raise HTTPException(404, "Order not found")
+    tenant_id = _scope(user, db)
+    ids = _courier_ids(db, tenant_id)
+    courier_id = payload.get("courier_id")
+    if courier_id and int(courier_id) not in ids:
+        raise HTTPException(403, "Courier not in your fleet")
+    order.courier_id = int(courier_id) if courier_id else None
+    if order.courier_id:
+        order.status = OrderStatus.ASSIGNED
+    else:
+        order.status = OrderStatus.PLACED
+    db.commit()
+    return {"ok": True, "order_id": order.id, "courier_id": order.courier_id}
+
+
 @router.get("/attendance")
 def fleet_attendance(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in COMPANY_ROLES:
@@ -160,10 +343,13 @@ def fleet_attendance(user: User = Depends(get_current_user), db: Session = Depen
         if a.check_in and a.check_out:
             hours = round((a.check_out - a.check_in).total_seconds() / 3600, 1)
         rows.append({
+            "id": a.id,
             "name": couriers.get(a.courier_id),
             "check_in": a.check_in.isoformat() if a.check_in else None,
             "check_out": a.check_out.isoformat() if a.check_out else None,
             "hours": hours,
             "is_late": a.is_late,
+            "check_in_lat": a.check_in_lat, "check_in_lng": a.check_in_lng,
+            "check_out_lat": a.check_out_lat, "check_out_lng": a.check_out_lng,
         })
     return rows

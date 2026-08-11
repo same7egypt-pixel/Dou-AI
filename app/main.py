@@ -6,8 +6,10 @@ from fastapi.staticfiles import StaticFiles
 from .database import Base, engine
 from .routers import merchants, couriers, orders, auth, shifts, shipping, analytics, geo, admin, fleet
 from .models import entities  # noqa: F401 — يسجّل الجداول على Base
+from .migrations import run_migrations
 
 Base.metadata.create_all(bind=engine)
+run_migrations(engine)
 
 app = FastAPI(title="DOU Platform API", version="0.2.0")
 

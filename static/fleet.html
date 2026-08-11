@@ -217,14 +217,18 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="header"><div><div class="kicker">إدارة المناديب</div><h1>المناديب</h1></div>
         <button class="btn blue" onclick="toggleAddCourier()">+ إضافة مندوب</button></div>
       <div class="card" id="addCourierBox" style="display:none">
-        <div class="form-row"><input id="cName" placeholder="الاسم"><input id="cPhone" placeholder="الهاتف"></div>
+        <div class="form-row"><input id="cName" placeholder="الاسم"><input id="cPhone" placeholder="الجوال 05xxxxxxxx"></div>
         <div class="form-row"><select id="cType" style="font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:10px">
           <option value="COMPANY">مناديب شركة</option><option value="FREELANCER">فريلانسر</option></select>
-          <input id="cCountry" placeholder="SA / EG" value="SA">
-          <input id="cLat" placeholder="lat" value="24.75"><input id="cLng" placeholder="lng" value="46.63"></div>
-        <button class="btn" onclick="addCourier()">حفظ</button><span id="courierMsg" class="msg"></span>
+          <input id="cCountry" placeholder="SA / EG" value="SA"></div>
+        <div class="form-row"><input id="cSalary" type="number" placeholder="الراتب الثابت الشهري" value="3000">
+          <input id="cRate" type="number" step="0.5" placeholder="أجر كل توصيلة" value="7">
+          <input id="cBonus" type="number" placeholder="بونص شهري" value="300"></div>
+        <div class="form-row"><input id="cIban" placeholder="IBAN (اختياري)"></div>
+        <button class="btn" onclick="addCourier()">حفظ المندوب</button>
+        <span id="courierMsg" class="msg"></span>
       </div>
-      <div class="card"><table><thead><tr><th>الاسم</th><th>النوع</th><th>الحالة</th><th>الأسطول</th><th>معدل القبول</th><th>نقاط</th><th>تحميل</th><th>التحقق</th><th>إجراء</th></tr></thead>
+      <div class="card"><table><thead><tr><th>الاسم</th><th>النوع</th><th>الحالة</th><th>الأسطول</th><th>الراتب</th><th>معدل القبول</th><th>نقاط</th><th>التحقق</th><th>إجراء</th></tr></thead>
         <tbody id="couriersBody"></tbody></table></div>
     </section>
 
@@ -258,7 +262,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <div class="metric"><b id="attLate">–</b><span>متأخرون اليوم</span></div>
         <div class="metric"><b>42</b><span>ساعات عمل محتسبة</span></div>
       </div>
-      <div class="card"><table><thead><tr><th>المندوب</th><th>Check-in</th><th>Check-out</th><th>ساعات</th><th>الوردية</th><th>الحالة</th></tr></thead>
+      <div class="card"><table><thead><tr><th>المندوب</th><th>الحضور</th><th>الانصراف</th><th>ساعات</th><th>الموقع (من → إلى)</th><th>الحالة</th></tr></thead>
         <tbody id="attendanceBody"></tbody></table></div>
     </section>
 
@@ -279,8 +283,8 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <div style="font-size:30px;font-weight:800" id="payTotal">–</div>
         <div style="font-size:11px;color:#88a0c4">لكل المناديب · حسب العقود</div>
       </div>
-      <div class="card"><h3>عقود المناديب (Contract / Salary)</h3>
-        <table><thead><tr><th>المندوب</th><th>النوع</th><th>نوع العقد</th><th>ثابت</th><th>لكل توصيلة</th><th>الحوافز</th><th>الإجمالي</th></tr></thead>
+      <div class="card"><h3>الرواتب والحوافز — حسب عقود المناديب</h3>
+        <table><thead><tr><th>المندوب</th><th>النوع</th><th>الحالة</th><th>ثابت</th><th>أجر/توصيلة</th><th>توصيلات</th><th>أرباح التوصيلات</th><th>البونص</th><th>الإجمالي</th><th>IBAN</th></tr></thead>
         <tbody id="payBody"></tbody></table></div>
       <div class="card"><h3>إدارة العقود</h3>
         <div class="opt"><div><b>أسطول مقهى بن القهوة</b><small>عقد ثابت · مدة 12 شهر · 4 مناديب</small></div><span class="tag blue">Fixed</span></div>
@@ -393,6 +397,34 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
   </div>
 </main></div>
+
+<!-- Modal: ملف المندوب (HR) -->
+<div class="modal" id="courierModal">
+  <div class="modalBox" style="max-width:640px">
+    <h3 id="cmTitle">ملف المندوب</h3>
+    <div class="cards" id="cmCards" style="grid-template-columns:repeat(3,1fr)"></div>
+    <div class="card">
+      <h3>بيانات التوظيف</h3>
+      <div id="cmInfo"></div>
+      <h3 style="margin-top:14px">تعديل سريع</h3>
+      <div class="form-row">
+        <input id="cmSalary" type="number" placeholder="الراتب الثابت">
+        <input id="cmRate" type="number" step="0.5" placeholder="أجر التوصيلة">
+        <input id="cmBonus" type="number" placeholder="البونص الشهري">
+      </div>
+      <div class="form-row">
+        <select id="cmStatus" style="font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:10px">
+          <option value="ACTIVE">موظف نشط</option><option value="SUSPENDED">موقوف</option><option value="TERMINATED">منتهي</option></select>
+        <input id="cmIban" placeholder="IBAN">
+      </div>
+      <button class="btn blue" onclick="saveCourierProfile()">💾 حفظ</button>
+      <span id="cmMsg" class="msg"></span>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn ghost" style="flex:1" onclick="closeCourier()">إغلاق</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: إعادة تعيين مندوب -->
 <div class="modal" id="reassignModal">
@@ -527,11 +559,11 @@ async function loadAll(){
       <tr><td>${c.name}</td><td><span class="tag gray">${c.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
       <td>${c.is_online?'<span class="tag green">متصل</span>':'<span class="tag gray">غير متصل</span>'}</td>
       <td><span class="tag blue">${c.fleet||"—"}</span></td>
-      <td>${c.acceptance_rate}%</td><td>${c.score}</td><td>${c.current_load}</td>
+      <td>${(c.base_salary||0).toLocaleString()} ر.س</td><td>${c.acceptance_rate}%</td><td>${c.score}</td>
       <td>${c.documents_valid?'<span class="tag green">موثّق</span>':'<span class="tag red">منتهي</span>'}</td>
       <td style="display:flex;gap:6px">
-        <button class="btn ghost small" onclick="alert('فتح ملف المندوب (UI)')">ملف</button>
-        <button class="btn ${c.is_online?"red":"green"} small" onclick="alert('تحديد حالة (UI)')">${c.is_online?"إيقاف":"تفعيل"}</button>
+        <button class="btn blue small" onclick="openCourier(${c.id})">👤 ملف</button>
+        <button class="btn ${c.employment_status==="ACTIVE"?"red":"green"} small" onclick="setCourierStatus(${c.id},'${c.employment_status==="ACTIVE"?"SUSPENDED":"ACTIVE"}')">${c.employment_status==="ACTIVE"?"إيقاف":"تفعيل"}</button>
       </td></tr>`).join("") || '<tr><td colspan="9" style="color:var(--muted)">لا مناديب</td></tr>';
 
     document.getElementById("ordersBody").innerHTML = orders.map(o=>`
@@ -579,16 +611,79 @@ function renderOrders(){
 
 function toggleAddCourier(){ document.getElementById("addCourierBox").style.display = document.getElementById("addCourierBox").style.display==="none"?"block":"none"; }
 async function addCourier(){
-  try{ await api("/couriers",{method:"POST",body:JSON.stringify({
-    name:document.getElementById("cName").value, phone:document.getElementById("cPhone").value,
-    courier_type:document.getElementById("cType").value, country:document.getElementById("cCountry").value,
-    lat:+document.getElementById("cLat").value, lng:+document.getElementById("cLng").value})});
-    document.getElementById("courierMsg").textContent="✅ أضيف المندوب"; loadAll();
-  }catch(e){ document.getElementById("courierMsg").textContent="❌ "+e.message; }
+  const msg = document.getElementById("courierMsg");
+  msg.textContent = "⏳ جاري الإضافة...";
+  try{
+    const r = await api("/fleet/couriers",{method:"POST",body:JSON.stringify({
+      name:document.getElementById("cName").value,
+      phone:document.getElementById("cPhone").value,
+      courier_type:document.getElementById("cType").value,
+      country:document.getElementById("cCountry").value,
+      base_salary:+document.getElementById("cSalary").value||0,
+      per_delivery_rate:+document.getElementById("cRate").value||0,
+      bonus_target:+document.getElementById("cBonus").value||0,
+      bank_iban:document.getElementById("cIban").value||null
+    })});
+    msg.style.color="var(--green)";
+    msg.innerHTML = "✅ أُضيف المندوب — <b>دخول التطبيق:</b> "+r.login_phone+" / "+r.password+" <small>(أرسله للمندوب)</small>";
+    loadAll();
+  }catch(e){ msg.style.color="var(--red)"; msg.textContent="❌ "+e.message; }
+}
+
+let CM_ID = null;
+async function openCourier(id){
+  CM_ID = id;
+  const c = await api("/fleet/couriers/"+id);
+  document.getElementById("cmTitle").textContent = "👤 "+c.name+" — ملف الموظف";
+  document.getElementById("cmCards").innerHTML = `
+    <div class="metric"><b>${c.deliveries_done}</b><span>توصيلات</span></div>
+    <div class="metric"><b>${c.hours_worked} س</b><span>ساعات العمل</span></div>
+    <div class="metric"><b>${c.estimated_monthly.toLocaleString()}</b><span>الراتب الشهري</span></div>`;
+  document.getElementById("cmInfo").innerHTML = `
+    <div class="lineItem"><span>الحالة</span><b>${c.employment_status==="ACTIVE"?"موظف نشط":c.employment_status==="SUSPENDED"?"موقوف":"منتهي"}</b></div>
+    <div class="lineItem"><span>نوع العقد</span><b>${c.courier_type==="COMPANY"?"شركة (ثابت)":"فريلانسر (لكل توصيلة)"}</b></div>
+    <div class="lineItem"><span>الراتب الثابت</span><b>${(c.base_salary||0).toLocaleString()} ر.س</b></div>
+    <div class="lineItem"><span>أجر التوصيلة</span><b>${c.per_delivery_rate} ر.س</b></div>
+    <div class="lineItem"><span>البونص الشهري</span><b>${(c.bonus_target||0).toLocaleString()} ر.س</b></div>
+    <div class="lineItem"><span>البونص المستحق</span><b style="color:var(--green)">${(c.bonus_earned||0).toLocaleString()} ر.س</b></div>
+    <div class="lineItem"><span>معدل القبول</span><b>${c.acceptance_rate}%</b></div>
+    <div class="lineItem"><span>نقاط الأداء</span><b>${c.score}</b></div>
+    <div class="lineItem"><span>المستندات</span><b>${c.documents_valid?'<span class="tag green">سارية</span>':'<span class="tag red">منتهية</span>'}</b></div>
+    <div class="lineItem"><span>تاريخ التعيين</span><b>${c.hired_at?c.hired_at.slice(0,10):"—"}</b></div>
+    <div class="lineItem"><span>IBAN</span><b dir="ltr">${c.bank_iban||"—"}</b></div>
+    <div class="lineItem"><span>الهاتف</span><b dir="ltr">${c.phone}</b></div>`;
+  document.getElementById("cmSalary").value = c.base_salary||0;
+  document.getElementById("cmRate").value = c.per_delivery_rate||0;
+  document.getElementById("cmBonus").value = c.bonus_target||0;
+  document.getElementById("cmStatus").value = c.employment_status||"ACTIVE";
+  document.getElementById("cmIban").value = c.bank_iban||"";
+  document.getElementById("cmMsg").textContent = "";
+  document.getElementById("courierModal").classList.add("open");
+}
+function closeCourier(){ document.getElementById("courierModal").classList.remove("open"); }
+async function saveCourierProfile(){
+  const msg = document.getElementById("cmMsg");
+  try{
+    await api("/fleet/couriers/"+CM_ID,{method:"PATCH",body:JSON.stringify({
+      base_salary:+document.getElementById("cmSalary").value||0,
+      per_delivery_rate:+document.getElementById("cmRate").value||0,
+      bonus_target:+document.getElementById("cmBonus").value||0,
+      employment_status:document.getElementById("cmStatus").value,
+      bank_iban:document.getElementById("cmIban").value||null
+    })});
+    msg.style.color="var(--green)"; msg.textContent="✅ حُفظت التغييرات";
+    closeCourier(); loadAll();
+  }catch(e){ msg.style.color="var(--red)"; msg.textContent="❌ "+e.message; }
+}
+async function setCourierStatus(id, status){
+  try{
+    await api("/fleet/couriers/"+id,{method:"PATCH",body:JSON.stringify({employment_status:status})});
+    loadAll();
+  }catch(e){ alert("❌ "+e.message); }
 }
 function toggleAddShift(){ document.getElementById("addShiftBox").style.display = document.getElementById("addShiftBox").style.display==="none"?"block":"none"; }
 async function addShift(){
-  try{ await api("/shifts",{method:"POST",body:JSON.stringify({
+  try{ await api("/fleet/shifts",{method:"POST",body:JSON.stringify({
     name:document.getElementById("sName").value, zone:document.getElementById("sZone").value||null,
     start_time:document.getElementById("sStart").value, end_time:document.getElementById("sEnd").value,
     required_couriers:+document.getElementById("sReq").value||0})});
@@ -622,43 +717,55 @@ function doReassign(){
 }
 
 async function loadPerformance(){
-  const [rows, overview] = await Promise.all([api("/analytics/performance"), api("/analytics/overview")]);
-  document.getElementById("perfMetrics").innerHTML = `
-    <div class="metric"><b>${overview.avg_acceptance}%</b><span>متوسط القبول</span></div>
-    <div class="metric"><b>${overview.deliveries_done}</b><span>توصيلات مكتملة</span></div>
-    <div class="metric"><b>${overview.avg_score}</b><span>متوسط النقاط</span></div>
-    <div class="metric"><b>${rows.length}</b><span>مناديب</span></div>`;
-  document.getElementById("perfBody").innerHTML = rows.map(r=>`
-    <tr><td>${r.name}</td><td><span class="tag gray">${r.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
-    <td>${r.deliveries}</td><td>${r.acceptance_rate}%</td><td>${r.on_time_rate}%</td><td>${r.completion_rate}%</td>
-    <td><b style="color:${r.score>=4.7?"var(--green)":"var(--amber)"}">${r.score}</b></td>
-    <td>${r.online?'<span class="tag green">متصل</span>':'<span class="tag gray">غير متصل</span>'}</td></tr>`).join("") || '<tr><td colspan="8" style="color:var(--muted)">لا مناديب</td></tr>';
+  try{
+    const rows = await api("/fleet/couriers");
+    document.getElementById("perfMetrics").innerHTML = `
+      <div class="metric"><b>${rows.length}</b><span>مناديب</span></div>
+      <div class="metric"><b>${rows.filter(c=>c.is_online).length}</b><span>متصل الآن</span></div>
+      <div class="metric"><b>${rows.length?Math.round(rows.reduce((s,c)=>s+c.acceptance_rate,0)/rows.length):0}%</b><span>متوسط القبول</span></div>
+      <div class="metric"><b>${rows.length?Math.round(rows.reduce((s,c)=>s+c.score,0)/rows.length*10)/10:0}</b><span>متوسط النقاط</span></div>`;
+    document.getElementById("perfBody").innerHTML = rows.map(r=>`
+      <tr><td>${r.name}</td><td><span class="tag gray">${r.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
+      <td>${r.current_load}</td><td>${r.acceptance_rate}%</td><td>${r.on_time_rate}%</td><td>${r.completion_rate}%</td>
+      <td><b style="color:${r.score>=4.7?"var(--green)":"var(--amber)"}">${r.score}</b></td>
+      <td>${r.is_online?'<span class="tag green">متصل</span>':'<span class="tag gray">غير متصل</span>'}</td></tr>`).join("") || '<tr><td colspan="8" style="color:var(--muted)">لا مناديب</td></tr>';
+  }catch(e){}
 }
 
 async function loadPayouts(){
-  const rows = await api("/analytics/payouts");
-  document.getElementById("payTotal").textContent = "ر.س " + rows.reduce((s,r)=>s+r.estimated_total,0).toLocaleString();
-  document.getElementById("payBody").innerHTML = rows.map(r=>`
-    <tr><td>${r.name}</td><td><span class="tag gray">${r.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
-    <td><span class="tag ${r.id%2?"blue":"gray"}">${r.id%2?"ثابت":"لكل توصيلة"}</span></td>
-    <td>${r.fixed?r.fixed.toLocaleString():0}</td><td>${r.per_delivery_earned.toLocaleString()}</td>
-    <td><span class="tag ${r.incentive?"amber":"gray"}">${r.incentive}</span></td>
-    <td><b>${r.estimated_total.toLocaleString()}</b></td></tr>`).join("") || '<tr><td colspan="7" style="color:var(--muted)">لا مناديب</td></tr>';
+  try{
+    const rows = await api("/fleet/payouts");
+    document.getElementById("payTotal").textContent = "ر.س " + rows.reduce((s,r)=>s+r.estimated_total,0).toLocaleString();
+    document.getElementById("payBody").innerHTML = rows.map(r=>`
+      <tr><td>${r.name}</td><td><span class="tag gray">${r.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
+      <td><span class="tag ${r.employment_status==="ACTIVE"?"green":"red"}">${r.employment_status==="ACTIVE"?"نشط":r.employment_status}</span></td>
+      <td>${r.fixed.toLocaleString()}</td><td>${r.per_delivery_rate} ر.س</td><td>${r.deliveries}</td>
+      <td>${r.per_delivery_earned.toLocaleString()}</td>
+      <td><span class="tag ${r.incentive?"amber":"gray"}">${r.incentive.toLocaleString()}</span></td>
+      <td><b>${r.estimated_total.toLocaleString()}</b></td>
+      <td dir="ltr" style="font-size:11px;color:var(--muted)">${r.bank_iban||"—"}</td></tr>`).join("") || '<tr><td colspan="10" style="color:var(--muted)">لا مناديب</td></tr>';
+  }catch(e){ /* يبقي فارغاً */ }
 }
 
-function loadAttendance(){
-  const rows = [
-    {name:"أحمد الشمري", in:"15:58", out:"—", hours:"2.1", shift:"16:00 - 00:00", st:"present"},
-    {name:"محمد العتيبي", in:"15:45", out:"—", hours:"2.3", shift:"16:00 - 00:00", st:"present"},
-    {name:"خالد القحطاني", in:"16:11", out:"—", hours:"1.9", shift:"16:00 - 00:00", st:"late"},
-    {name:"عبدالله السالم", in:"—", out:"—", hours:"0", shift:"16:00 - 00:00", st:"absent"}
-  ];
-  document.getElementById("attIn").textContent = "3 / 4";
-  document.getElementById("attLate").textContent = "1";
-  document.getElementById("attendanceBody").innerHTML = rows.map(r=>`
-    <tr><td><span class="avatarDot ${r.st==="present"?"on":r.st==="late"?"off":"off"}"></span>${r.name}</td>
-    <td>${r.in}</td><td>${r.out}</td><td>${r.hours} س</td><td>${r.shift}</td>
-    <td><span class="tag ${r.st==="present"?"green":r.st==="late"?"amber":"red"}">${r.st==="present"?"حاضر":r.st==="late"?"متأخر":"غائب"}</span></td></tr>`).join("");
+async function loadAttendance(){
+  try{
+    const rows = await api("/fleet/attendance");
+    const present = rows.filter(r=>r.check_in && !r.check_out).length;
+    const late = rows.filter(r=>r.is_late).length;
+    document.getElementById("attIn").textContent = present;
+    document.getElementById("attLate").textContent = late;
+    document.getElementById("attendanceBody").innerHTML = rows.map(r=>{
+      const cin = r.check_in?new Date(r.check_in).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}):"—";
+      const cout = r.check_out?new Date(r.check_out).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}):"—";
+      const mapLink = (r.check_in_lat&&r.check_in_lng)?`<a href="https://maps.google.com/?q=${r.check_in_lat},${r.check_in_lng}" target="_blank" style="color:var(--blue);font-size:11px">من ${r.check_in_lat.toFixed(4)},${r.check_in_lng.toFixed(4)}</a>`:"من —";
+      const mapLinkOut = (r.check_out_lat&&r.check_out_lng)?`<a href="https://maps.google.com/?q=${r.check_out_lat},${r.check_out_lng}" target="_blank" style="color:var(--blue);font-size:11px">إلى ${r.check_out_lat.toFixed(4)},${r.check_out_lng.toFixed(4)}</a>`:"إلى —";
+      return `
+      <tr><td>${r.name||"—"}</td>
+      <td dir="ltr">${cin}</td><td dir="ltr">${cout}</td>
+      <td>${r.hours??"جاري"} س</td><td>${mapLink}<br>${mapLinkOut}</td>
+      <td><span class="tag ${r.is_late?"amber":r.check_in?"green":"red"}">${r.is_late?"متأخر":r.check_in?"حاضر":"—"}</span></td></tr>`;
+    }).join("") || '<tr><td colspan="6" style="color:var(--muted)">لا سجلات</td></tr>';
+  }catch(e){ /* يبقي فارغاً */ }
 }
 
 async function loadCompliance(){

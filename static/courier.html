@@ -373,25 +373,38 @@ async function toggleOnline(){
   }catch(e){ alert("❌ "+e.message); }
 }
 
+function getLocation(){
+  return new Promise(resolve=>{
+    if(!navigator.geolocation){ resolve({lat:null,lng:null}); return; }
+    navigator.geolocation.getCurrentPosition(
+      p=>resolve({lat:+(p.coords.latitude.toFixed(6)), lng:+(p.coords.longitude.toFixed(6))}),
+      ()=>resolve({lat:null,lng:null}),
+      {enableHighAccuracy:true, timeout:8000, maximumAge:30000}
+    );
+  });
+}
+
 async function checkIn(){
   try{
-    await api("/shifts/attendance/check-in",{method:"POST",body:JSON.stringify({courier_id:COURIER.id})});
+    const loc = await getLocation();
+    await api("/shifts/attendance/check-in",{method:"POST",body:JSON.stringify({courier_id:COURIER.id, lat:loc.lat, lng:loc.lng})});
     checkedIn = true;
     document.getElementById("shiftTitle").textContent = "الوردية الحالية — وردية المساء";
     document.getElementById("shiftInfo").textContent = "في وردية (16:00 - 00:00) · المنطقة: الملقا";
-    document.getElementById("shiftZone").textContent = "المنطقة: الرياض — الملقا ✓";
+    document.getElementById("shiftZone").textContent = "المنطقة: الرياض — الملقا ✓" + (loc.lat?` <small>(${loc.lat}, ${loc.lng})</small>`:"");
     document.getElementById("checkinBtn").textContent = "✓ مسجّل الحضور";
     document.getElementById("checkinBtn").disabled = true;
     document.getElementById("checkoutBtn").disabled = false;
     document.getElementById("statusText").textContent = "متصل";
-    alert("✅ تم تسجيل الحضور — أنت الآن متصل ومتاح");
+    alert(loc.lat?`✅ تم تسجيل الحضور مع موقعك (${loc.lat}, ${loc.lng}) — ظهر للشركة`:"✅ تم تسجيل الحضور — لكن الموقع غير متاح (فعّل GPS)");
     await api("/couriers/"+COURIER.id+"/online",{method:"POST"});
     loadProfile();
   }catch(e){ alert("❌ "+e.message); }
 }
 async function checkOut(){
   try{
-    await api("/shifts/attendance/check-out",{method:"POST",body:JSON.stringify({courier_id:COURIER.id})});
+    const loc = await getLocation();
+    await api("/shifts/attendance/check-out",{method:"POST",body:JSON.stringify({courier_id:COURIER.id, lat:loc.lat, lng:loc.lng})});
     checkedIn = false;
     document.getElementById("shiftTitle").textContent = "الوردية الحالية";
     document.getElementById("shiftInfo").textContent = "غير مسجّل الحضور";
@@ -399,7 +412,7 @@ async function checkOut(){
     document.getElementById("checkinBtn").textContent = "تسجيل دخول (حضور GPS)";
     document.getElementById("checkinBtn").disabled = false;
     document.getElementById("checkoutBtn").disabled = true;
-    alert("✅ تم تسجيل الخروج — انتهت ورديتك. تم إيقاف استقبال الطلبات تلقائياً");
+    alert(loc.lat?`✅ تم تسجيل الخروج مع موقعك (${loc.lat}, ${loc.lng}) — ظهر للشركة`:"✅ تم تسجيل الخروج — لكن الموقع غير متاح (فعّل GPS)");
   }catch(e){ alert("❌ "+e.message); }
 }
 
