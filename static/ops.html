@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DOU Ops Cloud — لوحة التشغيل</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#171b22;--muted:#757b86;--line:#e9e9ec;--orange:#ff5a13;--green:#149467;--blue:#286cf6;--amber:#d97706;--bg:#f5f7fb;--card:#fff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Alexandria,sans-serif;color:var(--ink);font-size:14px}
+.top{display:flex;align-items:center;gap:16px;padding:16px 28px;background:#11161d;color:#fff;position:sticky;top:0;z-index:5}
+.logo{font-size:22px;font-weight:800;letter-spacing:-2px}.logo i{display:inline-block;background:var(--orange);height:8px;width:20px;border-radius:6px;margin:0 2px 8px 0}
+.top .api{color:#8b94a3;font-size:11px}
+.topActions{margin-right:auto;display:flex;gap:10px;align-items:center}
+.tabs{display:flex;gap:4px;padding:14px 28px 0;background:#fff;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:11px 14px;font-family:inherit;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
+.tabs button.active{color:var(--orange);border-color:var(--orange)}
+.view{display:none}.view.active{display:block}
+.wrap{display:flex;gap:20px;padding:22px 28px;align-items:flex-start}
+.col{flex:1}
+.card{background:var(--card);border-radius:16px;padding:18px;box-shadow:0 10px 25px rgba(23,27,34,.05);margin-bottom:16px}
+.card h3{margin:0 0 12px;font-size:15px}
+.metric{display:flex;gap:14px;flex-wrap:wrap}
+.metric .m{flex:1;min-width:130px;background:var(--card);border-radius:14px;padding:14px;box-shadow:0 10px 25px rgba(23,27,34,.05)}
+.metric b{display:block;font-size:22px}.metric span{color:var(--muted);font-size:11px}
+.metric .m.alert b{color:#e95b66}.metric .m.ok b{color:var(--green)}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;color:var(--muted);text-align:right;padding:8px;border-bottom:2px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line);font-size:12px}
+.tag{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600}
+.tag.green{background:#eaf8f0;color:var(--green)}
+.tag.orange{background:#fff2eb;color:var(--orange)}
+.tag.blue{background:#eaf1ff;color:var(--blue)}
+.tag.red{background:#fff0f1;color:#e95b66}
+.tag.gray{background:#f1f2f4;color:var(--muted)}
+button{font-family:inherit;border:0;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:600;cursor:pointer}
+.btn{background:#11161d;color:#fff}.btn.orange{background:var(--orange)}
+.btn.ghost{background:#f1f2f4;color:var(--ink)}
+.btn.small{padding:6px 10px;font-size:11px}
+input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:9px 11px;font-size:12px;width:100%}
+.form-row{display:flex;gap:8px;margin-bottom:8px}
+.form-row input,.form-row select{flex:1}
+.small{font-size:11px;color:var(--muted)}
+.state{display:inline-flex;gap:6px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.dot.on{background:var(--green)}.dot.off{background:#d3d7de}
+.chartRow{display:flex;gap:10px;margin-bottom:6px;align-items:center}
+.chartRow .lbl{width:110px;font-size:11px;color:var(--muted)}
+.chartRow .bar{flex:1;height:14px;background:#f1f2f4;border-radius:8px;overflow:hidden}
+.chartRow .bar i{display:block;height:100%;border-radius:8px}
+.chartRow .val{width:50px;font-size:11px;font-weight:600;text-align:left}
+.bars{display:flex;gap:10px;align-items:flex-end;height:110px;margin-top:10px}
+.bars .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+.bars .b i{display:block;width:100%;max-width:30px;border-radius:6px 6px 2px 2px}
+.bars .b small{font-size:9px;color:var(--muted)}
+.opt{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);gap:10px}
+.opt:last-child{border-bottom:0}
+.opt b{font-size:13px;display:block}.opt small{font-size:11px;color:var(--muted)}
+.switch{width:44px;height:25px;background:#d3d7de;border-radius:20px;position:relative;cursor:pointer;transition:.2s;flex-shrink:0}
+.switch.on{background:var(--green)}.switch:after{content:"";position:absolute;top:3px;right:3px;width:19px;height:19px;background:#fff;border-radius:50%;transition:.2s}
+.switch.on:after{transform:translateX(-19px)}
+.ruleNum{width:130px;flex-shrink:0}
+.ticket{display:flex;justify-content:space-between;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:9px;gap:12px}
+.ticket b{font-size:13px;display:block}.ticket small{font-size:11px;color:var(--muted)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.filters select{width:auto;min-width:140px}
+/* ===== Geo tree ===== */
+.geoCountry{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.geoCountry>.gcHead{display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer}
+.geoCountry>.gcHead:hover{background:#fafbfd}
+.geoCountry .fl{font-size:20px}
+.geoCountry .caret{transition:.18s;font-size:11px;color:var(--muted)}
+.geoCountry.open .caret{transform:rotate(180deg)}
+.geoCountry .gcName{font-weight:700;font-size:13px;flex:1}
+.geoCountry .gcStats{font-size:10.5px;color:var(--muted)}
+.geoCity{display:flex;align-items:center;gap:10px;padding:11px 16px 11px 34px;border-top:1px dashed var(--line)}
+.geoCity .ccName{font-size:12.5px;font-weight:600;flex:1}
+.geoCity .caret{font-size:10px;color:var(--muted);transition:.18s}
+.geoCity.open .caret{transform:rotate(180deg)}
+.geoDistrict{display:flex;align-items:center;gap:10px;padding:9px 16px 9px 52px;border-top:1px dashed #f0f1f4;background:#fafbfd}
+.geoDistrict .cdName{font-size:12px;flex:1}
+.geoAddRow{display:flex;gap:6px;align-items:center;padding:10px 16px 10px 52px;border-top:1px dashed #f0f1f4}
+.geoAddRow input{flex:1;padding:7px 10px;font-size:11px}
+.geoAddRow button{padding:7px 12px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="logo">D<i></i>ou <span style="font-size:12px;color:#ff7a42;letter-spacing:1px">OPS CLOUD</span></div>
+  <span class="api">الخادم: <span id="apiStatus">…</span></span>
+  <div class="topActions">
+    <button class="btn orange" onclick="refreshAll()">↻ تحديث</button>
+    <button class="btn ghost" onclick="alert('تم التصدير (PDF) — UI')">⬇ تصدير</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="active" onclick="go('dashboard')">📊 لوحة القيادة</button>
+  <button onclick="go('dispatch')">🎯 الإرسال والتحكم</button>
+  <button onclick="go('orders')">📦 الطلبات</button>
+  <button onclick="go('couriers')">🚚 المناديب</button>
+  <button onclick="go('channels')">🔀 القنوات والتكاليف</button>
+  <button onclick="go('tickets')">🎫 التذاكر</button>
+  <button onclick="go('companies')">🏢 شركات التشغيل</button>
+  <button onclick="go('geo')">🌍 الدول والمناطق</button>
+  <button onclick="go('config')">⚙ إعدادات النظام</button>
+</div>
+
+<div class="view active" id="view-dashboard">
+  <div class="wrap">
+    <div class="col">
+      <div class="card metric">
+        <div class="m"><b id="nOrders">–</b><span>إجمالي الطلبات</span></div>
+        <div class="m"><b id="nActive">–</b><span>طلبات حية</span></div>
+        <div class="m alert"><b id="nUnassigned">–</b><span>بدون إسناد</span></div>
+        <div class="m"><b id="nCouriers">–</b><span>مناديب</span></div>
+        <div class="m"><b id="nMerchants">–</b><span>تجار</span></div>
+      </div>
+      <div class="card metric">
+        <div class="m ok"><b>42,000 ر.س</b><span>إيراد الشهر</span></div>
+        <div class="m ok"><b>93%</b><span>التسليم في الموعد</span></div>
+        <div class="m"><b>68%</b><span>استغلال الأسطول</span></div>
+      </div>
+      <div class="card">
+        <h3>📊 التوصيلات — 7 أيام</h3>
+        <div class="bars">
+          <div class="b"><i style="height:42%;background:var(--blue)"></i><small>سبت</small></div>
+          <div class="b"><i style="height:58%;background:var(--blue)"></i><small>أحد</small></div>
+          <div class="b"><i style="height:50%;background:var(--blue)"></i><small>اثنين</small></div>
+          <div class="b"><i style="height:72%;background:var(--blue)"></i><small>ثلاثاء</small></div>
+          <div class="b"><i style="height:66%;background:var(--blue)"></i><small>أربعاء</small></div>
+          <div class="b"><i style="height:81%;background:var(--blue)"></i><small>خميس</small></div>
+          <div class="b"><i style="height:88%;background:var(--orange)"></i><small>جمعة</small></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>📦 الطلبات</h3>
+        <div class="filters">
+          <select id="orderStatusFilter" onchange="renderOrdersTable()"><option value="">كل الحالات</option><option>PLACED</option><option>ASSIGNED</option><option>IN_TRANSIT</option><option>DELIVERED</option></select>
+          <select id="orderTypeFilter" onchange="renderOrdersTable()"><option value="">كل الأنواع</option><option>Dedicated</option><option>On-demand</option></select>
+        </div>
+        <table><thead><tr><th>#</th><th>التاجر</th><th>الحالة</th><th>النوع</th><th>طريقة التوصيل</th><th>المسافة</th><th>مندوب</th></tr></thead>
+          <tbody id="ordersTbody"><tr><td colspan="7" class="small">لا طلبات بعد</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <div class="col" style="max-width:340px">
+      <div class="card">
+        <h3>➕ إنشاء طلب اختباري</h3>
+        <div class="form-row"><input id="fMerchant" placeholder="معرّف التاجر" value="1"></div>
+        <div class="form-row"><input id="fName" placeholder="اسم العميل"></div>
+        <div class="form-row"><input id="fPhone" placeholder="الهاتف"></div>
+        <div class="form-row">
+          <input id="fLat" placeholder="خط العرض" value="24.7520">
+          <input id="fLng" placeholder="خط الطول" value="46.6400">
+        </div>
+        <div class="form-row"><input id="fAddr" placeholder="العنوان"></div>
+        <div class="form-row"><input id="fProduct" placeholder="معرّف المنتج" value="1"></div>
+        <button class="btn" style="width:100%" onclick="createOrder()">إنشاء الطلب ←</button>
+        <div id="orderResult" class="small" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <h3>📊 التحليلات</h3>
+        <div id="analyticsBox" class="small">تحميل...</div>
+      </div>
+
+      <div class="card">
+        <h3>🏆 أفضل التجار</h3>
+        <div id="topBox" class="small">تحميل...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-dispatch">
+  <div class="wrap">
+    <div class="col">
+      <div class="card metric">
+        <div class="m alert"><b>7</b><span>بدون مندوب</span></div>
+        <div class="m alert"><b>3</b><span>متأخرة عن SLA</span></div>
+        <div class="m"><b>12</b><span>قيد الإرسال</span></div>
+        <div class="m"><b>0</b><span>تصعيد خارجي</span></div>
+      </div>
+      <div class="card">
+        <h3>خط أنابيب الطلبات</h3>
+        <div class="chartRow"><span class="lbl">بدون إسناد</span><div class="bar"><i style="width:14%;background:#e95b66"></i></div><span class="val">7</span></div>
+        <div class="chartRow"><span class="lbl">انتظار قبول</span><div class="bar"><i style="width:22%;background:var(--amber)"></i></div><span class="val">11</span></div>
+        <div class="chartRow"><span class="lbl">قيد التنفيذ</span><div class="bar"><i style="width:42%;background:var(--blue)"></i></div><span class="val">21</span></div>
+        <div class="chartRow"><span class="lbl">مكتملة</span><div class="bar"><i style="width:22%;background:var(--green)"></i></div><span class="val">11</span></div>
+      </div>
+      <div class="card">
+        <h3>التحكم اليدوي (Override)</h3>
+        <table><thead><tr><th>الطلب</th><th>الحالة</th><th>المندوب</th><th>الإجراء</th></tr></thead>
+          <tbody>
+            <tr><td>#1195</td><td><span class="tag amber">PLACED</span></td><td>—</td><td><button class="btn ghost small" onclick="alert('فتح إعادة التعيين (UI)')">🔄 إعادة</button></td></tr>
+            <tr><td>#1189</td><td><span class="tag blue">PICKED_UP</span></td><td>محمد العتيبي</td><td><button class="btn small" onclick="alert('فرض إسناد (UI)')">فرض</button></td></tr>
+            <tr><td>#1192</td><td><span class="tag blue">ASSIGNED</span></td><td>أحمد الشمري</td><td><button class="btn ghost small" onclick="alert('تغيير نوع التوصيل (UI)')">نوع</button></td></tr>
+          </tbody></table>
+      </div>
+      <div class="card">
+        <h3>معالجة الاستثناءات</h3>
+        <div class="opt"><div><b>لا مندوب متاح — #1195</b><small>تجاوز زمن الانتظار</small></div><button class="btn amber small" onclick="alert('تصعيد لمندوب خارجي (UI)')">تصعيد خارجي</button></div>
+        <div class="opt"><div><b>خرق SLA — #1189</b><small>4 دقائق متبقية</small></div><button class="btn blue small" onclick="alert('إعادة تعيين سريع (UI)')">إعادة تعيين</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-orders">
+  <div class="wrap"><div class="col">
+    <div class="card">
+      <h3>📦 كل الطلبات</h3>
+      <table><thead><tr><th>#</th><th>العميل</th><th>التاجر</th><th>الحالة</th><th>النوع</th><th>التوصيل</th><th>المسافة</th><th>مندوب</th></tr></thead>
+      <tbody id="allOrdersBody"></tbody></table>
+    </div>
+  </div></div>
+</div>
+
+<div class="view" id="view-couriers">
+  <div class="wrap"><div class="col">
+    <div class="card metric">
+      <div class="m"><b id="cTotal">–</b><span>مناديب</span></div>
+      <div class="m ok"><b id="cOnline">–</b><span>متصل الآن</span></div>
+      <div class="m"><b id="cChecked">–</b><span>حضور اليوم</span></div>
+    </div>
+    <div class="card">
+      <h3>🚚 المناديب</h3>
+      <table><thead><tr><th>الاسم</th><th>النوع</th><th>الحالة</th><th>الأسطول</th><th>معدل القبول</th><th>النقاط</th><th>إجراء</th></tr></thead>
+      <tbody id="couriersTbody"><tr><td colspan="7" class="small">لا مناديب بعد</td></tr></tbody></table>
+    </div>
+    <div class="card">
+      <h3>⏱ تتبع الحضور</h3>
+      <table><thead><tr><th>المندوب</th><th>Check-in</th><th>Check-out</th><th>ساعات</th><th>الحالة</th></tr></thead>
+        <tbody>
+          <tr><td>أحمد الشمري</td><td>15:58</td><td>—</td><td>2.1</td><td><span class="tag green">حاضر</span></td></tr>
+          <tr><td>محمد العتيبي</td><td>15:45</td><td>—</td><td>2.3</td><td><span class="tag green">حاضر</span></td></tr>
+          <tr><td>خالد القحطاني</td><td>16:11</td><td>—</td><td>1.9</td><td><span class="tag orange">متأخر</span></td></tr>
+          <tr><td>عبدالله السالم</td><td>—</td><td>—</td><td>0</td><td><span class="tag red">غائب</span></td></tr>
+        </tbody></table>
+    </div>
+  </div></div>
+</div>
+
+<div class="view" id="view-channels">
+  <div class="wrap">
+    <div class="col">
+      <div class="card metric">
+        <div class="m"><b>2.4 ر.س</b><span>تكلفة داخلي</span></div>
+        <div class="m"><b>11.8 ر.س</b><span>تكلفة خارجي</span></div>
+        <div class="m ok"><b>+18%</b><span>الهامش</span></div>
+      </div>
+      <div class="card">
+        <h3>الطلبات حسب القناة</h3>
+        <div class="chartRow"><span class="lbl">DOU App</span><div class="bar"><i style="width:70%;background:var(--blue)"></i></div><span class="val">70%</span></div>
+        <div class="chartRow"><span class="lbl">Jahez</span><div class="bar"><i style="width:18%;background:var(--green)"></i></div><span class="val">18%</span></div>
+        <div class="chartRow"><span class="lbl">HungerStation</span><div class="bar"><i style="width:8%;background:var(--amber)"></i></div><span class="val">8%</span></div>
+        <div class="chartRow"><span class="lbl">POS / يدوي</span><div class="bar"><i style="width:4%;background:var(--muted)"></i></div><span class="val">4%</span></div>
+      </div>
+      <div class="card">
+        <h3>تكلفة التوصيلة — داخلي مقابل خارجي</h3>
+        <table><thead><tr><th>القناة</th><th>توصيلات</th><th>داخلي</th><th>خارجي</th><th>الأفضل</th></tr></thead>
+          <tbody>
+            <tr><td>DOU App</td><td>140</td><td>2.1 ر.س</td><td>11.2 ر.س</td><td><span class="tag green">داخلي</span></td></tr>
+            <tr><td>Jahez</td><td>52</td><td>2.8 ر.س</td><td>12.4 ر.س</td><td><span class="tag green">داخلي</span></td></tr>
+            <tr><td>HungerStation</td><td>21</td><td>—</td><td>12.1 ر.س</td><td><span class="tag orange">خارجي فقط</span></td></tr>
+          </tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-tickets">
+  <div class="wrap"><div class="col">
+    <div class="card">
+      <h3>🎫 التذاكر</h3>
+      <div class="filters">
+        <select id="ticketFilter" onchange="renderTickets()"><option>الكل</option><option>الانتظار (Queue)</option><option>محلولة</option><option>التجار</option><option>المناديب</option></select>
+      </div>
+      <div id="ticketsBody"></div>
+    </div>
+  </div></div>
+</div>
+
+<div class="view" id="view-companies">
+  <div class="wrap"><div class="col">
+    <div class="card">
+      <h3>🏢 شركات التشغيل</h3>
+      <table><thead><tr><th>الشركة</th><th>الأساطيل</th><th>مناديب</th><th>الأداء</th><th>الحالة</th></tr></thead>
+        <tbody>
+          <tr><td>شركة النقل الذكي</td><td>أسطول مقهى بن القهوة</td><td>4</td><td><span class="tag green">92%</span></td><td><span class="tag green">نشطة</span></td></tr>
+          <tr><td>شركة الإمداد السريع</td><td>أسطول مندوبي الشمال</td><td>8</td><td><span class="tag green">88%</span></td><td><span class="tag green">نشطة</span></td></tr>
+          <tr><td>شركة الخدمات اللوجستية</td><td>—</td><td>0</td><td><span class="tag gray">—</span></td><td><span class="tag gray">غير نشطة</span></td></tr>
+        </tbody></table>
+      <button class="btn orange" style="margin-top:12px" onclick="alert('إنشاء شركة تشغيل جديدة (UI)')">+ شركة جديدة</button>
+    </div>
+  </div></div>
+</div>
+
+<div class="view" id="view-geo">
+  <div class="wrap">
+    <div class="col">
+      <div class="card">
+        <h3>🌍 الدول والمناطق الجغرافية</h3>
+        <p class="small" style="margin:0 0 12px">فعّل أو عطّل الدول والمدن والمناطق الصغيرة — تظهر للمتاجر والمناديب حسب التفعيل.</p>
+        <div class="form-row" style="margin-bottom:14px">
+          <button class="btn orange" onclick="addCountry()">+ دولة جديدة</button>
+          <input id="newCountryName" placeholder="اسم الدولة الجديدة" style="max-width:220px">
+        </div>
+        <div id="geoBody" class="small">تحميل...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-config">
+  <div class="wrap"><div class="col">
+    <div class="card">
+      <h3>قواعد الإرسال</h3>
+      <div class="opt"><div><b>أولوية الإسناد</b><small>ترتيب اختيار المندوب</small></div><input class="ruleNum" value="Dedicated → On-demand"></div>
+      <div class="opt"><div><b>إعادة المحاولة</b><small>قبل التصعيد</small></div><input class="ruleNum" type="number" value="3"></div>
+      <div class="opt"><div><b>Broadcast للأقرب</b></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+      <div class="opt"><div><b>تصعيد لمندوب خارجي</b></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+    </div>
+    <div class="card">
+      <h3>قواعد التجميع</h3>
+      <div class="opt"><div><b>الحد الأقصى للطلبات لكل مندوب</b></div><input class="ruleNum" type="number" value="5"></div>
+      <div class="opt"><div><b>حد مسافة الدفعة</b></div><input class="ruleNum" value="3 كم"></div>
+      <div class="opt"><div><b>قيود SLA</b></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+    </div>
+    <div class="card">
+      <h3>قواعد الأداء</h3>
+      <div class="opt"><div><b>عتبة القبول</b></div><span class="tag blue">85%</span></div>
+      <div class="opt"><div><b>حد التأخير</b></div><span class="tag blue">3 / أسبوع</span></div>
+      <div class="opt"><div><b>أهلية الحوافز</b></div><span class="tag blue">95%</span></div>
+    </div>
+    <button class="btn orange" onclick="alert('تم حفظ إعدادات النظام (UI)')">حفظ التغييرات</button>
+  </div></div>
+</div>
+
+<script>
+const API = "";
+const TICKETS = [
+  {id:501, from:"تاجر", user:"مقهى بن القهوة", topic:"طلب #1199 متأخر ولم يُسند", status:"الانتظار (Queue)", time:"قبل ساعة"},
+  {id:502, from:"مندوب", user:"خالد القحطاني", topic:"مشكلة في احتساب الأرباح", status:"الانتظار (Queue)", time:"قبل 3 ساعات"},
+  {id:503, from:"تاجر", user:"مطعم الضيافة", topic:"تغيير وضع الإرسال إلى Auto", status:"محلولة", time:"أمس"},
+  {id:504, from:"مندوب", user:"محمد العتيبي", topic:"طلب تفعيل منطقة جديدة", status:"محلولة", time:"أمس"}
+];
+async function api(path, opts={}){
+  const r = await fetch(API + path, Object.assign({headers:{"Content-Type":"application/json"}}, opts));
+  if(!r.ok) throw new Error((await r.text()) || r.status);
+  return r.json();
+}
+function tagClass(s){
+  s = String(s);
+  if(/DELIVER|COMPLETE|OK|true|on/i.test(s)) return "green";
+  if(/ASSIGN|ACCEPT|READY|PICK/i.test(s)) return "blue";
+  if(/SHIPPING|PREPAR/i.test(s)) return "orange";
+  if(/CANCEL|FAIL|REJECT/i.test(s)) return "red";
+  return "gray";
+}
+function fmtStatus(s){ return String(s).replace(/_/g," "); }
+function typeTag(t){ return `<span class="tag ${t==="Dedicated"?"blue":"gray"}">${t}</span>`; }
+
+function go(v){
+  document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active", b.textContent.includes({dashboard:"لوحة القيادة",dispatch:"الإرسال",orders:"الطلبات",couriers:"المناديب",channels:"القنوات",tickets:"التذاكر",companies:"شركات",geo:"الدول",config:"إعدادات"}[v])));
+  ["dashboard","dispatch","orders","couriers","channels","tickets","companies","geo","config"].forEach(x=>document.getElementById("view-"+x).classList.toggle("active", x===v));
+  if(v==="tickets") renderTickets();
+  if(v==="geo") loadGeo();
+}
+
+async function refreshAll(){
+  const [orders, couriers, merchants] = await Promise.all([
+    api("/orders"), api("/couriers"), api("/merchants")
+  ]);
+  document.getElementById("nOrders").textContent = orders.length;
+  document.getElementById("nActive").textContent = orders.filter(o=>!["DELIVERED","COMPLETED","CANCELLED"].includes(o.status)).length;
+  document.getElementById("nUnassigned").textContent = orders.filter(o=>!o.courier_id && !["DELIVERED","COMPLETED","CANCELLED"].includes(o.status)).length;
+  document.getElementById("nCouriers").textContent = couriers.length;
+  document.getElementById("nMerchants").textContent = merchants.length;
+  document.getElementById("cTotal").textContent = couriers.length;
+  document.getElementById("cOnline").textContent = couriers.filter(c=>c.is_online).length;
+  document.getElementById("cChecked").textContent = Math.min(couriers.length, 3);
+
+  renderOrdersTable();
+  document.getElementById("couriersTbody").innerHTML = couriers.map(c => `
+    <tr>
+      <td><span class="state"><span class="dot ${c.is_online ? "on":"off"}"></span>${c.name}</span></td>
+      <td><span class="tag gray">${c.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
+      <td>${c.is_available ? "<span class='tag green'>متاح</span>" : "<span class='tag red'>مشغول</span>"}</td>
+      <td><span class="tag ${c.id%2?"blue":"gray"}">${c.id%2?"أسطول مقهى بن القهوة":"أسطول مندوبي الشمال"}</span></td>
+      <td>${c.acceptance_rate}%</td>
+      <td>${c.score}</td>
+      <td><button class="btn ghost small" onclick="alert('حظر/اعتماد (UI)')">إدارة</button></td>
+    </tr>`).join("");
+  document.getElementById("allOrdersBody").innerHTML = orders.slice().reverse().map(o => `
+    <tr>
+      <td>${o.id}</td><td>${o.customer_name}</td><td>${o.merchant_id}</td>
+      <td><span class="tag ${tagClass(o.status)}">${fmtStatus(o.status)}</span></td>
+      <td>${typeTag(o.id%2?"Dedicated":"On-demand")}</td>
+      <td><span class="tag gray">${o.delivery_method}</span></td>
+      <td>${o.distance_km ? o.distance_km.toFixed(1) : "–"} كم</td>
+      <td>${o.courier_id || "–"}</td>
+    </tr>`).join("");
+}
+
+function renderOrdersTable(){
+  const fs=document.getElementById("orderStatusFilter").value, ft=document.getElementById("orderTypeFilter").value;
+  document.querySelectorAll("#ordersTbody tr").forEach(tr=>{
+    const st=tr.querySelector("td:nth-child(3)")?.textContent||"";
+    const ty=tr.querySelector("td:nth-child(4)")?.textContent||"";
+    tr.style.display=(!fs||st.includes(fs))&&(!ft||ty.includes(ft))?"":"none";
+  });
+}
+
+async function createOrder(){
+  const result = document.getElementById("orderResult");
+  try{
+    const order = await api("/orders", {method:"POST", body: JSON.stringify({
+      merchant_id:+document.getElementById("fMerchant").value,
+      customer_name:document.getElementById("fName").value || "عميل",
+      customer_phone:document.getElementById("fPhone").value || "0500000000",
+      customer_lat:+document.getElementById("fLat").value,
+      customer_lng:+document.getElementById("fLng").value,
+      customer_address:document.getElementById("fAddr").value || "الرياض",
+      items:[{product_id:+document.getElementById("fProduct").value, quantity:1}]
+    })});
+    result.innerHTML = `✅ طلب #${order.id} — الحالة: <b>${fmtStatus(order.status)}</b> — الإرسال: ${order.delivery_method}`;
+    refreshAll();
+  }catch(e){ result.innerHTML = "❌ " + e.message; }
+}
+
+async function loadAnalytics(){
+  try{
+    const [a, top] = await Promise.all([api("/analytics/overview"), api("/analytics/top-merchants")]);
+    document.getElementById("analyticsBox").innerHTML = `
+      <b>${a.orders_platform}</b> محلي · <b>${a.orders_shipping}</b> شحن · <b>${a.orders_self}</b> ذاتي<br>
+      توصيلات مكتملة: <b>${a.deliveries_done}</b><br>
+      متوسط القبول: <b>${a.avg_acceptance}%</b> · النقاط: <b>${a.avg_score}</b><br>
+      إيراد إجمالي: <b>${a.revenue_total.toLocaleString()}</b>`;
+    document.getElementById("topBox").innerHTML = top.map((m,i)=>`${i+1}. <b>${m.name}</b> — ${m.orders} طلب · ${m.revenue.toLocaleString()}`).join("<br>") || "لا بيانات";
+  }catch(e){ document.getElementById("analyticsBox").innerHTML = "❌ "+e.message; }
+}
+
+function renderTickets(){
+  const f = document.getElementById("ticketFilter").value;
+  const list = TICKETS.filter(t=> f==="الكل" || t.status===f || t.from===f);
+  document.getElementById("ticketsBody").innerHTML = list.map(t=>`
+    <div class="ticket">
+      <div><b>#${t.id} · ${t.from} — ${t.user}</b><small>${t.topic}</small></div>
+      <div style="text-align:left;display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+        <span class="tag ${t.status==="محلولة"?"green":"amber"}">${t.status}</span>
+        <small class="small">${t.time}</small>
+        <button class="btn ghost small" onclick="alert('فتح الرد (UI)')">الرد</button>
+      </div>
+    </div>`).join("") || '<p class="small" style="text-align:center">لا تذاكر مطابقة</p>';
+}
+
+/* ===== GEO: countries / cities / districts ===== */
+async function loadGeo(){
+  try{
+    const data = await api("/geo/countries");
+    renderGeo(data);
+  }catch(e){ document.getElementById("geoBody").innerHTML = "❌ "+e.message; }
+}
+function renderGeo(geoData){
+  document.getElementById("geoBody").innerHTML = geoData.map(c=>`
+    <div class="geoCountry ${c.active?"":"open"}" id="geo-${c.id}">
+      <div class="gcHead" onclick="toggleGeoCountry(${c.id})">
+        <span class="fl">${c.flag}</span>
+        <span class="caret">▼</span>
+        <span class="gcName">${c.name} <small style="color:var(--muted)">(${c.code})</small></span>
+        <span class="gcStats">${c.cities.length} مدن · ${c.cities.reduce((s,ct)=>s+ct.districts.length,0)} مناطق</span>
+        <span class="state"><span class="dot ${c.active?"on":"off"}"></span></span>
+        <div class="switch ${c.active?"on":""}" onclick="event.stopPropagation();toggleGeo('countries',${c.id})"></div>
+      </div>
+      ${c.cities.map(ct=>`
+        <div class="geoCity">
+          <span class="caret">▸</span>
+          <span class="ccName">🏙 ${ct.name}</span>
+          <span class="gcStats">${ct.districts.length} مناطق</span>
+          <span class="state"><span class="dot ${ct.active?"on":"off"}"></span></span>
+          <div class="switch ${ct.active?"on":""}" onclick="toggleGeo('cities',${ct.id})"></div>
+          <button class="btn ghost small" onclick="addDistrict(${ct.id})">+ منطقة</button>
+        </div>
+        ${ct.districts.map(d=>`
+        <div class="geoDistrict">
+          <span class="cdName">📍 ${d.name}</span>
+          <span class="state"><span class="dot ${d.active?"on":"off"}"></span></span>
+          <div class="switch ${d.active?"on":""}" onclick="toggleGeo('districts',${d.id})"></div>
+        </div>`).join("")}`).join("")}
+      <div class="geoAddRow">
+        <input id="newCity-${c.id}" placeholder="اسم مدينة جديدة">
+        <button class="btn ghost small" onclick="saveCity(${c.id})">+ مدينة</button>
+      </div>
+    </div>`).join("");
+}
+function toggleGeoCountry(id){
+  const el = document.getElementById("geo-"+id);
+  el.classList.toggle("open");
+}
+async function toggleGeo(level, id){
+  let active = false;
+  try{
+    const path = level==="countries" ? "/geo/countries/"+id : level==="cities" ? "/geo/cities/"+id : "/geo/districts/"+id;
+    const cur = await api(path);
+    active = !cur.active;
+    await api(path, {method:"PATCH", body:JSON.stringify({active})});
+  }catch(e){ }
+  loadGeo();
+}
+async function addCountry(){
+  const name = document.getElementById("newCountryName").value;
+  if(!name){ alert("أدخل اسم الدولة"); return; }
+  await api("/geo/countries", {method:"POST", body:JSON.stringify({name})});
+  document.getElementById("newCountryName").value="";
+  loadGeo();
+}
+async function saveCity(cid){
+  const name = document.getElementById("newCity-"+cid).value;
+  if(!name){ alert("أدخل اسم المدينة"); return; }
+  await api("/geo/countries/"+cid+"/cities", {method:"POST", body:JSON.stringify({name})});
+  loadGeo();
+}
+async function addDistrict(ctid){
+  const name = prompt("اسم المنطقة الجديدة:");
+  if(!name) return;
+  await api("/geo/cities/"+ctid+"/districts", {method:"POST", body:JSON.stringify({name})});
+  loadGeo();
+}
+
+fetch(API + "/health").then(r=>r.json()).then(d=>{
+  document.getElementById("apiStatus").textContent = "✓ متصل";
+  document.getElementById("apiStatus").style.color = "#5be0a3";
+}).catch(()=>{
+  document.getElementById("apiStatus").textContent = "✗ غير متصل";
+  document.getElementById("apiStatus").style.color = "#ff6a6a";
+});
+refreshAll().catch(()=>{});
+loadAnalytics();
+</script>
+</body>
+</html>

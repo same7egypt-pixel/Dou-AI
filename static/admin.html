@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DOU | Super Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--line:#e6eaf2;--ink:#0f1b2d;--muted:#6b7a90;--soft:#f6f8fc;--nav:#0e1526;--nav2:#121c31;--orange:#ff5a13;--orange-soft:#ffefe6;--green:#16a34a;--green-soft:#e7f6ee;--red:#ef4444;--red-soft:#fdecec;--blue:#2563eb;--blue-soft:#e9f0fe;--amber:#f59e0b;--amber-soft:#fdf3e3;--radius:14px;--shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Alexandria,sans-serif;color:var(--ink);font-size:13.5px;-webkit-font-smoothing:antialiased}
+.layout{display:flex;min-height:100vh}
+/* ===== Sidebar ===== */
+.side{width:250px;background:linear-gradient(180deg,var(--nav),var(--nav2));color:#cbd5e3;padding:0 0 18px;position:fixed;top:0;right:0;bottom:0;left:auto;display:flex;flex-direction:column;transition:transform .24s ease;z-index:40}
+.side.hidden{transform:translateX(110%)}
+.hamburger{background:none;border:0;color:var(--ink);font-size:20px;cursor:pointer;padding:6px;line-height:1;display:inline-block}
+.overlay{position:fixed;inset:0;background:rgba(10,15,26,.5);z-index:35;display:none}.overlay.show{display:block}
+.brand{display:flex;align-items:center;gap:10px;padding:20px 20px 16px}
+.brand .lg{width:34px;height:34px;border-radius:10px;background:var(--orange);display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff}
+.brand b{font-size:16px;color:#fff;letter-spacing:-.5px;direction:ltr}.brand small{display:block;font-size:9px;color:#7f8da8;letter-spacing:2px}
+.nav{display:flex;align-items:center;gap:11px;width:100%;background:none;border:0;color:#a7b3c6;font-family:inherit;font-size:12.5px;font-weight:500;padding:10px 18px;cursor:pointer;text-align:right;border-radius:10px;transition:.15s}
+.nav i{font-style:normal;width:20px;text-align:center;font-size:14px}
+.nav:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav.active{background:var(--orange);color:#fff;font-weight:700}
+.nav .ct{background:#3a4763;color:#cbd5e3;font-size:10px;border-radius:20px;padding:1px 8px;margin-inline-start:auto}
+.nav.active .ct{background:rgba(255,255,255,.22);color:#fff}
+.group{padding:16px 20px 6px;font-size:10px;letter-spacing:1px;color:#5b6a85;font-weight:700}
+.user{margin-top:auto;display:flex;align-items:center;gap:10px;padding:14px 16px;border-top:1px solid #1d2940}
+.user .photo{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#ff8a55,#ff5a13);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px}
+.user b{color:#fff;font-size:12px;display:block}.user small{font-size:10px;color:#7f8da8}
+/* ===== Main ===== */
+.main{margin-right:250px;width:calc(100% - 250px);transition:margin .24s ease}
+.main.expanded{margin-right:0;width:100%}
+@media(max-width:900px){.side{transform:translateX(110%)}.side.open{transform:translateX(0)}.main{margin-right:0;width:100%}}
+.top{height:64px;background:rgba(255,255,255,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:0 26px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:20}
+.breadcrumb{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}.breadcrumb b{color:var(--ink);font-size:13px}
+.topActions{display:flex;gap:8px;align-items:center;margin-inline-start:auto}
+.iconBtn{width:38px;height:38px;border-radius:11px;background:var(--soft);border:1px solid var(--line);cursor:pointer;font-size:15px;position:relative;transition:.15s}
+.iconBtn:hover{border-color:var(--orange)}
+.iconBtn .dot{position:absolute;top:-3px;left:-3px;background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:20px;padding:1px 6px;border:2px solid #fff}
+.notifPanel{position:absolute;top:56px;left:0;width:340px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;display:none;z-index:30}
+.notifItem{display:flex;gap:10px;padding:10px;border-radius:10px}.notifItem:hover{background:var(--soft)}
+.notifItem .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:14px;flex-shrink:0}
+.notifItem b{font-size:12px;display:block;color:var(--ink)}.notifItem small{font-size:10px;color:var(--muted)}
+.content{padding:26px 28px 60px;max-width:1280px;margin:0 auto}
+.welcome{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+.welcome h1{margin:0;font-size:22px;font-weight:800}.welcome p{margin:4px 0 0;color:var(--muted);font-size:12.5px}
+.quickBtns{display:flex;gap:8px}
+.btn{border:0;border-radius:10px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--orange);color:#fff}.btn.primary:hover{background:#e94e0c}
+.btn.dark{background:var(--nav);color:#fff}.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.ghost:hover{border-color:var(--orange);color:var(--orange)}
+.btn.small{padding:7px 12px;font-size:11px}.btn.red{background:var(--red);color:#fff}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;transition:.18s}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.kpi .top{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11.5px;margin-bottom:10px;padding:0}
+.kpi .top i{font-style:normal;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-size:13px}
+.kpi b{display:block;font-size:23px;font-weight:800;letter-spacing:-.5px}
+.kpi .trend{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;margin-top:7px;border-radius:20px;padding:2px 8px}
+.kpi .trend.up{color:var(--green);background:var(--green-soft)}.kpi .trend.down{color:var(--red);background:var(--red-soft)}
+.grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:980px){.grid2{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.panel .ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.panel h3{margin:0;font-size:14.5px;font-weight:700}.panel .ph small{color:var(--muted);font-size:11px}
+.panel .ph a{color:var(--orange);font-size:11.5px;font-weight:700;cursor:pointer;text-decoration:none}
+.barChart{display:flex;align-items:flex-end;gap:8px;height:170px;padding-top:10px}
+.barChart .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.barChart .col .v{font-size:9.5px;color:var(--muted)}
+.barChart .col i{display:block;width:100%;max-width:30px;border-radius:6px 6px 3px 3px;background:linear-gradient(180deg,#ff8a55,var(--orange));transition:.3s}
+.barChart .col small{font-size:10px;color:var(--muted)}
+.totalsRow{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.totalsRow .t{background:var(--soft);border-radius:11px;padding:12px}
+.totalsRow .t small{font-size:10.5px;color:var(--muted);display:block}.totalsRow .t b{font-size:16px}
+.chartRow{display:flex;gap:10px;margin-bottom:8px;align-items:center}
+.chartRow .lbl{width:96px;font-size:11px;color:var(--muted)}
+.chartRow .bar{flex:1;height:14px;background:#eef1f7;border-radius:8px;overflow:hidden}
+.chartRow .bar i{display:block;height:100%;border-radius:8px}
+.chartRow .val{width:46px;font-size:11px;font-weight:700;text-align:left}
+.rowList .row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.rowList .row:last-child{border-bottom:0}
+.rowList .row b{font-size:12.5px;display:block}.rowList .row small{font-size:10.5px;color:var(--muted)}
+.mt{margin-top:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.card h3{margin:0 0 14px;font-size:14.5px}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;color:var(--muted);text-align:right;padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid var(--line);font-size:12px;vertical-align:middle}
+tr:hover td{background:#fafbfe}
+.tag{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.tag.green{background:var(--green-soft);color:var(--green)}.tag.blue{background:var(--blue-soft);color:var(--blue)}
+.tag.amber{background:var(--amber-soft);color:#b45309}.tag.red{background:var(--red-soft);color:var(--red)}
+.tag.gray{background:#eef1f6;color:var(--muted)}.tag.orange{background:var(--orange-soft);color:var(--orange)}
+.filterbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.filterbar select,.filterbar input{border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:12px;font-family:inherit;background:#fff;outline:none}
+.filterbar select:focus,.filterbar input:focus{border-color:var(--orange)}
+.tabs{display:flex;gap:4px;background:var(--soft);border-radius:11px;padding:4px;margin-bottom:16px;flex-wrap:wrap}
+.tab{border:0;background:none;font-family:inherit;font-size:12px;font-weight:600;color:var(--muted);padding:8px 14px;border-radius:8px;cursor:pointer;transition:.15s}
+.tab.active{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(16,24,40,.12)}
+.tab .n{background:var(--line);border-radius:20px;padding:0 7px;font-size:10px;margin-inline-start:5px}
+.avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+.chGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.ch{border:1px solid var(--line);border-radius:var(--radius);padding:16px;background:var(--card);display:flex;gap:12px;align-items:center;transition:.18s}
+.ch:hover{box-shadow:var(--shadow)}
+.ch .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.ch b{font-size:13px;display:block}.ch small{color:var(--muted);font-size:10.5px}
+.ch .st{margin-inline-start:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.ch .st .comm{font-size:10px;color:var(--muted)}
+.switch{width:46px;height:26px;background:#d3d9e4;border-radius:20px;position:relative;cursor:pointer;transition:.2s;flex-shrink:0}
+.switch.on{background:var(--green)}.switch:after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s}
+.switch.on:after{transform:translateX(-20px)}
+.opt{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);gap:10px}
+.opt:last-child{border-bottom:0}
+.opt b{font-size:13px;display:block}.opt small{font-size:11px;color:var(--muted)}
+input[type=text],input[type=number],input[type=email],select{font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12px;width:100%;outline:none;background:#fff}
+input:focus,select:focus{border-color:var(--orange)}
+.form-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.form-row input,.form-row select{flex:1;min-width:120px}
+.msg{font-size:12px;margin-top:8px}
+.modal{position:fixed;inset:0;background:rgba(10,15,26,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;backdrop-filter:blur(2px)}
+.modal.open{display:flex}
+.modalBox{background:#fff;border-radius:18px;padding:24px;max-width:560px;width:100%;max-height:90vh;overflow:auto}
+.modalBox h3{margin:0 0 14px;font-size:16px}
+/* geo tree */
+.geoCountry{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.geoCountry>.gcHead{display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer}
+.geoCountry .fl{font-size:20px}.geoCountry .caret{transition:.18s;font-size:11px;color:var(--muted)}
+.geoCountry.open .caret{transform:rotate(180deg)}
+.geoCountry .gcName{font-weight:700;font-size:13px;flex:1}
+.geoCountry .gcStats{font-size:10.5px;color:var(--muted)}
+.geoCity{display:flex;align-items:center;gap:10px;padding:11px 16px 11px 34px;border-top:1px dashed var(--line)}
+.geoCity .ccName{font-size:12.5px;font-weight:600;flex:1}
+.geoDistrict{display:flex;align-items:center;gap:10px;padding:9px 16px 9px 52px;border-top:1px dashed #f0f1f4;background:#fafbfd}
+.geoDistrict .cdName{font-size:12px;flex:1}
+.geoAddRow{display:flex;gap:6px;align-items:center;padding:10px 16px 10px 34px;border-top:1px dashed #f0f1f4}
+.geoAddRow input{flex:1;padding:7px 10px;font-size:11px}
+@media(max-width:640px){.content{padding:18px 14px 60px}.top{padding:0 14px}}
+</style>
+</head>
+<body>
+<div class="layout"><aside class="side" id="side">
+  <div class="brand"><div class="lg">D</div><div><b>DOU</b><small>SUPER ADMIN</small></div></div>
+  <div class="group">الإدارة</div>
+  <button class="nav active" data-view="dashboard"><i>📊</i><span>لوحة القيادة</span></button>
+  <button class="nav" data-view="merchants"><i>🏪</i><span>كل المتاجر</span><span class="ct" id="ctMerchants">0</span></button>
+  <button class="nav" data-view="channels"><i>🔌</i><span>القنوات</span><span class="ct" id="ctChannels">0</span></button>
+  <button class="nav" data-view="companies"><i>🚚</i><span>شركات التشغيل</span><span class="ct" id="ctCompanies">0</span></button>
+  <button class="nav" data-view="couriers"><i>👤</i><span>المناديب</span><span class="ct" id="ctCouriers">0</span></button>
+  <div class="group">المناطق</div>
+  <button class="nav" data-view="geo"><i>🌍</i><span>الدول والمناطق</span></button>
+  <div class="group">التمويل</div>
+  <button class="nav" data-view="orders"><i>📦</i><span>الطلبات</span></button>
+  <button class="nav" data-view="pricing"><i>💰</i><span>العمولات والأسعار</span></button>
+  <div class="group">الشركة</div>
+  <button class="nav" data-view="staff"><i>👥</i><span>الفريق والصلاحيات</span></button>
+  <button class="nav" data-view="settings"><i>⚙</i><span>إعدادات النظام</span></button>
+  <div class="user"><div class="photo">سم</div><div><b>سامح صالح</b><small>Super Admin</small></div></div>
+</aside>
+<div class="overlay" id="overlay" onclick="toggleSide()"></div>
+<main class="main" id="main">
+  <header class="top">
+    <button class="hamburger" onclick="toggleSide()">☰</button>
+    <div class="breadcrumb">DOU / <b id="crumb">لوحة القيادة</b></div>
+    <div class="topActions">
+      <button class="iconBtn" style="position:relative" onclick="toggleNotifs(event)">🔔<span class="dot" id="notifBadge">4</span>
+        <div class="notifPanel" id="notifPanel"><div id="notifList"></div></div>
+      </button>
+      <button class="btn primary small" onclick="go('merchants')">+ متجر جديد</button>
+    </div>
+  </header>
+  <div class="content">
+
+    <!-- ===== DASHBOARD ===== -->
+    <section id="view-dashboard">
+      <div class="welcome">
+        <div><h1>لوحة قيادة DOU 🚀</h1><p>نظرة شاملة على المنصة كاملة — كل الدول، كل المتاجر، كل العمليات.</p></div>
+        <div class="quickBtns"><button class="btn ghost" onclick="exportReport('تقرير شامل للمنصة')">⬇ تصدير</button></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="top"><i style="background:var(--orange-soft)">💰</i>إجمالي الإيراد</div><b id="kRevenue">–</b><span class="trend up">▲ 18.4%</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--blue-soft)">📦</i>الطلبات الكلية</div><b id="kOrders">–</b><span class="trend up">▲ 12.1%</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--green-soft)">🏪</i>متاجر نشطة</div><b id="kMerchants">–</b><span class="trend up">▲ 6 متاجر جديدة</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--amber-soft)">🛵</i>مناديب</div><b id="kCouriers">–</b><span class="trend up">▲ 3.2%</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--red-soft)">🌍</i>دول نشطة</div><b>2</b><span class="trend up">▲ مصر + السعودية</span></div>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <div class="ph"><h3>الطلبات عبر الأسبوع</h3><small>كل القنوات</small></div>
+          <div class="barChart" id="weekChart"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>القنوات حسب الحصة</h3><small>نسبة الطلبات</small></div>
+          <div id="channelShare"></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <div class="ph"><h3>أحدث المتاجر</h3><a onclick="go('merchants')">كل المتاجر</a></div>
+          <div class="rowList" id="recentMerchants"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>توزيع حسب الدولة</h3><small>المتاجر والطلبات</small></div>
+          <div id="countrySplit"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== MERCHANTS ===== -->
+    <section id="view-merchants" style="display:none">
+      <div class="welcome">
+        <div><h1>كل المتاجر</h1><p>إدارة كل المتاجر في كل الدول — اعتماد، تفعيل، حذف، وتعديل وضع التوصيل.</p></div>
+        <div class="quickBtns"><button class="btn primary" onclick="toggleMerchantAdd()">+ إضافة متجر</button></div>
+      </div>
+      <div class="card" id="merchantAddBox" style="display:none;margin-bottom:16px">
+        <h3>متجر جديد</h3>
+        <div class="form-row">
+          <input id="nmName" placeholder="اسم المتجر">
+          <select id="nmCountry"><option value="SA">🇸🇦 السعودية</option><option value="EG">🇪🇬 مصر</option></select>
+          <select id="nmMethod"><option value="PLATFORM">توصيل المنصة</option><option value="SELF">توصيل المتجر</option><option value="SHIPPING">شركة شحن</option></select>
+        </div>
+        <div class="form-row">
+          <input id="nmCity" placeholder="المدينة (مثال: الرياض)">
+          <input id="nmDistrict" placeholder="المنطقة (مثال: حي الملقا)">
+          <input id="nmCategory" placeholder="التصنيف (قهوة، ملابس…)">
+        </div>
+        <button class="btn primary" onclick="addMerchant()">حفظ المتجر</button><span id="merchantAddMsg" class="msg"></span>
+      </div>
+      <div class="filterbar">
+        <select id="fMerCountry" onchange="applyMerchantFilter()"><option value="">كل الدول</option><option value="SA">🇸🇦 السعودية</option><option value="EG">🇪🇬 مصر</option></select>
+        <select id="fMerStatus" onchange="applyMerchantFilter()"><option value="">كل الحالات</option><option>نشط</option><option>موقوف</option></select>
+      </div>
+      <div class="card" style="padding:6px 18px 12px">
+        <table><thead><tr><th>المتجر</th><th>الدولة</th><th>المدينة</th><th>التوصيل</th><th>التصنيف</th><th>الحالة</th><th>إجراء</th></tr></thead>
+        <tbody id="merchantsBody"><tr><td colspan="7" style="color:var(--muted)">جارِ التحميل…</td></tr></tbody></table>
+      </div>
+    </section>
+
+    <!-- ===== CHANNELS ===== -->
+    <section id="view-channels" style="display:none">
+      <div class="welcome">
+        <div><h1>القنوات</h1><p>كل مصادر الطلبات — فعّل، عطّل، حدد العمولة، أو أضف قناة جديدة.</p></div>
+        <div class="quickBtns"><button class="btn primary" onclick="toggleChannelAdd()">+ قناة جديدة</button></div>
+      </div>
+      <div class="card" id="channelAddBox" style="display:none;margin-bottom:16px">
+        <h3>قناة جديدة</h3>
+        <div class="form-row">
+          <input id="nchName" placeholder="اسم القناة">
+          <input id="nchIcon" placeholder="أيقونة (مثال: 🔌)" style="max-width:90px">
+          <select id="nchType"><option value="PARTNER">شريك</option><option value="SOCIAL">سوشيال</option><option value="INTEGRATION">تكامل</option></select>
+          <input id="nchComm" type="number" placeholder="العمولة %" value="10">
+        </div>
+        <button class="btn primary" onclick="addChannel()">حفظ القناة</button><span id="channelAddMsg" class="msg"></span>
+      </div>
+      <div class="chGrid" id="channelsBody"></div>
+    </section>
+
+    <!-- ===== COMPANIES ===== -->
+    <section id="view-companies" style="display:none">
+      <div class="welcome">
+        <div><h1>شركات التشغيل والشحن</h1><p>كل شركات التشغيل والشحن الخارجية — فعّل، عطّل، أضف، احذف.</p></div>
+        <div class="quickBtns"><button class="btn primary" onclick="toggleCompanyAdd()">+ شركة جديدة</button></div>
+      </div>
+      <div class="card" id="companyAddBox" style="display:none;margin-bottom:16px">
+        <h3>شركة جديدة</h3>
+        <div class="form-row">
+          <input id="ncName" placeholder="اسم الشركة">
+          <input id="ncCode" placeholder="الكود (مثال: DHL)" style="max-width:140px">
+          <select id="ncCountry"><option value="SA">🇸🇦 السعودية</option><option value="EG">🇪🇬 مصر</option></select>
+        </div>
+        <button class="btn primary" onclick="addCompany()">حفظ الشركة</button><span id="companyAddMsg" class="msg"></span>
+      </div>
+      <div class="card" style="padding:6px 18px 12px">
+        <table><thead><tr><th>الشركة</th><th>الكود</th><th>الدولة</th><th>الحالة</th><th>إجراء</th></tr></thead>
+        <tbody id="companiesBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ===== COURIERS ===== -->
+    <section id="view-couriers" style="display:none">
+      <div class="welcome">
+        <div><h1>المناديب</h1><p>إدارة كل المناديب عبر الدول — اعتماد، حظر، إضافة، حذف.</p></div>
+        <div class="quickBtns"><button class="btn primary" onclick="toggleCourierAdd()">+ مندوب جديد</button></div>
+      </div>
+      <div class="card" id="courierAddBox" style="display:none;margin-bottom:16px">
+        <h3>مندوب جديد</h3>
+        <div class="form-row">
+          <input id="ncrName" placeholder="اسم المندوب">
+          <input id="ncrPhone" placeholder="الهاتف">
+          <select id="ncrType"><option value="FREELANCER">فريلانسر</option><option value="COMPANY">تابع لشركة</option></select>
+          <select id="ncrCountry"><option value="SA">🇸🇦 السعودية</option><option value="EG">🇪🇬 مصر</option></select>
+        </div>
+        <button class="btn primary" onclick="addCourier()">حفظ المندوب</button><span id="courierAddMsg" class="msg"></span>
+      </div>
+      <div class="filterbar">
+        <select id="fCrCountry" onchange="applyCourierFilter()"><option value="">كل الدول</option><option value="SA">🇸🇦 السعودية</option><option value="EG">🇪🇬 مصر</option></select>
+        <select id="fCrStatus" onchange="applyCourierFilter()"><option value="">كل الحالات</option><option>نشط</option><option>محظور</option></select>
+      </div>
+      <div class="card" style="padding:6px 18px 12px">
+        <table><thead><tr><th>المندوب</th><th>الدولة</th><th>النوع</th><th>النقاط</th><th>القبول</th><th>الحالة</th><th>إجراء</th></tr></thead>
+        <tbody id="couriersBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ===== GEO ===== -->
+    <section id="view-geo" style="display:none">
+      <div class="welcome">
+        <div><h1>الدول والمناطق الجغرافية</h1><p>فعّل أو عطّل الدول والمدن والمناطق الصغيرة لكل أسواقك.</p></div>
+        <div class="quickBtns"><button class="btn primary" onclick="addCountry()">+ دولة جديدة</button><input id="newCountryName" placeholder="اسم الدولة" style="width:200px"></div>
+      </div>
+      <div id="geoBody" style="color:var(--muted)">جارِ التحميل…</div>
+    </section>
+
+    <!-- ===== ORDERS ===== -->
+    <section id="view-orders" style="display:none">
+      <div class="welcome">
+        <div><h1>كل الطلبات</h1><p>مراقبة الطلبات من كل الدول والقنوات لحظياً.</p></div>
+        <div class="quickBtns"><button class="btn ghost" onclick="exportReport('سجل الطلبات')">⬇ تصدير</button></div>
+      </div>
+      <div class="filterbar">
+        <select id="fOrdStatus" onchange="applyOrdersFilter()"><option value="">كل الحالات</option><option>PLACED</option><option>ACCEPTED</option><option>IN_TRANSIT</option><option>DELIVERED</option></select>
+        <select id="fOrdCountry" onchange="applyOrdersFilter()"><option value="">كل الدول</option><option value="SA">🇸🇦 السعودية</option><option value="EG">🇪🇬 مصر</option></select>
+      </div>
+      <div class="card" style="padding:6px 18px 12px">
+        <table><thead><tr><th>#</th><th>العميل</th><th>الدولة</th><th>المصدر</th><th>التوصيل</th><th>الإجمالي</th><th>الحالة</th></tr></thead>
+        <tbody id="ordersBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ===== PRICING ===== -->
+    <section id="view-pricing" style="display:none">
+      <div class="welcome">
+        <div><h1>العمولات والأسعار</h1><p>حدد عمولة كل قناة وتكلفة التوصيل لكل دولة.</p></div>
+        <div class="quickBtns"><button class="btn primary" onclick="alert('تم حفظ إعدادات الأسعار (UI)')">حفظ</button></div>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <div class="ph"><h3>عمولات القنوات</h3><small>نسبة المنصة من كل طلب</small></div>
+          <div id="commissionRows"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>تكاليف التوصيل الافتراضية</h3><small>للدول النشطة</small></div>
+          <div class="opt"><div><b>🇸🇦 السعودية</b><small>توصيل المنصة</small></div><input value="8 ر.س" style="width:110px"></div>
+          <div class="opt"><div><b>🇸🇦 السعودية</b><small>شركة شحن</small></div><input value="25 ر.س" style="width:110px"></div>
+          <div class="opt"><div><b>🇪🇬 مصر</b><small>توصيل المنصة</small></div><input value="15 ج.م" style="width:110px"></div>
+          <div class="opt"><div><b>🇪🇬 مصر</b><small>شركة شحن</small></div><input value="40 ج.م" style="width:110px"></div>
+          <div class="opt"><div><b>الحد الأدنى للطلب المجاني</b><small>عتبة الشحن المجاني</small></div><input value="200 ر.س" style="width:110px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== STAFF ===== -->
+    <section id="view-staff" style="display:none">
+      <div class="welcome">
+        <div><h1>الفريق والصلاحيات</h1><p>إدارة أعضاء الفريق وصلاحيات الوصول لمناطق وأقسام المنصة.</p></div>
+        <div class="quickBtns"><button class="btn primary" onclick="toggleStaffAdd()">+ عضو جديد</button></div>
+      </div>
+      <div class="card" id="staffAddBox" style="display:none;margin-bottom:16px">
+        <h3>عضو جديد</h3>
+        <div class="form-row">
+          <input id="nsName" placeholder="الاسم">
+          <input id="nsEmail" type="email" placeholder="البريد">
+          <input id="nsRole" placeholder="الدور (مثال: مدير عمليات)">
+          <select id="nsAccess"><option value="limited">محدود</option><option value="ops">العمليات</option><option value="finance">المالية</option><option value="full">كامل</option></select>
+        </div>
+        <button class="btn primary" onclick="addStaff()">حفظ العضو</button><span id="staffAddMsg" class="msg"></span>
+      </div>
+      <div class="card" style="padding:6px 18px 12px">
+        <table><thead><tr><th>العضو</th><th>البريد</th><th>الدور</th><th>الصلاحية</th><th>الحالة</th><th>إجراء</th></tr></thead>
+        <tbody id="staffBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ===== SETTINGS ===== -->
+    <section id="view-settings" style="display:none">
+      <div class="welcome"><div><h1>إعدادات النظام</h1><p>القواعد العامة لتشغيل المنصة.</p></div></div>
+      <div class="grid2">
+        <div class="panel">
+          <div class="ph"><h3>قواعد الإرسال</h3></div>
+          <div class="opt"><div><b>أولوية الإسناد</b><small>ترتيب اختيار المندوب</small></div><input value="Dedicated → On-demand → Freelancer" style="width:220px"></div>
+          <div class="opt"><div><b>إعادة المحاولة</b><small>قبل التصعيد</small></div><input type="number" value="3" style="width:80px"></div>
+          <div class="opt"><div><b>تصعيد لمندوب خارجي</b></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>قواعد الأداء</h3></div>
+          <div class="opt"><div><b>عتبة القبول</b></div><span class="tag blue">85%</span></div>
+          <div class="opt"><div><b>حد التأخير</b></div><span class="tag blue">3 / أسبوع</span></div>
+          <div class="opt"><div><b>أهلية الحوافز</b></div><span class="tag blue">95%</span></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>الإعدادات العامة</h3></div>
+          <div class="opt"><div><b>السماح بالتسجيل الذاتي للتجار</b><small>انضمام متاجر جديدة تلقائياً</small></div><div class="switch" onclick="this.classList.toggle('on')"></div></div>
+          <div class="opt"><div><b>تفعيل دفع إلكتروني (MADA / شبكة)</b></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="opt"><div><b>الوضع التجريبي</b></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>صحة النظام</h3></div>
+          <div class="opt"><div><b>حالة الخادم</b></div><span class="tag green">✓ يعمل</span></div>
+          <div class="opt"><div><b>آخر نسخة احتياطية</b></div><span class="tag blue">قبل 12 دقيقة</span></div>
+          <div class="opt"><div><b>الموقتات المجدولة</b></div><span class="tag green">كلها تعمل</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main></div>
+
+<!-- Modal: تعديل عمولة قناة -->
+<div class="modal" id="commModal">
+  <div class="modalBox">
+    <h3>💰 تعديل عمولة القناة</h3>
+    <div class="form-row"><input id="commInput" type="number" placeholder="العمولة %"><button class="btn primary" onclick="saveCommission()">حفظ</button><button class="btn ghost" onclick="closeModal('commModal')">إلغاء</button></div>
+    <div id="commMsg" class="msg"></div>
+  </div>
+</div>
+
+<script>
+const API = "";
+let allMerchants = [], allCouriers = [], allCompanies = [], allChannels = [], allStaff = [], allOrders = [], allGeo = [];
+let commTarget = null;
+const NOTIFS = [
+  {ic:"🏪", c:"#e9f0fe", t:"متجر جديد طلب الانضمام: قهوة الديار", s:"قبل 5 دقائق"},
+  {ic:"💰", c:"#e7f6ee", t:"إيراد اليوم تجاوز 20 ألف ر.س", s:"قبل ساعة"},
+  {ic:"⚠️", c:"#fdf3e3", t:"تأخير SLA في الطلب #1199", s:"قبل 2 ساعة"},
+  {ic:"🌍", c:"#ffefe6", t:"مطلوب اعتماد: منطقة جديدة في مصر", s:"قبل 3 ساعات"}
+];
+const WEEK = ["السبت","الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة"];
+const WEEK_VALS = [48,62,55,78,70,86,94];
+
+async function api(path, opts={}){
+  const r = await fetch(API+path, Object.assign({headers:{"Content-Type":"application/json"}},opts));
+  if(!r.ok) throw new Error((await r.text())||r.status);
+  return r.json();
+}
+function tag(s){ s=String(s); return `<span class="tag ${/DELIVER|COMPLETE|نشط|active|متاح/i.test(s)?"green":/ASSIGN|ACCEPT|READY|IN_TRANSIT|بانتظار/i.test(s)?"blue":/CANCEL|FAIL|محظور|موقوف|inactive/i.test(s)?"red":"gray"}">${s}</span>`; }
+function countryTag(c){ return c==="SA"?'<span class="tag blue">🇸🇦 السعودية</span>':'<span class="tag green">🇪🇬 مصر</span>'; }
+function avatar(name, color){ return `<span class="avatar" style="background:${color}">${name.slice(0,2)}</span>`; }
+function barChart(elId, vals, color){
+  const max = Math.max.apply(null, vals);
+  document.getElementById(elId).innerHTML = vals.map((v,i)=>`
+    <div class="col"><span class="v">${v}</span><i style="height:${Math.round(v/max*100)}%;background:${color||"linear-gradient(180deg,#ff8a55,var(--orange))"}"></i><small>${WEEK[i]}</small></div>`).join("");
+}
+
+function go(v){
+  document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
+  const views = ["dashboard","merchants","channels","companies","couriers","geo","orders","pricing","staff","settings"];
+  views.forEach(x=>document.getElementById("view-"+x).style.display = x===v?"block":"none");
+  const names = {dashboard:"لوحة القيادة",merchants:"كل المتاجر",channels:"القنوات",companies:"شركات التشغيل",couriers:"المناديب",geo:"الدول والمناطق",orders:"الطلبات",pricing:"العمولات والأسعار",staff:"الفريق والصلاحيات",settings:"إعدادات النظام"};
+  document.getElementById("crumb").textContent = names[v];
+  if(v==="dashboard") loadDashboard();
+  if(v==="merchants") loadMerchants();
+  if(v==="channels") loadChannels();
+  if(v==="companies") loadCompanies();
+  if(v==="couriers") loadCouriers();
+  if(v==="geo") loadGeo();
+  if(v==="orders") loadOrders();
+  if(v==="pricing") renderCommissionRows();
+  if(v==="staff") loadStaff();
+}
+document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
+
+function toggleSide(){
+  const side=document.getElementById("side"), overlay=document.getElementById("overlay"), main=document.getElementById("main");
+  if(window.innerWidth>900){
+    side.classList.toggle("hidden");
+    main.classList.toggle("expanded");
+  }else{
+    side.classList.toggle("open");
+    overlay.classList.toggle("show");
+  }
+}
+function toggleNotifs(e){ e.stopPropagation(); const p=document.getElementById("notifPanel"); p.style.display = p.style.display==="block"?"none":"block";
+  document.getElementById("notifList").innerHTML = `<h4 style="margin:6px 10px;font-size:12px">التنبيهات</h4>` + NOTIFS.map(n=>`
+    <div class="notifItem"><div class="ic" style="background:${n.c}">${n.ic}</div>
+      <div><b>${n.t}</b><small>${n.s}</small></div></div>`).join("");
+}
+document.addEventListener("click",()=>{ const p=document.getElementById("notifPanel"); if(p) p.style.display="none"; });
+function exportReport(n){ alert('تم تصدير "'+n+'" (PDF) — نموذج UI'); }
+function openModal(id){ document.getElementById(id).classList.add("open"); }
+function closeModal(id){ document.getElementById(id).classList.remove("open"); }
+
+/* ===== DASHBOARD ===== */
+async function loadDashboard(){
+  const [merchants, couriers, orders, channels] = await Promise.all([
+    api("/admin/merchants"), api("/admin/couriers"), api("/orders"), api("/admin/channels")
+  ]);
+  allMerchants = merchants; allCouriers = couriers; allOrders = orders; allChannels = channels;
+  document.getElementById("kRevenue").textContent = orders.reduce((s,o)=>s+o.total,0).toLocaleString()+" ر.س";
+  document.getElementById("kOrders").textContent = orders.length;
+  document.getElementById("kMerchants").textContent = merchants.filter(m=>m.is_active!==false).length;
+  document.getElementById("kCouriers").textContent = couriers.length;
+  document.getElementById("ctMerchants").textContent = merchants.length;
+  document.getElementById("ctChannels").textContent = channels.length;
+  document.getElementById("ctCompanies").textContent = allCompanies.length;
+  document.getElementById("ctCouriers").textContent = couriers.length;
+  barChart("weekChart", WEEK_VALS);
+  document.getElementById("channelShare").innerHTML = channels.filter(c=>c.is_active).map(c=>`
+    <div class="chartRow"><span class="lbl">${c.icon} ${c.name}</span><div class="bar"><i style="width:${c.orders_share}%;background:${c.type==="OWN"?"var(--orange)":"var(--blue)"}"></i></div><span class="val">${c.orders_share}%</span></div>`).join("");
+  document.getElementById("recentMerchants").innerHTML = merchants.slice(-4).reverse().map((m,i)=>
+    `<div class="row"><span class="statusDot" style="width:8px;height:8px;border-radius:50%;background:${m.is_active!==false?"var(--green)":"var(--red)"}"></span>
+    <div><b>${m.name}</b><small>${m.city} · ${countryTag(m.country)}</small></div></div>`).join("");
+  const sa = merchants.filter(m=>m.country==="SA").length, eg = merchants.filter(m=>m.country==="EG").length;
+  const total = sa+eg||1;
+  document.getElementById("countrySplit").innerHTML = `
+    <div class="chartRow"><span class="lbl">🇸🇦 السعودية</span><div class="bar"><i style="width:${Math.round(sa/total*100)}%;background:var(--orange)"></i></div><span class="val">${sa} متجر</span></div>
+    <div class="chartRow"><span class="lbl">🇪🇬 مصر</span><div class="bar"><i style="width:${Math.round(eg/total*100)}%;background:var(--blue)"></i></div><span class="val">${eg} متجر</span></div>`;
+}
+
+/* ===== MERCHANTS ===== */
+async function loadMerchants(){
+  allMerchants = await api("/admin/merchants");
+  document.getElementById("ctMerchants").textContent = allMerchants.length;
+  applyMerchantFilter();
+}
+function applyMerchantFilter(){
+  const fc = document.getElementById("fMerCountry").value, fs = document.getElementById("fMerStatus").value;
+  const list = allMerchants.filter(m => (!fc || m.country===fc) && (!fs || (fs==="نشط" ? m.is_active!==false : m.is_active===false)));
+  document.getElementById("merchantsBody").innerHTML = list.map(m=>`
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:10px">${avatar(m.name,"#3b82f6")}<b>${m.name}</b></div></td>
+      <td>${countryTag(m.country)}</td><td>${m.city||"—"}</td>
+      <td><span class="tag gray">${m.delivery_method==="SELF"?"توصيل المتجر":m.delivery_method==="SHIPPING"?"شركة شحن":"توصيل المنصة"}</span></td>
+      <td>${m.category||"—"}</td>
+      <td>${m.is_active!==false?'<span class="tag green">نشط</span>':'<span class="tag red">موقوف</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn ghost small" onclick="toggleMerchant(${m.id})">${m.is_active!==false?"إيقاف":"تفعيل"}</button>
+        <button class="btn red small" onclick="deleteMerchant(${m.id})">حذف</button>
+      </td>
+    </tr>`).join("") || '<tr><td colspan="7" style="color:var(--muted)">لا متاجر</td></tr>';
+}
+function toggleMerchantAdd(){ document.getElementById("merchantAddBox").style.display = document.getElementById("merchantAddBox").style.display==="none"?"block":"none"; }
+async function addMerchant(){
+  try{
+    await api("/admin/merchants",{method:"POST",body:JSON.stringify({
+      name:document.getElementById("nmName").value, country:document.getElementById("nmCountry").value,
+      delivery_method:document.getElementById("nmMethod").value, city:document.getElementById("nmCity").value,
+      district:document.getElementById("nmDistrict").value, category:document.getElementById("nmCategory").value})});
+    document.getElementById("merchantAddMsg").textContent="✅ تمت إضافة المتجر";
+    document.getElementById("merchantAddMsg").style.color="var(--green)";
+    loadMerchants();
+  }catch(e){ document.getElementById("merchantAddMsg").textContent="❌ "+e.message; }
+}
+async function toggleMerchant(id){
+  const m = allMerchants.find(x=>x.id===id);
+  await api("/admin/merchants/"+id,{method:"PATCH",body:JSON.stringify({active: m.is_active===false})});
+  loadMerchants();
+}
+async function deleteMerchant(id){
+  if(!confirm("حذف المتجر؟")) return;
+  await api("/admin/merchants/"+id,{method:"DELETE"});
+  loadMerchants();
+}
+
+/* ===== CHANNELS ===== */
+async function loadChannels(){
+  allChannels = await api("/admin/channels");
+  document.getElementById("ctChannels").textContent = allChannels.length;
+  document.getElementById("channelsBody").innerHTML = allChannels.map(c=>`
+    <div class="ch">
+      <div class="ic" style="background:${c.type==="OWN"?"var(--orange-soft)":c.type==="SOCIAL"?"var(--red-soft)":"var(--blue-soft)"}">${c.icon}</div>
+      <div><b>${c.name}</b><small>${c.type==="OWN"?"قناة المنصة":c.type==="SOCIAL"?"سوشيال":"شريك / تكامل"} · ${c.orders_share}% من الطلبات</small></div>
+      <div class="st">
+        <div class="switch ${c.is_active?"on":""}" onclick="toggleChannel(${c.id})"></div>
+        <span class="comm">عمولة ${c.commission}%</span>
+      </div>
+      <button class="btn ghost small" onclick="editCommission(${c.id})">💰</button>
+    </div>`).join("");
+}
+function toggleChannelAdd(){ document.getElementById("channelAddBox").style.display = document.getElementById("channelAddBox").style.display==="none"?"block":"none"; }
+async function addChannel(){
+  try{
+    await api("/admin/channels",{method:"POST",body:JSON.stringify({
+      name:document.getElementById("nchName").value, icon:document.getElementById("nchIcon").value||"🔌",
+      type:document.getElementById("nchType").value, commission:+document.getElementById("nchComm").value||0})});
+    document.getElementById("channelAddMsg").textContent="✅ تمت إضافة القناة";
+    document.getElementById("channelAddMsg").style.color="var(--green)";
+    loadChannels();
+  }catch(e){ document.getElementById("channelAddMsg").textContent="❌ "+e.message; }
+}
+async function toggleChannel(id){
+  const c = allChannels.find(x=>x.id===id);
+  await api("/admin/channels/"+id,{method:"PATCH",body:JSON.stringify({active: !c.is_active})});
+  loadChannels();
+}
+function editCommission(id){
+  commTarget = id;
+  const c = allChannels.find(x=>x.id===id);
+  document.getElementById("commInput").value = c.commission;
+  openModal("commModal");
+}
+async function saveCommission(){
+  await api("/admin/channels/"+commTarget,{method:"PATCH",body:JSON.stringify({commission:+document.getElementById("commInput").value})});
+  document.getElementById("commMsg").textContent="✅ تم تحديث العمولة";
+  document.getElementById("commMsg").style.color="var(--green)";
+  closeModal("commModal");
+  loadChannels();
+}
+
+/* ===== COMPANIES ===== */
+async function loadCompanies(){
+  allCompanies = await api("/admin/companies");
+  document.getElementById("ctCompanies").textContent = allCompanies.length;
+  document.getElementById("companiesBody").innerHTML = allCompanies.map(c=>`
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:10px"><b>🚚 ${c.name}</b></div></td>
+      <td><span class="tag gray" style="direction:ltr">${c.code}</span></td>
+      <td>${countryTag(c.country)}</td>
+      <td>${c.is_active?'<span class="tag green">نشطة</span>':'<span class="tag red">موقوفة</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn ghost small" onclick="toggleCompany(${c.id})">${c.is_active?"إيقاف":"تفعيل"}</button>
+        <button class="btn red small" onclick="deleteCompany(${c.id})">حذف</button>
+      </td>
+    </tr>`).join("");
+}
+function toggleCompanyAdd(){ document.getElementById("companyAddBox").style.display = document.getElementById("companyAddBox").style.display==="none"?"block":"none"; }
+async function addCompany(){
+  try{
+    await api("/admin/companies",{method:"POST",body:JSON.stringify({
+      name:document.getElementById("ncName").value, code:document.getElementById("ncCode").value,
+      country:document.getElementById("ncCountry").value})});
+    document.getElementById("companyAddMsg").textContent="✅ تمت إضافة الشركة";
+    document.getElementById("companyAddMsg").style.color="var(--green)";
+    loadCompanies();
+  }catch(e){ document.getElementById("companyAddMsg").textContent="❌ "+e.message; }
+}
+async function toggleCompany(id){
+  const c = allCompanies.find(x=>x.id===id);
+  await api("/admin/companies/"+id,{method:"PATCH",body:JSON.stringify({active: !c.is_active})});
+  loadCompanies();
+}
+async function deleteCompany(id){
+  if(!confirm("حذف الشركة؟")) return;
+  await api("/admin/companies/"+id,{method:"DELETE"});
+  loadCompanies();
+}
+
+/* ===== COURIERS ===== */
+async function loadCouriers(){
+  allCouriers = await api("/admin/couriers");
+  document.getElementById("ctCouriers").textContent = allCouriers.length;
+  applyCourierFilter();
+}
+function applyCourierFilter(){
+  const fc = document.getElementById("fCrCountry").value, fs = document.getElementById("fCrStatus").value;
+  const list = allCouriers.filter(c => (!fc || c.country===fc) && (!fs || (fs==="نشط" ? c.is_active!==false : c.is_active===false)));
+  document.getElementById("couriersBody").innerHTML = list.map(c=>`
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:10px">${avatar(c.name,"#8b5cf6")}<b>${c.name}</b></div></td>
+      <td>${countryTag(c.country)}</td>
+      <td><span class="tag ${c.courier_type==="COMPANY"?"blue":"gray"}">${c.courier_type==="COMPANY"?"تابع لشركة":"فريلانسر"}</span></td>
+      <td><b style="color:var(--amber)">${c.score} ★</b></td><td>${c.acceptance_rate}%</td>
+      <td>${c.is_active!==false?'<span class="tag green">نشط</span>':'<span class="tag red">محظور</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn ghost small" onclick="toggleCourier(${c.id})">${c.is_active!==false?"حظر":"اعتماد"}</button>
+        <button class="btn red small" onclick="deleteCourier(${c.id})">حذف</button>
+      </td>
+    </tr>`).join("");
+}
+function toggleCourierAdd(){ document.getElementById("courierAddBox").style.display = document.getElementById("courierAddBox").style.display==="none"?"block":"none"; }
+async function addCourier(){
+  try{
+    await api("/admin/couriers",{method:"POST",body:JSON.stringify({
+      name:document.getElementById("ncrName").value, phone:document.getElementById("ncrPhone").value,
+      courier_type:document.getElementById("ncrType").value, country:document.getElementById("ncrCountry").value})});
+    document.getElementById("courierAddMsg").textContent="✅ تمت إضافة المندوب";
+    document.getElementById("courierAddMsg").style.color="var(--green)";
+    loadCouriers();
+  }catch(e){ document.getElementById("courierAddMsg").textContent="❌ "+e.message; }
+}
+async function toggleCourier(id){
+  const c = allCouriers.find(x=>x.id===id);
+  await api("/admin/couriers/"+id,{method:"PATCH",body:JSON.stringify({active: c.is_active===false})});
+  loadCouriers();
+}
+async function deleteCourier(id){
+  if(!confirm("حذف المندوب؟")) return;
+  await api("/admin/couriers/"+id,{method:"DELETE"});
+  loadCouriers();
+}
+
+/* ===== GEO ===== */
+async function loadGeo(){
+  allGeo = await api("/geo/countries");
+  document.getElementById("geoBody").innerHTML = allGeo.map(c=>`
+    <div class="geoCountry" id="geo-${c.id}">
+      <div class="gcHead" onclick="toggleGeoCountry(${c.id})">
+        <span class="fl">${c.flag}</span><span class="caret">▼</span>
+        <span class="gcName">${c.name} <small style="color:var(--muted)">(${c.code})</small></span>
+        <span class="gcStats">${c.cities.length} مدن · ${c.cities.reduce((s,ct)=>s+ct.districts.length,0)} مناطق</span>
+        <div class="switch ${c.active?"on":""}" onclick="event.stopPropagation();toggleGeo('countries',${c.id})"></div>
+      </div>
+      ${c.cities.map(ct=>`
+        <div class="geoCity">
+          <span class="ccName">🏙 ${ct.name}</span>
+          <span class="gcStats">${ct.districts.length} مناطق</span>
+          <div class="switch ${ct.active?"on":""}" onclick="toggleGeo('cities',${ct.id})"></div>
+          <button class="btn ghost small" onclick="addDistrict(${ct.id})">+ منطقة</button>
+        </div>
+        ${ct.districts.map(d=>`
+        <div class="geoDistrict"><span class="cdName">📍 ${d.name}</span>
+          <div class="switch ${d.active?"on":""}" onclick="toggleGeo('districts',${d.id})"></div>
+        </div>`).join("")}`).join("")}
+      <div class="geoAddRow"><input id="newCity-${c.id}" placeholder="اسم مدينة جديدة"><button class="btn ghost small" onclick="saveCity(${c.id})">+ مدينة</button></div>
+    </div>`).join("");
+}
+function toggleGeoCountry(id){ document.getElementById("geo-"+id).classList.toggle("open"); }
+async function toggleGeo(level, id){
+  const path = level==="countries" ? "/geo/countries/"+id : level==="cities" ? "/geo/cities/"+id : "/geo/districts/"+id;
+  const cur = await api(path);
+  await api(path,{method:"PATCH",body:JSON.stringify({active:!cur.active})});
+  loadGeo();
+}
+async function addCountry(){
+  const name = document.getElementById("newCountryName").value;
+  if(!name){ alert("أدخل اسم الدولة"); return; }
+  await api("/geo/countries",{method:"POST",body:JSON.stringify({name})});
+  document.getElementById("newCountryName").value="";
+  loadGeo();
+}
+async function saveCity(cid){
+  const name = document.getElementById("newCity-"+cid).value;
+  if(!name){ alert("أدخل اسم المدينة"); return; }
+  await api("/geo/countries/"+cid+"/cities",{method:"POST",body:JSON.stringify({name})});
+  loadGeo();
+}
+async function addDistrict(ctid){
+  const name = prompt("اسم المنطقة الجديدة:");
+  if(!name) return;
+  await api("/geo/cities/"+ctid+"/districts",{method:"POST",body:JSON.stringify({name})});
+  loadGeo();
+}
+
+/* ===== ORDERS ===== */
+async function loadOrders(){
+  allOrders = await api("/orders");
+  applyOrdersFilter();
+}
+function applyOrdersFilter(){
+  const fs = document.getElementById("fOrdStatus").value, fc = document.getElementById("fOrdCountry").value;
+  const list = allOrders.filter(o => (!fs || o.status===fs) && (!fc || o.country===fc));
+  document.getElementById("ordersBody").innerHTML = list.slice().reverse().map(o=>`
+    <tr>
+      <td><b>#${o.id}</b></td><td>${o.customer_name}</td><td>${countryTag(o.country||"SA")}</td>
+      <td>${o.source||"DOU App"}</td><td><span class="tag gray">${o.delivery_method}</span></td>
+      <td><b>${o.total} ${o.country==="EG"?"ج.م":"ر.س"}</b></td>
+      <td>${tag(o.status)}</td>
+    </tr>`).join("") || '<tr><td colspan="7" style="color:var(--muted)">لا طلبات</td></tr>';
+}
+
+/* ===== PRICING ===== */
+function renderCommissionRows(){
+  if(!allChannels.length) allChannels = [
+    {id:1,name:"DOU App",commission:0},{id:2,name:"Jahez",commission:12},{id:3,name:"HungerStation",commission:15},{id:4,name:"POS / نقاط البيع",commission:2}
+  ];
+  document.getElementById("commissionRows").innerHTML = allChannels.map(c=>`
+    <div class="opt"><div><b>${c.name}</b></div><span style="display:flex;gap:8px;align-items:center"><span class="tag blue">${c.commission}%</span><button class="btn ghost small" onclick="editCommission(${c.id})">تعديل</button></span></div>`).join("");
+}
+
+/* ===== STAFF ===== */
+async function loadStaff(){
+  allStaff = await api("/admin/staff");
+  document.getElementById("staffBody").innerHTML = allStaff.map(s=>`
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:10px">${avatar(s.name,"#10b981")}<b>${s.name}</b></div></td>
+      <td style="direction:ltr">${s.email}</td><td>${s.role}</td>
+      <td><span class="tag ${s.access==="full"?"orange":s.access==="finance"?"amber":"blue"}">${s.access==="full"?"كامل":s.access==="finance"?"ملي":"محدود"}${s.region?" — "+s.region:""}</span></td>
+      <td>${s.status==="active"?'<span class="tag green">نشط</span>':'<span class="tag red">موقوف</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn ghost small" onclick="toggleStaff(${s.id})">${s.status==="active"?"إيقاف":"تفعيل"}</button>
+        <button class="btn red small" onclick="deleteStaff(${s.id})">حذف</button>
+      </td>
+    </tr>`).join("");
+}
+function toggleStaffAdd(){ document.getElementById("staffAddBox").style.display = document.getElementById("staffAddBox").style.display==="none"?"block":"none"; }
+async function addStaff(){
+  try{
+    await api("/admin/staff",{method:"POST",body:JSON.stringify({
+      name:document.getElementById("nsName").value, email:document.getElementById("nsEmail").value,
+      role:document.getElementById("nsRole").value, access:document.getElementById("nsAccess").value})});
+    document.getElementById("staffAddMsg").textContent="✅ تمت إضافة العضو";
+    document.getElementById("staffAddMsg").style.color="var(--green)";
+    loadStaff();
+  }catch(e){ document.getElementById("staffAddMsg").textContent="❌ "+e.message; }
+}
+async function toggleStaff(id){
+  const s = allStaff.find(x=>x.id===id);
+  await api("/admin/staff/"+id,{method:"PATCH",body:JSON.stringify({active: s.status!=="active"})});
+  loadStaff();
+}
+async function deleteStaff(id){
+  if(!confirm("حذف العضو؟")) return;
+  await api("/admin/staff/"+id,{method:"DELETE"});
+  loadStaff();
+}
+
+go("dashboard");
+</script>
+</body>
+</html>

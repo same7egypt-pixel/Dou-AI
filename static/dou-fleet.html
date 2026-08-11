@@ -1,0 +1,1863 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>دو فليت — منصة تشغيل الأساطيل</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#eef2f8;--muted:#93a3bd;--orange:#ff5a13;--orange2:#ff8a55;--nav:#0d1320;--card:#141c2c;--line:#202a3e;--green:#5be0a3;--blue:#7aa5ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(1200px 700px at 80% -10%,#1a2a44 0%,var(--nav) 55%);font-family:Alexandria,sans-serif;color:var(--ink);min-height:100vh}
+.hero{max-width:1040px;margin:0 auto;padding:64px 26px 30px;text-align:center}
+.logo{font-size:40px;font-weight:800;letter-spacing:-3px;direction:ltr}.logo i{display:inline-block;background:var(--orange);height:13px;width:34px;border-radius:8px;margin:0 3px 12px 0}
+.logoFull{font-size:15px;color:var(--muted);letter-spacing:6px;direction:ltr;margin-top:8px;font-weight:600}
+.hero h1{font-size:30px;margin:18px 0 8px}.hero p{color:var(--muted);font-size:14px;max-width:640px;margin:0 auto 26px;line-height:1.9}
+.badge{display:inline-flex;align-items:center;gap:8px;background:#16203a;border:1px solid var(--line);border-radius:20px;padding:8px 16px;font-size:12px;color:var(--green);margin-bottom:22px}
+.heroCtas{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn1,.btn2{text-decoration:none;font-size:13px;font-weight:700;padding:12px 22px;border-radius:12px}
+.btn1{background:var(--orange);color:#fff}.btn2{background:var(--card);border:1px solid var(--line);color:var(--ink)}
+.langbar{position:absolute;top:22px;left:24px;display:flex;gap:6px;background:#141c2c;border:1px solid var(--line);border-radius:12px;padding:5px}
+.langbar a{color:var(--muted);font-size:12px;font-weight:700;text-decoration:none;padding:6px 14px;border-radius:8px}
+.langbar a.active{background:var(--orange);color:#fff}
+.grid{max-width:1040px;margin:0 auto;padding:0 26px 60px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;text-align:right;cursor:pointer;font-family:inherit;color:inherit;transition:.18s;display:flex;gap:16px;align-items:flex-start}
+.card:hover{border-color:var(--orange);transform:translateY(-3px);box-shadow:0 18px 44px rgba(0,0,0,.35)}
+.card .ic{font-size:30px;flex-shrink:0;width:56px;height:56px;border-radius:15px;background:linear-gradient(135deg,#1e2c48,#243d63);display:grid;place-items:center}
+.card .tx{flex:1}.card b{font-size:16px;display:block;margin-bottom:5px}
+.card p{color:var(--muted);font-size:12px;margin:0 0 12px;line-height:1.8;min-height:52px}
+.card .go{color:var(--orange2);font-size:12px;font-weight:700}
+/* ===== Pricing ===== */
+.pricing{max-width:1040px;margin:0 auto;padding:20px 26px 60px}
+.pHead{text-align:center;margin-bottom:30px}
+.pHead h2{margin:0 0 6px;font-size:24px}.pHead p{color:var(--muted);font-size:13px;margin:0;line-height:1.8}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.plan{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;display:flex;flex-direction:column;transition:.18s}
+.plan:hover{transform:translateY(-3px);box-shadow:0 18px 44px rgba(0,0,0,.35)}
+.plan.hot{border-color:var(--orange);background:linear-gradient(180deg,#1a2436,#141c2c);position:relative}
+.plan .pl{display:flex;flex-direction:column;gap:3px}
+.plan .pl b{font-size:17px}.plan .pl small{color:var(--muted);font-size:11px}
+.plan .best{position:absolute;top:0;left:0;background:var(--orange);color:#fff;font-size:9.5px;font-weight:700;padding:4px 12px;border-radius:0 0 12px 0}
+.plan .price{font-size:26px;font-weight:800;margin:16px 0 6px}
+.plan .price span{font-size:12px;color:var(--muted);font-weight:600}
+.plan ul{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:8px}
+.plan li{font-size:12.5px;color:var(--muted);padding-inline-start:22px;position:relative}
+.plan li:before{content:"✓";position:absolute;inset-inline-start:0;color:var(--green);font-weight:800}
+.plan .cta{margin-top:auto;background:var(--orange);color:#fff;border:0;border-radius:11px;padding:12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.plan.hot .cta{background:var(--orange)}
+.trust{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-top:26px;color:var(--muted);font-size:12px}
+.trust span{display:inline-flex;align-items:center;gap:6px}
+.trust span:before{content:"✓";color:var(--green);font-weight:800}
+/* ===== Section titles ===== */
+.secTitle{max-width:1040px;margin:0 auto;padding:0 26px 16px;font-size:13px;color:var(--muted);letter-spacing:1px;font-weight:700}
+.foot{text-align:center;color:#5b6b86;font-size:11px;padding:0 20px 40px;direction:ltr}
+#stage{position:fixed;inset:0;background:var(--nav);display:none;z-index:20}
+#stage.open{display:block}
+.appbar{height:58px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 18px}
+.appbar .back{background:none;border:0;color:var(--orange2);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;display:flex;gap:8px;align-items:center}
+.appbar .t{font-size:13px;color:var(--muted)}
+.appbar .t b{color:var(--ink)}
+#frame{width:100%;height:calc(100% - 58px);border:0}
+</style>
+</head>
+<body>
+<div class="langbar">
+  <a href="dou-fleet.html" class="active">العربية</a>
+  <a href="dou-fleet-en.html" class="">English</a>
+</div>
+<div class="hero">
+  <div class="logo">D<i></i>ou</div>
+  <div class="logoFull">FLEET OPERATIONS PLATFORM</div>
+  <div class="badge"><span>⚡</span> لشركات التوصيل واللوجستيات — اشتراك شهري يبدأ اليوم</div>
+  <h1>سيطر على أسطولك بالكامل من لوحة واحدة</h1>
+  <p>تابع سائقيك لحظياً، وزّع الشحنات بذكاء، احسب الرواتب والحوافز تلقائياً، وتأكد من الالتزام والامتثال — دون أوراق ولا تنسيق عبر الواتساب. جرّب الواجهتين وافتح التجربة:</p>
+  <div class="heroCtas">
+    <a href="#pricing" class="btn1">شاهد الأسعار</a>
+    <a href="#" class="btn2" onclick="openDemo('fleet')">افتح التجربة ←</a>
+  </div>
+</div>
+
+<div class="secTitle">الواجهات / Interfaces</div>
+<div class="grid">
+<button class="card" onclick="openDemo('fleet')">
+      <div class="ic">📊</div>
+      <div class="tx"><b>لوحة Fleet Partners</b><p>إدارة الأسطول والشركات، الإرسال والتحكم، الورديات والحضور، الرواتب والعقود، التذاكر والقنوات — كل شيء في لوحة واحدة</p>
+      <span class="go">افتح التجربة ←</span></div>
+    </button>
+<button class="card" onclick="openDemo('courier')">
+      <div class="ic">🛵</div>
+      <div class="tx"><b>تطبيق السواقين</b><p>استقبال المهام، الحضور والورديات، التتبع الحي، الأرباح والحوافز — يعمل على أي موبايل</p>
+      <span class="go">افتح التجربة ←</span></div>
+    </button>
+</div>
+
+<div class="pricing" id="pricing">
+  <div class="pHead"><h2>أسعار بسيطة تبدأ فوراً</h2><p>اشتراك شهري لكل شركة — تجربة مجانية 14 يوماً بدون بطاقة. قابلة للتوسع حسب عدد السائقين.</p></div>
+  <div class="plans">
+    <div class="plan">
+      <div class="pl"><b>Starter</b><small>حتى 10 سائقين</small></div>
+      <div class="price">1,500 <span>ر.س/شهر</span></div>
+      <ul><li>لوحة Fleet Partners كاملة</li><li>تطبيق السواقين غير محدود</li><li>تتبع حي مباشر</li><li>تذاكر ودعم بالواتساب</li></ul>
+      <button class="cta" onclick="alert('اطلب عرض السعر (UI)')">ابدأ التجربة ←</button>
+    </div>
+    <div class="plan hot">
+      <div class="pl"><b>Business</b><small>حتى 50 سائقاً</small><span class="best">الأكثر طلباً</span></div>
+      <div class="price">3,500 <span>ر.س/شهر</span></div>
+      <ul><li>كل ميزات Starter</li><li>إرسال ذكي وإسناد تلقائي</li><li>رواتب وحوافز ومرتبات</li><li>تقارير أداء وامتثال</li><li>مدير حساب مخصص</li></ul>
+      <button class="cta" onclick="alert('اطلب عرض السعر (UI)')">ابدأ التجربة ←</button>
+    </div>
+    <div class="plan">
+      <div class="pl"><b>Enterprise</b><small>سائقون غير محدودين</small></div>
+      <div class="price">عرض خاص</div>
+      <ul><li>كل ميزات Business</li><li>تكامل API مع أنظمتك</li><li>عقود مخصصة وشروط دفع</li><li>على-premises أو سحابة خاصة</li></ul>
+      <button class="cta" onclick="alert('تواصل معنا (UI)')">تواصل مع المبيعات</button>
+    </div>
+  </div>
+  <div class="trust"><span>✓ بدون عقود طويلة</span><span>✓ إعداد خلال يوم</span><span>✓ دعم عربي مباشر</span><span>✓ بياناتك آمنة ومشفرة</span></div>
+</div>
+
+<div class="foot">DOU Fleet Operations &copy; Sameh Saleh &middot; Confidential demo with simulated data &middot; dou.sa</div>
+
+<div id="stage">
+  <div class="appbar">
+    <button class="back" onclick="closeDemo()">→ <span>العودة للواجهات</span></button>
+    <div class="t">DOU / <b id="stageTitle"></b></div>
+  </div>
+  <iframe id="frame" title="DOU Demo"></iframe>
+</div>
+
+<template id="tpl-fleet">
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DOU Fleet Partners</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--nav:#11161d;--nav2:#1b2330;--ink:#172033;--muted:#728096;--line:#e7ebf1;--soft:#f7f9fc;--blue:#246bfd;--blue2:#eaf1ff;--green:#16a46b;--green2:#e8f8f1;--amber:#f59e0b;--amber2:#fef4e2;--red:#ef5d67;--red2:#fdebeb}
+*{box-sizing:border-box}body{margin:0;background:var(--soft);font-family:Alexandria,sans-serif;color:var(--ink);font-size:14px}
+.layout{display:flex;min-height:100vh}
+.side{width:242px;background:var(--nav);color:#fff;padding:24px 13px;position:fixed;top:0;right:0;bottom:0;left:auto;display:flex;flex-direction:column;overflow:auto;transition:transform .22s ease;z-index:40}
+.side.hidden{transform:translateX(110%)}
+.hamburger{background:none;border:0;color:var(--ink);font-size:20px;cursor:pointer;padding:6px;line-height:1;display:inline-block}
+.overlay{position:fixed;inset:0;background:rgba(12,18,32,.45);z-index:35;display:none}
+.overlay.show{display:block}
+.main{margin-right:242px;width:calc(100% - 242px);transition:margin .22s ease}
+.main.expanded{margin-right:0;width:100%}
+@media(max-width:860px){
+  .side{transform:translateX(110%)}
+  .side.open{transform:translateX(0)}
+  .hamburger{display:inline-block}
+  .main{margin-right:0;width:100%}
+}
+.logo{font:800 21px "Alexandria";letter-spacing:-1px;padding:0 11px 26px;display:flex;align-items:center;gap:9px}
+.logo i{font-style:normal;width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,#ff8a55,#ff5a13)}
+.logo small{margin-right:auto;color:#88a0c4;font:500 9px "Alexandria";letter-spacing:1.4px}
+.group{font-size:10px;letter-spacing:1px;color:#7e91b3;padding:12px 12px 6px}
+.nav{width:100%;background:none;border:0;color:#b5c2d8;text-align:right;padding:10px 12px;border-radius:9px;margin:2px 0;display:flex;gap:11px;align-items:center;font-size:13px;cursor:pointer;font-family:inherit}
+.nav:hover,.nav.active{background:#213251;color:#fff}.nav i{font-style:normal;width:18px;text-align:center;font-size:15px}
+.user{margin-top:auto;background:var(--nav2);padding:11px;border-radius:12px}
+.photo{width:30px;height:30px;background:linear-gradient(135deg,#ff8a55,#ff5a13);border-radius:50%;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700}
+.user b{font-size:11px;display:block}.user small{font-size:10px;color:#99a9c6}
+.main{margin-right:242px;width:calc(100% - 242px)}
+.top{height:70px;background:#fff;border-bottom:1px solid var(--line);padding:0 34px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20}
+.breadcrumb{font-size:12px;color:var(--muted)}.breadcrumb b{color:var(--ink)}
+.topActions{display:flex;gap:10px;align-items:center}
+.content{padding:26px 34px}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.header h1{margin:0;font-size:21px}.kicker{font-size:11px;color:var(--blue);font-weight:600}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:18px}
+.metric{background:#fff;border-radius:14px;padding:16px;box-shadow:0 10px 25px rgba(26,42,72,.05)}
+.metric b{display:block;font-size:22px}.metric span{color:var(--muted);font-size:11px}
+.metric.trend b{color:var(--green)}.metric.alert b{color:var(--red)}
+.card{background:#fff;border-radius:16px;padding:18px;box-shadow:0 10px 25px rgba(26,42,72,.05);margin-bottom:16px}
+.card h3{margin:0 0 12px;font-size:15px}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;color:var(--muted);text-align:right;padding:8px;border-bottom:2px solid var(--line)}
+td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:12px}
+.tag{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600}
+.tag.green{background:var(--green2);color:var(--green)}.tag.blue{background:var(--blue2);color:var(--blue)}
+.tag.amber{background:var(--amber2);color:#d97706}.tag.red{background:var(--red2);color:var(--red)}.tag.gray{background:#f1f3f6;color:var(--muted)}
+button{font-family:inherit;border:0;border-radius:10px;padding:10px 16px;font-size:12px;font-weight:600;cursor:pointer}
+.btn{background:var(--nav);color:#fff}.btn.blue{background:var(--blue)}.btn.ghost{background:#f1f3f6;color:var(--ink)}
+.btn.amber{background:var(--amber2);color:#d97706}.btn.red{background:var(--red2);color:var(--red)}
+.btn.small{padding:7px 11px;font-size:11px}
+input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;width:100%}
+.form-row{display:flex;gap:8px;margin-bottom:10px}
+.form-row input,.form-row select{flex:1}
+.rolebar{display:flex;gap:8px;margin-bottom:18px;background:#fff;border-radius:12px;padding:6px;width:fit-content;box-shadow:0 8px 20px rgba(26,42,72,.05)}
+.rolebar button{border-radius:8px;padding:8px 16px}
+.rolebar button.active{background:var(--nav);color:#fff}
+.msg{font-size:12px;margin-top:8px}
+.pool{display:flex;gap:10px;flex-wrap:wrap}
+.pool .p{background:#fff;border-radius:12px;padding:12px 16px;flex:1;min-width:150px;box-shadow:0 8px 20px rgba(26,42,72,.05)}
+.pool .p b{display:block;font-size:18px}.pool .p span{font-size:10px;color:var(--muted)}
+.opt{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);gap:10px}
+.opt:last-child{border-bottom:0}
+.opt b{font-size:13px;display:block}.opt small{font-size:11px;color:var(--muted)}
+.switch{width:46px;height:26px;background:#d3d7de;border-radius:20px;position:relative;cursor:pointer;transition:.2s;flex-shrink:0}
+.switch.on{background:var(--green)}.switch:after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s}
+.switch.on:after{transform:translateX(-20px)}
+.bars{display:flex;gap:12px;align-items:flex-end;height:130px;margin-top:12px}
+.bars .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}
+.bars .b i{display:block;width:100%;max-width:38px;border-radius:7px 7px 3px 3px}
+.bars .b small{font-size:10px;color:var(--muted)}
+.chartRow{display:flex;gap:10px;margin-bottom:6px;align-items:center}
+.chartRow .lbl{width:120px;font-size:11px;color:var(--muted)}
+.chartRow .bar{flex:1;height:16px;background:#f1f3f6;border-radius:8px;overflow:hidden}
+.chartRow .bar i{display:block;height:100%;border-radius:8px}
+.chartRow .val{width:60px;font-size:11px;font-weight:600;text-align:left}
+.modal{position:fixed;inset:0;background:rgba(18,26,44,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal.open{display:flex}
+.modalBox{background:#fff;border-radius:18px;padding:24px;max-width:520px;width:100%;max-height:88vh;overflow:auto}
+.modalBox h3{margin:0 0 14px;font-size:16px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.filters input,.filters select{width:auto;min-width:140px}
+.ticket{display:flex;justify-content:space-between;align-items:flex-start;padding:13px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;gap:12px}
+.ticket b{font-size:13px;display:block}.ticket small{font-size:11px;color:var(--muted)}
+.ruleNum{width:130px;flex-shrink:0}
+.avatarDot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:6px}
+.avatarDot.on{background:var(--green)}.avatarDot.off{background:#d3d7de}
+</style>
+</head>
+<body>
+<script>/* DOU Demo Mock API — يعمل محلياً بالكامل بدون سيرفر
+   واعي بالدولة: window.DOU_COUNTRY = "SA" (سعودية) أو "EG" (مصر) */
+(function(){
+  var _realFetch = window.fetch;
+  var COUNTRY = (typeof window.DOU_COUNTRY === "string" && (window.DOU_COUNTRY==="EG"||window.DOU_COUNTRY==="SA")) ? window.DOU_COUNTRY : "SA";
+
+  var DB = {
+    merchants: [
+      /* ===== السعودية ===== */
+      {id:1, name:"مقهى بن القهوة", slug:"bin-coffee", theme:"default", delivery_method:"PLATFORM", city:"الرياض", district:"حي الملقا", country:"SA"},
+      {id:2, name:"مطعم الضيافة", slug:"diyafa-rest", theme:"dark", delivery_method:"SELF", city:"الرياض", district:"حي العليا", country:"SA"},
+      {id:3, name:"بقالة النور", slug:"noor-market", theme:"default", delivery_method:"SHIPPING", city:"الرياض", district:"حي النرجس", country:"SA"},
+      {id:4, name:"دار العود للعطور", slug:"dar-oud", theme:"gold", delivery_method:"SHIPPING", city:"الرياض", district:"حي الملقا", country:"SA", category:"عطور"},
+      {id:5, name:"متجر الشتاء للملابس", slug:"winter-wear", theme:"default", delivery_method:"SHIPPING", city:"الرياض", district:"حي الملقا", country:"SA", category:"ملابس"},
+      {id:6, name:"الرياض للبخور", slug:"riyadh-bakhoor", theme:"gold", delivery_method:"SHIPPING", city:"الرياض", district:"حي النرجس", country:"SA", category:"عطور"},
+      /* ===== مصر ===== */
+      {id:21, name:"قهوة أبو جبل", slug:"abou-gabal", theme:"default", delivery_method:"PLATFORM", city:"القاهرة", district:"مدينة نصر", country:"EG", category:"قهوة"},
+      {id:22, name:"مطعم الحواوشي", slug:"hawawshi-rest", theme:"dark", delivery_method:"PLATFORM", city:"القاهرة", district:"المعادي", country:"EG"},
+      {id:23, name:"بقالة السيد", slug:"elsayed-market", theme:"default", delivery_method:"SHIPPING", city:"الجيزة", district:"الدقي", country:"EG"},
+      {id:24, name:"بيت العود المصري", slug:"masr-oud", theme:"gold", delivery_method:"SHIPPING", city:"القاهرة", district:"الزمالك", country:"EG", category:"عطور"}
+    ],
+    products: [
+      /* السعودية */
+      {id:1, merchant_id:1, name:"كابتشينو", price:16, currency:"SAR", category:"قهوة", is_available:true, description:"إسبريسو بحليب مخفوق"},
+      {id:2, merchant_id:1, name:"لاتيه", price:18, currency:"SAR", category:"قهوة", is_available:true, description:"إسبريسو بحليب"},
+      {id:3, merchant_id:1, name:"تشيز كيك", price:22, currency:"SAR", category:"حلويات", is_available:true, description:"تشيز كيك بصلصة التوت"},
+      {id:4, merchant_id:1, name:"كرواسون", price:14, currency:"SAR", category:"مخبوزات", is_available:true, description:"كرواسون طازج"},
+      {id:5, merchant_id:2, name:"مشاوي مشكل", price:45, currency:"SAR", category:"مأكولات", is_available:true, description:"طبق مشاوي"},
+      {id:6, merchant_id:2, name:"سلطة سيزر", price:25, currency:"SAR", category:"سلطات", is_available:true, description:"سلطة سيزر بالدجاج"},
+      {id:7, merchant_id:3, name:"أرز بسمتي 5كجم", price:34, currency:"SAR", category:"بقالة", is_available:true, description:"أرز بسمتي هندي"},
+      {id:8, merchant_id:3, name:"حليب طويل الأجل", price:21, currency:"SAR", category:"بقالة", is_available:true, description:"حليب 1لتر ×6"},
+      {id:9, merchant_id:4, name:"عود ملكي 30مل", price:320, currency:"SAR", category:"عطور", is_available:true, description:"عود كمبودي فاخر"},
+      {id:10, merchant_id:4, name:"مسك الطهارة", price:95, currency:"SAR", category:"عطور", is_available:true, description:"مسك أبيض نقي"},
+      {id:11, merchant_id:4, name:"عطر ليالي الشرق", price:180, currency:"SAR", category:"عطور", is_available:true, description:"عطر شرقي ثابت"},
+      {id:12, merchant_id:5, name:"فستان سهرة", price:450, currency:"SAR", category:"ملابس", is_available:true, description:"فستان سهرة أنيق"},
+      {id:13, merchant_id:5, name:"عباية فاخرة", price:290, currency:"SAR", category:"ملابس", is_available:true, description:"عباية شيفون مطرزة"},
+      {id:14, merchant_id:5, name:"تيشيرت قطني", price:65, currency:"SAR", category:"ملابس", is_available:true, description:"قطن مصري"},
+      {id:15, merchant_id:6, name:"بخور عود حرير", price:150, currency:"SAR", category:"بخور", is_available:true, description:"بخور عود فاخر"},
+      {id:16, merchant_id:6, name:"معمول عطور مشكل", price:210, currency:"SAR", category:"عطور", is_available:true, description:"تشكيلة عطور شرقية"},
+      /* مصر */
+      {id:21, merchant_id:21, name:"قهوة سادة", price:15, currency:"EGP", category:"قهوة", is_available:true, description:"قهوة بلدي محمصة"},
+      {id:22, merchant_id:21, name:"كابتشينو", price:20, currency:"EGP", category:"قهوة", is_available:true, description:"كابتشينو بالحليب"},
+      {id:23, merchant_id:21, name:"سحلب", price:25, currency:"EGP", category:"مشروبات", is_available:true, description:"سحلب بالمكسرات"},
+      {id:24, merchant_id:22, name:"حواوشي", price:40, currency:"EGP", category:"مأكولات", is_available:true, description:"حواوشي على الطريقة الإسكندراني"},
+      {id:25, merchant_id:22, name:"كشري", price:25, currency:"EGP", category:"مأكولات", is_available:true, description:"كشري مصري أصيل"},
+      {id:26, merchant_id:22, name:"طاجن فراخ", price:60, currency:"EGP", category:"مأكولات", is_available:true, description:"طاجن فراخ بالبصل"},
+      {id:27, merchant_id:23, name:"أرز مصري 1كجم", price:22, currency:"EGP", category:"بقالة", is_available:true, description:"أرز مصري قصير الحبة"},
+      {id:28, merchant_id:23, name:"مكرونة", price:12, currency:"EGP", category:"بقالة", is_available:true, description:"مكرونة إيطالي"},
+      {id:29, merchant_id:24, name:"عود مصري 30مل", price:250, currency:"EGP", category:"عطور", is_available:true, description:"عود مصري فاخر"},
+      {id:30, merchant_id:24, name:"مسك أبيض", price:120, currency:"EGP", category:"عطور", is_available:true, description:"مسك نقي"},
+      {id:31, merchant_id:24, name:"عطر شرقي", price:200, currency:"EGP", category:"عطور", is_available:true, description:"عطر شرقي ثابت"}
+    ],
+    couriers: [
+      {id:1, name:"أحمد الشمري", phone:"0551112233", courier_type:"COMPANY", country:"SA", is_online:true, is_available:true, score:4.9, acceptance_rate:94, current_load:1, lat:24.753, lng:46.641},
+      {id:2, name:"محمد العتيبي", phone:"0554445566", courier_type:"FREELANCER", country:"SA", is_online:true, is_available:true, score:4.6, acceptance_rate:88, current_load:0, lat:24.748, lng:46.635},
+      {id:3, name:"خالد القحطاني", phone:"0557778899", courier_type:"FREELANCER", country:"SA", is_online:false, is_available:false, score:4.4, acceptance_rate:79, current_load:0, lat:24.76, lng:46.63},
+      {id:4, name:"عبدالله السالم", phone:"0552223344", courier_type:"COMPANY", country:"SA", is_online:true, is_available:true, score:4.8, acceptance_rate:91, current_load:2, lat:24.755, lng:46.638},
+      {id:21, name:"محمد السيد", phone:"01001112223", courier_type:"FREELANCER", country:"EG", is_online:true, is_available:true, score:4.7, acceptance_rate:90, current_load:1, lat:30.044, lng:31.235},
+      {id:22, name:"أحمد عبدالله", phone:"01004445556", courier_type:"COMPANY", country:"EG", is_online:true, is_available:true, score:4.5, acceptance_rate:86, current_load:0, lat:30.05, lng:31.24},
+      {id:23, name:"كريم فوزي", phone:"01007778889", courier_type:"FREELANCER", country:"EG", is_online:false, is_available:false, score:4.3, acceptance_rate:81, current_load:0, lat:30.03, lng:31.22}
+    ],
+    orders: [
+      /* السعودية */
+      {id:1204, merchant_id:1, customer_name:"سارة", customer_phone:"0551234567", customer_lat:24.752, customer_lng:46.64, customer_address:"حي الملقا، شارع أنس", status:"IN_TRANSIT", delivery_method:"PLATFORM", courier_id:1, subtotal:50, delivery_fee:8, total:58, distance_km:3.2, source:"DOU App", country:"SA"},
+      {id:1203, merchant_id:1, customer_name:"نورة", customer_phone:"0553334455", customer_lat:24.757, customer_lng:46.648, customer_address:"حي الملقا", status:"READY", delivery_method:"PLATFORM", courier_id:null, subtotal:34, delivery_fee:8, total:42, distance_km:2.1, source:"Jahez", country:"SA"},
+      {id:1202, merchant_id:1, customer_name:"ريم", customer_phone:"0556667788", customer_lat:24.75, customer_lng:46.637, customer_address:"حي الملقا", status:"ACCEPTED", delivery_method:"PLATFORM", courier_id:null, subtotal:40, delivery_fee:8, total:48, distance_km:4.4, source:"HungerStation", country:"SA"},
+      {id:1201, merchant_id:1, customer_name:"فيصل", customer_phone:"0559990011", customer_lat:24.749, customer_lng:46.642, customer_address:"حي الملقا", status:"PLACED", delivery_method:"PLATFORM", courier_id:null, subtotal:16, delivery_fee:8, total:24, distance_km:1.8, source:"DOU App", country:"SA"},
+      {id:1200, merchant_id:1, customer_name:"هند", customer_phone:"0551213141", customer_lat:24.754, customer_lng:46.641, customer_address:"حي الملقا", status:"DELIVERED", delivery_method:"PLATFORM", courier_id:2, subtotal:70, delivery_fee:8, total:78, distance_km:5.1, source:"Jahez", country:"SA"},
+      {id:1199, merchant_id:2, customer_name:"عمر", customer_phone:"0551516171", customer_lat:24.78, customer_lng:46.69, customer_address:"حي العليا", status:"DELIVERED", delivery_method:"SELF", courier_id:null, subtotal:70, delivery_fee:0, total:70, distance_km:0.9, source:"DOU App", country:"SA"},
+      {id:1198, merchant_id:3, customer_name:"سلمى", customer_phone:"0551819202", customer_lat:24.82, customer_lng:46.72, customer_address:"حي النرجس", status:"SHIPPING", delivery_method:"SHIPPING", courier_id:null, shipping_company:"SMSA Express", shipping_ref:"SMSA-1198", subtotal:55, delivery_fee:25, total:80, distance_km:18.4, source:"DOU App", country:"SA"},
+      {id:1197, merchant_id:4, customer_name:"سارة", customer_phone:"0551234567", customer_lat:24.752, customer_lng:46.64, customer_address:"حي الملقا", status:"DELIVERED", delivery_method:"SHIPPING", courier_id:null, shipping_company:"Bosta", shipping_ref:"BOSTA-1197", subtotal:320, delivery_fee:22, total:342, distance_km:14.2, source:"DOU App", country:"SA"},
+      {id:1196, merchant_id:5, customer_name:"سارة", customer_phone:"0551234567", customer_lat:24.752, customer_lng:46.64, customer_address:"حي الملقا", status:"PLACED", delivery_method:"SHIPPING", courier_id:null, shipping_company:null, shipping_ref:null, subtotal:290, delivery_fee:20, total:310, distance_km:12.8, source:"DOU App", country:"SA"},
+      /* مصر */
+      {id:1304, merchant_id:21, customer_name:"سلمى", customer_phone:"01000000001", customer_lat:30.05, customer_lng:31.35, customer_address:"مدينة نصر، شارع عباس العقاد", status:"IN_TRANSIT", delivery_method:"PLATFORM", courier_id:21, subtotal:40, delivery_fee:15, total:55, distance_km:2.8, source:"DOU App", country:"EG"},
+      {id:1303, merchant_id:21, customer_name:"هبة", customer_phone:"01000000002", customer_lat:30.04, customer_lng:31.34, customer_address:"مدينة نصر", status:"READY", delivery_method:"PLATFORM", courier_id:null, subtotal:25, delivery_fee:15, total:40, distance_km:1.6, source:"Jahez", country:"EG"},
+      {id:1302, merchant_id:22, customer_name:"أحمد", customer_phone:"01000000003", customer_lat:30.03, customer_lng:31.25, customer_address:"المعادي", status:"DELIVERED", delivery_method:"PLATFORM", courier_id:22, subtotal:85, delivery_fee:15, total:100, distance_km:3.4, source:"DOU App", country:"EG"},
+      {id:1301, merchant_id:24, customer_name:"نور", customer_phone:"01000000004", customer_lat:30.06, customer_lng:31.21, customer_address:"الزمالك", status:"SHIPPING", delivery_method:"SHIPPING", courier_id:null, shipping_company:"Bosta", shipping_ref:"BOSTA-1301", subtotal:250, delivery_fee:40, total:290, distance_km:12.1, source:"DOU App", country:"EG"}
+    ],
+    shifts: [
+      {id:1, name:"وردية الصباح", zone:"الملقا", start_time:"09:00", end_time:"17:00", required_couriers:4, status:"ACTIVE"},
+      {id:2, name:"وردية المساء", zone:"الملقا", start_time:"17:00", end_time:"01:00", required_couriers:3, status:"SCHEDULED"},
+      {id:3, name:"وردية العليا", zone:"العليا", start_time:"10:00", end_time:"18:00", required_couriers:2, status:"ACTIVE"}
+    ],
+    companies: [
+      {id:1, name:"SMSA Express", code:"SMSA", country:"SA", is_active:true},
+      {id:2, name:"Bosta", code:"BOSTA", country:"SA", is_active:true},
+      {id:3, name:"Aramex", code:"ARAMEX", country:"SA", is_active:false},
+      {id:4, name:"Doora", code:"DOORA", country:"EG", is_active:true},
+      {id:5, name:"ساعي مصر", code:"SAE", country:"EG", is_active:false}
+    ],
+    geo: [
+      {id:1, name:"السعودية", code:"SA", flag:"🇸🇦", active:true, cities:[
+        {id:101, name:"الرياض", active:true, districts:[
+          {id:1001, name:"حي الملقا", active:true},
+          {id:1002, name:"حي العليا", active:true},
+          {id:1003, name:"حي النرجس", active:false}
+        ]},
+        {id:102, name:"جدة", active:true, districts:[
+          {id:1004, name:"حي الحمراء", active:true},
+          {id:1005, name:"حي الروضة", active:false}
+        ]}
+      ]},
+      {id:2, name:"مصر", code:"EG", flag:"🇪🇬", active:true, cities:[
+        {id:201, name:"القاهرة", active:true, districts:[
+          {id:2001, name:"مدينة نصر", active:true},
+          {id:2002, name:"المعادي", active:true},
+          {id:2003, name:"الزمالك", active:false}
+        ]},
+        {id:202, name:"الإسكندرية", active:true, districts:[
+          {id:2004, name:"سموحة", active:true},
+          {id:2005, name:"محرم بك", active:false}
+        ]}
+      ]}
+    ],
+    attendance: [],
+    channels: [
+      {id:1, name:"DOU App", icon:"📱", type:"OWN", commission:0, is_active:true, orders_share:70, status:"active"},
+      {id:2, name:"Jahez", icon:"🍔", type:"PARTNER", commission:12, is_active:true, orders_share:18, status:"active"},
+      {id:3, name:"HungerStation", icon:"🚀", type:"PARTNER", commission:15, is_active:true, orders_share:8, status:"active"},
+      {id:4, name:"POS / نقاط البيع", icon:"🖨", type:"INTEGRATION", commission:2, is_active:true, orders_share:4, status:"active"},
+      {id:5, name:"Instagram", icon:"📷", type:"SOCIAL", commission:5, is_active:false, orders_share:0, status:"inactive"},
+      {id:6, name:"WhatsApp", icon:"💬", type:"SOCIAL", commission:3, is_active:false, orders_share:0, status:"inactive"},
+      {id:7, name:"متجر الكتروني", icon:"🌐", type:"INTEGRATION", commission:2.5, is_active:false, orders_share:0, status:"inactive"}
+    ],
+    staff: [
+      {id:1, name:"سامح صالح", email:"sameh@dou.sa", role:"المؤسس / المدير العام", access:"full", status:"active"},
+      {id:2, name:"محمد علي", email:"m.ali@dou.sa", role:"مدير العمليات", access:"ops", status:"active"},
+      {id:3, name:"سارة أحمد", email:"s.ahmed@dou.sa", role:"مسؤول مالي", access:"finance", status:"active"},
+      {id:4, name:"خالد حسن", email:"k.hassan@dou.sa", role:"مدير منطقة الرياض", access:"region", region:"الرياض", status:"active"},
+      {id:5, name:"منى إبراهيم", email:"m.ibrahim@dou.sa", role:"مديرة منطقة القاهرة", access:"region", region:"القاهرة", status:"inactive"}
+    ],
+    nextId: 1305, nextTask: 51
+  };
+
+  function merchantsFor(c){ return DB.merchants.filter(function(m){return m.country===c;}); }
+  function couriersFor(c){ return DB.couriers.filter(function(m){return m.country===c;}); }
+  function ordersFor(c){ return DB.orders.filter(function(m){return m.country===c;}); }
+  function companiesFor(c){ return DB.companies.filter(function(m){return m.country===c;}); }
+
+  function deliverCounts(){
+    var done = DB.orders.filter(function(o){return /DELIVER|COMPLETE/i.test(o.status);}).length;
+    var total = DB.orders.length;
+    return {done:done, total:total};
+  }
+  function courierDeliveries(cid){
+    return DB.orders.filter(function(o){return o.courier_id===cid && /DELIVER|COMPLETE/i.test(o.status);}).length;
+  }
+
+  function tasksFor(cid){
+    var list = [];
+    DB.orders.forEach(function(o){
+      if(o.courier_id!==cid) return;
+      if(o.status==="OFFERED") list.push({id:DB.nextId + o.id, order_id:o.id, status:"OFFERED"});
+      else if(o.status==="ACCEPTED"||o.status==="ASSIGNED") list.push({id:DB.nextId + o.id, order_id:o.id, status:"ACCEPTED"});
+      else if(o.status==="PICKED_UP") list.push({id:DB.nextId + o.id, order_id:o.id, status:"ACCEPTED"});
+      else if(o.status==="IN_TRANSIT") list.push({id:DB.nextId + o.id, order_id:o.id, status:"ACCEPTED"});
+      else if(o.status==="DELIVERED") list.push({id:DB.nextId + o.id, order_id:o.id, status:"DELIVERED"});
+    });
+    var offered = ordersFor(COUNTRY).filter(function(o){return o.status==="PLACED" && !o.courier_id;});
+    offered.slice(0,1).forEach(function(o){
+      if(list.length<2) list.unshift({id:DB.nextId+o.id, order_id:o.id, status:"OFFERED"});
+    });
+    return list;
+  }
+
+  function route(method, url, body){
+    var u = url.split("?")[0];
+    var m = method.toUpperCase();
+    if(u==="/health") return {status:"ok", service:"dou-api"};
+
+    if(u==="/merchants" && m==="GET") return merchantsFor(COUNTRY);
+    var mm = u.match(/^\/merchants\/(\d+)$/);
+    if(mm && m==="GET") return DB.merchants.find(function(x){return x.id==+mm[1];}) || {error:"not found"};
+    var mprod = u.match(/^\/merchants\/(\d+)\/products$/);
+    if(mprod && m==="GET") return DB.products.filter(function(p){return p.merchant_id==+mprod[1];});
+    if(mprod && m==="POST"){ var np={id:DB.nextId++, merchant_id:+mprod[1], name:body.name||"منتج", price:+body.price||0, currency:body.currency||(COUNTRY==="EG"?"EGP":"SAR"), category:body.category||"", is_available:true, description:""}; DB.products.push(np); return np; }
+    var mth = u.match(/^\/merchants\/(\d+)\/theme$/);
+    if(mth && m==="PATCH"){ var t=DB.merchants.find(function(x){return x.id==+mth[1];}); if(t) t.theme=body.theme; return t||{}; }
+    var mdm = u.match(/^\/merchants\/(\d+)\/delivery-method$/);
+    if(mdm && m==="PATCH"){ var dm=DB.merchants.find(function(x){return x.id==+mdm[1];}); if(dm) dm.delivery_method=body.delivery_method; return dm||{}; }
+
+    if(u==="/orders" && m==="GET") return ordersFor(COUNTRY);
+    if(u==="/orders" && m==="POST"){
+      var items=(body.items||[]).map(function(it){
+        var p=DB.products.find(function(x){return x.id==+it.product_id;});
+        return {product_id:+it.product_id, quantity:it.quantity||1, price:p?p.price:0, name:p?p.name:""};
+      });
+      var subtotal=items.reduce(function(s,i){return s+i.price*i.quantity;},0);
+      var delivery_fee=body.delivery_method==="SHIPPING"?(COUNTRY==="EG"?40:25):(COUNTRY==="EG"?15:8);
+      var o={id:DB.nextId++, merchant_id:+body.merchant_id, customer_name:body.customer_name||"عميل",
+        customer_phone:body.customer_phone||"0550000000", customer_lat:+body.customer_lat, customer_lng:+body.customer_lng,
+        customer_address:body.customer_address||"الرياض", status:"PLACED", delivery_method:"PLATFORM",
+        courier_id:null, subtotal:subtotal, delivery_fee:delivery_fee, total:subtotal+delivery_fee,
+        distance_km:3.0, source:"DOU App", country:COUNTRY, _items:items};
+      DB.orders.push(o);
+      return o;
+    }
+    var om = u.match(/^\/orders\/(\d+)$/);
+    if(om && m==="GET") return DB.orders.find(function(o){return o.id==+om[1];}) || {error:"not found"};
+    var osm = u.match(/^\/orders\/(\d+)\/status$/);
+    if(osm && m==="PATCH"){ var oo=DB.orders.find(function(o){return o.id==+osm[1];}); if(oo) oo.status=body.status; return oo||{}; }
+
+    if(u==="/couriers" && m==="GET") return couriersFor(COUNTRY);
+    if(u==="/couriers" && m==="POST"){ var nc={id:DB.couriers.length+100, name:body.name||"مندوب", phone:body.phone||"", courier_type:body.courier_type||"FREELANCER", country:COUNTRY, is_online:false, is_available:false, score:4.0, acceptance_rate:100, current_load:0, lat:+body.lat||(COUNTRY==="EG"?30.04:24.75), lng:+body.lng||(COUNTRY==="EG"?31.23:46.63)}; DB.couriers.push(nc); return nc; }
+    var con = u.match(/^\/couriers\/(\d+)\/online$/);
+    if(con && m==="POST"){ var co=DB.couriers.find(function(x){return x.id==+con[1];}); if(co){co.is_online=true; co.is_available=true;} return {ok:true}; }
+    var coff = u.match(/^\/couriers\/(\d+)\/offline$/);
+    if(coff && m==="POST"){ var c2=DB.couriers.find(function(x){return x.id==+coff[1];}); if(c2){c2.is_online=false; c2.is_available=false;} return {ok:true}; }
+    var ct = u.match(/^\/couriers\/(\d+)\/tasks$/);
+    if(ct && m==="GET") return tasksFor(+ct[1]);
+    var ca = u.match(/^\/couriers\/(\d+)\/tasks\/(\d+)\/(accept|reject|deliver)$/);
+    if(ca && m==="POST"){
+      var oid=+ca[2], cid=+ca[1], act=ca[3];
+      var ord=DB.orders.find(function(o){return o.id===oid;});
+      if(act==="accept"){ if(ord){ord.status="ASSIGNED"; ord.courier_id=cid;} }
+      else if(act==="deliver"){ if(ord){ord.status="DELIVERED"; ord.courier_id=cid;} }
+      else if(act==="reject"){ if(ord){ord.status="PLACED"; ord.courier_id=null;} }
+      return {ok:true};
+    }
+
+    if(u==="/shifts" && m==="GET") return DB.shifts;
+    if(u==="/shifts" && m==="POST"){ var ns={id:DB.shifts.length+10, name:body.name||"وردية", zone:body.zone||"", start_time:body.start_time||"09:00", end_time:body.end_time||"17:00", required_couriers:+body.required_couriers||1, status:"SCHEDULED"}; DB.shifts.push(ns); return ns; }
+    if(u==="/shifts/attendance/check-in" && m==="POST"){ DB.attendance.push({courier_id:+body.courier_id, in:new Date().toISOString()}); return {ok:true}; }
+    if(u==="/shifts/attendance/check-out" && m==="POST"){ return {ok:true}; }
+
+    if(u==="/shipping/companies" && m==="GET") return companiesFor(COUNTRY);
+    if(u==="/shipping/companies" && m==="POST"){ var nc2={id:DB.companies.length+100, name:body.name||"", code:body.code||"", country:COUNTRY, is_active:true}; DB.companies.push(nc2); return nc2; }
+
+    /* ===== الجغرافيا: دول / مدن / مناطق ===== */
+    if(u==="/geo/countries" && m==="GET") return DB.geo;
+    if(u==="/geo/countries" && m==="POST"){ var ng={id:DB.geo.length+50, name:body.name||"دولة جديدة", code:body.code||"XX", flag:body.flag||"🌍", active:true, cities:[]}; DB.geo.push(ng); return ng; }
+    var gco = u.match(/^\/geo\/countries\/(\d+)$/);
+    if(gco && m==="GET") return DB.geo.find(function(x){return x.id==+gco[1];}) || {error:"not found"};
+    if(gco && m==="PATCH"){ var gc=DB.geo.find(function(x){return x.id==+gco[1];}); if(gc) gc.active=!!body.active; return gc||{}; }
+    if(gco && m==="DELETE"){ DB.geo = DB.geo.filter(function(x){return x.id!==+gco[1];}); return {ok:true}; }
+    var gci = u.match(/^\/geo\/countries\/(\d+)\/cities$/);
+    if(gci && m==="POST"){ var g=DB.geo.find(function(x){return x.id==+gci[1];}); if(g){ var nc3={id:Math.floor(300+Math.random()*200), name:body.name||"مدينة جديدة", active:true, districts:[]}; g.cities.push(nc3); return nc3; } return {error:"not found"}; }
+    var gct = u.match(/^\/geo\/cities\/(\d+)$/);
+    if(gct && m==="GET"){ var cg; DB.geo.forEach(function(c){ c.cities.forEach(function(city){ if(city.id==+gct[1]) cg=city; }); }); return cg||{error:"not found"}; }
+    if(gct && m==="PATCH"){ var cc; DB.geo.forEach(function(c){ c.cities.forEach(function(city){ if(city.id==+gct[1]) cc=city; }); }); if(cc) cc.active=!!body.active; return cc||{}; }
+    if(gct && m==="DELETE"){ DB.geo.forEach(function(c){ c.cities = c.cities.filter(function(city){ return city.id!==+gct[1]; }); }); return {ok:true}; }
+    var gdi = u.match(/^\/geo\/cities\/(\d+)\/districts$/);
+    if(gdi && m==="POST"){ var city; DB.geo.forEach(function(c){ c.cities.forEach(function(ci){ if(ci.id==+gdi[1]) city=ci; }); }); if(city){ var nd={id:Math.floor(1000+Math.random()*500), name:body.name||"منطقة جديدة", active:true}; city.districts.push(nd); return nd; } return {error:"not found"}; }
+    var gdt = u.match(/^\/geo\/districts\/(\d+)$/);
+    if(gdt && m==="GET"){ var dg; DB.geo.forEach(function(c){ c.cities.forEach(function(city){ city.districts.forEach(function(d){ if(d.id==+gdt[1]) dg=d; }); }); }); return dg||{error:"not found"}; }
+    if(gdt && m==="PATCH"){ var dd; DB.geo.forEach(function(c){ c.cities.forEach(function(city){ city.districts.forEach(function(d){ if(d.id==+gdt[1]) dd=d; }); }); }); if(dd) dd.active=!!body.active; return dd||{}; }
+    if(gdt && m==="DELETE"){ DB.geo.forEach(function(c){ c.cities.forEach(function(city){ city.districts = city.districts.filter(function(d){ return d.id!==+gdt[1]; }); }); }); return {ok:true}; }
+
+    /* ===== Super Admin: كل البيانات عبر الدول ===== */
+    if(u==="/admin/merchants" && m==="GET") return DB.merchants;
+    if(u==="/admin/merchants" && m==="POST"){
+      var nm={id:DB.merchants.length+200, name:body.name||"متجر جديد", slug:(body.slug||"new-store"), theme:"default", delivery_method:body.delivery_method||"PLATFORM", city:body.city||"", district:body.district||"", country:body.country||COUNTRY, category:body.category||"", is_active:true};
+      DB.merchants.push(nm); return nm;
+    }
+    var admM = u.match(/^\/admin\/merchants\/(\d+)$/);
+    if(admM && m==="PATCH"){ var am=DB.merchants.find(function(x){return x.id==+admM[1];}); if(am){ if("active" in body) am.is_active=!!body.active; if(body.delivery_method) am.delivery_method=body.delivery_method; if(body.category) am.category=body.category; } return am||{}; }
+    if(admM && m==="DELETE"){ DB.merchants = DB.merchants.filter(function(x){return x.id!==+admM[1];}); return {ok:true}; }
+    if(u==="/admin/couriers" && m==="GET") return DB.couriers;
+    if(u==="/admin/couriers" && m==="POST"){ var nc={id:DB.couriers.length+200, name:body.name||"مندوب جديد", phone:body.phone||"", courier_type:body.courier_type||"FREELANCER", country:body.country||COUNTRY, is_online:false, is_available:true, score:4.0, acceptance_rate:100, current_load:0, is_active:true}; DB.couriers.push(nc); return nc; }
+    var admC = u.match(/^\/admin\/couriers\/(\d+)$/);
+    if(admC && m==="PATCH"){ var ac=DB.couriers.find(function(x){return x.id==+admC[1];}); if(ac){ if("active" in body) ac.is_active=!!body.active; if(body.courier_type) ac.courier_type=body.courier_type; } return ac||{}; }
+    if(admC && m==="DELETE"){ DB.couriers = DB.couriers.filter(function(x){return x.id!==+admC[1];}); return {ok:true}; }
+    if(u==="/admin/companies" && m==="GET") return DB.companies;
+    if(u==="/admin/companies" && m==="POST"){ var ncmp={id:DB.companies.length+200, name:body.name||"شركة جديدة", code:body.code||"NEW", country:body.country||"SA", is_active:true}; DB.companies.push(ncmp); return ncmp; }
+    var admCp = u.match(/^\/admin\/companies\/(\d+)$/);
+    if(admCp && m==="PATCH"){ var ap=DB.companies.find(function(x){return x.id==+admCp[1];}); if(ap) ap.is_active = "active" in body ? !!body.active : ap.is_active; return ap||{}; }
+    if(admCp && m==="DELETE"){ DB.companies = DB.companies.filter(function(x){return x.id!==+admCp[1];}); return {ok:true}; }
+    if(u==="/admin/channels" && m==="GET") return DB.channels;
+    if(u==="/admin/channels" && m==="POST"){ var nch={id:DB.channels.length+20, name:body.name||"قناة جديدة", icon:body.icon||"🔌", type:body.type||"PARTNER", commission:+body.commission||0, is_active:true, orders_share:0, status:"active"}; DB.channels.push(nch); return nch; }
+    var admCh = u.match(/^\/admin\/channels\/(\d+)$/);
+    if(admCh && m==="PATCH"){ var ach=DB.channels.find(function(x){return x.id==+admCh[1];}); if(ach){ if("active" in body){ ach.is_active=!!body.active; ach.status=body.active?"active":"inactive"; } if("commission" in body) ach.commission=+body.commission; } return ach||{}; }
+    if(admCh && m==="DELETE"){ DB.channels = DB.channels.filter(function(x){return x.id!==+admCh[1];}); return {ok:true}; }
+    if(u==="/admin/staff" && m==="GET") return DB.staff;
+    if(u==="/admin/staff" && m==="POST"){ var ns={id:DB.staff.length+10, name:body.name||"موظف جديد", email:body.email||"", role:body.role||"", access:body.access||"limited", status:"active"}; DB.staff.push(ns); return ns; }
+    var admS = u.match(/^\/admin\/staff\/(\d+)$/);
+    if(admS && m==="PATCH"){ var as=DB.staff.find(function(x){return x.id==+admS[1];}); if(as){ if("active" in body) as.status=body.active?"active":"inactive"; if(body.role) as.role=body.role; } return as||{}; }
+    if(admS && m==="DELETE"){ DB.staff = DB.staff.filter(function(x){return x.id!==+admS[1];}); return {ok:true}; }
+
+    if(u==="/analytics/overview"){
+      var platform=ordersFor(COUNTRY).filter(function(o){return o.delivery_method==="PLATFORM";}).length;
+      var shipping=ordersFor(COUNTRY).filter(function(o){return o.delivery_method==="SHIPPING";}).length;
+      var self=ordersFor(COUNTRY).filter(function(o){return o.delivery_method==="SELF";}).length;
+      var revenue=ordersFor(COUNTRY).reduce(function(s,o){return s+o.total;},0);
+      return {orders_platform:platform, orders_shipping:shipping, orders_self:self,
+        deliveries_done:ordersFor(COUNTRY).filter(function(o){return /DELIVER|COMPLETE/i.test(o.status);}).length,
+        avg_acceptance:88, avg_score:4.7, revenue_total:revenue};
+    }
+    if(u==="/analytics/performance"){
+      return couriersFor(COUNTRY).map(function(c){
+        return {id:c.id, name:c.name, courier_type:c.courier_type, deliveries:courierDeliveries(c.id),
+          acceptance_rate:c.acceptance_rate, on_time_rate:c.score>=4.6?95:86, completion_rate:c.score>=4.5?98:90,
+          score:c.score, online:c.is_online};
+      });
+    }
+    if(u==="/analytics/payouts"){
+      return couriersFor(COUNTRY).map(function(c){
+        var d=courierDeliveries(c.id);
+        var fixed=c.courier_type==="COMPANY"?4500:0;
+        var per= c.courier_type==="COMPANY"?3.5:8.0;
+        var earned=d*per;
+        var incentive=c.score>=4.7?250:0;
+        return {id:c.id, name:c.name, courier_type:c.courier_type, deliveries:d, fixed:fixed,
+          per_delivery_earned:earned, incentive:incentive, estimated_total:fixed+earned+incentive};
+      });
+    }
+    if(u==="/analytics/compliance"){
+      return {documents_attention:1, attendance_exceptions:2, delivery_investigations:1, couriers_checked_in:3};
+    }
+    if(u==="/analytics/top-merchants"){
+      return merchantsFor(COUNTRY).map(function(m){
+        var os=DB.orders.filter(function(o){return o.merchant_id===m.id;});
+        return {id:m.id, name:m.name, orders:os.length, revenue:os.reduce(function(s,o){return s+o.total;},0)};
+      }).sort(function(a,b){return b.orders-a.orders;});
+    }
+
+    return {error:"not found: "+u};
+  }
+
+  window.fetch = function(url, opts){
+    opts = opts||{};
+    var path = typeof url==="string" ? url : (url&&url.url)||"";
+    var method = opts.method||"GET";
+    var body = opts.body ? JSON.parse(opts.body) : {};
+    try{
+      var data = route(method, path, body);
+      if(data && data.error && data.error.indexOf("not found")===0){
+        return Promise.resolve({ok:false, status:404, text:function(){return Promise.resolve(data.error);}, json:function(){return Promise.resolve(data);}});
+      }
+      return Promise.resolve({ok:true, status:200, text:function(){return Promise.resolve(JSON.stringify(data));}, json:function(){return Promise.resolve(data);}});
+    }catch(e){
+      return Promise.resolve({ok:false, status:500, text:function(){return Promise.resolve(String(e.message||e));}, json:function(){return Promise.resolve({error:String(e)});}});
+    }
+  };
+})();
+</script>
+
+<div class="layout"><aside class="side" id="side">
+  <div class="logo"><i>↗</i><b>DOU</b><small>FLEET PARTNERS</small></div>
+  <div class="group">عمليات الأسطول</div>
+  <button class="nav active" data-view="overview"><i>▦</i><span>نظرة عامة</span></button>
+  <button class="nav" data-view="dispatch"><i>🎯</i><span>الإرسال والتحكم</span></button>
+  <button class="nav" data-view="couriers"><i>◉</i><span>المناديب</span></button>
+  <button class="nav" data-view="orders"><i>📦</i><span>الطلبات</span></button>
+  <div class="group">التشغيل</div>
+  <button class="nav" data-view="shifts"><i>◷</i><span>الورديات والحضور</span></button>
+  <button class="nav" data-view="attendance"><i>⏱</i><span>تتبع الحضور</span></button>
+  <div class="group">المالية والأداء</div>
+  <button class="nav" data-view="performance"><i>◒</i><span>أداء المناديب</span></button>
+  <button class="nav" data-view="payouts"><i>₪</i><span>الرواتب والحوافز</span></button>
+  <button class="nav" data-view="channels"><i>🔀</i><span>القنوات والتكاليف</span></button>
+  <button class="nav" data-view="compliance"><i>!</i><span>الامتثال والحالات</span></button>
+  <div class="group">الإدارة</div>
+  <button class="nav" data-view="tickets"><i>🎫</i><span>التذاكر</span></button>
+  <button class="nav" data-view="companies" id="navCompanies"><i>🏢</i><span>شركات التشغيل</span></button>
+  <div class="group">الإعدادات</div>
+  <button class="nav" data-view="rules"><i>⚙</i><span>قواعد النظام</span></button>
+  <button class="nav" data-view="shipping"><i>🚚</i><span>شركات الشحن</span></button>
+  <div class="user"><div class="photo">✓</div><div><b id="roleName">فريق DOU</b><small id="roleDesc">مشرف العمليات</small></div></div>
+</aside>
+<div class="overlay" id="overlay" onclick="toggleSide()"></div>
+<main class="main" id="main">
+  <header class="top">
+    <div class="breadcrumb"><button class="hamburger" onclick="toggleSide()">☰</button> DOU / Fleet Partners / <b id="crumb">نظرة عامة</b></div>
+    <div class="topActions">
+      <div class="rolebar" style="margin:0">
+        <button class="active" onclick="setRole('dou')">فريق DOU</button>
+        <button onclick="setRole('company')">الشركة اللوجستية</button>
+      </div>
+      <button class="btn ghost" onclick="alert('تم تصدير التقرير (PDF) — UI')">⬇ تصدير</button>
+    </div>
+  </header>
+  <div class="content">
+
+    <section id="view-overview">
+      <div class="header">
+        <div><div class="kicker">منصة موحّدة — تشغيل مشترك</div><h1>نظرة عامة</h1></div>
+        <div class="filters" style="margin:0">
+          <select id="oDateFilter" onchange="renderOverview()"><option value="">هذا الأسبوع</option><option>اليوم</option><option>هذا الشهر</option></select>
+        </div>
+      </div>
+      <div class="cards">
+        <div class="metric"><b id="mCouriers">–</b><span>مناديب</span></div>
+        <div class="metric"><b id="mOnline">–</b><span>متصل الآن</span></div>
+        <div class="metric"><b id="mOrders">–</b><span>طلبات</span></div>
+        <div class="metric"><b id="mActive">–</b><span>طلبات حية</span></div>
+        <div class="metric alert"><b id="mUnassigned">–</b><span>بدون إسناد</span></div>
+      </div>
+      <div class="cards">
+        <div class="metric"><b id="mRevenue">–</b><span>إيراد الفترة (ر.س)</span></div>
+        <div class="metric trend"><b id="mUtil">–</b><span>استغلال الأسطول</span></div>
+        <div class="metric trend"><b id="mOntime">–</b><span>التسليم في الموعد</span></div>
+      </div>
+      <div class="pool" style="margin-bottom:16px">
+        <div class="p"><b id="poolCompany">–</b><span>مناديب شركات متاحين</span></div>
+        <div class="p"><b id="poolFreelance">–</b><span>فريلانسر متاحين</span></div>
+        <div class="p"><b id="poolShipping">–</b><span>شركات شحن مفعّلة</span></div>
+      </div>
+      <div class="cards" style="grid-template-columns:1fr 1fr">
+        <div class="card">
+          <h3>التوصيلات — 7 أيام</h3>
+          <div class="bars">
+            <div class="b"><i style="height:42%;background:var(--blue)"></i><small>سبت</small></div>
+            <div class="b"><i style="height:58%;background:var(--blue)"></i><small>أحد</small></div>
+            <div class="b"><i style="height:50%;background:var(--blue)"></i><small>اثنين</small></div>
+            <div class="b"><i style="height:72%;background:var(--blue)"></i><small>ثلاثاء</small></div>
+            <div class="b"><i style="height:66%;background:var(--blue)"></i><small>أربعاء</small></div>
+            <div class="b"><i style="height:81%;background:var(--blue)"></i><small>خميس</small></div>
+            <div class="b"><i style="height:88%;background:var(--amber)"></i><small>جمعة</small></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>استغلال الأسطول (Fleet Utilization)</h3>
+          <div class="chartRow"><span class="lbl">صافي وقت العمل</span><div class="bar"><i style="width:68%;background:var(--green)"></i></div><span class="val">68%</span></div>
+          <div class="chartRow"><span class="lbl">في مهمة توصيل</span><div class="bar"><i style="width:52%;background:var(--blue)"></i></div><span class="val">52%</span></div>
+          <div class="chartRow"><span class="lbl">انتظار عروض</span><div class="bar"><i style="width:23%;background:var(--amber)"></i></div><span class="val">23%</span></div>
+          <div class="chartRow"><span class="lbl">غير نشط</span><div class="bar"><i style="width:9%;background:var(--red)"></i></div><span class="val">9%</span></div>
+        </div>
+      </div>
+      <div class="card"><h3>إرسال حي — آخر الطلبات</h3>
+        <table><thead><tr><th>#</th><th>الحالة</th><th>التوصيل</th><th>المسافة</th><th>مندوب</th></tr></thead>
+        <tbody id="recentOrders"><tr><td colspan="5" style="color:var(--muted)">لا طلبات</td></tr></tbody></table>
+      </div>
+    </section>
+
+    <section id="view-dispatch" style="display:none">
+      <div class="header"><div><div class="kicker">إشراف وتحكم</div><h1>الإرسال والتحكم</h1></div>
+        <button class="btn ghost" onclick="alert('إرسال طلب اختباري للتحقق (UI)')">🧪 طلب اختباري</button></div>
+      <div class="cards">
+        <div class="metric alert"><b>7</b><span>طلبات بدون مندوب</span></div>
+        <div class="metric"><b>3</b><span>متأخرة عن SLA</span></div>
+        <div class="metric"><b>12</b><span>قيد الإرسال (Broadcast)</span></div>
+        <div class="metric"><b>0</b><span>تصعيد خارجي نشط</span></div>
+      </div>
+      <div class="card">
+        <h3>خط أنابيب الطلبات</h3>
+        <div class="chartRow"><span class="lbl">بدون إسناد</span><div class="bar"><i style="width:14%;background:var(--red)"></i></div><span class="val">7</span></div>
+        <div class="chartRow"><span class="lbl">في انتظار قبول</span><div class="bar"><i style="width:22%;background:var(--amber)"></i></div><span class="val">11</span></div>
+        <div class="chartRow"><span class="lbl">قيد التنفيذ</span><div class="bar"><i style="width:42%;background:var(--blue)"></i></div><span class="val">21</span></div>
+        <div class="chartRow"><span class="lbl">مكتملة</span><div class="bar"><i style="width:22%;background:var(--green)"></i></div><span class="val">11</span></div>
+      </div>
+      <div class="card">
+        <h3>تحكم يدوي (Manual Override)</h3>
+        <table><thead><tr><th>الطلب</th><th>الحالة</th><th>المندوب الحالي</th><th>النوع</th><th>الإجراء</th></tr></thead>
+          <tbody id="overrideBody"></tbody></table>
+      </div>
+      <div class="card">
+        <h3>معالجة الاستثناءات</h3>
+        <div class="opt"><div><b>لا مندوب متاح — طلب #1195</b><small>تجاوز زمن الانتظار · يمكن التصعيد لمندوب خارجي</small></div>
+          <button class="btn amber small" onclick="alert('تم التصعيد لمندوب خارجي (UI)')">تصعيد خارجي</button></div>
+        <div class="opt"><div><b>خرق SLA — طلب #1189</b><small>بقيت 4 دقائق على الموعد المتفق عليه</small></div>
+          <button class="btn blue small" onclick="alert('فتح إعادة تعيين سريع (UI)')">إعادة تعيين</button></div>
+        <div class="opt"><div><b>رفض متكرر — طلب #1184</b><small>رفضه مندوبان · تشغيل Broadcast للأقرب</small></div>
+          <button class="btn small" onclick="alert('تم تشغيل وضع البث للأقرب (UI)')">Broadcast</button></div>
+      </div>
+    </section>
+
+    <section id="view-couriers" style="display:none">
+      <div class="header"><div><div class="kicker">إدارة المناديب</div><h1>المناديب</h1></div>
+        <button class="btn blue" onclick="toggleAddCourier()">+ إضافة مندوب</button></div>
+      <div class="card" id="addCourierBox" style="display:none">
+        <div class="form-row"><input id="cName" placeholder="الاسم"><input id="cPhone" placeholder="الهاتف"></div>
+        <div class="form-row"><select id="cType" style="font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:10px">
+          <option value="COMPANY">مناديب شركة</option><option value="FREELANCER">فريلانسر</option></select>
+          <input id="cCountry" placeholder="SA / EG" value="SA">
+          <input id="cLat" placeholder="lat" value="24.75"><input id="cLng" placeholder="lng" value="46.63"></div>
+        <button class="btn" onclick="addCourier()">حفظ</button><span id="courierMsg" class="msg"></span>
+      </div>
+      <div class="card"><table><thead><tr><th>الاسم</th><th>النوع</th><th>الحالة</th><th>الأسطول</th><th>معدل القبول</th><th>نقاط</th><th>تحميل</th><th>التحقق</th><th>إجراء</th></tr></thead>
+        <tbody id="couriersBody"></tbody></table></div>
+    </section>
+
+    <section id="view-orders" style="display:none">
+      <div class="header"><div><div class="kicker">كل الطلبات</div><h1>الطلبات</h1></div></div>
+      <div class="filters">
+        <select id="orderStatusFilter" onchange="renderOrders()"><option value="">كل الحالات</option><option>PLACED</option><option>ASSIGNED</option><option>IN_TRANSIT</option><option>DELIVERED</option></select>
+        <select id="orderTypeFilter" onchange="renderOrders()"><option value="">كل الأنواع</option><option>Dedicated</option><option>On-demand</option></select>
+      </div>
+      <div class="card"><table><thead><tr><th>#</th><th>العميل</th><th>التاجر</th><th>الحالة</th><th>النوع</th><th>التوصيل</th><th>المسافة</th><th>مندوب</th></tr></thead>
+        <tbody id="ordersBody"></tbody></table></div>
+    </section>
+
+    <section id="view-shifts" style="display:none">
+      <div class="header"><div><div class="kicker">تخطيط القوى</div><h1>الورديات والحضور</h1></div>
+        <button class="btn blue" onclick="toggleAddShift()">+ إنشاء وردية</button></div>
+      <div class="card" id="addShiftBox" style="display:none">
+        <div class="form-row"><input id="sName" placeholder="اسم الوردية"><input id="sZone" placeholder="المنطقة"></div>
+        <div class="form-row"><input id="sStart" placeholder="من 09:00"><input id="sEnd" placeholder="إلى 17:00"><input id="sReq" type="number" placeholder="عدد مطلوب"></div>
+        <div class="form-row"><select id="sFleet"><option>كل الأساطيل</option><option>أسطول مقهى بن القهوة</option><option>أسطول مندوبي الشمال</option></select></div>
+        <button class="btn" onclick="addShift()">حفظ</button><span id="shiftMsg" class="msg"></span>
+      </div>
+      <div class="card"><table><thead><tr><th>الوردية</th><th>المنطقة</th><th>الوقت</th><th>المطلوب</th><th>الأسطول</th><th>الحالة</th></tr></thead>
+        <tbody id="shiftsBody"></tbody></table></div>
+    </section>
+
+    <section id="view-attendance" style="display:none">
+      <div class="header"><div><div class="kicker">حضور حي</div><h1>تتبع الحضور</h1></div></div>
+      <div class="cards">
+        <div class="metric"><b id="attIn">–</b><span>حضور اليوم</span></div>
+        <div class="metric"><b id="attLate">–</b><span>متأخرون اليوم</span></div>
+        <div class="metric"><b>42</b><span>ساعات عمل محتسبة</span></div>
+      </div>
+      <div class="card"><table><thead><tr><th>المندوب</th><th>Check-in</th><th>Check-out</th><th>ساعات</th><th>الوردية</th><th>الحالة</th></tr></thead>
+        <tbody id="attendanceBody"></tbody></table></div>
+    </section>
+
+    <section id="view-performance" style="display:none">
+      <div class="header"><div><div class="kicker">جودة التشغيل</div><h1>أداء المناديب</h1></div>
+        <button class="btn ghost" onclick="loadPerformance()">↻ تحديث</button></div>
+      <div class="cards" id="perfMetrics"></div>
+      <div class="card"><h3>سكوركارد الأداء</h3>
+        <table><thead><tr><th>المندوب</th><th>النوع</th><th>التسليمات</th><th>القبول</th><th>الالتزام</th><th>الإنجاز</th><th>النقاط</th><th>الحالة</th></tr></thead>
+        <tbody id="perfBody"></tbody></table></div>
+    </section>
+
+    <section id="view-payouts" style="display:none">
+      <div class="header"><div><div class="kicker">العمليات المالية</div><h1>الرواتب والحوافز</h1></div>
+        <button class="btn ghost" onclick="loadPayouts()">↻ تحديث</button></div>
+      <div class="card" style="background:linear-gradient(115deg,#121a2c,#1b2a48);color:#fff">
+        <div style="font-size:11px;color:#88a0c4">التقدير الشهري</div>
+        <div style="font-size:30px;font-weight:800" id="payTotal">–</div>
+        <div style="font-size:11px;color:#88a0c4">لكل المناديب · حسب العقود</div>
+      </div>
+      <div class="card"><h3>عقود المناديب (Contract / Salary)</h3>
+        <table><thead><tr><th>المندوب</th><th>النوع</th><th>نوع العقد</th><th>ثابت</th><th>لكل توصيلة</th><th>الحوافز</th><th>الإجمالي</th></tr></thead>
+        <tbody id="payBody"></tbody></table></div>
+      <div class="card"><h3>إدارة العقود</h3>
+        <div class="opt"><div><b>أسطول مقهى بن القهوة</b><small>عقد ثابت · مدة 12 شهر · 4 مناديب</small></div><span class="tag blue">Fixed</span></div>
+        <div class="opt"><div><b>أسطول مندوبي الشمال</b><small>عقد لكل توصيلة · مدة 6 أشهر · 8 مناديب</small></div><span class="tag gray">Per delivery</span></div>
+        <button class="btn ghost small" style="margin-top:8px" onclick="alert('إنشاء / تعديل عقد (UI)')">+ عقد جديد</button>
+      </div>
+    </section>
+
+    <section id="view-channels" style="display:none">
+      <div class="header"><div><div class="kicker">قنوات وتكلفة</div><h1>القنوات والتكاليف</h1></div>
+        <button class="btn ghost" onclick="alert('تم التصدير CSV — UI')">⬇ CSV</button></div>
+      <div class="cards">
+        <div class="metric"><b>2.4 ر.س</b><span>متوسط تكلفة التوصيلة (داخلي)</span></div>
+        <div class="metric"><b>11.8 ر.س</b><span>متوسط تكلفة التوصيلة (خارجي)</span></div>
+        <div class="metric trend"><b>+18%</b><span>الهامش على الطلبات المحلية</span></div>
+      </div>
+      <div class="cards" style="grid-template-columns:1fr 1fr">
+        <div class="card">
+          <h3>الطلبات حسب القناة</h3>
+          <div class="chartRow"><span class="lbl">DOU App</span><div class="bar"><i style="width:70%;background:var(--blue)"></i></div><span class="val">70%</span></div>
+          <div class="chartRow"><span class="lbl">Jahez</span><div class="bar"><i style="width:18%;background:var(--green)"></i></div><span class="val">18%</span></div>
+          <div class="chartRow"><span class="lbl">HungerStation</span><div class="bar"><i style="width:8%;background:var(--amber)"></i></div><span class="val">8%</span></div>
+          <div class="chartRow"><span class="lbl">POS / يدوي</span><div class="bar"><i style="width:4%;background:var(--muted)"></i></div><span class="val">4%</span></div>
+        </div>
+        <div class="card">
+          <h3>استخدام المندوبين (Supply)</h3>
+          <div class="chartRow"><span class="lbl">أسطول داخلي</span><div class="bar"><i style="width:62%;background:var(--green)"></i></div><span class="val">62%</span></div>
+          <div class="chartRow"><span class="lbl">فريلانسر</span><div class="bar"><i style="width:27%;background:var(--blue)"></i></div><span class="val">27%</span></div>
+          <div class="chartRow"><span class="lbl">خارجي / تصعيد</span><div class="bar"><i style="width:11%;background:var(--amber)"></i></div><span class="val">11%</span></div>
+        </div>
+      </div>
+      <div class="card"><h3>تكلفة التوصيلة — داخلي مقابل خارجي</h3>
+        <table><thead><tr><th>القناة</th><th>توصيلات</th><th>داخلي</th><th>خارجي</th><th>الفرق</th></tr></thead>
+          <tbody>
+            <tr><td>DOU App</td><td>140</td><td>2.1 ر.س</td><td>11.2 ر.س</td><td><span class="tag green">أفضل داخلياً</span></td></tr>
+            <tr><td>Jahez</td><td>52</td><td>2.8 ر.س</td><td>12.4 ر.س</td><td><span class="tag green">أفضل داخلياً</span></td></tr>
+            <tr><td>HungerStation</td><td>21</td><td>—</td><td>12.1 ر.س</td><td><span class="tag amber">خارجي فقط</span></td></tr>
+          </tbody></table>
+      </div>
+    </section>
+
+    <section id="view-compliance" style="display:none">
+      <div class="header"><div><div class="kicker">التحكم بالمخاطر</div><h1>الامتثال والحالات</h1></div>
+        <button class="btn ghost" onclick="loadCompliance()">↻ تحديث</button></div>
+      <div class="cards" id="compMetrics"></div>
+      <div class="card"><h3>دقة الامتثال</h3>
+        <p class="msg" id="compDetail">–</p>
+      </div>
+    </section>
+
+    <section id="view-tickets" style="display:none">
+      <div class="header"><div><div class="kicker">مركز الدعم</div><h1>التذاكر</h1></div>
+        <select class="ruleNum" id="ticketFilter" onchange="renderTickets()"><option>الكل</option><option>الانتظار (Queue)</option><option>محلولة</option><option>التجار</option><option>المناديب</option></select></div>
+      <div id="ticketsBody"></div>
+    </section>
+
+    <section id="view-companies" style="display:none">
+      <div class="header"><div><div class="kicker">فريق DOU فقط</div><h1>شركات التشغيل</h1></div>
+        <button class="btn blue" onclick="alert('إنشاء شركة تشغيل جديدة (UI)')">+ شركة</button></div>
+      <div class="card"><table><thead><tr><th>الشركة</th><th>الأساطيل</th><th>مناديب</th><th>الأداء</th><th>الحالة</th></tr></thead>
+        <tbody id="companiesBody"></tbody></table></div>
+      <div class="card"><h3>تخصيص الأساطيل</h3>
+        <div class="opt"><div><b>أسطول مقهى بن القهوة</b><small>4 مناديب · الرياض</small></div>
+          <select class="ruleNum" onchange="alert('تم تحديث إسناد الشركة (UI)')"><option>شركة النقل الذكي</option><option>شركة الإمداد السريع</option></select></div>
+        <div class="opt"><div><b>أسطول مندوبي الشمال</b><small>8 مناديب · الرياض</small></div>
+          <select class="ruleNum" onchange="alert('تم تحديث إسناد الشركة (UI)')"><option>شركة الإمداد السريع</option><option>شركة النقل الذكي</option></select></div>
+      </div>
+    </section>
+
+    <section id="view-rules" style="display:none">
+      <div class="header"><div><div class="kicker">إعدادات التشغيل</div><h1>قواعد النظام</h1></div>
+        <button class="btn" onclick="alert('تم حفظ قواعد النظام (UI)')">حفظ التغييرات</button></div>
+
+      <div class="card"><h3>قواعد الإرسال (Dispatch Rules)</h3>
+        <div class="opt"><div><b>أولوية الإسناد</b><small>ترتيب اختيار المندوب</small></div><input class="ruleNum" value="Dedicated → On-demand"></div>
+        <div class="opt"><div><b>عدد مرات إعادة المحاولة</b><small>قبل الانتقال لمرحلة التصعيد</small></div><input class="ruleNum" type="number" value="3"></div>
+        <div class="opt"><div><b>وضع البث (Broadcast)</b><small>المناديب القريبين بعد عدم استجابة</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="opt"><div><b>التصعيد لمندوب خارجي</b><small>فتح الطلب لغير أسطولك</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+
+      <div class="card"><h3>قواعد التجميع (Batching Rules)</h3>
+        <div class="opt"><div><b>الحد الأقصى للطلبات لكل مندوب</b></div><input class="ruleNum" type="number" value="5"></div>
+        <div class="opt"><div><b>حد مسافة الدفعة</b><small>أقصى مسافة لتجميع طلبات معاً</small></div><input class="ruleNum" value="3 كم"></div>
+        <div class="opt"><div><b>قيود SLA</b><small>لا تجميع طلب على وشك تجاوز الموعد</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+
+      <div class="card"><h3>قواعد الأسطول</h3>
+        <div class="opt"><div><b>تسجيل الحضور إلزامي</b><small>لا يمكن الظهور قبل بدء الوردية</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="opt"><div><b>فرض المنطقة</b><small>إرسال العروض داخل منطقة المندوب فقط</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="opt"><div><b>حظر انتهاء المستندات</b><small>إيقاف مندوب تلقائياً عند انتهاء مستنداته</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+
+      <div class="card"><h3>قواعد الأداء (Scoring)</h3>
+        <div class="opt"><div><b>عتبة القبول</b><small>تنبيه المناديب تحت المعدل</small></div><span class="tag blue">85%</span></div>
+        <div class="opt"><div><b>حد التأخير</b><small>فتح مراجعة بعد تكرار المخالفات</small></div><span class="tag blue">3 / أسبوع</span></div>
+        <div class="opt"><div><b>أهلية الحوافز</b><small>تشترط إنجاز 95%+</small></div><span class="tag blue">95%</span></div>
+      </div>
+    </section>
+
+    <section id="view-shipping" style="display:none">
+      <div class="header"><div><div class="kicker">الشحن البعيد</div><h1>شركات الشحن</h1></div>
+        <button class="btn blue" onclick="toggleAddCompany()">+ إضافة شركة</button></div>
+      <div class="card" id="addCompanyBox" style="display:none">
+        <div class="form-row"><input id="coName" placeholder="الاسم"><input id="coCode" placeholder="SMSA/BOSTA/ARAMEX"><input id="coCountry" placeholder="SA/EG"></div>
+        <button class="btn" onclick="addCompany()">حفظ</button><span id="companyMsg" class="msg"></span>
+      </div>
+      <div class="card"><table><thead><tr><th>الاسم</th><th>الكود</th><th>البلد</th><th>الحالة</th></tr></thead>
+        <tbody id="companiesBody2"></tbody></table></div>
+    </section>
+
+  </div>
+</main></div>
+
+<!-- Modal: إعادة تعيين مندوب -->
+<div class="modal" id="reassignModal">
+  <div class="modalBox">
+    <h3>🔄 إعادة تعيين الطلب</h3>
+    <div class="form-row"><input id="rmOrder" placeholder="رقم الطلب" value="" disabled></div>
+    <div class="form-row"><select id="rmCourier"><option>اختر المندوب</option><option>أحمد الشمري (متاح)</option><option>محمد العتيبي (متاح)</option><option>خالد القحطاني (متاح)</option></select></div>
+    <div class="form-row"><select id="rmType"><option>تغيير نوع التوصيل</option><option>Dedicated</option><option>On-demand</option><option>شركة شحن (خارجي)</option></select></div>
+    <div style="display:flex;gap:8px"><button class="btn blue" style="flex:1" onclick="doReassign()">إعادة تعيين</button><button class="btn ghost" onclick="closeReassign()">إلغاء</button></div>
+    <div id="rmMsg" class="msg"></div>
+  </div>
+</div>
+
+<script>
+const API = "";
+let role = "dou";
+const COMPANY = {id:2, name:"شركة النقل الذكي", fleet:"أسطول مقهى بن القهوة"};
+
+async function api(path, opts={}){
+  const r = await fetch(API+path, Object.assign({headers:{"Content-Type":"application/json"}},opts));
+  if(!r.ok) throw new Error((await r.text())||r.status);
+  return r.json();
+}
+function tag(s){ s=String(s); return `<span class="tag ${/DELIVER|COMPLETE/i.test(s)?"green":/ASSIGN|ACCEPT|READY|PICK/i.test(s)?"blue":/SHIPPING|PREPAR/i.test(s)?"amber":/CANCEL|FAIL/i.test(s)?"red":"gray"}">${s.replace(/_/g," ")}</span>`; }
+
+const TICKETS = [
+  {id:501, from:"تاجر", user:"مقهى بن القهوة", topic:"طلب #1199 متأخر ولم يُسند", status:"الانتظار (Queue)", time:"قبل ساعة"},
+  {id:502, from:"مندوب", user:"خالد القحطاني", topic:"مشكلة في احتساب الأرباح", status:"الانتظار (Queue)", time:"قبل 3 ساعات"},
+  {id:503, from:"تاجر", user:"مطعم الضيافة", topic:"تغيير وضع الإرسال إلى Auto", status:"محلولة", time:"أمس"},
+  {id:504, from:"مندوب", user:"محمد العتيبي", topic:"طلب تفعيل منطقة جديدة", status:"محلولة", time:"أمس"}
+];
+
+function go(v){
+  document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
+  const views = ["overview","dispatch","couriers","orders","shifts","attendance","performance","payouts","channels","compliance","tickets","companies","rules","shipping"];
+  views.forEach(x=>{ const el=document.getElementById("view-"+x); if(el) el.style.display = x===v?"block":"none"; });
+  const names = {overview:"نظرة عامة",dispatch:"الإرسال والتحكم",couriers:"المناديب",orders:"الطلبات",shifts:"الورديات",attendance:"تتبع الحضور",performance:"أداء المناديب",payouts:"الرواتب",channels:"القنوات",compliance:"الامتثال",tickets:"التذاكر",companies:"شركات التشغيل",rules:"قواعد النظام",shipping:"شركات الشحن"};
+  document.getElementById("crumb").textContent = names[v];
+  loadAll();
+  if(v==="performance") loadPerformance();
+  if(v==="payouts") loadPayouts();
+  if(v==="compliance") loadCompliance();
+  if(v==="tickets") renderTickets();
+  if(v==="attendance") loadAttendance();
+}
+document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
+
+function toggleSide(){
+  const side=document.getElementById("side"), overlay=document.getElementById("overlay"), main=document.getElementById("main");
+  if(window.innerWidth>860){
+    side.classList.toggle("hidden");
+    main.classList.toggle("expanded");
+  }else{
+    side.classList.toggle("open");
+    overlay.classList.toggle("show");
+  }
+}
+
+function setRole(r){
+  role = r;
+  document.querySelectorAll(".rolebar button").forEach(b=>b.classList.remove("active"));
+  event.currentTarget.classList.add("active");
+  document.getElementById("roleName").textContent = r==="dou"?"فريق DOU":"شركة لوجستية";
+  document.getElementById("roleDesc").textContent = r==="dou"?"مشرف العمليات (كل الشركات)":"حساب الشركة (أسطولك فقط)";
+  const companyNav = document.getElementById("navCompanies");
+  if(r==="company"){
+    companyNav.style.display = "none";
+    const el = document.getElementById("view-companies"); if(el) el.style.display="none";
+    if(document.getElementById("view-companies").style.display==="block") go("overview");
+  } else {
+    companyNav.style.display = "";
+  }
+  renderOverview();
+}
+
+function scoped(list){
+  if(role==="company") return list;
+  return list;
+}
+
+async function loadAll(){
+  const [couriers, orders, merchants, companies] = await Promise.all([
+    api("/couriers"), api("/orders"), api("/merchants"), api("/shipping/companies")
+  ]);
+  renderOverview();
+  document.getElementById("couriersBody").innerHTML = couriers.map(c=>`
+    <tr><td>${c.name}</td><td><span class="tag gray">${c.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
+    <td>${c.is_online?'<span class="tag green">متصل</span>':'<span class="tag gray">غير متصل</span>'}</td>
+    <td><span class="tag ${c.id%2?"blue":"gray"}">${c.id%2?"أسطول مقهى بن القهوة":"أسطول مندوبي الشمال"}</span></td>
+    <td>${c.acceptance_rate}%</td><td>${c.score}</td><td>${c.current_load}</td>
+    <td>${c.id%3? '<span class="tag green">موثّق</span>':'<span class="tag amber">قيد المراجعة</span>'}</td>
+    <td style="display:flex;gap:6px">
+      <button class="btn ghost small" onclick="alert('تم حظر المندوب (UI)')">حظر</button>
+      <button class="btn green small" onclick="alert('تمت الموافقة (UI)')">اعتماد</button>
+    </td></tr>`).join("");
+
+  document.getElementById("ordersBody").innerHTML = orders.slice().reverse().map(o=>`
+    <tr><td>${o.id}</td><td>${o.customer_name}</td><td>${o.merchant_id}</td><td>${tag(o.status)}</td>
+    <td><span class="tag ${o.id%2?"blue":"gray"}">${o.id%2?"Dedicated":"On-demand"}</span></td>
+    <td><span class="tag gray">${o.delivery_method}</span></td><td>${o.distance_km?o.distance_km.toFixed(1):"–"}</td><td>${o.courier_id||"—"}</td></tr>`).join("") || '<tr><td colspan="8" style="color:var(--muted)">لا طلبات</td></tr>';
+
+  const shifts = await api("/shifts");
+  document.getElementById("shiftsBody").innerHTML = shifts.map(s=>`
+    <tr><td>${s.name}</td><td>${s.zone||"—"}</td><td>${s.start_time}-${s.end_time}</td>
+    <td>${s.required_couriers}</td><td><span class="tag gray">${s.id%2?"أسطول مقهى بن القهوة":"كل الأساطيل"}</span></td>
+    <td><span class="tag gray">${s.status||"SCHEDULED"}</span></td></tr>`).join("") || '<tr><td colspan="6" style="color:var(--muted)">لا ورديات</td></tr>';
+
+  document.getElementById("companiesBody2").innerHTML = companies.map(c=>`
+    <tr><td>${c.name}</td><td>${c.code}</td><td>${c.country}</td>
+    <td>${c.is_active?'<span class="tag green">مفعّلة</span>':'<span class="tag gray">غير مفعّلة</span>'}</td></tr>`).join("") || '<tr><td colspan="4" style="color:var(--muted)">لا شركات</td></tr>';
+
+  document.getElementById("companiesBody").innerHTML = [
+    {name:"شركة النقل الذكي", fleets:"أسطول مقهى بن القهوة", couriers:4, perf:"92%", on:true},
+    {name:"شركة الإمداد السريع", fleets:"أسطول مندوبي الشمال", couriers:8, perf:"88%", on:true},
+    {name:"شركة الخدمات اللوجستية", fleets:"—", couriers:0, perf:"—", on:false}
+  ].map(c=>`<tr><td>${c.name}</td><td>${c.fleets}</td><td>${c.couriers}</td><td><span class="tag ${c.on?"green":"gray"}">${c.perf}</span></td>
+    <td>${c.on?'<span class="tag green">نشطة</span>':'<span class="tag gray">غير نشطة</span>'}</td></tr>`).join("");
+}
+
+function renderOverview(){
+  const dateFilter = document.getElementById("oDateFilter") ? document.getElementById("oDateFilter").value : "هذا الأسبوع";
+  const mul = dateFilter==="اليوم"?0.2: dateFilter==="هذا الشهر"?4:1;
+  const company = role==="company";
+  document.getElementById("mCouriers").textContent = company? "4 (أسطولك)":"12";
+  document.getElementById("mOnline").textContent = company? "3":"8";
+  document.getElementById("mOrders").textContent = company? Math.round(142*mul):Math.round(320*mul);
+  document.getElementById("mActive").textContent = company? "9":"27";
+  document.getElementById("mUnassigned").textContent = company? "2":"7";
+  document.getElementById("mRevenue").textContent = "ر.س "+Math.round((company?18000:42000)*mul).toLocaleString();
+  document.getElementById("mUtil").textContent = "68%";
+  document.getElementById("mOntime").textContent = "93%";
+  document.getElementById("poolCompany").textContent = company? "3":"5";
+  document.getElementById("poolFreelance").textContent = "3";
+  document.getElementById("poolShipping").textContent = "2";
+  document.getElementById("recentOrders").innerHTML = ["DELIVERED","IN_TRANSIT","ASSIGNED","DELIVERED","PICKED_UP","READY","IN_TRANSIT","DELIVERED"].map((s,i)=>`
+    <tr><td>${1200+i}</td><td>${tag(s)}</td><td><span class="tag gray">${i%3?"PLATFORM":"SHIPPING"}</span></td>
+    <td>${(2.1+i%5).toFixed(1)} كم</td><td>${company?"4":(i%3)+1}</td></tr>`).join("");
+}
+
+function renderOrders(){
+  const fs=document.getElementById("orderStatusFilter").value, ft=document.getElementById("orderTypeFilter").value;
+  document.querySelectorAll("#ordersBody tr").forEach(tr=>{
+    const st=tr.querySelector("td:nth-child(4)")?.textContent||"";
+    const ty=tr.querySelector("td:nth-child(5)")?.textContent||"";
+    const show=(!fs||st.includes(fs))&&(!ft||ty.includes(ft));
+    tr.style.display=show?"":"none";
+  });
+}
+
+function toggleAddCourier(){ document.getElementById("addCourierBox").style.display = document.getElementById("addCourierBox").style.display==="none"?"block":"none"; }
+async function addCourier(){
+  try{ await api("/couriers",{method:"POST",body:JSON.stringify({
+    name:document.getElementById("cName").value, phone:document.getElementById("cPhone").value,
+    courier_type:document.getElementById("cType").value, country:document.getElementById("cCountry").value,
+    lat:+document.getElementById("cLat").value, lng:+document.getElementById("cLng").value})});
+    document.getElementById("courierMsg").textContent="✅ أضيف المندوب"; loadAll();
+  }catch(e){ document.getElementById("courierMsg").textContent="❌ "+e.message; }
+}
+function toggleAddShift(){ document.getElementById("addShiftBox").style.display = document.getElementById("addShiftBox").style.display==="none"?"block":"none"; }
+async function addShift(){
+  try{ await api("/shifts",{method:"POST",body:JSON.stringify({
+    name:document.getElementById("sName").value, zone:document.getElementById("sZone").value||null,
+    start_time:document.getElementById("sStart").value, end_time:document.getElementById("sEnd").value,
+    required_couriers:+document.getElementById("sReq").value||0})});
+    document.getElementById("shiftMsg").textContent="✅ أُنشئت الوردية"; loadAll();
+  }catch(e){ document.getElementById("shiftMsg").textContent="❌ "+e.message; }
+}
+function toggleAddCompany(){ document.getElementById("addCompanyBox").style.display = document.getElementById("addCompanyBox").style.display==="none"?"block":"none"; }
+async function addCompany(){
+  try{ await api("/shipping/companies",{method:"POST",body:JSON.stringify({
+    name:document.getElementById("coName").value, code:document.getElementById("coCode").value,
+    country:document.getElementById("coCountry").value})});
+    document.getElementById("companyMsg").textContent="✅ أُضيفت الشركة"; loadAll();
+  }catch(e){ document.getElementById("companyMsg").textContent="❌ "+e.message; }
+}
+
+document.getElementById("overrideBody").innerHTML = [1189,1192,1195,1198].map((o,i)=>`
+  <tr><td>#${o}</td><td><span class="tag ${i%2?"blue":"amber"}">${i%2?"PICKED_UP":"PLACED"}</span></td>
+  <td>${i%2?"محمد العتيبي":"—"}</td><td><span class="tag gray">${i%2?"On-demand":"Dedicated"}</span></td>
+  <td><button class="btn ghost small" onclick='openReassign(${o})'>🔄 إعادة تعيين</button>
+      <button class="btn small" onclick='alert("فرض الإسناد (Force Assign) — UI")'>فرض</button></td></tr>`).join("");
+
+function openReassign(orderId){
+  document.getElementById("rmOrder").value = orderId;
+  document.getElementById("reassignModal").classList.add("open");
+}
+function closeReassign(){ document.getElementById("reassignModal").classList.remove("open"); }
+function doReassign(){
+  document.getElementById("rmMsg").style.color="var(--green)";
+  document.getElementById("rmMsg").textContent = "✅ أُعيد تعيين الطلب #"+document.getElementById("rmOrder").value+" للمندوب المختار";
+  setTimeout(closeReassign, 1200);
+}
+
+async function loadPerformance(){
+  const [rows, overview] = await Promise.all([api("/analytics/performance"), api("/analytics/overview")]);
+  document.getElementById("perfMetrics").innerHTML = `
+    <div class="metric"><b>${overview.avg_acceptance}%</b><span>متوسط القبول</span></div>
+    <div class="metric"><b>${overview.deliveries_done}</b><span>توصيلات مكتملة</span></div>
+    <div class="metric"><b>${overview.avg_score}</b><span>متوسط النقاط</span></div>
+    <div class="metric"><b>${rows.length}</b><span>مناديب</span></div>`;
+  document.getElementById("perfBody").innerHTML = rows.map(r=>`
+    <tr><td>${r.name}</td><td><span class="tag gray">${r.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
+    <td>${r.deliveries}</td><td>${r.acceptance_rate}%</td><td>${r.on_time_rate}%</td><td>${r.completion_rate}%</td>
+    <td><b style="color:${r.score>=4.7?"var(--green)":"var(--amber)"}">${r.score}</b></td>
+    <td>${r.online?'<span class="tag green">متصل</span>':'<span class="tag gray">غير متصل</span>'}</td></tr>`).join("") || '<tr><td colspan="8" style="color:var(--muted)">لا مناديب</td></tr>';
+}
+
+async function loadPayouts(){
+  const rows = await api("/analytics/payouts");
+  document.getElementById("payTotal").textContent = "ر.س " + rows.reduce((s,r)=>s+r.estimated_total,0).toLocaleString();
+  document.getElementById("payBody").innerHTML = rows.map(r=>`
+    <tr><td>${r.name}</td><td><span class="tag gray">${r.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
+    <td><span class="tag ${r.id%2?"blue":"gray"}">${r.id%2?"ثابت":"لكل توصيلة"}</span></td>
+    <td>${r.fixed?r.fixed.toLocaleString():0}</td><td>${r.per_delivery_earned.toLocaleString()}</td>
+    <td><span class="tag ${r.incentive?"amber":"gray"}">${r.incentive}</span></td>
+    <td><b>${r.estimated_total.toLocaleString()}</b></td></tr>`).join("") || '<tr><td colspan="7" style="color:var(--muted)">لا مناديب</td></tr>';
+}
+
+function loadAttendance(){
+  const rows = [
+    {name:"أحمد الشمري", in:"15:58", out:"—", hours:"2.1", shift:"16:00 - 00:00", st:"present"},
+    {name:"محمد العتيبي", in:"15:45", out:"—", hours:"2.3", shift:"16:00 - 00:00", st:"present"},
+    {name:"خالد القحطاني", in:"16:11", out:"—", hours:"1.9", shift:"16:00 - 00:00", st:"late"},
+    {name:"عبدالله السالم", in:"—", out:"—", hours:"0", shift:"16:00 - 00:00", st:"absent"}
+  ];
+  document.getElementById("attIn").textContent = "3 / 4";
+  document.getElementById("attLate").textContent = "1";
+  document.getElementById("attendanceBody").innerHTML = rows.map(r=>`
+    <tr><td><span class="avatarDot ${r.st==="present"?"on":r.st==="late"?"off":"off"}"></span>${r.name}</td>
+    <td>${r.in}</td><td>${r.out}</td><td>${r.hours} س</td><td>${r.shift}</td>
+    <td><span class="tag ${r.st==="present"?"green":r.st==="late"?"amber":"red"}">${r.st==="present"?"حاضر":r.st==="late"?"متأخر":"غائب"}</span></td></tr>`).join("");
+}
+
+async function loadCompliance(){
+  const c = await api("/analytics/compliance");
+  document.getElementById("compMetrics").innerHTML = `
+    <div class="metric"><b>${c.documents_attention}</b><span>مستندات تحتاج انتباه</span></div>
+    <div class="metric"><b>${c.attendance_exceptions}</b><span>استثناءات حضور</span></div>
+    <div class="metric"><b>${c.delivery_investigations}</b><span>تحقيقات توصيل</span></div>
+    <div class="metric"><b>${c.couriers_checked_in}</b><span>سجّلوا الحضور</span></div>`;
+  document.getElementById("compDetail").innerHTML =
+    `• <b>${c.documents_attention}</b> مندوباً مستنداتهم تحتاج تجديد أو انتهت<br>` +
+    `• <b>${c.attendance_exceptions}</b> حالة تأخير/غياب هذا الأسبوع<br>` +
+    `• <b>${c.delivery_investigations}</b> حالة توصيل تتطلب مراجعة تشغيلية`;
+}
+
+function renderTickets(){
+  const f = document.getElementById("ticketFilter").value;
+  const list = TICKETS.filter(t=> f==="الكل" || t.status===f || t.from===f);
+  document.getElementById("ticketsBody").innerHTML = list.map(t=>`
+    <div class="ticket">
+      <div><b>#${t.id} · ${t.from} — ${t.user}</b><small>${t.topic}</small></div>
+      <div style="text-align:left;display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+        <span class="tag ${t.status==="محلولة"?"green":"amber"}">${t.status}</span>
+        <small style="color:var(--muted)">${t.time}</small>
+        <button class="btn ghost small" onclick="alert('فتح الرد على التذكرة (UI)')">الرد</button>
+      </div>
+    </div>`).join("") || '<p class="msg" style="text-align:center">لا تذاكر مطابقة</p>';
+}
+
+go("overview");
+</script>
+</body>
+</html>
+
+</template><template id="tpl-courier">
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DOU | تطبيق المندوب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#171b22;--muted:#757b86;--line:#e9e9ec;--orange:#ff5a13;--warm:#fff2eb;--green:#149467;--green2:#eaf8f0;--blue:#246bfd;--blue2:#eaf1ff;--soft:#f7f7f8;--nav:#11161d}
+*{box-sizing:border-box}body{margin:0;background:var(--soft);font-family:Alexandria,sans-serif;color:var(--ink)}
+.stage{max-width:420px;margin:0 auto;min-height:100vh;background:#fff;display:flex;flex-direction:column;box-shadow:0 0 40px rgba(0,0,0,.08)}
+.head{background:var(--nav);color:#fff;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.logo{font-size:22px;font-weight:800;letter-spacing:-2px}.logo i{display:inline-block;background:var(--orange);height:8px;width:20px;border-radius:6px;margin:0 2px 8px 0}
+.status{font-size:11px;color:#8b94a3}
+.status b{color:#5be0a3}
+.bell{position:relative;background:none;border:0;color:#fff;font-size:18px;cursor:pointer}
+.bell .badge{position:absolute;top:-6px;left:-6px;background:var(--orange);color:#fff;font-size:9px;border-radius:20px;padding:1px 6px}
+.tabs{display:flex;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:62px;z-index:9}
+.tabs button{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:13px;font-family:inherit;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
+.tabs button.active{color:var(--orange);border-color:var(--orange)}
+.content{flex:1;padding:18px}
+.view{display:none}.view.active{display:block}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.card h3{margin:0 0 10px;font-size:14px}
+.btn{width:100%;border:0;border-radius:12px;padding:13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.btn.primary{background:var(--orange);color:#fff}
+.btn.green{background:var(--green);color:#fff}
+.btn.ghost{background:var(--soft);color:var(--ink)}
+.btn.danger{background:#fdebeb;color:#ef5d67}
+.btn.small{padding:8px 12px;font-size:11px;border-radius:9px;width:auto}
+.btn-group{display:flex;gap:8px;margin-top:10px}
+.btn-group .btn{flex:1}
+.task{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.task .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.task b{font-size:14px}
+.tag{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700}
+.tag.blue{background:var(--blue2);color:var(--blue)}.tag.green{background:var(--green2);color:var(--green)}
+.tag.orange{background:var(--warm);color:var(--orange)}.tag.gray{background:#f1f2f4;color:var(--muted)}
+.row{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin:3px 0}
+.row b{color:var(--ink)}
+.earn{display:flex;gap:12px;margin-bottom:14px}
+.earn .e{flex:1;background:var(--green2);border-radius:14px;padding:12px;text-align:center}
+.earn .e b{display:block;font-size:18px;color:var(--green)}
+.earn .e span{font-size:10px;color:var(--muted)}
+.bar{height:8px;background:#eee;border-radius:10px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--green);border-radius:10px}
+.toggle{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)}
+.toggle:last-child{border-bottom:0}
+.switch{width:46px;height:26px;background:#d3d7de;border-radius:20px;position:relative;cursor:pointer;transition:.2s}
+.switch.on{background:var(--green)}.switch:after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s}
+.switch.on:after{transform:translateX(-20px)}
+.shiftBanner{background:linear-gradient(115deg,#1b2330,#2a3548);border-radius:16px;padding:16px;color:#fff;margin-bottom:14px}
+.shiftBanner small{color:#8b94a3;font-size:10px;letter-spacing:.5px}
+.shiftBanner b{display:block;font-size:15px;margin:4px 0}
+.shiftBanner .row{color:#b9c1cd}
+.mapPh{height:140px;border-radius:12px;background:linear-gradient(135deg,#eef2f7,#dfe6ef);display:grid;place-items:center;color:var(--muted);font-size:11px;position:relative;overflow:hidden;margin-bottom:10px}
+.mapPh .pin{position:absolute;font-size:20px}
+.steps{display:flex;gap:4px;margin-top:10px}
+.steps .st{flex:1;text-align:center}
+.steps .st .dot{width:24px;height:24px;margin:0 auto;border-radius:50%;background:#f1f2f4;color:var(--muted);display:grid;place-items:center;font-size:10px}
+.steps .st.done .dot{background:var(--green);color:#fff}
+.steps .st.now .dot{background:var(--blue);color:#fff}
+.steps .st small{display:block;font-size:9px;color:var(--muted);margin-top:4px}
+.steps .st.done small,.steps .st.now small{color:var(--ink)}
+.payout{display:flex;gap:10px;margin-bottom:14px}
+.payout .p{flex:1;background:var(--warm);border-radius:14px;padding:12px;text-align:center}
+.payout .p b{display:block;font-size:17px;color:var(--orange)}
+.payout .p span{font-size:10px;color:var(--muted)}
+.lineItem{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}
+.lineItem:last-child{border-bottom:0}
+.lineItem b{font-size:13px}
+.notifItem{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.notifItem:last-child{border-bottom:0}
+.notifItem .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:14px;flex-shrink:0}
+.notifItem b{font-size:12px;display:block}.notifItem small{font-size:10px;color:var(--muted)}
+.docRow{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
+.docRow b{font-size:12px}.docRow small{font-size:10px;color:var(--muted)}
+</style>
+</head>
+<body>
+<script>/* DOU Demo Mock API — يعمل محلياً بالكامل بدون سيرفر
+   واعي بالدولة: window.DOU_COUNTRY = "SA" (سعودية) أو "EG" (مصر) */
+(function(){
+  var _realFetch = window.fetch;
+  var COUNTRY = (typeof window.DOU_COUNTRY === "string" && (window.DOU_COUNTRY==="EG"||window.DOU_COUNTRY==="SA")) ? window.DOU_COUNTRY : "SA";
+
+  var DB = {
+    merchants: [
+      /* ===== السعودية ===== */
+      {id:1, name:"مقهى بن القهوة", slug:"bin-coffee", theme:"default", delivery_method:"PLATFORM", city:"الرياض", district:"حي الملقا", country:"SA"},
+      {id:2, name:"مطعم الضيافة", slug:"diyafa-rest", theme:"dark", delivery_method:"SELF", city:"الرياض", district:"حي العليا", country:"SA"},
+      {id:3, name:"بقالة النور", slug:"noor-market", theme:"default", delivery_method:"SHIPPING", city:"الرياض", district:"حي النرجس", country:"SA"},
+      {id:4, name:"دار العود للعطور", slug:"dar-oud", theme:"gold", delivery_method:"SHIPPING", city:"الرياض", district:"حي الملقا", country:"SA", category:"عطور"},
+      {id:5, name:"متجر الشتاء للملابس", slug:"winter-wear", theme:"default", delivery_method:"SHIPPING", city:"الرياض", district:"حي الملقا", country:"SA", category:"ملابس"},
+      {id:6, name:"الرياض للبخور", slug:"riyadh-bakhoor", theme:"gold", delivery_method:"SHIPPING", city:"الرياض", district:"حي النرجس", country:"SA", category:"عطور"},
+      /* ===== مصر ===== */
+      {id:21, name:"قهوة أبو جبل", slug:"abou-gabal", theme:"default", delivery_method:"PLATFORM", city:"القاهرة", district:"مدينة نصر", country:"EG", category:"قهوة"},
+      {id:22, name:"مطعم الحواوشي", slug:"hawawshi-rest", theme:"dark", delivery_method:"PLATFORM", city:"القاهرة", district:"المعادي", country:"EG"},
+      {id:23, name:"بقالة السيد", slug:"elsayed-market", theme:"default", delivery_method:"SHIPPING", city:"الجيزة", district:"الدقي", country:"EG"},
+      {id:24, name:"بيت العود المصري", slug:"masr-oud", theme:"gold", delivery_method:"SHIPPING", city:"القاهرة", district:"الزمالك", country:"EG", category:"عطور"}
+    ],
+    products: [
+      /* السعودية */
+      {id:1, merchant_id:1, name:"كابتشينو", price:16, currency:"SAR", category:"قهوة", is_available:true, description:"إسبريسو بحليب مخفوق"},
+      {id:2, merchant_id:1, name:"لاتيه", price:18, currency:"SAR", category:"قهوة", is_available:true, description:"إسبريسو بحليب"},
+      {id:3, merchant_id:1, name:"تشيز كيك", price:22, currency:"SAR", category:"حلويات", is_available:true, description:"تشيز كيك بصلصة التوت"},
+      {id:4, merchant_id:1, name:"كرواسون", price:14, currency:"SAR", category:"مخبوزات", is_available:true, description:"كرواسون طازج"},
+      {id:5, merchant_id:2, name:"مشاوي مشكل", price:45, currency:"SAR", category:"مأكولات", is_available:true, description:"طبق مشاوي"},
+      {id:6, merchant_id:2, name:"سلطة سيزر", price:25, currency:"SAR", category:"سلطات", is_available:true, description:"سلطة سيزر بالدجاج"},
+      {id:7, merchant_id:3, name:"أرز بسمتي 5كجم", price:34, currency:"SAR", category:"بقالة", is_available:true, description:"أرز بسمتي هندي"},
+      {id:8, merchant_id:3, name:"حليب طويل الأجل", price:21, currency:"SAR", category:"بقالة", is_available:true, description:"حليب 1لتر ×6"},
+      {id:9, merchant_id:4, name:"عود ملكي 30مل", price:320, currency:"SAR", category:"عطور", is_available:true, description:"عود كمبودي فاخر"},
+      {id:10, merchant_id:4, name:"مسك الطهارة", price:95, currency:"SAR", category:"عطور", is_available:true, description:"مسك أبيض نقي"},
+      {id:11, merchant_id:4, name:"عطر ليالي الشرق", price:180, currency:"SAR", category:"عطور", is_available:true, description:"عطر شرقي ثابت"},
+      {id:12, merchant_id:5, name:"فستان سهرة", price:450, currency:"SAR", category:"ملابس", is_available:true, description:"فستان سهرة أنيق"},
+      {id:13, merchant_id:5, name:"عباية فاخرة", price:290, currency:"SAR", category:"ملابس", is_available:true, description:"عباية شيفون مطرزة"},
+      {id:14, merchant_id:5, name:"تيشيرت قطني", price:65, currency:"SAR", category:"ملابس", is_available:true, description:"قطن مصري"},
+      {id:15, merchant_id:6, name:"بخور عود حرير", price:150, currency:"SAR", category:"بخور", is_available:true, description:"بخور عود فاخر"},
+      {id:16, merchant_id:6, name:"معمول عطور مشكل", price:210, currency:"SAR", category:"عطور", is_available:true, description:"تشكيلة عطور شرقية"},
+      /* مصر */
+      {id:21, merchant_id:21, name:"قهوة سادة", price:15, currency:"EGP", category:"قهوة", is_available:true, description:"قهوة بلدي محمصة"},
+      {id:22, merchant_id:21, name:"كابتشينو", price:20, currency:"EGP", category:"قهوة", is_available:true, description:"كابتشينو بالحليب"},
+      {id:23, merchant_id:21, name:"سحلب", price:25, currency:"EGP", category:"مشروبات", is_available:true, description:"سحلب بالمكسرات"},
+      {id:24, merchant_id:22, name:"حواوشي", price:40, currency:"EGP", category:"مأكولات", is_available:true, description:"حواوشي على الطريقة الإسكندراني"},
+      {id:25, merchant_id:22, name:"كشري", price:25, currency:"EGP", category:"مأكولات", is_available:true, description:"كشري مصري أصيل"},
+      {id:26, merchant_id:22, name:"طاجن فراخ", price:60, currency:"EGP", category:"مأكولات", is_available:true, description:"طاجن فراخ بالبصل"},
+      {id:27, merchant_id:23, name:"أرز مصري 1كجم", price:22, currency:"EGP", category:"بقالة", is_available:true, description:"أرز مصري قصير الحبة"},
+      {id:28, merchant_id:23, name:"مكرونة", price:12, currency:"EGP", category:"بقالة", is_available:true, description:"مكرونة إيطالي"},
+      {id:29, merchant_id:24, name:"عود مصري 30مل", price:250, currency:"EGP", category:"عطور", is_available:true, description:"عود مصري فاخر"},
+      {id:30, merchant_id:24, name:"مسك أبيض", price:120, currency:"EGP", category:"عطور", is_available:true, description:"مسك نقي"},
+      {id:31, merchant_id:24, name:"عطر شرقي", price:200, currency:"EGP", category:"عطور", is_available:true, description:"عطر شرقي ثابت"}
+    ],
+    couriers: [
+      {id:1, name:"أحمد الشمري", phone:"0551112233", courier_type:"COMPANY", country:"SA", is_online:true, is_available:true, score:4.9, acceptance_rate:94, current_load:1, lat:24.753, lng:46.641},
+      {id:2, name:"محمد العتيبي", phone:"0554445566", courier_type:"FREELANCER", country:"SA", is_online:true, is_available:true, score:4.6, acceptance_rate:88, current_load:0, lat:24.748, lng:46.635},
+      {id:3, name:"خالد القحطاني", phone:"0557778899", courier_type:"FREELANCER", country:"SA", is_online:false, is_available:false, score:4.4, acceptance_rate:79, current_load:0, lat:24.76, lng:46.63},
+      {id:4, name:"عبدالله السالم", phone:"0552223344", courier_type:"COMPANY", country:"SA", is_online:true, is_available:true, score:4.8, acceptance_rate:91, current_load:2, lat:24.755, lng:46.638},
+      {id:21, name:"محمد السيد", phone:"01001112223", courier_type:"FREELANCER", country:"EG", is_online:true, is_available:true, score:4.7, acceptance_rate:90, current_load:1, lat:30.044, lng:31.235},
+      {id:22, name:"أحمد عبدالله", phone:"01004445556", courier_type:"COMPANY", country:"EG", is_online:true, is_available:true, score:4.5, acceptance_rate:86, current_load:0, lat:30.05, lng:31.24},
+      {id:23, name:"كريم فوزي", phone:"01007778889", courier_type:"FREELANCER", country:"EG", is_online:false, is_available:false, score:4.3, acceptance_rate:81, current_load:0, lat:30.03, lng:31.22}
+    ],
+    orders: [
+      /* السعودية */
+      {id:1204, merchant_id:1, customer_name:"سارة", customer_phone:"0551234567", customer_lat:24.752, customer_lng:46.64, customer_address:"حي الملقا، شارع أنس", status:"IN_TRANSIT", delivery_method:"PLATFORM", courier_id:1, subtotal:50, delivery_fee:8, total:58, distance_km:3.2, source:"DOU App", country:"SA"},
+      {id:1203, merchant_id:1, customer_name:"نورة", customer_phone:"0553334455", customer_lat:24.757, customer_lng:46.648, customer_address:"حي الملقا", status:"READY", delivery_method:"PLATFORM", courier_id:null, subtotal:34, delivery_fee:8, total:42, distance_km:2.1, source:"Jahez", country:"SA"},
+      {id:1202, merchant_id:1, customer_name:"ريم", customer_phone:"0556667788", customer_lat:24.75, customer_lng:46.637, customer_address:"حي الملقا", status:"ACCEPTED", delivery_method:"PLATFORM", courier_id:null, subtotal:40, delivery_fee:8, total:48, distance_km:4.4, source:"HungerStation", country:"SA"},
+      {id:1201, merchant_id:1, customer_name:"فيصل", customer_phone:"0559990011", customer_lat:24.749, customer_lng:46.642, customer_address:"حي الملقا", status:"PLACED", delivery_method:"PLATFORM", courier_id:null, subtotal:16, delivery_fee:8, total:24, distance_km:1.8, source:"DOU App", country:"SA"},
+      {id:1200, merchant_id:1, customer_name:"هند", customer_phone:"0551213141", customer_lat:24.754, customer_lng:46.641, customer_address:"حي الملقا", status:"DELIVERED", delivery_method:"PLATFORM", courier_id:2, subtotal:70, delivery_fee:8, total:78, distance_km:5.1, source:"Jahez", country:"SA"},
+      {id:1199, merchant_id:2, customer_name:"عمر", customer_phone:"0551516171", customer_lat:24.78, customer_lng:46.69, customer_address:"حي العليا", status:"DELIVERED", delivery_method:"SELF", courier_id:null, subtotal:70, delivery_fee:0, total:70, distance_km:0.9, source:"DOU App", country:"SA"},
+      {id:1198, merchant_id:3, customer_name:"سلمى", customer_phone:"0551819202", customer_lat:24.82, customer_lng:46.72, customer_address:"حي النرجس", status:"SHIPPING", delivery_method:"SHIPPING", courier_id:null, shipping_company:"SMSA Express", shipping_ref:"SMSA-1198", subtotal:55, delivery_fee:25, total:80, distance_km:18.4, source:"DOU App", country:"SA"},
+      {id:1197, merchant_id:4, customer_name:"سارة", customer_phone:"0551234567", customer_lat:24.752, customer_lng:46.64, customer_address:"حي الملقا", status:"DELIVERED", delivery_method:"SHIPPING", courier_id:null, shipping_company:"Bosta", shipping_ref:"BOSTA-1197", subtotal:320, delivery_fee:22, total:342, distance_km:14.2, source:"DOU App", country:"SA"},
+      {id:1196, merchant_id:5, customer_name:"سارة", customer_phone:"0551234567", customer_lat:24.752, customer_lng:46.64, customer_address:"حي الملقا", status:"PLACED", delivery_method:"SHIPPING", courier_id:null, shipping_company:null, shipping_ref:null, subtotal:290, delivery_fee:20, total:310, distance_km:12.8, source:"DOU App", country:"SA"},
+      /* مصر */
+      {id:1304, merchant_id:21, customer_name:"سلمى", customer_phone:"01000000001", customer_lat:30.05, customer_lng:31.35, customer_address:"مدينة نصر، شارع عباس العقاد", status:"IN_TRANSIT", delivery_method:"PLATFORM", courier_id:21, subtotal:40, delivery_fee:15, total:55, distance_km:2.8, source:"DOU App", country:"EG"},
+      {id:1303, merchant_id:21, customer_name:"هبة", customer_phone:"01000000002", customer_lat:30.04, customer_lng:31.34, customer_address:"مدينة نصر", status:"READY", delivery_method:"PLATFORM", courier_id:null, subtotal:25, delivery_fee:15, total:40, distance_km:1.6, source:"Jahez", country:"EG"},
+      {id:1302, merchant_id:22, customer_name:"أحمد", customer_phone:"01000000003", customer_lat:30.03, customer_lng:31.25, customer_address:"المعادي", status:"DELIVERED", delivery_method:"PLATFORM", courier_id:22, subtotal:85, delivery_fee:15, total:100, distance_km:3.4, source:"DOU App", country:"EG"},
+      {id:1301, merchant_id:24, customer_name:"نور", customer_phone:"01000000004", customer_lat:30.06, customer_lng:31.21, customer_address:"الزمالك", status:"SHIPPING", delivery_method:"SHIPPING", courier_id:null, shipping_company:"Bosta", shipping_ref:"BOSTA-1301", subtotal:250, delivery_fee:40, total:290, distance_km:12.1, source:"DOU App", country:"EG"}
+    ],
+    shifts: [
+      {id:1, name:"وردية الصباح", zone:"الملقا", start_time:"09:00", end_time:"17:00", required_couriers:4, status:"ACTIVE"},
+      {id:2, name:"وردية المساء", zone:"الملقا", start_time:"17:00", end_time:"01:00", required_couriers:3, status:"SCHEDULED"},
+      {id:3, name:"وردية العليا", zone:"العليا", start_time:"10:00", end_time:"18:00", required_couriers:2, status:"ACTIVE"}
+    ],
+    companies: [
+      {id:1, name:"SMSA Express", code:"SMSA", country:"SA", is_active:true},
+      {id:2, name:"Bosta", code:"BOSTA", country:"SA", is_active:true},
+      {id:3, name:"Aramex", code:"ARAMEX", country:"SA", is_active:false},
+      {id:4, name:"Doora", code:"DOORA", country:"EG", is_active:true},
+      {id:5, name:"ساعي مصر", code:"SAE", country:"EG", is_active:false}
+    ],
+    geo: [
+      {id:1, name:"السعودية", code:"SA", flag:"🇸🇦", active:true, cities:[
+        {id:101, name:"الرياض", active:true, districts:[
+          {id:1001, name:"حي الملقا", active:true},
+          {id:1002, name:"حي العليا", active:true},
+          {id:1003, name:"حي النرجس", active:false}
+        ]},
+        {id:102, name:"جدة", active:true, districts:[
+          {id:1004, name:"حي الحمراء", active:true},
+          {id:1005, name:"حي الروضة", active:false}
+        ]}
+      ]},
+      {id:2, name:"مصر", code:"EG", flag:"🇪🇬", active:true, cities:[
+        {id:201, name:"القاهرة", active:true, districts:[
+          {id:2001, name:"مدينة نصر", active:true},
+          {id:2002, name:"المعادي", active:true},
+          {id:2003, name:"الزمالك", active:false}
+        ]},
+        {id:202, name:"الإسكندرية", active:true, districts:[
+          {id:2004, name:"سموحة", active:true},
+          {id:2005, name:"محرم بك", active:false}
+        ]}
+      ]}
+    ],
+    attendance: [],
+    channels: [
+      {id:1, name:"DOU App", icon:"📱", type:"OWN", commission:0, is_active:true, orders_share:70, status:"active"},
+      {id:2, name:"Jahez", icon:"🍔", type:"PARTNER", commission:12, is_active:true, orders_share:18, status:"active"},
+      {id:3, name:"HungerStation", icon:"🚀", type:"PARTNER", commission:15, is_active:true, orders_share:8, status:"active"},
+      {id:4, name:"POS / نقاط البيع", icon:"🖨", type:"INTEGRATION", commission:2, is_active:true, orders_share:4, status:"active"},
+      {id:5, name:"Instagram", icon:"📷", type:"SOCIAL", commission:5, is_active:false, orders_share:0, status:"inactive"},
+      {id:6, name:"WhatsApp", icon:"💬", type:"SOCIAL", commission:3, is_active:false, orders_share:0, status:"inactive"},
+      {id:7, name:"متجر الكتروني", icon:"🌐", type:"INTEGRATION", commission:2.5, is_active:false, orders_share:0, status:"inactive"}
+    ],
+    staff: [
+      {id:1, name:"سامح صالح", email:"sameh@dou.sa", role:"المؤسس / المدير العام", access:"full", status:"active"},
+      {id:2, name:"محمد علي", email:"m.ali@dou.sa", role:"مدير العمليات", access:"ops", status:"active"},
+      {id:3, name:"سارة أحمد", email:"s.ahmed@dou.sa", role:"مسؤول مالي", access:"finance", status:"active"},
+      {id:4, name:"خالد حسن", email:"k.hassan@dou.sa", role:"مدير منطقة الرياض", access:"region", region:"الرياض", status:"active"},
+      {id:5, name:"منى إبراهيم", email:"m.ibrahim@dou.sa", role:"مديرة منطقة القاهرة", access:"region", region:"القاهرة", status:"inactive"}
+    ],
+    nextId: 1305, nextTask: 51
+  };
+
+  function merchantsFor(c){ return DB.merchants.filter(function(m){return m.country===c;}); }
+  function couriersFor(c){ return DB.couriers.filter(function(m){return m.country===c;}); }
+  function ordersFor(c){ return DB.orders.filter(function(m){return m.country===c;}); }
+  function companiesFor(c){ return DB.companies.filter(function(m){return m.country===c;}); }
+
+  function deliverCounts(){
+    var done = DB.orders.filter(function(o){return /DELIVER|COMPLETE/i.test(o.status);}).length;
+    var total = DB.orders.length;
+    return {done:done, total:total};
+  }
+  function courierDeliveries(cid){
+    return DB.orders.filter(function(o){return o.courier_id===cid && /DELIVER|COMPLETE/i.test(o.status);}).length;
+  }
+
+  function tasksFor(cid){
+    var list = [];
+    DB.orders.forEach(function(o){
+      if(o.courier_id!==cid) return;
+      if(o.status==="OFFERED") list.push({id:DB.nextId + o.id, order_id:o.id, status:"OFFERED"});
+      else if(o.status==="ACCEPTED"||o.status==="ASSIGNED") list.push({id:DB.nextId + o.id, order_id:o.id, status:"ACCEPTED"});
+      else if(o.status==="PICKED_UP") list.push({id:DB.nextId + o.id, order_id:o.id, status:"ACCEPTED"});
+      else if(o.status==="IN_TRANSIT") list.push({id:DB.nextId + o.id, order_id:o.id, status:"ACCEPTED"});
+      else if(o.status==="DELIVERED") list.push({id:DB.nextId + o.id, order_id:o.id, status:"DELIVERED"});
+    });
+    var offered = ordersFor(COUNTRY).filter(function(o){return o.status==="PLACED" && !o.courier_id;});
+    offered.slice(0,1).forEach(function(o){
+      if(list.length<2) list.unshift({id:DB.nextId+o.id, order_id:o.id, status:"OFFERED"});
+    });
+    return list;
+  }
+
+  function route(method, url, body){
+    var u = url.split("?")[0];
+    var m = method.toUpperCase();
+    if(u==="/health") return {status:"ok", service:"dou-api"};
+
+    if(u==="/merchants" && m==="GET") return merchantsFor(COUNTRY);
+    var mm = u.match(/^\/merchants\/(\d+)$/);
+    if(mm && m==="GET") return DB.merchants.find(function(x){return x.id==+mm[1];}) || {error:"not found"};
+    var mprod = u.match(/^\/merchants\/(\d+)\/products$/);
+    if(mprod && m==="GET") return DB.products.filter(function(p){return p.merchant_id==+mprod[1];});
+    if(mprod && m==="POST"){ var np={id:DB.nextId++, merchant_id:+mprod[1], name:body.name||"منتج", price:+body.price||0, currency:body.currency||(COUNTRY==="EG"?"EGP":"SAR"), category:body.category||"", is_available:true, description:""}; DB.products.push(np); return np; }
+    var mth = u.match(/^\/merchants\/(\d+)\/theme$/);
+    if(mth && m==="PATCH"){ var t=DB.merchants.find(function(x){return x.id==+mth[1];}); if(t) t.theme=body.theme; return t||{}; }
+    var mdm = u.match(/^\/merchants\/(\d+)\/delivery-method$/);
+    if(mdm && m==="PATCH"){ var dm=DB.merchants.find(function(x){return x.id==+mdm[1];}); if(dm) dm.delivery_method=body.delivery_method; return dm||{}; }
+
+    if(u==="/orders" && m==="GET") return ordersFor(COUNTRY);
+    if(u==="/orders" && m==="POST"){
+      var items=(body.items||[]).map(function(it){
+        var p=DB.products.find(function(x){return x.id==+it.product_id;});
+        return {product_id:+it.product_id, quantity:it.quantity||1, price:p?p.price:0, name:p?p.name:""};
+      });
+      var subtotal=items.reduce(function(s,i){return s+i.price*i.quantity;},0);
+      var delivery_fee=body.delivery_method==="SHIPPING"?(COUNTRY==="EG"?40:25):(COUNTRY==="EG"?15:8);
+      var o={id:DB.nextId++, merchant_id:+body.merchant_id, customer_name:body.customer_name||"عميل",
+        customer_phone:body.customer_phone||"0550000000", customer_lat:+body.customer_lat, customer_lng:+body.customer_lng,
+        customer_address:body.customer_address||"الرياض", status:"PLACED", delivery_method:"PLATFORM",
+        courier_id:null, subtotal:subtotal, delivery_fee:delivery_fee, total:subtotal+delivery_fee,
+        distance_km:3.0, source:"DOU App", country:COUNTRY, _items:items};
+      DB.orders.push(o);
+      return o;
+    }
+    var om = u.match(/^\/orders\/(\d+)$/);
+    if(om && m==="GET") return DB.orders.find(function(o){return o.id==+om[1];}) || {error:"not found"};
+    var osm = u.match(/^\/orders\/(\d+)\/status$/);
+    if(osm && m==="PATCH"){ var oo=DB.orders.find(function(o){return o.id==+osm[1];}); if(oo) oo.status=body.status; return oo||{}; }
+
+    if(u==="/couriers" && m==="GET") return couriersFor(COUNTRY);
+    if(u==="/couriers" && m==="POST"){ var nc={id:DB.couriers.length+100, name:body.name||"مندوب", phone:body.phone||"", courier_type:body.courier_type||"FREELANCER", country:COUNTRY, is_online:false, is_available:false, score:4.0, acceptance_rate:100, current_load:0, lat:+body.lat||(COUNTRY==="EG"?30.04:24.75), lng:+body.lng||(COUNTRY==="EG"?31.23:46.63)}; DB.couriers.push(nc); return nc; }
+    var con = u.match(/^\/couriers\/(\d+)\/online$/);
+    if(con && m==="POST"){ var co=DB.couriers.find(function(x){return x.id==+con[1];}); if(co){co.is_online=true; co.is_available=true;} return {ok:true}; }
+    var coff = u.match(/^\/couriers\/(\d+)\/offline$/);
+    if(coff && m==="POST"){ var c2=DB.couriers.find(function(x){return x.id==+coff[1];}); if(c2){c2.is_online=false; c2.is_available=false;} return {ok:true}; }
+    var ct = u.match(/^\/couriers\/(\d+)\/tasks$/);
+    if(ct && m==="GET") return tasksFor(+ct[1]);
+    var ca = u.match(/^\/couriers\/(\d+)\/tasks\/(\d+)\/(accept|reject|deliver)$/);
+    if(ca && m==="POST"){
+      var oid=+ca[2], cid=+ca[1], act=ca[3];
+      var ord=DB.orders.find(function(o){return o.id===oid;});
+      if(act==="accept"){ if(ord){ord.status="ASSIGNED"; ord.courier_id=cid;} }
+      else if(act==="deliver"){ if(ord){ord.status="DELIVERED"; ord.courier_id=cid;} }
+      else if(act==="reject"){ if(ord){ord.status="PLACED"; ord.courier_id=null;} }
+      return {ok:true};
+    }
+
+    if(u==="/shifts" && m==="GET") return DB.shifts;
+    if(u==="/shifts" && m==="POST"){ var ns={id:DB.shifts.length+10, name:body.name||"وردية", zone:body.zone||"", start_time:body.start_time||"09:00", end_time:body.end_time||"17:00", required_couriers:+body.required_couriers||1, status:"SCHEDULED"}; DB.shifts.push(ns); return ns; }
+    if(u==="/shifts/attendance/check-in" && m==="POST"){ DB.attendance.push({courier_id:+body.courier_id, in:new Date().toISOString()}); return {ok:true}; }
+    if(u==="/shifts/attendance/check-out" && m==="POST"){ return {ok:true}; }
+
+    if(u==="/shipping/companies" && m==="GET") return companiesFor(COUNTRY);
+    if(u==="/shipping/companies" && m==="POST"){ var nc2={id:DB.companies.length+100, name:body.name||"", code:body.code||"", country:COUNTRY, is_active:true}; DB.companies.push(nc2); return nc2; }
+
+    /* ===== الجغرافيا: دول / مدن / مناطق ===== */
+    if(u==="/geo/countries" && m==="GET") return DB.geo;
+    if(u==="/geo/countries" && m==="POST"){ var ng={id:DB.geo.length+50, name:body.name||"دولة جديدة", code:body.code||"XX", flag:body.flag||"🌍", active:true, cities:[]}; DB.geo.push(ng); return ng; }
+    var gco = u.match(/^\/geo\/countries\/(\d+)$/);
+    if(gco && m==="GET") return DB.geo.find(function(x){return x.id==+gco[1];}) || {error:"not found"};
+    if(gco && m==="PATCH"){ var gc=DB.geo.find(function(x){return x.id==+gco[1];}); if(gc) gc.active=!!body.active; return gc||{}; }
+    if(gco && m==="DELETE"){ DB.geo = DB.geo.filter(function(x){return x.id!==+gco[1];}); return {ok:true}; }
+    var gci = u.match(/^\/geo\/countries\/(\d+)\/cities$/);
+    if(gci && m==="POST"){ var g=DB.geo.find(function(x){return x.id==+gci[1];}); if(g){ var nc3={id:Math.floor(300+Math.random()*200), name:body.name||"مدينة جديدة", active:true, districts:[]}; g.cities.push(nc3); return nc3; } return {error:"not found"}; }
+    var gct = u.match(/^\/geo\/cities\/(\d+)$/);
+    if(gct && m==="GET"){ var cg; DB.geo.forEach(function(c){ c.cities.forEach(function(city){ if(city.id==+gct[1]) cg=city; }); }); return cg||{error:"not found"}; }
+    if(gct && m==="PATCH"){ var cc; DB.geo.forEach(function(c){ c.cities.forEach(function(city){ if(city.id==+gct[1]) cc=city; }); }); if(cc) cc.active=!!body.active; return cc||{}; }
+    if(gct && m==="DELETE"){ DB.geo.forEach(function(c){ c.cities = c.cities.filter(function(city){ return city.id!==+gct[1]; }); }); return {ok:true}; }
+    var gdi = u.match(/^\/geo\/cities\/(\d+)\/districts$/);
+    if(gdi && m==="POST"){ var city; DB.geo.forEach(function(c){ c.cities.forEach(function(ci){ if(ci.id==+gdi[1]) city=ci; }); }); if(city){ var nd={id:Math.floor(1000+Math.random()*500), name:body.name||"منطقة جديدة", active:true}; city.districts.push(nd); return nd; } return {error:"not found"}; }
+    var gdt = u.match(/^\/geo\/districts\/(\d+)$/);
+    if(gdt && m==="GET"){ var dg; DB.geo.forEach(function(c){ c.cities.forEach(function(city){ city.districts.forEach(function(d){ if(d.id==+gdt[1]) dg=d; }); }); }); return dg||{error:"not found"}; }
+    if(gdt && m==="PATCH"){ var dd; DB.geo.forEach(function(c){ c.cities.forEach(function(city){ city.districts.forEach(function(d){ if(d.id==+gdt[1]) dd=d; }); }); }); if(dd) dd.active=!!body.active; return dd||{}; }
+    if(gdt && m==="DELETE"){ DB.geo.forEach(function(c){ c.cities.forEach(function(city){ city.districts = city.districts.filter(function(d){ return d.id!==+gdt[1]; }); }); }); return {ok:true}; }
+
+    /* ===== Super Admin: كل البيانات عبر الدول ===== */
+    if(u==="/admin/merchants" && m==="GET") return DB.merchants;
+    if(u==="/admin/merchants" && m==="POST"){
+      var nm={id:DB.merchants.length+200, name:body.name||"متجر جديد", slug:(body.slug||"new-store"), theme:"default", delivery_method:body.delivery_method||"PLATFORM", city:body.city||"", district:body.district||"", country:body.country||COUNTRY, category:body.category||"", is_active:true};
+      DB.merchants.push(nm); return nm;
+    }
+    var admM = u.match(/^\/admin\/merchants\/(\d+)$/);
+    if(admM && m==="PATCH"){ var am=DB.merchants.find(function(x){return x.id==+admM[1];}); if(am){ if("active" in body) am.is_active=!!body.active; if(body.delivery_method) am.delivery_method=body.delivery_method; if(body.category) am.category=body.category; } return am||{}; }
+    if(admM && m==="DELETE"){ DB.merchants = DB.merchants.filter(function(x){return x.id!==+admM[1];}); return {ok:true}; }
+    if(u==="/admin/couriers" && m==="GET") return DB.couriers;
+    if(u==="/admin/couriers" && m==="POST"){ var nc={id:DB.couriers.length+200, name:body.name||"مندوب جديد", phone:body.phone||"", courier_type:body.courier_type||"FREELANCER", country:body.country||COUNTRY, is_online:false, is_available:true, score:4.0, acceptance_rate:100, current_load:0, is_active:true}; DB.couriers.push(nc); return nc; }
+    var admC = u.match(/^\/admin\/couriers\/(\d+)$/);
+    if(admC && m==="PATCH"){ var ac=DB.couriers.find(function(x){return x.id==+admC[1];}); if(ac){ if("active" in body) ac.is_active=!!body.active; if(body.courier_type) ac.courier_type=body.courier_type; } return ac||{}; }
+    if(admC && m==="DELETE"){ DB.couriers = DB.couriers.filter(function(x){return x.id!==+admC[1];}); return {ok:true}; }
+    if(u==="/admin/companies" && m==="GET") return DB.companies;
+    if(u==="/admin/companies" && m==="POST"){ var ncmp={id:DB.companies.length+200, name:body.name||"شركة جديدة", code:body.code||"NEW", country:body.country||"SA", is_active:true}; DB.companies.push(ncmp); return ncmp; }
+    var admCp = u.match(/^\/admin\/companies\/(\d+)$/);
+    if(admCp && m==="PATCH"){ var ap=DB.companies.find(function(x){return x.id==+admCp[1];}); if(ap) ap.is_active = "active" in body ? !!body.active : ap.is_active; return ap||{}; }
+    if(admCp && m==="DELETE"){ DB.companies = DB.companies.filter(function(x){return x.id!==+admCp[1];}); return {ok:true}; }
+    if(u==="/admin/channels" && m==="GET") return DB.channels;
+    if(u==="/admin/channels" && m==="POST"){ var nch={id:DB.channels.length+20, name:body.name||"قناة جديدة", icon:body.icon||"🔌", type:body.type||"PARTNER", commission:+body.commission||0, is_active:true, orders_share:0, status:"active"}; DB.channels.push(nch); return nch; }
+    var admCh = u.match(/^\/admin\/channels\/(\d+)$/);
+    if(admCh && m==="PATCH"){ var ach=DB.channels.find(function(x){return x.id==+admCh[1];}); if(ach){ if("active" in body){ ach.is_active=!!body.active; ach.status=body.active?"active":"inactive"; } if("commission" in body) ach.commission=+body.commission; } return ach||{}; }
+    if(admCh && m==="DELETE"){ DB.channels = DB.channels.filter(function(x){return x.id!==+admCh[1];}); return {ok:true}; }
+    if(u==="/admin/staff" && m==="GET") return DB.staff;
+    if(u==="/admin/staff" && m==="POST"){ var ns={id:DB.staff.length+10, name:body.name||"موظف جديد", email:body.email||"", role:body.role||"", access:body.access||"limited", status:"active"}; DB.staff.push(ns); return ns; }
+    var admS = u.match(/^\/admin\/staff\/(\d+)$/);
+    if(admS && m==="PATCH"){ var as=DB.staff.find(function(x){return x.id==+admS[1];}); if(as){ if("active" in body) as.status=body.active?"active":"inactive"; if(body.role) as.role=body.role; } return as||{}; }
+    if(admS && m==="DELETE"){ DB.staff = DB.staff.filter(function(x){return x.id!==+admS[1];}); return {ok:true}; }
+
+    if(u==="/analytics/overview"){
+      var platform=ordersFor(COUNTRY).filter(function(o){return o.delivery_method==="PLATFORM";}).length;
+      var shipping=ordersFor(COUNTRY).filter(function(o){return o.delivery_method==="SHIPPING";}).length;
+      var self=ordersFor(COUNTRY).filter(function(o){return o.delivery_method==="SELF";}).length;
+      var revenue=ordersFor(COUNTRY).reduce(function(s,o){return s+o.total;},0);
+      return {orders_platform:platform, orders_shipping:shipping, orders_self:self,
+        deliveries_done:ordersFor(COUNTRY).filter(function(o){return /DELIVER|COMPLETE/i.test(o.status);}).length,
+        avg_acceptance:88, avg_score:4.7, revenue_total:revenue};
+    }
+    if(u==="/analytics/performance"){
+      return couriersFor(COUNTRY).map(function(c){
+        return {id:c.id, name:c.name, courier_type:c.courier_type, deliveries:courierDeliveries(c.id),
+          acceptance_rate:c.acceptance_rate, on_time_rate:c.score>=4.6?95:86, completion_rate:c.score>=4.5?98:90,
+          score:c.score, online:c.is_online};
+      });
+    }
+    if(u==="/analytics/payouts"){
+      return couriersFor(COUNTRY).map(function(c){
+        var d=courierDeliveries(c.id);
+        var fixed=c.courier_type==="COMPANY"?4500:0;
+        var per= c.courier_type==="COMPANY"?3.5:8.0;
+        var earned=d*per;
+        var incentive=c.score>=4.7?250:0;
+        return {id:c.id, name:c.name, courier_type:c.courier_type, deliveries:d, fixed:fixed,
+          per_delivery_earned:earned, incentive:incentive, estimated_total:fixed+earned+incentive};
+      });
+    }
+    if(u==="/analytics/compliance"){
+      return {documents_attention:1, attendance_exceptions:2, delivery_investigations:1, couriers_checked_in:3};
+    }
+    if(u==="/analytics/top-merchants"){
+      return merchantsFor(COUNTRY).map(function(m){
+        var os=DB.orders.filter(function(o){return o.merchant_id===m.id;});
+        return {id:m.id, name:m.name, orders:os.length, revenue:os.reduce(function(s,o){return s+o.total;},0)};
+      }).sort(function(a,b){return b.orders-a.orders;});
+    }
+
+    return {error:"not found: "+u};
+  }
+
+  window.fetch = function(url, opts){
+    opts = opts||{};
+    var path = typeof url==="string" ? url : (url&&url.url)||"";
+    var method = opts.method||"GET";
+    var body = opts.body ? JSON.parse(opts.body) : {};
+    try{
+      var data = route(method, path, body);
+      if(data && data.error && data.error.indexOf("not found")===0){
+        return Promise.resolve({ok:false, status:404, text:function(){return Promise.resolve(data.error);}, json:function(){return Promise.resolve(data);}});
+      }
+      return Promise.resolve({ok:true, status:200, text:function(){return Promise.resolve(JSON.stringify(data));}, json:function(){return Promise.resolve(data);}});
+    }catch(e){
+      return Promise.resolve({ok:false, status:500, text:function(){return Promise.resolve(String(e.message||e));}, json:function(){return Promise.resolve({error:String(e)});}});
+    }
+  };
+})();
+</script>
+
+<div class="stage">
+  <div class="head">
+    <div class="logo">D<i></i>ou <span style="font-size:10px;color:#ff7a42;letter-spacing:1px">COURIER</span></div>
+    <div style="display:flex;gap:14px;align-items:center">
+      <div class="status"><b id="statusDot">●</b> <span id="statusText">غير متصل</span></div>
+      <button class="bell" onclick="toggleNotifPanel(event)">🔔<span class="badge">2</span></button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="active" onclick="go('home')">🏠 الرئيسية</button>
+    <button onclick="go('earnings')">💰 الأرباح</button>
+    <button onclick="go('profile')">👤 حسابي</button>
+    <button onclick="go('notifs')">🔔 تنبيهات</button>
+  </div>
+
+  <div class="content">
+
+    <!-- الرئيسية -->
+    <div class="view active" id="view-home">
+      <div class="shiftBanner" id="shiftBanner">
+        <small id="shiftTitle">الوردية الحالية</small>
+        <b id="shiftInfo">غير مسجّل الحضور</b>
+        <div class="row"><span id="shiftZone">المنطقة: —</span><span id="shiftClock">—</span></div>
+      </div>
+
+      <div class="earn">
+        <div class="e"><b id="doneCount">0</b><span>توصيلات مكتملة</span></div>
+        <div class="e"><b id="acceptRate">100%</b><span>معدل القبول</span></div>
+        <div class="e"><b id="score">5.0</b><span>نقاط الأداء</span></div>
+      </div>
+
+      <div class="card">
+        <h3>🎯 المهام الحالية</h3>
+        <div id="tasks"><p style="color:var(--muted);font-size:12px">لا مهام حالياً</p></div>
+      </div>
+
+      <div class="card">
+        <h3>حالة التوفر</h3>
+        <div class="toggle">
+          <div><b style="font-size:13px">متاح للطلبات</b><div style="font-size:11px;color:var(--muted)">فعّل لتستقبل مهام توصيل</div></div>
+          <div id="switch" class="switch" onclick="toggleOnline()"></div>
+        </div>
+        <p style="font-size:10px;color:var(--muted);margin:8px 0 0">⚠️ سيتم إيقافك تلقائياً إذا: لم تسجّل حضورك، أو انتهت ورديتك.</p>
+      </div>
+
+      <div class="card">
+        <h3>تسجيل الحضور</h3>
+        <button class="btn green" id="checkinBtn" onclick="checkIn()">تسجيل دخول (حضور GPS)</button>
+        <div style="height:8px"></div>
+        <button class="btn ghost" id="checkoutBtn" onclick="checkOut()" disabled>تسجيل خروج (إنهاء الوردية)</button>
+      </div>
+
+      <div class="card">
+        <h3>📍 التنقل الحالي</h3>
+        <div class="mapPh">🗺 خريطة GPS — تحسين المسار تلقائياً
+          <span class="pin" style="right:30%;top:36%">🛵</span>
+          <span class="pin" style="right:64%;top:52%">🏪</span>
+          <span class="pin" style="right:80%;top:26%">📍</span>
+        </div>
+        <div class="row"><span>الوجهة القادمة</span><b>مقهى بن القهوة — الملقا</b></div>
+        <div class="row"><span>المسار الأمثل</span><b>✓ مفعّل (توفير 4 دقائق)</b></div>
+        <button class="btn ghost small" style="width:100%;margin-top:10px" onclick="alert('فتح الملاحة (Google Maps) — UI')">🧭 افتح الملاحة</button>
+      </div>
+    </div>
+
+    <!-- الأرباح -->
+    <div class="view" id="view-earnings">
+      <div class="payout">
+        <div class="p"><b id="todayEarn">0</b><span>أرباح اليوم</span></div>
+        <div class="p"><b id="weekEarn">0</b><span>هذا الأسبوع</span></div>
+        <div class="p"><b id="incentiveEarn">0</b><span>الحوافز</span></div>
+      </div>
+
+      <div class="card">
+        <h3>أرباح اليوم — لكل طلب</h3>
+        <div id="earningList"></div>
+      </div>
+
+      <div class="card">
+        <h3>🧮 تفاصيل حسابي (Payout)</h3>
+        <div class="lineItem"><span>الحساب البنكي</span><b>الراجحي ****4321</b></div>
+        <div class="lineItem"><span>التحويل الدوري</span><b>كل أسبوعين</b></div>
+        <div class="lineItem"><span>الحالة</span><b style="color:var(--green)">مفعّل ✓</b></div>
+        <button class="btn ghost small" style="margin-top:10px" onclick="alert('تعديل بيانات الدفع (UI)')">تعديل بيانات الدفع</button>
+      </div>
+
+      <div class="card">
+        <h3>🏆 الحوافز</h3>
+        <div class="lineItem"><span>أساس الالتزام</span><b>إنجاز 95%+ هذا الأسبوع</b></div>
+        <div class="lineItem"><span>أساس الحضور</span><b>حضور كامل للورديات المخصصة</b></div>
+        <div class="lineItem"><span>أساس الأداء</span><b>نقاط 4.7+</b></div>
+        <div class="bar"><i style="width:82%"></i></div>
+        <p style="font-size:10px;color:var(--muted);margin:8px 0 0">تقدمك نحو حافز الأسبوع: <b style="color:var(--green)">82%</b></p>
+      </div>
+    </div>
+
+    <!-- حسابي -->
+    <div class="view" id="view-profile">
+      <div class="card">
+        <h3>الملف الشخصي</h3>
+        <div class="lineItem"><span>الاسم</span><b>أحمد الشمري</b></div>
+        <div class="lineItem"><span>الهاتف</span><b>0551112233</b></div>
+        <div class="lineItem"><span>النوع</span><b><span class="tag blue">Dedicated</span> أسطول مقهى بن القهوة</b></div>
+        <div class="lineItem"><span>المنطقة</span><b>الرياض — الملقا</b></div>
+        <button class="btn ghost small" style="margin-top:10px" onclick="alert('تعديل الملف (UI)')">تعديل الملف</button>
+      </div>
+
+      <div class="card">
+        <h3>📄 المستندات</h3>
+        <div class="docRow"><div><b>الرخصة / الهوية</b><small> · تنتهي 2027-03-15</small></div><span class="tag green">سارية</span></div>
+        <div class="docRow"><div><b>تأمين المركبة</b><small> · تنتهي 2026-09-01</small></div><span class="tag green">سارية</span></div>
+        <div class="docRow"><div><b>سجل المخالفات المرورية</b><small> · آخر تحديث 2026-07</small></div><span class="tag gray">محدث</span></div>
+        <button class="btn ghost small" style="margin-top:10px" onclick="alert('رفع / تحديث مستند (UI)')">📎 رفع مستند</button>
+      </div>
+
+      <div class="card">
+        <h3>التوفر والحضور</h3>
+        <div class="lineItem"><span>الحالة</span><b id="profOnline">غير متصل</b></div>
+        <div class="lineItem"><span>ساعات العمل اليوم</span><b>0 ساعة</b></div>
+        <button class="btn danger" style="margin-top:10px" onclick="alert('تم إرسال طلب الدعم (UI)')">🛟 رفع تذكرة (دعم)</button>
+      </div>
+    </div>
+
+    <!-- التنبيهات -->
+    <div class="view" id="view-notifs">
+      <div class="card" id="notifList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const COURIER_ID = 1;
+const API = "";
+let online = false;
+let checkedIn = false;
+
+const NOTIFS = [
+  {ic:"📦", c:"#eaf1ff", t:"عرض طلب جديد #1204 — 12 ر.س", s:"قبل دقيقتين"},
+  {ic:"🔔", c:"#fff2eb", t:"تذكير: ورديتك تبدأ 16:00 اليوم", s:"قبل 30 دقيقة"},
+  {ic:"⚠️", c:"#fff0f1", t:"مخالفة محتملة: تأخرت في طلب #1187", s:"أمس"},
+  {ic:"💰", c:"#eaf8f0", t:"تم إيداع أرباح الأسبوع الماضي", s:"الأحد"}
+];
+
+const EARNINGS = [
+  {order:1204, src:"Jahez", earn:12, type:"On-demand"},
+  {order:1203, src:"DOU App", earn:12, type:"On-demand"},
+  {order:1199, src:"DOU App", earn:12, type:"On-demand"},
+  {order:1196, src:"HungerStation", earn:13, type:"Dedicated"}
+];
+
+async function api(path, opts={}){
+  const r = await fetch(API+path, Object.assign({headers:{"Content-Type":"application/json"}},opts));
+  if(!r.ok) throw new Error((await r.text())||r.status);
+  return r.json();
+}
+function tag(s){ s=String(s); return `<span class="tag ${/DELIVER/i.test(s)?"green":/ACCEPT/i.test(s)?"blue":/OFFER/i.test(s)?"orange":"gray"}">${s.replace(/_/g," ")}</span>`; }
+function typeTag(t){ return `<span class="tag ${t==="Dedicated"?"blue":"gray"}">${t}</span>`; }
+
+function go(v){
+  const map = {home:"الرئيسية",earnings:"الأرباح",profile:"حسابي",notifs:"تنبيهات"};
+  ["home","earnings","profile","notifs"].forEach(x=>document.getElementById("view-"+x).classList.toggle("active",x===v));
+  document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active", b.textContent.includes(map[v])));
+  if(v==="earnings") loadEarnings();
+  if(v==="notifs") renderNotifs();
+}
+function toggleNotifPanel(e){ e.stopPropagation(); }
+document.addEventListener("click",()=>{});
+
+function renderNotifs(){
+  document.getElementById("notifList").innerHTML = NOTIFS.map(n=>`
+    <div class="notifItem"><div class="ic" style="background:${n.c}">${n.ic}</div>
+      <div><b>${n.t}</b><small>${n.s}</small></div></div>`).join("");
+}
+function loadEarnings(){
+  document.getElementById("todayEarn").textContent = EARNINGS.reduce((s,e)=>s+e.earn,0)+" ر.س";
+  document.getElementById("weekEarn").textContent = (EARNINGS.reduce((s,e)=>s+e.earn,0)*4)+" ر.س";
+  document.getElementById("incentiveEarn").textContent = "48 ر.س";
+  document.getElementById("earningList").innerHTML = EARNINGS.map(e=>`
+    <div class="lineItem"><div><b>طلب #${e.order}</b> <span class="tag gray">${e.src}</span></div>
+      <div style="display:flex;gap:6px;align-items:center">${typeTag(e.type)} <b style="color:var(--green)">+${e.earn} ر.س</b></div></div>`).join("");
+}
+
+async function loadTasks(){
+  const tasks = await api("/couriers/"+COURIER_ID+"/tasks");
+  document.getElementById("tasks").innerHTML = tasks.length ? tasks.map(t=>{
+    const batch = t.batch_orders || [t.order_id];
+    return `
+    <div class="task">
+      <div class="top"><b>مهمة #${t.id} ${batch.length>1?`<span class="tag orange">Batch ${batch.length} طلبات</span>`:""}</b> ${tag(t.status)}</div>
+      <div class="row"><span>الطلب</span><b>${batch.join(" + ")}</b></div>
+      <div class="row"><span>النوع</span>${typeTag("Dedicated")}</div>
+      <div class="row"><span>المسافة</span><b>4.2 كم</b></div>
+      <div class="row"><span>الربح المتوقع</span><b style="color:var(--green)">12 ر.س</b></div>
+      <div class="row"><span>الاستلام</span><b>مقهى بن القهوة</b></div>
+      <div class="row"><span>التسليم</span><b>حي الملقا — شارع أنس</b></div>
+      ${t.status==="OFFERED" ? `<div class="btn-group">
+        <button class="btn green" onclick="act(${t.id},'accept')">قبول</button>
+        <button class="btn ghost" onclick="act(${t.id},'reject')">رفض</button>
+      </div>` : ""}
+      ${renderTaskSteps(t)}
+      ${t.status==="ACCEPTED" ? `<div class="btn-group">
+        <button class="btn" onclick="alert('وصلت للمتجر (UI)')">📍 وصلت للمتجر</button>
+      </div>` : ""}
+      ${t.status==="PICKED_UP" ? `<div class="btn-group">
+        <button class="btn primary" onclick="alert('أنا في الطريق للعميل (UI)')">🚚 في الطريق</button>
+      </div>` : ""}
+      ${t.status==="IN_TRANSIT" ? `<div class="btn-group">
+        <button class="btn green" onclick="act(${t.id},'deliver')">تم التسليم ✓</button>
+      </div>` : ""}
+    </div>`;
+  }).join("") : '<p style="color:var(--muted);font-size:12px">لا مهام حالياً</p>';
+}
+function renderTaskSteps(t){
+  const map = {ACCEPTED:0, PICKED_UP:1, IN_TRANSIT:2, DELIVERED:3};
+  const cur = map[t.status];
+  if(cur==null) return "";
+  const steps = ["الاستلام","استلمت","في الطريق","سُلّم"];
+  return `<div class="steps">${steps.map((s,i)=>`
+    <div class="st ${i<cur?"done":i===cur?"now":""}"><div class="dot">${i<cur?"✓":i+1}</div><small>${s}</small></div>`).join("")}</div>`;
+}
+
+async function act(taskId, action){
+  try{
+    await api(`/couriers/${COURIER_ID}/tasks/${taskId}/${action}`,
+      action==="reject" ? {method:"POST",body:JSON.stringify({courier_id:COURIER_ID,task_id:taskId})} : {method:"POST"});
+    await Promise.all([loadTasks(), loadProfile()]);
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function loadProfile(){
+  const [couriers, tasks] = await Promise.all([api("/couriers"), api("/couriers/"+COURIER_ID+"/tasks")]);
+  const me = couriers.find(c=>c.id===COURIER_ID);
+  if(me){
+    document.getElementById("acceptRate").textContent = me.acceptance_rate+"%";
+    document.getElementById("score").textContent = me.score;
+    online = me.is_online;
+    document.getElementById("switch").classList.toggle("on",online);
+    document.getElementById("statusText").textContent = online?"متصل":"غير متصل";
+    document.getElementById("statusDot").style.color = online?"#5be0a3":"#8b94a3";
+    document.getElementById("profOnline").textContent = online?"متصل":"غير متصل";
+  }
+  document.getElementById("doneCount").textContent = tasks.filter(t=>t.status==="DELIVERED").length;
+}
+
+function updateShiftClock(){
+  if(!checkedIn){ return; }
+  const now = new Date();
+  document.getElementById("shiftClock").textContent = now.toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"});
+}
+
+async function toggleOnline(){
+  if(!online){ await api("/couriers/"+COURIER_ID+"/online",{method:"POST"}); }
+  else{ await api("/couriers/"+COURIER_ID+"/offline",{method:"POST"}); }
+  loadProfile();
+}
+
+async function checkIn(){
+  try{
+    await api("/shifts/attendance/check-in",{method:"POST",body:JSON.stringify({courier_id:COURIER_ID})});
+    checkedIn = true;
+    document.getElementById("shiftTitle").textContent = "الوردية الحالية — وردية المساء";
+    document.getElementById("shiftInfo").textContent = "في وردية (16:00 - 00:00) · المنطقة: الملقا";
+    document.getElementById("shiftZone").textContent = "المنطقة: الرياض — الملقا ✓";
+    document.getElementById("checkinBtn").textContent = "✓ مسجّل الحضور";
+    document.getElementById("checkinBtn").disabled = true;
+    document.getElementById("checkoutBtn").disabled = false;
+    document.getElementById("statusText").textContent = "متصل";
+    alert("✅ تم تسجيل الحضور — أنت الآن متصل ومتاح (وردية مُفرَضة: 16:00 - 00:00)");
+    await api("/couriers/"+COURIER_ID+"/online",{method:"POST"});
+    loadProfile();
+  }catch(e){ alert("❌ "+e.message); }
+}
+async function checkOut(){
+  try{
+    await api("/shifts/attendance/check-out",{method:"POST",body:JSON.stringify({courier_id:COURIER_ID})});
+    checkedIn = false;
+    document.getElementById("shiftTitle").textContent = "الوردية الحالية";
+    document.getElementById("shiftInfo").textContent = "غير مسجّل الحضور";
+    document.getElementById("shiftZone").textContent = "المنطقة: —";
+    document.getElementById("checkinBtn").textContent = "تسجيل دخول (حضور GPS)";
+    document.getElementById("checkinBtn").disabled = false;
+    document.getElementById("checkoutBtn").disabled = true;
+    alert("✅ تم تسجيل الخروج — انتهت ورديتك. تم إيقاف استقبال الطلبات تلقائياً (Auto-offline)");
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+renderNotifs();
+loadProfile(); loadTasks();
+setInterval(()=>{ loadTasks(); }, 8000);
+setInterval(()=>{ updateShiftClock(); }, 30000);
+</script>
+</body>
+</html>
+
+</template>
+
+<script>
+const TITLES = {fleet:"لوحة Fleet Partners", courier:"تطبيق السواقين"};
+let blobUrl = null;
+function openDemo(name){
+  const tpl = document.getElementById('tpl-'+name);
+  document.getElementById('stageTitle').textContent = TITLES[name];
+  const pre = '<script>window.DOU_COUNTRY="SA";<\/script>';
+  const html = pre + tpl.innerHTML;
+  if(blobUrl) URL.revokeObjectURL(blobUrl);
+  blobUrl = URL.createObjectURL(new Blob([html], {type:'text/html'}));
+  const frame = document.getElementById('frame');
+  frame.src = blobUrl;
+  document.getElementById('stage').classList.add('open');
+  window.scrollTo(0,0);
+}
+function closeDemo(){
+  document.getElementById('stage').classList.remove('open');
+  document.getElementById('frame').src = "about:blank";
+}
+</script>
+</body>
+</html>

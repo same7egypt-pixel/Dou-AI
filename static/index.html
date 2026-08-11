@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DOU Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#11161d;font-family:Alexandria,sans-serif;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px}
+.logo{font-size:42px;font-weight:800;letter-spacing:-3px;direction:ltr;margin-bottom:8px}
+.logo i{display:inline-block;background:#ff5a13;height:12px;width:30px;border-radius:8px;margin:0 3px 12px 0}
+.sub{color:#8b94a3;font-size:13px;margin-bottom:34px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;width:100%;max-width:880px}
+.app{background:#1b2330;border:1px solid #273245;border-radius:18px;padding:22px;text-decoration:none;color:#fff;transition:.2s}
+.app:hover{border-color:#ff5a13;transform:translateY(-3px)}
+.app .icon{font-size:26px;margin-bottom:10px}
+.app b{display:block;font-size:15px;margin-bottom:5px}
+.app p{color:#8b94a3;font-size:11px;line-height:1.8;margin:0}
+.foot{margin-top:32px;color:#5b6575;font-size:11px}
+.api{color:#5be0a3}
+</style>
+</head>
+<body>
+<div class="logo">D<i></i>ou</div>
+<div class="sub">منصة توصيل ولوجستيات — السعودية ومصر · <span class="api" id="status">…</span></div>
+<div class="grid">
+  <a class="app" href="/static/customer.html"><div class="icon">🛍</div><b>تطبيق العميل</b><p>اكتشف متاجر حيّك، اطلب، وتتبع طلبك لحظياً</p></a>
+  <a class="app" href="/static/merchant.html"><div class="icon">🏪</div><b>لوحة التاجر</b><p>الطلبات، المنتجات، صفحة متجرك، طريقة التوصيل</p></a>
+  <a class="app" href="/static/courier.html"><div class="icon">🛵</div><b>تطبيق المندوب</b><p>الحضور، المهام، القبول، التسليم، الأرباح</p></a>
+  <a class="app" href="/static/fleet.html"><div class="icon">🚛</div><b>DOU Fleet Partners</b><p>منصة موحّدة: الشركة اللوجستية + فريق DOU</p></a>
+  <a class="app" href="/static/ops.html"><div class="icon">📡</div><b>Ops Cloud</b><p>لوحة التشغيل: الإرسال الحي والتحليلات</p></a>
+  <a class="app" href="/docs"><div class="icon">📚</div><b>توثيق الـ API</b><p>21 endpoint تفاعلي — Swagger UI</p></a>
+</div>
+<div class="foot">DOU Platform · MVP build — جميع الواجهات متصلة بنفس النظام الخلفي</div>
+<script>
+fetch("/health").then(r=>r.json()).then(d=>document.getElementById("status").textContent="✓ الخادم متصل").catch(()=>document.getElementById("status").textContent="✗ الخادم غير متصل");
+</script>
+</body>
+</html>

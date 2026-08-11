@@ -1,0 +1,16 @@
+# Render Blueprint — انشر DOU مجاناً بأقل من 5 دقائق
+# ملاحظة: قاعدة البيانات عبر Neon (مجاني) لأن Render أزال Postgres المجاني.
+# سوف تضع عنوان Neon (DATABASE_URL) في لوحة التحكم يدوياً — انظر deploy-guide.md
+services:
+  - type: web
+    name: dou-platform
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false

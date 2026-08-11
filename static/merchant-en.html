@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DOU | Merchant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f6fb;--card:#fff;--line:#e6eaf2;--ink:#0f1b2d;--muted:#6b7a90;--soft:#f6f8fc;--nav:#0e1526;--nav2:#121c31;--orange:#ff5a13;--orange-soft:#ffefe6;--green:#16a34a;--green-soft:#e7f6ee;--red:#ef4444;--red-soft:#fdecec;--blue:#2563eb;--blue-soft:#e9f0fe;--amber:#f59e0b;--amber-soft:#fdf3e3;--radius:14px;--shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Alexandria,sans-serif;color:var(--ink);font-size:13.5px;-webkit-font-smoothing:antialiased}
+.layout{display:flex;min-height:100vh}
+/* ===== Sidebar ===== */
+.side{width:248px;background:linear-gradient(180deg,var(--nav),var(--nav2));color:#cbd5e3;padding:0 0 18px;position:fixed;top:0;right:0;bottom:0;left:auto;display:flex;flex-direction:column;transition:transform .24s ease;z-index:40}
+.side.hidden{transform:translateX(110%)}
+.hamburger{background:none;border:0;color:var(--ink);font-size:20px;cursor:pointer;padding:6px;line-height:1;display:inline-block}
+.overlay{position:fixed;inset:0;background:rgba(10,15,26,.5);z-index:35;display:none}.overlay.show{display:block}
+.brand{display:flex;align-items:center;gap:10px;padding:20px 20px 16px}
+.brand .lg{width:34px;height:34px;border-radius:10px;background:var(--orange);display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff}
+.brand b{font-size:16px;color:#fff;letter-spacing:-.5px;direction:ltr}.brand small{display:block;font-size:9px;color:#7f8da8;letter-spacing:2px}
+.nav{display:flex;align-items:center;gap:11px;width:100%;background:none;border:0;color:#a7b3c6;font-family:inherit;font-size:12.5px;font-weight:500;padding:10px 18px;cursor:pointer;text-align:right;border-radius:10px;transition:.15s}
+.nav i{font-style:normal;width:20px;text-align:center;font-size:14px}
+.nav:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav.active{background:var(--orange);color:#fff;font-weight:700}
+.nav .ct{background:#3a4763;color:#cbd5e3;font-size:10px;border-radius:20px;padding:1px 8px;margin-inline-start:auto}
+.nav.active .ct{background:rgba(255,255,255,.22);color:#fff}
+.group{padding:16px 20px 6px;font-size:10px;letter-spacing:1px;color:#5b6a85;font-weight:700}
+.user{margin-top:auto;display:flex;align-items:center;gap:10px;padding:14px 16px;border-top:1px solid #1d2940}
+.user .photo{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px}
+.user b{color:#fff;font-size:12px;display:block}.user small{font-size:10px;color:#7f8da8}
+/* ===== Main ===== */
+.main{margin-right:248px;width:calc(100% - 248px);transition:margin .24s ease}
+.main.expanded{margin-right:0;width:100%}
+@media(max-width:900px){.side{transform:translateX(110%)}.side.open{transform:translateX(0)}.hamburger{display:inline-block}.main{margin-right:0;width:100%}}
+.top{height:64px;background:rgba(255,255,255,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:0 26px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:20}
+.breadcrumb{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px}.breadcrumb b{color:var(--ink);font-size:13px}
+.search{flex:1;max-width:340px;position:relative}
+.search input{width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 34px 9px 12px;font-size:12px;background:var(--soft);outline:none}
+.search input:focus{border-color:var(--orange);background:#fff}
+.search span{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:13px}
+.topActions{display:flex;gap:8px;align-items:center;margin-inline-start:auto}
+.iconBtn{width:38px;height:38px;border-radius:11px;background:var(--soft);border:1px solid var(--line);cursor:pointer;font-size:15px;position:relative;transition:.15s}
+.iconBtn:hover{border-color:var(--orange)}
+.iconBtn .dot{position:absolute;top:-3px;left:-3px;background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:20px;padding:1px 6px;border:2px solid #fff}
+.notifPanel{position:absolute;top:56px;left:0;width:340px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;display:none;z-index:30}
+.notifItem{display:flex;gap:10px;padding:10px;border-radius:10px}.notifItem:hover{background:var(--soft)}
+.notifItem .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:14px;flex-shrink:0}
+.notifItem b{font-size:12px;display:block;color:var(--ink)}.notifItem small{font-size:10px;color:var(--muted)}
+.content{padding:26px 28px 60px;max-width:1280px;margin:0 auto}
+/* ===== Home ===== */
+.welcome{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+.welcome h1{margin:0;font-size:22px;font-weight:800}.welcome p{margin:4px 0 0;color:var(--muted);font-size:12.5px}
+.quickBtns{display:flex;gap:8px}
+.btn{border:0;border-radius:10px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+.btn.primary{background:var(--orange);color:#fff}.btn.primary:hover{background:#e94e0c}
+.btn.dark{background:var(--nav);color:#fff}.btn.dark:hover{background:#1a2740}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.ghost:hover{border-color:var(--orange);color:var(--orange)}
+.btn.small{padding:7px 12px;font-size:11px}
+.btn.success{background:var(--green);color:#fff}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;transition:.18s}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.kpi .top{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11.5px;margin-bottom:10px;padding:0}
+.kpi .top i{font-style:normal;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-size:13px}
+.kpi b{display:block;font-size:23px;font-weight:800;letter-spacing:-.5px}
+.kpi .trend{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;margin-top:7px;border-radius:20px;padding:2px 8px}
+.kpi .trend.up{color:var(--green);background:var(--green-soft)}.kpi .trend.down{color:var(--red);background:var(--red-soft)}
+.kpi .spark{position:absolute;bottom:10px;left:14px;height:26px;width:64px;opacity:.85}
+.kpi .spark i{display:block;float:left;width:9px;margin-left:1px;border-radius:3px 3px 0 0}
+.grid2{display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:980px){.grid2{grid-template-columns:1fr}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.panel .ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.panel h3{margin:0;font-size:14.5px;font-weight:700}.panel .ph small{color:var(--muted);font-size:11px}
+.panel .ph a{color:var(--orange);font-size:11.5px;font-weight:700;cursor:pointer;text-decoration:none}
+.barChart{display:flex;align-items:flex-end;gap:8px;height:170px;padding-top:10px}
+.barChart .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.barChart .col .v{font-size:9.5px;color:var(--muted)}
+.barChart .col i{display:block;width:100%;max-width:30px;border-radius:6px 6px 3px 3px;background:linear-gradient(180deg,#ff8a55,var(--orange));transition:.3s}
+.barChart .col:hover i{filter:brightness(1.08)}
+.barChart .col small{font-size:10px;color:var(--muted)}
+.totalsRow{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.totalsRow .t{background:var(--soft);border-radius:11px;padding:12px}
+.totalsRow .t small{font-size:10.5px;color:var(--muted);display:block}.totalsRow .t b{font-size:16px}
+.chartRow{display:flex;gap:10px;margin-bottom:8px;align-items:center}
+.chartRow .lbl{width:96px;font-size:11px;color:var(--muted)}
+.chartRow .bar{flex:1;height:14px;background:#eef1f7;border-radius:8px;overflow:hidden}
+.chartRow .bar i{display:block;height:100%;border-radius:8px}
+.chartRow .val{width:46px;font-size:11px;font-weight:700;text-align:left}
+.topList .row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.topList .row:last-child{border-bottom:0}
+.topList .rank{width:24px;height:24px;border-radius:8px;background:var(--soft);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--muted)}
+.topList .row b{font-size:12px;display:block}
+.topList .row small{font-size:10.5px;color:var(--muted)}
+.topList .row .amt{margin-inline-start:auto;font-weight:800;font-size:12.5px}
+.rowList .row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.rowList .row:last-child{border-bottom:0}
+.rowList .row b{font-size:12.5px;display:block}
+.rowList .row small{font-size:10.5px;color:var(--muted)}
+.statusDot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.mt{margin-top:16px}
+/* ===== Tables ===== */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.card h3{margin:0 0 14px;font-size:14.5px}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;color:var(--muted);text-align:right;padding:9px 10px;border-bottom:2px solid var(--line);white-space:nowrap}
+td{padding:11px 10px;border-bottom:1px solid var(--line);font-size:12px;vertical-align:middle}
+tr:hover td{background:#fafbfe}
+.tag{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.tag.green{background:var(--green-soft);color:var(--green)}.tag.blue{background:var(--blue-soft);color:var(--blue)}
+.tag.amber{background:var(--amber-soft);color:#b45309}.tag.red{background:var(--red-soft);color:var(--red)}
+.tag.gray{background:#eef1f6;color:var(--muted)}.tag.orange{background:var(--orange-soft);color:var(--orange)}
+.filterbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.filterbar select{border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-size:12px;font-family:inherit;background:#fff;min-width:130px;outline:none}
+.filterbar select:focus{border-color:var(--orange)}
+.tabs{display:flex;gap:4px;background:var(--soft);border-radius:11px;padding:4px;margin-bottom:16px;flex-wrap:wrap}
+.tab{border:0;background:none;font-family:inherit;font-size:12px;font-weight:600;color:var(--muted);padding:8px 14px;border-radius:8px;cursor:pointer;transition:.15s}
+.tab.active{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(16,24,40,.12)}
+.tab .n{background:var(--line);border-radius:20px;padding:0 7px;font-size:10px;margin-inline-start:5px}
+.tab.active .n{background:var(--orange);color:#fff}
+.avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+/* ===== Products grid ===== */
+.prodGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.prod{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;transition:.18s}
+.prod:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:#ffd4bf}
+.prod .img{height:110px;background:linear-gradient(135deg,#f1f4fa,#e4eaf5);display:grid;place-items:center;font-size:34px;position:relative}
+.prod .img .st{position:absolute;top:8px;right:8px}
+.prod .body{padding:12px 13px}
+.prod .body b{font-size:12.5px;display:block}
+.prod .body small{color:var(--muted);font-size:10.5px}
+.prod .body .row{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+.prod .body .price{font-weight:800;font-size:13px}
+.prod .body .row .stock{font-size:10.5px;color:var(--muted)}
+.prod .body .row .stock.low{color:var(--red);font-weight:700}
+/* ===== Customers / Discounts / Channels ===== */
+.custRow{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.custRow:last-child{border-bottom:0}
+.custRow .info{flex:1}.custRow .info b{font-size:12.5px;display:block}.custRow .info small{color:var(--muted);font-size:10.5px}
+.custRow .spend{font-weight:800;font-size:13px;color:var(--green)}
+.discGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.disc{border:1px solid var(--line);border-radius:var(--radius);padding:16px;background:var(--card);position:relative;overflow:hidden;transition:.18s}
+.disc:hover{box-shadow:var(--shadow)}
+.disc .code{font-weight:800;font-size:15px;letter-spacing:1px;direction:ltr;text-align:left;color:var(--orange);background:var(--orange-soft);display:inline-block;border-radius:8px;padding:5px 10px;margin-bottom:10px}
+.disc b{display:block;font-size:13px}.disc small{color:var(--muted);font-size:10.5px;display:block;margin:3px 0 10px}
+.disc .meta{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);margin-bottom:10px}
+.chGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+.ch{border:1px solid var(--line);border-radius:var(--radius);padding:16px;background:var(--card);display:flex;gap:12px;align-items:center}
+.ch .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.ch b{font-size:13px;display:block}.ch small{color:var(--muted);font-size:10.5px}
+.ch .st{margin-inline-start:auto}
+.camp{border:1px solid var(--line);border-radius:var(--radius);padding:16px;background:var(--card);display:flex;gap:12px;align-items:center;transition:.18s}
+.camp:hover{box-shadow:var(--shadow)}
+.camp .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.camp b{font-size:13px;display:block}.camp small{color:var(--muted);font-size:10.5px}
+.camp .bar{height:6px;background:#eef1f7;border-radius:4px;overflow:hidden;margin-top:8px;width:140px}
+.camp .bar i{display:block;height:100%;border-radius:4px;background:var(--orange)}
+.switch{width:46px;height:26px;background:#d3d9e4;border-radius:20px;position:relative;cursor:pointer;transition:.2s;flex-shrink:0}
+.switch.on{background:var(--green)}.switch:after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s}
+.switch.on:after{transform:translateX(-20px)}
+.opt{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);gap:10px}
+.opt:last-child{border-bottom:0}
+.opt b{font-size:13px;display:block}.opt small{font-size:11px;color:var(--muted)}
+input[type=text],input[type=number],select{font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12px;width:100%;outline:none;background:#fff}
+input:focus,select:focus{border-color:var(--orange)}
+.form-row{display:flex;gap:8px;margin-bottom:10px}
+.form-row input,.form-row select{flex:1}
+.msg{font-size:12px;margin-top:8px}
+/* ===== Modal ===== */
+.modal{position:fixed;inset:0;background:rgba(10,15,26,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;backdrop-filter:blur(2px)}
+.modal.open{display:flex}
+.modalBox{background:#fff;border-radius:18px;padding:24px;max-width:540px;width:100%;max-height:90vh;overflow:auto}
+.modalBox h3{margin:0 0 14px;font-size:16px}
+.trackStep{display:flex;gap:12px;padding:8px 0}
+.trackStep .dot{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;flex-shrink:0;background:#eef1f7;color:var(--muted)}
+.trackStep.done .dot{background:var(--green);color:#fff}
+.trackStep.now .dot{background:var(--blue);color:#fff}
+.trackStep .txt b{font-size:12px;display:block}.trackStep .txt small{font-size:10px;color:var(--muted)}
+.mapPh{height:150px;border-radius:12px;background:linear-gradient(135deg,#eef2f7,#dfe6ef);display:grid;place-items:center;color:var(--muted);font-size:12px;margin-bottom:14px;position:relative;overflow:hidden}
+.mapPh .pin{position:absolute;font-size:22px}
+.overlay2{position:fixed;inset:0;background:rgba(10,15,26,.5);z-index:45;display:none}
+.overlay2.show{display:block}
+/* ===== Settlements ===== */
+.banner{display:flex;align-items:center;gap:14px;background:linear-gradient(120deg,#121c31,#1a2740);border-radius:16px;padding:18px 22px;color:#fff;margin-bottom:18px;flex-wrap:wrap}
+.banner .ic{width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.12);display:grid;place-items:center;font-size:21px;flex-shrink:0}
+.banner b{font-size:15.5px;display:block}.banner small{font-size:11px;color:#9fb0cc}
+.banner .amt{font-size:26px;font-weight:800;letter-spacing:-.5px;color:#ff8a55}
+.banner .meta{margin-inline-start:auto;display:flex;gap:22px;flex-wrap:wrap}
+.banner .meta .m small{display:block;font-size:10px;color:#9fb0cc}.banner .meta .m b{font-size:13.5px}
+/* ===== Setup guide (onboarding) ===== */
+.guide{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+.gstep{flex:1;min-width:150px;border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:flex-start;cursor:pointer;transition:.15s;background:#fff}
+.gstep:hover{border-color:var(--orange)}
+.gstep.done{background:var(--green-soft);border-color:#bfe8d4}
+.gstep .chk{width:22px;height:22px;border-radius:7px;border:2px solid #ccd4e0;display:grid;place-items:center;font-size:11px;color:#fff;flex-shrink:0;margin-top:1px}
+.gstep.done .chk{background:var(--green);border-color:var(--green)}
+.gstep b{font-size:12px;display:block}.gstep small{font-size:10px;color:var(--muted);line-height:1.6}
+.gstep.done b{color:var(--green)}
+.gprog{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.gprog .bar{flex:1;height:8px;background:#eef1f7;border-radius:6px;overflow:hidden}
+.gprog .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--orange),#ff8a55);border-radius:6px}
+/* ===== Customer segments ===== */
+.segBar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.seg{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:7px 14px;font-family:inherit;font-size:12px;cursor:pointer;transition:.15s;color:var(--ink)}
+.seg.on{background:var(--nav);color:#fff;border-color:var(--nav)}
+.seg .n{background:var(--orange-soft);color:var(--orange);font-size:10px;font-weight:700;border-radius:20px;padding:1px 7px}
+.seg.on .n{background:rgba(255,255,255,.22);color:#fff}
+/* ===== Plan / billing ===== */
+.plan{display:flex;gap:14px;align-items:flex-start;border:1.5px solid var(--orange);border-radius:16px;padding:18px;background:linear-gradient(120deg,#fff7f1,#fff);position:relative;overflow:hidden}
+.plan .tag2{position:absolute;top:0;right:0;background:var(--orange);color:#fff;font-size:9.5px;font-weight:700;padding:3px 14px;border-radius:0 0 0 12px}
+.plan .pm{font-size:34px}.plan b{font-size:16px;display:block}.plan .price{font-size:24px;font-weight:800;color:var(--orange);margin:4px 0 2px}.plan small{color:var(--muted);font-size:11px}
+.perk{display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--ink);margin-top:6px}.perk i{color:var(--green);font-style:normal}
+.invRow{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line);font-size:11.5px}
+.invRow:last-child{border-bottom:0}
+.invRow .amt{margin-inline-start:auto;font-weight:800}
+/* ===== Reports ===== */
+.funnel{display:flex;flex-direction:column;gap:12px;padding-top:4px}
+.fstep .lbl{display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:5px}
+.fstep .lbl b{font-size:12.5px}.fstep .lbl span{color:var(--muted);font-size:10.5px}
+.fstep .bar{height:20px;background:#eef1f7;border-radius:8px;overflow:hidden}
+.fstep .bar i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,#ff8a55,var(--orange));transition:.4s}
+.cmpRow{display:grid;grid-template-columns:1.2fr .8fr .8fr .7fr;gap:8px;align-items:center;padding:10px 6px;border-bottom:1px solid var(--line);font-size:11.5px}
+.cmpRow.head{color:var(--muted);font-size:10.5px;border-bottom:2px solid var(--line);font-weight:700}
+.cmpRow b{font-size:12px}
+.cmpRow .delta{font-weight:700}
+.cmpRow .delta.up{color:var(--green)}.cmpRow .delta.down{color:var(--red)}
+.heroBanner{background:radial-gradient(600px 200px at 90% -20%,rgba(255,90,19,.35),transparent),linear-gradient(120deg,#17233d,#0f1b2f);border-radius:16px;padding:22px 26px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.heroBanner h2{margin:0;font-size:18px;font-weight:800}.heroBanner p{margin:5px 0 0;color:#9fb0cc;font-size:11.5px}
+.heroBanner .corner{display:flex;gap:8px;align-items:center}
+.heroBanner .cTag{background:rgba(255,255,255,.12);border-radius:20px;padding:7px 16px;font-size:12px;font-weight:700;display:flex;gap:8px;align-items:center}
+@media(max-width:640px){.content{padding:18px 14px 60px}.top{padding:0 14px}.search{display:none}.banner .meta{margin-inline-start:0}.cmpRow{grid-template-columns:1.2fr .8fr .6fr;font-size:10.5px}.cmpRow .delta{display:none}}
+</style>
+</head>
+<body>
+<div class="layout"><aside class="side" id="side">
+  <div class="brand"><div class="lg">D</div><div><b>DOU</b><small>MERCHANT</small></div></div>
+  <div class="group">Main</div>
+  <button class="nav active" data-view="home"><i>🏠</i><span>Dashboard</span></button>
+  <button class="nav" data-view="orders"><i>📦</i><span>Orders</span><span class="ct" id="navOrders">6</span></button>
+  <div class="group">Sell</div>
+  <button class="nav" data-view="products"><i>🍽</i><span>Products</span></button>
+  <button class="nav" data-view="inventory"><i>📋</i><span>Inventory</span></button>
+  <button class="nav" data-view="discounts"><i>🏷</i><span>Discounts</span></button>
+  <div class="group">Customers</div>
+  <button class="nav" data-view="customers"><i>👥</i><span>Customers</span></button>
+  <div class="group">Growth</div>
+  <button class="nav" data-view="channels"><i>🔌</i><span>Sales channels</span></button>
+  <button class="nav" data-view="marketing"><i>📣</i><span>Marketing</span></button>
+  <button class="nav" data-view="analytics"><i>📊</i><span>Analytics</span></button>
+  <button class="nav" data-view="reports"><i>📈</i><span>Reports</span></button>
+  <div class="group">Settings</div>
+  <button class="nav" data-view="settings"><i>⚙</i><span>Settings</span></button>
+  <div class="user"><div class="photo">Bi</div><div><b>Bin Coffee</b><small>dou.sa/bin-coffee</small></div></div>
+</aside>
+<div class="overlay" id="overlay" onclick="toggleSide()"></div>
+<main class="main" id="main">
+  <header class="top">
+    <button class="hamburger" onclick="toggleSide()">☰</button>
+    <div class="breadcrumb">DOU / <b id="crumb">Dashboard</b></div>
+    <div class="search"><span>🔍</span><input id="globalSearch" placeholder="Search orders, customers, products…" oninput="globalSearchFn(this.value)"></div>
+    <div class="topActions">
+      <button class="iconBtn" style="position:relative" onclick="toggleNotifs(event)">🔔<span class="dot" id="notifBadge">3</span>
+        <div class="notifPanel" id="notifPanel"><div id="notifList"></div></div>
+      </button>
+      <button class="iconBtn">⚡</button>
+      <button class="btn dark small" onclick="go('settings')">+ Add store</button>
+    </div>
+  </header>
+  <div class="content">
+
+    <!-- ============ HOME ============ -->
+    <section id="view-home">
+      <div class="welcome">
+        <div><h1>Hello, Bin Coffee ☕</h1><p>Here's your store's performance today — updated instantly.</p></div>
+        <div class="quickBtns">
+          <button class="btn primary" onclick="openManualOrder()">+ Manual order</button>
+          <button class="btn ghost" onclick="exportReport('Sales statement')">⬇ Export</button>
+        </div>
+      </div>
+      <div class="heroBanner">
+        <div><h2>Your store is front and center 🚀</h2><p>Offer win rate <b style="color:#ff8a55">86%</b> this month — higher than 72% of similar stores in Riyadh.</p></div>
+        <div class="corner"><span class="cTag">🛒 Store snapshot</span><span class="cTag">🎯 Performance boost</span><span class="cTag">📅 Scheduling</span></div>
+      </div>
+      <div class="banner">
+        <div class="ic">💳</div>
+        <div><b>Settlement balance</b><small>Transferred to your bank automatically every Sunday</small></div>
+        <span class="amt" id="settlePending">–</span>
+        <div class="meta">
+          <div class="m"><small>Next payout</small><b id="settleNext">–</b></div>
+          <div class="m"><small>Last transaction</small><b id="settleLast">–</b></div>
+          <div class="m"><small>Transfer method</small><b>Bank transfer</b></div>
+        </div>
+        <button class="btn ghost" onclick="alert('Settlement statement exported (PDF) (UI)')">Settlement statement ⬇</button>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="top"><i style="background:var(--green-soft)">💰</i>Today's sales</div><b id="kRevenue">–</b><span class="trend up">▲ 12.4%</span><div class="spark" id="sparkRevenue"></div></div>
+        <div class="kpi"><div class="top"><i style="background:var(--blue-soft)">📦</i>Orders</div><b id="kOrders">–</b><span class="trend up">▲ 8.1%</span><div class="spark" id="sparkOrders"></div></div>
+        <div class="kpi"><div class="top"><i style="background:var(--amber-soft)">🛍</i>Average order value</div><b id="kAov">–</b><span class="trend up">▲ 3.2%</span><div class="spark" id="sparkAov"></div></div>
+        <div class="kpi"><div class="top"><i style="background:var(--red-soft)">⏱</i>On-time delivery</div><b id="kOnTime">–</b><span class="trend down">▼ 1.4%</span><div class="spark" id="sparkOntime"></div></div>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <div class="ph"><h3>Sales this week</h3><small>SAR — last 7 days</small></div>
+          <div class="barChart" id="weekChart"></div>
+          <div class="totalsRow">
+            <div class="t"><small>Weekly revenue</small><b id="wRevenue">–</b></div>
+            <div class="t"><small>Weekly orders</small><b id="wOrders">–</b></div>
+            <div class="t"><small>Avg delivery time</small><b id="wAvgTime">32 min</b></div>
+            <div class="t"><small>Cancel rate</small><b id="wCancel">1.8%</b></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Best sellers</h3><a onclick="go('products')">All products</a></div>
+          <div class="topList" id="topProducts"></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <div class="ph"><h3>Latest orders</h3><a onclick="go('orders')">View all</a></div>
+          <div class="rowList" id="recentOrders"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Order sources</h3><small>Sales channels</small></div>
+          <div class="chartRow"><span class="lbl">DOU App</span><div class="bar"><i style="width:70%;background:var(--orange)"></i></div><span class="val">70%</span></div>
+          <div class="chartRow"><span class="lbl">Jahez</span><div class="bar"><i style="width:18%;background:var(--blue)"></i></div><span class="val">18%</span></div>
+          <div class="chartRow"><span class="lbl">HungerStation</span><div class="bar"><i style="width:8%;background:var(--green)"></i></div><span class="val">8%</span></div>
+          <div class="chartRow"><span class="lbl">POS / Internal</span><div class="bar"><i style="width:4%;background:var(--amber)"></i></div><span class="val">4%</span></div>
+          <div class="totalsRow" style="margin-top:16px">
+            <div class="t"><small>Internal fleet</small><b>62%</b></div>
+            <div class="t"><small>Freelancer</small><b>27%</b></div>
+            <div class="t"><small>Shipping company</small><b>11%</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel mt">
+        <div class="ph"><h3>🚀 Quick start</h3><small id="guidePct">0/6 complete</small></div>
+        <div class="gprog"><div class="bar"><i id="guideBar" style="width:0%"></i></div></div>
+        <div class="guide" id="guideList"></div>
+      </div>
+    </section>
+
+    <!-- ============ ORDERS ============ -->
+    <section id="view-orders" style="display:none">
+      <div class="welcome">
+        <div><h1>Orders</h1><p>Manage all your store's orders across every channel in one place.</p></div>
+        <div class="quickBtns"><button class="btn primary" onclick="openManualOrder()">+ Create order</button></div>
+      </div>
+      <div class="tabs" id="orderTabs">
+        <button class="tab active" data-f=""><span>All</span><span class="n" id="cntAll">0</span></button>
+        <button class="tab" data-f="PREPARING|PLACED|ACCEPTED|READY"><span>Preparing</span><span class="n">3</span></button>
+        <button class="tab" data-f="ASSIGNED|PICKED_UP|IN_TRANSIT"><span>On the way</span><span class="n">2</span></button>
+        <button class="tab" data-f="DELIVERED|COMPLETED"><span>Delivered</span><span class="n">1</span></button>
+        <button class="tab" data-f="CANCELED|FAILED"><span>Canceled</span><span class="n">0</span></button>
+      </div>
+      <div class="filterbar">
+        <select id="fStatus" onchange="applyOrders()"><option value="">All statuses</option><option>PLACED</option><option>ACCEPTED</option><option>READY</option><option>ASSIGNED</option><option>PICKED_UP</option><option>IN_TRANSIT</option><option>DELIVERED</option></select>
+        <select id="fSource" onchange="applyOrders()"><option value="">All sources</option><option>DOU App</option><option>Jahez</option><option>HungerStation</option><option>POS</option><option>Internal</option></select>
+        <select id="fTime" onchange="applyOrders()"><option value="">All times</option><option>Today</option><option>Last 7 days</option><option>This month</option></select>
+      </div>
+      <div class="card" style="padding:6px 18px 12px">
+        <table><thead><tr><th>#</th><th>Customer</th><th>Source</th><th>Total</th><th>SLA</th><th>Status</th><th>Delivery</th><th>Time</th><th></th></tr></thead>
+        <tbody id="ordersBody"><tr><td colspan="9" style="color:var(--muted)">Loading…</td></tr></tbody></table>
+      </div>
+    </section>
+
+    <!-- ============ PRODUCTS ============ -->
+    <section id="view-products" style="display:none">
+      <div class="welcome">
+        <div><h1>Products</h1><p>Your store's catalog — add, edit, and control availability and categories.</p></div>
+        <div class="quickBtns"><button class="btn ghost" onclick="alert('Catalog exported to CSV (UI)')">⬇ CSV</button><button class="btn primary" onclick="toggleAdd()">+ Add product</button></div>
+      </div>
+      <div class="card" id="addBox" style="display:none;margin-bottom:16px">
+        <h3>New product</h3>
+        <div class="form-row"><input id="pName" placeholder="Product name"><input id="pPrice" type="number" placeholder="Price (SAR)" value="10"></div>
+        <div class="form-row"><input id="pCat" placeholder="Category (e.g. Coffee)"><select id="pAvail"><option value="1">Available for sale</option><option value="0">Draft</option></select></div>
+        <button class="btn primary" onclick="addProduct()">Save product</button><span id="addMsg" class="msg"></span>
+      </div>
+      <div class="prodGrid" id="productsBody"></div>
+    </section>
+
+    <!-- ============ INVENTORY ============ -->
+    <section id="view-inventory" style="display:none">
+      <div class="welcome">
+        <div><h1>Inventory</h1><p>Track product stock levels and get alerted when they run low.</p></div>
+        <div class="quickBtns"><button class="btn ghost" onclick="alert('Low stock reordered automatically (UI)')">+ Auto reorder</button></div>
+      </div>
+      <div class="card" style="padding:6px 18px 12px">
+        <table><thead><tr><th>Product</th><th>Category</th><th>Available</th><th>Status</th><th>Level</th><th>Last restock</th></tr></thead>
+        <tbody id="inventoryBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ============ DISCOUNTS ============ -->
+    <section id="view-discounts" style="display:none">
+      <div class="welcome">
+        <div><h1>Discounts</h1><p>Create discount codes for specific segments or all customers.</p></div>
+        <div class="quickBtns"><button class="btn primary" onclick="toggleDisc()">+ New discount</button></div>
+      </div>
+      <div class="card" id="discBox" style="display:none;margin-bottom:16px">
+        <h3>New discount</h3>
+        <div class="form-row"><input id="dTitle" placeholder="Deal name"><input id="dCode" placeholder="Code (e.g. RAMADAN10)"></div>
+        <div class="form-row"><input id="dValue" type="number" placeholder="Percentage % or amount" value="10"><select id="dType"><option value="pct">Percentage</option><option value="flat">Fixed amount</option></select></div>
+        <button class="btn primary" onclick="addDiscount()">Create discount</button><span id="dMsg" class="msg"></span>
+      </div>
+      <div class="discGrid" id="discountsBody"></div>
+    </section>
+
+    <!-- ============ CUSTOMERS ============ -->
+    <section id="view-customers" style="display:none">
+      <div class="welcome">
+        <div><h1>Customers</h1><p>Know your loyal customers, their order counts, spending, and loyalty points.</p></div>
+        <div class="quickBtns"><button class="btn ghost" onclick="alert('Customer list exported to CSV (UI)')">⬇ Export</button></div>
+      </div>
+      <div class="segBar" id="segBar"></div>
+      <div class="card" id="customersBody" style="padding:8px 18px"></div>
+      <div class="panel mt">
+        <div class="ph"><h3>🌟 Loyalty program</h3><small>1 point per riyal — get a free dish at 500 points</small></div>
+        <div class="totalsRow">
+          <div class="t"><small>Total points awarded</small><b>18.2K</b></div>
+          <div class="t"><small>Points redeemed</small><b>72%</b></div>
+          <div class="t"><small>Loyalty members</small><b>328</b></div>
+          <div class="t"><small>Rewards claimed</small><b>96</b></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CHANNELS ============ -->
+    <section id="view-channels" style="display:none">
+      <div class="welcome">
+        <div><h1>Sales channels</h1><p>Connect all your order sources — platforms, point of sale, and Instagram & WhatsApp.</p></div>
+      </div>
+      <div class="chGrid">
+        <div class="ch"><div class="ic" style="background:var(--orange-soft)">📱</div><div><b>DOU App</b><small>Your store on the DOU platform</small></div><span class="tag green">Active</span></div>
+        <div class="ch"><div class="ic" style="background:var(--green-soft)">🍔</div><div><b>Jahez</b><small>Last synced 3 minutes ago</small></div><div class="st switch on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="ch"><div class="ic" style="background:var(--blue-soft)">🚀</div><div><b>HungerStation</b><small>Last synced 8 minutes ago</small></div><div class="st switch on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="ch"><div class="ic" style="background:var(--amber-soft)">🖨</div><div><b>POS / Point of sale</b><small>Not active — contact your account manager</small></div><div class="st switch" onclick="this.classList.toggle('on')"></div></div>
+        <div class="ch"><div class="ic" style="background:var(--red-soft)">📷</div><div><b>Instagram</b><small>Receive direct-message orders</small></div><div class="st switch" onclick="this.classList.toggle('on')"></div></div>
+        <div class="ch"><div class="ic" style="background:var(--green-soft)">💬</div><div><b>WhatsApp</b><small>Receive WhatsApp orders</small></div><div class="st switch" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+      <div class="panel mt">
+        <div class="ph"><h3>Acceptance settings</h3><small>Control incoming orders</small></div>
+        <div class="opt"><div><b>Auto-accept orders</b><small>Auto-accept orders from all channels</small></div><div class="switch" onclick="this.classList.toggle('on')"></div></div>
+        <div class="opt"><div><b>Sync status with platforms</b><small>Push order status (Assigned → Delivered) to the source</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="opt"><div><b>Channel outage alert</b><small>Instant notification if a platform sync stops</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+      </div>
+    </section>
+
+    <!-- ============ MARKETING ============ -->
+    <section id="view-marketing" style="display:none">
+      <div class="welcome">
+        <div><h1>Marketing</h1><p>Your campaigns and their performance — attract new customers and retain loyal ones.</p></div>
+        <div class="quickBtns"><button class="btn primary" onclick="alert('New campaign created (UI)')">+ New campaign</button></div>
+      </div>
+      <div class="grid2">
+        <div class="camp"><div class="ic" style="background:var(--green-soft)">🎉</div><div><b>10% off for Al Malqa</b><small>Impressions: 12.4K · Orders: 214</small><div class="bar"><i style="width:68%"></i></div></div><span class="tag green">Active</span></div>
+        <div class="camp"><div class="ic" style="background:var(--blue-soft)">📣</div><div><b>Push notification: Cappuccino is back</b><small>Impressions: 8.1K · Orders: 96</small><div class="bar"><i style="width:43%"></i></div></div><span class="tag amber">Ending soon</span></div>
+        <div class="camp"><div class="ic" style="background:var(--amber-soft)">🏆</div><div><b>Double loyalty points</b><small>Participating customers: 328</small><div class="bar"><i style="width:52%"></i></div></div><span class="tag green">Active</span></div>
+        <div class="camp"><div class="ic" style="background:var(--red-soft)">🤝</div><div><b>Referral: Invite a friend</b><small>Referrals: 74</small><div class="bar"><i style="width:30%"></i></div></div><span class="tag gray">Scheduled</span></div>
+      </div>
+      <div class="panel mt">
+        <div class="ph"><h3>Performance summary</h3><small>Marketing tools</small></div>
+        <div class="totalsRow">
+          <div class="t"><small>Orders acquired</small><b>512</b></div>
+          <div class="t"><small>Acquisition cost</small><b>4.2 SAR</b></div>
+          <div class="t"><small>Retention rate</small><b>37%</b></div>
+          <div class="t"><small>New customers</small><b>149</b></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ANALYTICS ============ -->
+    <section id="view-analytics" style="display:none">
+      <div class="welcome">
+        <div><h1>Analytics</h1><p>Performance, sales, and courier reports — by period.</p></div>
+        <div class="quickBtns">
+          <select id="aPeriod" onchange="loadAnalytics()" style="width:150px"><option>Last 7 days</option><option>This month</option><option>Last 3 months</option></select>
+          <button class="btn ghost" onclick="exportReport('Analytics report')">⬇ Export PDF</button>
+        </div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="top"><i style="background:var(--green-soft)">💰</i>Total revenue</div><b id="aRevenue">–</b><span class="trend up">▲ 14.2%</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--blue-soft)">📦</i>Total orders</div><b id="aOrders">–</b><span class="trend up">▲ 9.7%</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--amber-soft)">🚚</i>Total deliveries</div><b id="aDeliveries">–</b><span class="trend up">▲ 6.3%</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--red-soft)">⭐</i>Courier rating</div><b id="aScore">–</b><span class="trend down">▼ 0.2%</span></div>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <div class="ph"><h3>Sales over period</h3><small>SAR</small></div>
+          <div class="barChart" id="analyticsChart"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Orders by source</h3><small>Channels</small></div>
+          <div class="chartRow"><span class="lbl">DOU App</span><div class="bar"><i style="width:70%;background:var(--orange)"></i></div><span class="val">70%</span></div>
+          <div class="chartRow"><span class="lbl">Jahez</span><div class="bar"><i style="width:18%;background:var(--blue)"></i></div><span class="val">18%</span></div>
+          <div class="chartRow"><span class="lbl">HungerStation</span><div class="bar"><i style="width:8%;background:var(--green)"></i></div><span class="val">8%</span></div>
+          <div class="chartRow"><span class="lbl">POS / Internal</span><div class="bar"><i style="width:4%;background:var(--amber)"></i></div><span class="val">4%</span></div>
+        </div>
+      </div>
+      <div class="card mt">
+        <div class="ph"><h3>Courier performance</h3><a onclick="exportReport('Courier report')">⬇ Export</a></div>
+        <table><thead><tr><th>Courier</th><th>Type</th><th>Deliveries</th><th>Acceptance rate</th><th>On time</th><th>Rating</th></tr></thead>
+        <tbody id="courierPerfBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ============ REPORTS ============ -->
+    <section id="view-reports" style="display:none">
+      <div class="welcome">
+        <div><h1>Reports</h1><p>Sales analysis, conversion funnel, top categories, and period comparison.</p></div>
+        <div class="quickBtns">
+          <select id="rPeriod" onchange="loadReports()" style="width:160px"><option>Last 7 days</option><option>This month</option><option>Last 30 days</option></select>
+          <button class="btn ghost" onclick="exportReport('Full performance report')">⬇ Export PDF</button>
+        </div>
+      </div>
+      <div class="kpis" id="rKpis">
+        <div class="kpi"><div class="top"><i style="background:var(--green-soft)">💰</i>Total sales</div><b id="rRevenue">–</b><span class="trend up">▲ 14.2%</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--blue-soft)">🧾</i>Units sold</div><b id="rUnits">–</b><span class="trend up">▲ 9.7%</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--amber-soft)">🛍</i>Average order value</div><b id="rAov">–</b><span class="trend up">▲ 3.2%</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--red-soft)">🎯</i>Conversion rate</div><b id="rConv">–</b><span class="trend down">▼ 0.8%</span></div>
+      </div>
+      <div class="grid2">
+        <div class="panel">
+          <div class="ph"><h3>Conversion funnel</h3><small>Visits → Orders</small></div>
+          <div class="funnel" id="funnel"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Sales by category</h3><small>Top categories</small></div>
+          <div id="repCats"></div>
+          <div class="totalsRow" style="margin-top:14px">
+            <div class="t"><small>Top category</small><b id="rTopCat">–</b></div>
+            <div class="t"><small>Total categories</small><b id="rCatCount">–</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid2 mt">
+        <div class="panel">
+          <div class="ph"><h3>Payment methods</h3><small>How your customers pay</small></div>
+          <div id="repPay"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Performance vs previous period</h3><small>Same duration</small></div>
+          <div id="repCmp"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SETTINGS ============ -->
+    <section id="view-settings" style="display:none">
+      <div class="welcome"><div><h1>Settings</h1><p>Delivery, store details, alerts, and billing.</p></div></div>
+      <div class="grid2">
+        <div class="panel">
+          <div class="ph"><h3>Delivery mode</h3><small>Default for all orders</small></div>
+          <div class="modeBtns" id="modeBtns" style="display:flex;gap:8px;flex-wrap:wrap">
+            <div class="modeBtn" onclick="setMode('DEDICATED',this)"><b>🧑‍🔧 Dedicated</b><small>A dedicated courier for your store</small></div>
+            <div class="modeBtn active" onclick="setMode('ON_DEMAND',this)"><b>⚡ On-demand</b><small>Nearest available courier</small></div>
+            <div class="modeBtn" onclick="setMode('AUTO',this)"><b>🤖 Auto</b><small>System picks the best option</small></div>
+          </div>
+          <div id="modeMsg" class="msg"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Dispatch preferences</h3><small>Order assignment</small></div>
+          <div class="opt"><div><b>Prefer permanent couriers</b><small>Send offers to your internal fleet first</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="opt"><div><b>Broadcast mode</b><small>Broadcast the order when no one responds</small></div><div class="switch" onclick="this.classList.toggle('on')"></div></div>
+          <div class="opt"><div><b>Auto-assignment</b><small>Auto-assign without waiting for approval</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="opt"><div><b>External courier (Fallback)</b><small>Reroute the order when late</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="opt"><div><b>Max assignment wait</b><small>Escalates automatically afterwards</small></div><input id="maxWait" value="5 minutes" style="width:130px"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Store details</h3><small>Your public page</small></div>
+          <div class="form-row"><input id="sName" value="Bin Coffee"></div>
+          <div class="form-row"><input id="sSlug" value="bin-coffee"><span style="align-self:center;font-size:11px;color:var(--muted)">dou.sa/</span></div>
+          <div class="form-row"><input id="sTheme" value="default"><button class="btn ghost" onclick="saveStore()">Save</button></div>
+          <div id="storeMsg" class="msg"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Plan & invoices</h3><small>Your monthly plan</small></div>
+          <div class="plan"><span class="tag2">Current plan</span><div class="pm">🏅</div>
+            <div><b>DOU Pro</b><div class="price">199 SAR <small style="font-size:11px">/ month</small></div>
+            <small>Unlimited smart delivery · Dedicated couriers · Advanced analytics · No commission</small>
+            <div class="perk"><i>✔</i> Unlimited sales channels</div>
+            <div class="perk"><i>✔</i> 24/7 live support</div>
+            <button class="btn primary small" style="margin-top:10px" onclick="alert('Upgrade to DOU Enterprise requested (UI)')">Upgrade to Enterprise</button></div></div>
+          <div id="invoices" style="margin-top:12px"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Team</h3><small>Roles & permissions</small></div>
+          <div id="staffBody"></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><h3>Notifications</h3><small>Real-time alerts</small></div>
+          <div class="opt"><div><b>New orders</b><small>When an order arrives from any channel</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="opt"><div><b>Late or failed assignment</b><small>Courier late or assignment failed</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="opt"><div><b>Weekly report</b><small>Performance summary every Sunday</small></div><div class="switch" onclick="this.classList.toggle('on')"></div></div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn ghost small">Support</button>
+            <button class="btn ghost small" onclick="alert('Signed out (UI)')">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main></div>
+
+<!-- Modal: Manual order -->
+<div class="modal" id="manualModal">
+  <div class="modalBox">
+    <h3>➕ Create manual order</h3>
+    <div class="form-row"><input id="moName" placeholder="Customer name"><input id="moPhone" placeholder="Phone"></div>
+    <div class="form-row"><input id="moAddr" placeholder="Address"></div>
+    <div class="form-row"><input id="moProduct" placeholder="Product name"><input id="moQty" type="number" value="1" placeholder="Quantity"></div>
+    <div class="form-row"><select id="moSource"><option>DOU App</option><option>POS</option><option>Internal</option></select></div>
+    <div class="form-row"><button class="btn primary" style="flex:1" onclick="createManualOrder()">Create order</button><button class="btn ghost" onclick="closeModal('manualModal')">Cancel</button></div>
+    <div id="moMsg" class="msg"></div>
+  </div>
+</div>
+
+<!-- Modal: Track order -->
+<div class="modal" id="trackModal">
+  <div class="modalBox">
+    <h3 id="trackTitle">Track order</h3>
+    <div class="mapPh">📍 Live map — courier location in Riyadh
+      <span class="pin" style="right:38%;top:34%">🛵</span>
+      <span class="pin" style="right:62%;top:55%">🏪</span>
+      <span class="pin" style="right:78%;top:28%">📍</span>
+    </div>
+    <div id="trackDriver" style="margin-bottom:12px"></div>
+    <div id="trackSteps"></div>
+    <div style="margin-top:14px;display:flex;gap:8px">
+      <button class="btn ghost" onclick="alert('OTP sent to the customer (UI)')">🔑 Send OTP</button>
+      <button class="btn ghost" onclick="closeModal('trackModal')">Close</button>
+    </div>
+  </div>
+</div>
+<script>
+const MERCHANT_ID = 1;
+const API = "";
+let methodMap = {SELF:"Self pickup", PLATFORM:"Via our fleet", SHIPPING:"Shipping company"};
+let allOrders = [];
+const SOURCES = ["DOU App","Jahez","HungerStation","POS","Internal"];
+const DRIVER_MOCK = [
+  {name:"Ahmed Al-Shammari", phone:"0551112233", type:"Dedicated (Permanent)", rating:4.9, score:4.8, load:2, online:true, car:"🚗 Toyota Corolla", plate:"A B C 1234"},
+  {name:"Mohammed Al-Otaibi", phone:"0554445566", type:"Freelancer", rating:4.7, score:4.6, load:1, online:true, car:"🏍 Honda PCX", plate:"D E F 5566"},
+  {name:"Khaled Al-Qahtani", phone:"0557778899", type:"Freelancer", rating:4.5, score:4.4, load:0, online:false, car:"🚗 Kia Sportage", plate:"G H I 7788"}
+];
+const CUSTOMERS = [
+  {name:"Sara", phone:"0551234567", orders:12, spent:1284, last:"1 day ago", color:"#3b82f6"},
+  {name:"Noura", phone:"0553334455", orders:8, spent:640, last:"3 days ago", color:"#8b5cf6"},
+  {name:"Omar", phone:"0551516171", orders:6, spent:512, last:"1 week ago", color:"#10b981"},
+  {name:"Salma", phone:"0551819202", orders:5, spent:398, last:"2 weeks ago", color:"#f59e0b"},
+  {name:"Reem", phone:"0556667788", orders:3, spent:210, last:"3 weeks ago", color:"#ef4444"}
+];
+const DISCOUNTS = [
+  {title:"10% off all orders", code:"DOU10", type:"Percentage", value:"10%", uses:214, limit:500, status:"Active"},
+  {title:"Free shipping over 100", code:"FREESHIP", type:"Shipping", value:"Free", uses:96, limit:300, status:"Active"},
+  {title:"First-order welcome", code:"WELCOME15", type:"Percentage", value:"15%", uses:149, limit:1000, status:"Active"},
+  {title:"Ramadan discount", code:"RAMADAN", type:"Percentage", value:"20%", uses:0, limit:200, status:"Scheduled"}
+];
+const WEEK = ["Saturday","Sunday","Monday","Tuesday","Wednesday","Thursday","Friday"];
+const WEEK_VALS = [42,58,50,72,66,81,88];
+const INV = {1:{stock:24,last:"3 days ago"},2:{stock:11,last:"1 day ago"},3:{stock:5,last:"1 week ago"},4:{stock:32,last:"5 days ago"}};
+const NOTIFS = [
+  {ic:"🚚", c:"#e9f0fe", t:"Order #1204 delivered to the customer", s:"2 minutes ago"},
+  {ic:"⚠️", c:"#fdf3e3", t:"Possible delay on order #1199", s:"14 minutes ago"},
+  {ic:"✅", c:"#e7f6ee", t:"Completed: 45 orders this week", s:"1 hour ago"}
+];
+const SETTLE = {pending:4862, next:"Next Sunday", last:"Last Tuesday · 3,180 SAR", method:"Bank transfer"};
+const GUIDES = [
+  {t:"Add your first product", d:"Upload your products, categories, and photos", done:true},
+  {t:"Connect sales channels", d:"Store, food platforms, WhatsApp, and Instagram", done:true},
+  {t:"Set delivery areas", d:"Set delivery range and pricing per district", done:true},
+  {t:"Activate delivery plan", d:"Choose Dedicated, On-demand, or Auto", done:false},
+  {t:"Launch your first campaign", d:"Create a discount, notification, or loyalty points", done:false},
+  {t:"Link your bank account", d:"Receive sales settlements weekly", done:false}
+];
+const SEGMENTS = [
+  {k:"all", n:"All customers", icon:"👥", match:()=>true},
+  {k:"new", n:"New", icon:"🆕", match:c=>c.orders<=2},
+  {k:"loyal", n:"Loyal", icon:"💛", match:c=>c.orders>=6&&c.spent>=400},
+  {k:"vip", n:"VIP", icon:"👑", match:c=>c.spent>=1000},
+  {k:"risk", n:"At risk", icon:"⚠️", match:c=>c.last.indexOf("weeks")>=0}
+];
+const PLAN_INFO = {plan:"DOU Pro", price:"199 SAR", billing:"1st of each month"};
+const INVOICES = [
+  {id:"INV-2026-07", date:"1 July", amt:"199 SAR", st:"Paid"},
+  {id:"INV-2026-06", date:"1 June", amt:"199 SAR", st:"Paid"},
+  {id:"INV-2026-05", date:"1 May", amt:"199 SAR", st:"Paid"}
+];
+const STAFF_MOCK = [
+  {name:"Sara Al-Ahmad", role:"Store manager", email:"sara@bin-coffee.com", access:"Full access", color:"#8b5cf6"},
+  {name:"Ahmed Youssef", role:"Operations manager", email:"ahmed@bin-coffee.com", access:"Orders & couriers", color:"#3b82f6"},
+  {name:"Laila Mahmoud", role:"Accountant", email:"leila@bin-coffee.com", access:"Reports & settlements", color:"#10b981"}
+];
+
+async function api(path, opts={}){
+  const r = await fetch(API+path, Object.assign({headers:{"Content-Type":"application/json"}},opts));
+  if(!r.ok) throw new Error((await r.text())||r.status);
+  return r.json();
+}
+function tag(s){ s=String(s); return `<span class="tag ${/DELIVER|COMPLETE/i.test(s)?"green":/ASSIGN|ACCEPT|READY|PICK|IN_TRANSIT/i.test(s)?"blue":/CANCEL|FAIL/i.test(s)?"red":"gray"}">${s.replace(/_/g," ")}</span>`; }
+function sourceTag(s){ return `<span class="tag blue">${s}</span>`; }
+function slaTag(sec){
+  if(sec==null) return `<span class="tag gray">–</span>`;
+  const mins = Math.round(sec/60);
+  return mins<=0 ? `<span class="tag red">SLA exceeded</span>` : `<span class="tag ${mins<15?"amber":"gray"}">${mins} min</span>`;
+}
+function fmtTime(o){
+  const t = new Date(Date.now() - (o.id%12)*3600000);
+  return String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0");
+}
+function avatar(name, color){
+  return `<span class="avatar" style="background:${color}">${name.slice(0,2)}</span>`;
+}
+function spark(id, arr){
+  const max = Math.max.apply(null, arr);
+  document.getElementById(id).innerHTML = arr.map(v=>`<i style="height:${Math.round(v/max*100)}%;background:var(--orange)"></i>`).join("");
+}
+function barChart(elId, vals, color){
+  const max = Math.max.apply(null, vals);
+  document.getElementById(elId).innerHTML = vals.map((v,i)=>`
+    <div class="col"><span class="v">${v}</span><i style="height:${Math.round(v/max*100)}%;background:${color||"linear-gradient(180deg,#ff8a55,var(--orange))"}"></i><small>${WEEK[i]}</small></div>`).join("");
+}
+
+function go(v){
+  document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
+  const views = ["home","orders","products","inventory","discounts","customers","channels","marketing","analytics","reports","settings"];
+  views.forEach(x=>document.getElementById("view-"+x).style.display = x===v?"block":"none");
+  const names = {home:"Dashboard",orders:"Orders",products:"Products",inventory:"Inventory",discounts:"Discounts",customers:"Customers",channels:"Sales channels",marketing:"Marketing",analytics:"Analytics",reports:"Reports",settings:"Settings"};
+  document.getElementById("crumb").textContent = names[v];
+  if(v==="home") loadHome();
+  if(v==="orders") loadOrders();
+  if(v==="products") loadProducts();
+  if(v==="inventory") loadInventory();
+  if(v==="customers") loadCustomers();
+  if(v==="discounts") renderDiscounts();
+  if(v==="analytics") loadAnalytics();
+  if(v==="reports") loadReports();
+}
+document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
+document.querySelectorAll("#orderTabs .tab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll("#orderTabs .tab").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active");
+  applyOrders();
+}));
+
+function toggleSide(){
+  const side=document.getElementById("side"), overlay=document.getElementById("overlay"), main=document.getElementById("main");
+  if(window.innerWidth>900){
+    side.classList.toggle("hidden");
+    main.classList.toggle("expanded");
+  }else{
+    side.classList.toggle("open");
+    overlay.classList.toggle("show");
+  }
+}
+function toggleNotifs(e){ e.stopPropagation(); const p=document.getElementById("notifPanel"); p.style.display = p.style.display==="block"?"none":"block";
+  document.getElementById("notifList").innerHTML = `<h4 style="margin:6px 10px;font-size:12px">Notifications</h4>` + NOTIFS.map(n=>`
+    <div class="notifItem"><div class="ic" style="background:${n.c}">${n.ic}</div>
+      <div><b>${n.t}</b><small>${n.s}</small></div></div>`).join("");
+}
+document.addEventListener("click",()=>{ const p=document.getElementById("notifPanel"); if(p) p.style.display="none"; });
+function globalSearchFn(q){
+  if(!q.trim()) return;
+  const found = allOrders.find(o=>String(o.id)===q.trim() || o.customer_name.includes(q));
+  if(found){ go("orders"); alert("Jumped to order #"+found.id); }
+}
+
+/* ===== HOME ===== */
+async function loadHome(){
+  const orders = await api("/orders");
+  allOrders = orders.filter(o=>o.merchant_id===MERCHANT_ID).map((o,i)=>({...o, _src:SOURCES[i%SOURCES.length], _sla:(i*600-1800)}));
+  const today = allOrders.slice(0,8);
+  const rev = today.reduce((s,o)=>s+o.total,0);
+  document.getElementById("kRevenue").textContent = rev.toFixed(0)+" SAR";
+  document.getElementById("kOrders").textContent = today.length;
+  document.getElementById("kAov").textContent = today.length? (rev/today.length).toFixed(1)+" SAR" : "–";
+  const d = allOrders.filter(o=>/DELIVER|COMPLETE/i.test(o.status)).length;
+  document.getElementById("kOnTime").textContent = allOrders.length? Math.round(d/allOrders.length*100)+"%" : "–";
+  spark("sparkRevenue",[30,44,38,52,60,55,68]);
+  spark("sparkOrders",[20,28,24,36,42,38,50]);
+  spark("sparkAov",[40,42,44,43,47,48,50]);
+  spark("sparkOntime",[92,94,93,95,96,95,94]);
+  barChart("weekChart", WEEK_VALS);
+  document.getElementById("wRevenue").textContent = allOrders.reduce((s,o)=>s+o.total,0).toFixed(0)+" SAR";
+  document.getElementById("wOrders").textContent = allOrders.length;
+  const prods = await api("/merchants/"+MERCHANT_ID+"/products");
+  document.getElementById("topProducts").innerHTML = prods.slice(0,5).map((p,i)=>`
+    <div class="row"><span class="rank">${i+1}</span>
+      <div><b>${p.name}</b><small>${p.category||"—"}</small></div>
+      <span class="amt">${p.price} SAR</span></div>`).join("");
+  document.getElementById("recentOrders").innerHTML = today.slice(0,5).map(o=>`
+    <div class="row" style="cursor:pointer" onclick="openTrack(${JSON.stringify(o).replace(/"/g,"&quot;")})">
+      <span class="statusDot" style="background:${/DELIVER/i.test(o.status)?"var(--green)":/IN_TRANSIT/i.test(o.status)?"var(--blue)":"var(--amber)"}"></span>
+      <div><b>#${o.id} · ${o.customer_name}</b><small>${o._src} · ${o.total} SAR</small></div>
+      <span class="tag ${/DELIVER/i.test(o.status)?"green":/IN_TRANSIT/i.test(o.status)?"blue":"amber"}">${o.status.replace(/_/g," ")}</span></div>`).join("");
+  renderSettle();
+  renderGuide();
+}
+
+/* ===== SETTLEMENTS ===== */
+function renderSettle(){
+  document.getElementById("settlePending").textContent = SETTLE.pending.toLocaleString()+" SAR";
+  document.getElementById("settleNext").textContent = SETTLE.next;
+  document.getElementById("settleLast").textContent = SETTLE.last;
+}
+
+/* ===== SETUP GUIDE ===== */
+function renderGuide(){
+  const done = GUIDES.filter(g=>g.done).length;
+  document.getElementById("guidePct").textContent = done+"/"+GUIDES.length+" complete";
+  document.getElementById("guideBar").style.width = Math.round(done/GUIDES.length*100)+"%";
+  document.getElementById("guideList").innerHTML = GUIDES.map((g,i)=>`
+    <div class="gstep ${g.done?"done":""}" onclick="toggleGuide(${i})">
+      <div class="chk">${g.done?"✓":i+1}</div>
+      <div><b>${g.t}</b><small>${g.d}</small></div></div>`).join("");
+}
+function toggleGuide(i){
+  GUIDES[i].done = !GUIDES[i].done;
+  renderGuide();
+}
+
+/* ===== ORDERS ===== */
+async function loadOrders(){
+  try{ const orders = await api("/orders");
+    allOrders = orders.filter(o=>o.merchant_id===MERCHANT_ID).map((o,i)=>({...o, _src:SOURCES[i%SOURCES.length], _sla:(i*600-1800)}));
+    document.getElementById("navOrders").textContent = allOrders.length;
+    document.getElementById("cntAll").textContent = allOrders.length;
+    applyOrders();
+  }catch(e){ document.getElementById("ordersBody").innerHTML = '<tr><td colspan="9" style="color:var(--red)">Failed to load: '+e.message+'</td></tr>'; }
+}
+function applyOrders(){
+  const tab = document.querySelector("#orderTabs .tab.active").dataset.f;
+  const fs = document.getElementById("fStatus").value;
+  const fsrc = document.getElementById("fSource").value;
+  const ft = document.getElementById("fTime").value;
+  let list = allOrders;
+  if(tab){ const pats = tab.split("|"); list = list.filter(o=>pats.some(p=>o.status===p)); }
+  if(fs) list = list.filter(o=>o.status===fs);
+  if(fsrc) list = list.filter(o=>o._src===fsrc);
+  if(ft) list = list.slice(0, ft==="Today"?12: ft==="Last 7 days"?25:40);
+  document.getElementById("ordersBody").innerHTML = list.slice().reverse().map(o=>`
+    <tr><td><b>#${o.id}</b></td><td><div style="display:flex;align-items:center;gap:8px">${avatar(o.customer_name, "#3b82f6")}<div><b style="font-size:12px">${o.customer_name}</b><small style="color:var(--muted)">${o.customer_address||""}</small></div></div></td>
+    <td>${sourceTag(o._src)}</td><td><b>${o.total} SAR</b></td><td>${slaTag(o._sla)}</td>
+    <td>${tag(o.status)}</td><td><span class="tag gray">${methodMap[o.delivery_method]||o.delivery_method}</span></td>
+    <td style="color:var(--muted);font-size:11px">${fmtTime(o)}</td>
+    <td style="white-space:nowrap"><button class="btn ghost small" onclick='openTrack(${JSON.stringify(o)})'>📍 Track</button> ${orderActions(o)}</td></tr>`).join("") || '<tr><td colspan="9" style="color:var(--muted)">No orders</td></tr>';
+}
+function orderActions(o){
+  if(o.status==="PLACED") return `<button class="btn primary small" onclick="setOrderStatus(${o.id},'ACCEPTED')">Accept</button>`;
+  if(o.status==="ACCEPTED") return `<button class="btn dark small" onclick="setOrderStatus(${o.id},'READY')">Ready</button>`;
+  if(o.status==="READY") return `<span class="tag blue">Waiting for courier</span>`;
+  if(o.status==="ASSIGNED"||o.status==="PICKED_UP"||o.status==="IN_TRANSIT") return `<span class="tag blue">On the way 🚚</span>`;
+  if(o.status==="DELIVERED") return `<span class="tag green">Done ✓</span>`;
+  return "—";
+}
+async function setOrderStatus(id, status){
+  try{ await api("/orders/"+id+"/status",{method:"PATCH",body:JSON.stringify({status})}); loadOrders(); }
+  catch(e){ alert("❌ "+e.message); }
+}
+
+/* ===== TRACK ===== */
+function openTrack(o){
+  document.getElementById("trackTitle").textContent = "Track order #"+o.id;
+  const d = DRIVER_MOCK[o.id % DRIVER_MOCK.length];
+  document.getElementById("trackDriver").innerHTML = `
+    <div class="opt" style="border-bottom:1px solid var(--line)">
+      <div><b>🛵 ${d.name}</b><small>${d.car} · ${d.plate} · ${d.score} pts</small></div>
+      <span class="tag green">${d.online?"Online":"Offline"}</span></div>
+    <div class="opt"><div><b>Courier type</b></div><span class="tag blue">${d.type}</span></div>`;
+  const steps = ["Assigned","Reached store","Picked up order","In transit","Delivered"];
+  const done = ["ASSIGNED","PICKED_UP","IN_TRANSIT","DELIVERED"].indexOf(o.status);
+  const active = Math.max(0, done);
+  document.getElementById("trackSteps").innerHTML = steps.map((s,i)=>`
+    <div class="trackStep ${i<active||(o.status==="DELIVERED"&&i===4)?"done":i===active?"now":""}">
+      <div class="dot">${i<active||(o.status==="DELIVERED"&&i===4)?"✓":i+1}</div>
+      <div class="txt"><b>${s}</b><small>${i===active&&o.status!=="DELIVERED"?"In progress…":""}</small></div>
+    </div>`).join("");
+  openModal("trackModal");
+}
+
+/* ===== PRODUCTS ===== */
+async function loadProducts(){
+  const prods = await api("/merchants/"+MERCHANT_ID+"/products");
+  const emoji = {قهوة:"☕",حلويات:"🍰",مخبوزات:"🥐",مأكولات:"🍽",سلطات:"🥗",بقالة:"🛒"};
+  document.getElementById("productsBody").innerHTML = prods.length ? prods.map(p=>`
+    <div class="prod"><div class="img"><span class="st">${p.is_available?'<span class="tag green">Available</span>':'<span class="tag gray">Draft</span>'}</span>${emoji[p.category]||"🍱"}</div>
+      <div class="body"><b>${p.name}</b><small>${p.category||"—"}</small>
+      <div class="row"><span class="price">${p.price} ${p.currency}</span><span class="stock">${INV[p.id]?"In stock: "+INV[p.id].stock:""}</span></div></div></div>`).join("") : '<div style="color:var(--muted)">No products yet — add your first product</div>';
+}
+function toggleAdd(){ document.getElementById("addBox").style.display = document.getElementById("addBox").style.display==="none"?"block":"none"; }
+async function addProduct(){
+  try{ await api("/merchants/"+MERCHANT_ID+"/products",{method:"POST",body:JSON.stringify({
+    name:document.getElementById("pName").value, price:+document.getElementById("pPrice").value,
+    category:document.getElementById("pCat").value||null})});
+    document.getElementById("addMsg").textContent="✅ Product added"; loadProducts();
+  }catch(e){ document.getElementById("addMsg").textContent="❌ "+e.message; }
+}
+
+/* ===== INVENTORY ===== */
+async function loadInventory(){
+  const prods = await api("/merchants/"+MERCHANT_ID+"/products");
+  document.getElementById("inventoryBody").innerHTML = prods.map(p=>{
+    const st = INV[p.id]||{stock:10,last:"—"};
+    const low = st.stock<=6;
+    return `<tr><td><b>${p.name}</b></td><td>${p.category||"—"}</td><td><b>${st.stock}</b></td>
+      <td>${low?'<span class="tag red">Low stock</span>':'<span class="tag green">In stock</span>'}</td>
+      <td style="width:140px"><div class="bar"><i style="width:${Math.min(100,st.stock/30*100)}%;height:100%;display:block;border-radius:8px;background:${low?"var(--red)":"var(--green)"}"></i></div></td>
+      <td style="color:var(--muted)">${st.last}</td></tr>`;
+  }).join("");
+}
+
+/* ===== DISCOUNTS ===== */
+function renderDiscounts(){
+  document.getElementById("discountsBody").innerHTML = DISCOUNTS.map(d=>`
+    <div class="disc"><div class="code">${d.code}</div><b>${d.title}</b><small>${d.value} · ${d.type}</small>
+      <div class="meta"><span>Used ${d.uses}/${d.limit}</span><span class="tag ${d.status==="Active"?"green":"gray"}">${d.status}</span></div>
+      <div class="bar"><i style="width:${Math.round(d.uses/d.limit*100)}%;display:block;height:100%;border-radius:4px;background:var(--orange)"></i></div>
+      <div style="display:flex;gap:6px;margin-top:10px"><button class="btn ghost small" onclick="alert('Code copied (UI)')">Copy</button><button class="btn ghost small" onclick="alert('Deal disabled (UI)')">Disable</button></div></div>`).join("");
+}
+function toggleDisc(){ document.getElementById("discBox").style.display = document.getElementById("discBox").style.display==="none"?"block":"none"; }
+function addDiscount(){
+  const t=document.getElementById("dTitle").value, c=document.getElementById("dCode").value;
+  if(!t||!c){ document.getElementById("dMsg").textContent="❌ Enter deal name and code"; return; }
+  DISCOUNTS.unshift({title:t, code:c, type:document.getElementById("dType").value==="pct"?"Percentage":"Fixed", value:document.getElementById("dValue").value+(document.getElementById("dType").value==="pct"?"%":" SAR"), uses:0, limit:100, status:"Active"});
+  document.getElementById("dMsg").textContent="✅ Discount created"; renderDiscounts();
+}
+
+/* ===== CUSTOMERS ===== */
+let segSel = "all";
+function loadCustomers(){
+  const counts = {};
+  SEGMENTS.forEach(s=>counts[s.k]=CUSTOMERS.filter(s.match).length);
+  document.getElementById("segBar").innerHTML = SEGMENTS.map(s=>`
+    <button class="seg ${segSel===s.k?"on":""}" onclick="setSeg('${s.k}')">${s.icon} ${s.n}<span class="n">${counts[s.k]}</span></button>`).join("");
+  const seg = SEGMENTS.find(s=>s.k===segSel);
+  const list = CUSTOMERS.filter(seg.match);
+  document.getElementById("customersBody").innerHTML = `<table><thead><tr><th>Customer</th><th>Phone</th><th>Orders</th><th>Total spent</th><th>Loyalty points</th><th>Last order</th><th></th></tr></thead><tbody>` +
+  list.map(c=>`<tr><td><div style="display:flex;align-items:center;gap:10px">${avatar(c.name,c.color)}<b>${c.name}</b></div></td>
+    <td style="color:var(--muted)" dir="ltr">${c.phone}</td><td>${c.orders}</td><td style="color:var(--green);font-weight:700">${c.spent} SAR</td>
+    <td><span class="tag amber">${c.spent} pts</span></td>
+    <td style="color:var(--muted)">${c.last}</td>
+    <td><button class="btn ghost small" onclick="alert('Open customer profile (UI)')">Profile</button></td></tr>`).join("") + "</tbody></table>";
+}
+function setSeg(k){ segSel = k; loadCustomers(); }
+
+/* ===== ANALYTICS ===== */
+async function loadAnalytics(){
+  try{
+    const a = await api("/analytics/overview");
+    const p = await api("/analytics/performance");
+    document.getElementById("aRevenue").textContent = a.revenue_total.toLocaleString()+" SAR";
+    document.getElementById("aOrders").textContent = a.orders_platform + a.orders_shipping + a.orders_self;
+    document.getElementById("aDeliveries").textContent = a.deliveries_done;
+    document.getElementById("aScore").textContent = a.avg_score.toFixed(1)+" ★";
+    const base = WEEK_VALS.map((v,i)=>Math.round(v*(i+3)*7));
+    barChart("analyticsChart", base, "linear-gradient(180deg,#7aa5ff,var(--blue))");
+    document.getElementById("courierPerfBody").innerHTML = p.map(c=>`
+      <tr><td><div style="display:flex;align-items:center;gap:10px">${avatar(c.name,"#8b5cf6")}<b>${c.name}</b></div></td>
+      <td><span class="tag ${c.courier_type==="COMPANY"?"blue":"gray"}">${c.courier_type==="COMPANY"?"Internal fleet":"Freelancer"}</span></td>
+      <td><b>${c.deliveries}</b></td><td>${c.acceptance_rate}%</td><td>${c.on_time_rate}%</td>
+      <td><b style="color:var(--amber)">${c.score.toFixed(1)} ★</b></td></tr>`).join("");
+  }catch(e){ }
+}
+function exportReport(name){ alert('Exported "'+name+'" (PDF) — UI mock'); }
+
+/* ===== REPORTS ===== */
+function loadReports(){
+  const rev = allOrders.length ? allOrders.reduce((s,o)=>s+o.total,0) : 48620;
+  const units = 624;
+  document.getElementById("rRevenue").textContent = rev.toLocaleString()+" SAR";
+  document.getElementById("rUnits").textContent = units.toLocaleString()+" units";
+  document.getElementById("rAov").textContent = allOrders.length? Math.round(rev/allOrders.length)+" SAR" : "78 SAR";
+  document.getElementById("rConv").textContent = "4.6%";
+  document.getElementById("funnel").innerHTML = [
+    ["Store visits", 18400, 100],
+    ["Product views", 14200, 77],
+    ["Added to cart", 4860, 26],
+    ["Checkout", 2140, 12],
+    ["Completed orders", 1840, 10]
+  ].map(f=>`<div class="fstep"><div class="lbl"><b>${f[0]}</b><span>${f[1].toLocaleString()}</span></div>
+    <div class="bar"><i style="width:${f[2]}%"></i></div></div>`).join("");
+  document.getElementById("repCats").innerHTML = [
+    ["Coffee & drinks", 62, "var(--orange)"],
+    ["Desserts", 21, "var(--blue)"],
+    ["Bakery", 11, "var(--green)"],
+    ["Other", 6, "var(--amber)"]
+  ].map(c=>`<div class="chartRow"><span class="lbl">${c[0]}</span><div class="bar"><i style="width:${c[1]}%;background:${c[2]}"></i></div><span class="val">${c[1]}%</span></div>`).join("");
+  document.getElementById("rTopCat").textContent = "Coffee & drinks";
+  document.getElementById("rCatCount").textContent = "4 categories";
+  document.getElementById("repPay").innerHTML = [
+    ["Card (prepaid)", 68, "var(--green)"],
+    ["Cash on delivery", 22, "var(--orange)"],
+    ["Apple Pay", 8, "var(--blue)"],
+    ["Wallet", 2, "var(--amber)"]
+  ].map(p=>`<div class="chartRow"><span class="lbl">${p[0]}</span><div class="bar"><i style="width:${p[1]}%;background:${p[2]}"></i></div><span class="val">${p[1]}%</span></div>`).join("");
+  document.getElementById("repCmp").innerHTML = `<div class="cmpRow head"><span>Metric</span><span>This period</span><span>Previous period</span><span>Change</span></div>` +
+  [
+    ["Sales", "48,620 SAR", "42,340 SAR", "+14.8%", "up"],
+    ["Orders", "624", "548", "+13.9%", "up"],
+    ["Average order value", "78 SAR", "77 SAR", "+1.3%", "up"],
+    ["Cancel rate", "1.8%", "2.4%", "–0.6%", "down"],
+    ["Delivery cost", "6.4 SAR", "6.9 SAR", "–7.2%", "up"]
+  ].map(r=>`<div class="cmpRow"><span><b>${r[0]}</b></span><span>${r[1]}</span><span>${r[2]}</span><span class="delta ${r[4]}" style="color:${r[4]==="up"?"var(--green)":"var(--red)"}">${r[3]}</span></div>`).join("");
+}
+
+/* ===== PLAN / STAFF ===== */
+function renderPlan(){
+  document.getElementById("invoices").innerHTML = `<div class="ph"><h3 style="font-size:12.5px">Latest invoices</h3><a onclick="alert('All invoices (UI)')">All</a></div>` +
+  INVOICES.map(i=>`<div class="invRow"><b style="font-size:11.5px;direction:ltr">${i.id}</b><span style="color:var(--muted)">${i.date}</span><span class="tag ${i.st==="Paid"?"green":"amber"}">${i.st}</span><span class="amt">${i.amt}</span></div>`).join("");
+  document.getElementById("staffBody").innerHTML = STAFF_MOCK.map((s,i)=>`
+    <div class="rowList" style="margin-bottom:4px"><div class="row">
+      <span class="avatar" style="background:${s.color}">${s.name.slice(0,2)}</span>
+      <div><b>${s.name}</b><small>${s.email}</small></div>
+      <span class="tag blue">${s.role}</span>
+      <button class="btn ghost small" style="margin-inline-start:auto" onclick="alert('Manage permissions for ${s.name} (UI)')">Permissions</button>
+    </div></div>`).join("");
+}
+
+/* ===== SETTINGS / STORE ===== */
+async function loadStore(){
+  try{
+    const m = await api("/merchants/"+MERCHANT_ID);
+    document.getElementById("sName").value = m.name;
+    document.getElementById("sSlug").value = m.slug;
+    document.getElementById("sTheme").value = m.theme;
+  }catch(e){}
+}
+async function saveStore(){
+  try{
+    await api("/merchants/"+MERCHANT_ID+"/theme",{method:"PATCH",body:JSON.stringify({theme:document.getElementById("sTheme").value})});
+    document.getElementById("storeMsg").textContent="✅ Store details saved";
+    document.getElementById("storeMsg").style.color="var(--green)";
+  }catch(e){ document.getElementById("storeMsg").textContent="❌ "+e.message; }
+}
+function setMode(k, el){
+  document.querySelectorAll(".modeBtn").forEach(b=>b.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("modeMsg").textContent = "✅ Delivery mode: "+el.querySelector("b").textContent;
+  document.getElementById("modeMsg").style.color="var(--green)";
+}
+
+/* ===== MANUAL ORDER / MODALS ===== */
+function openModal(id){ document.getElementById(id).classList.add("open"); }
+function closeModal(id){ document.getElementById(id).classList.remove("open"); }
+function openManualOrder(){ openModal("manualModal"); }
+function createManualOrder(){
+  const name=document.getElementById("moName").value||"Customer";
+  const msg=document.getElementById("moMsg");
+  if(!document.getElementById("moAddr").value){ msg.textContent="❌ Address is required"; msg.style.color="var(--red)"; return; }
+  msg.style.color="var(--green)";
+  msg.textContent = `✅ Manual order created for customer "${name}" — awaiting approval (UI)`;
+  setTimeout(()=>{ closeModal("manualModal"); msg.textContent=""; }, 1200);
+}
+
+go("home");
+loadStore();
+renderPlan();
+</script>
+</body>
+</html>

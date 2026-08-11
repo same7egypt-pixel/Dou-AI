@@ -1,0 +1,13 @@
+# DOU Platform — تشغيل محلي أو على أي سيرفر عبر Docker Compose
+# استخدم SQLite بملف dou.db (يتحفظ حتى بعد إعادة التشغيل).
+services:
+  dou-api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./dou.db:/app/dou.db
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite:///./dou.db
+      - SECRET_KEY=change-me-in-production

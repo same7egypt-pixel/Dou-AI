@@ -1,0 +1,7 @@
+__pycache__
+*.pyc
+.env
+dou.db
+.DS_Store
+.git
+*.log
