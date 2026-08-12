@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..config import ADMIN_KEY
 from ..models.entities import Channel, Courier, Merchant, Staff, CourierType, Country, User, UserRole
-from .auth import get_current_user, hash_password
+from .auth import get_current_user, hash_password, SECRET_KEY, ALGORITHM
+from jose import jwt as pyjwt, JWTError
 
 
 async def require_admin(x_admin_key: str = Header(default="", alias="X-Admin-Key"),
@@ -16,9 +17,6 @@ async def require_admin(x_admin_key: str = Header(default="", alias="X-Admin-Key
     if x_admin_key and x_admin_key == ADMIN_KEY:
         return True
     if authorization and authorization.startswith("Bearer "):
-        from .auth import SECRET_KEY, ALGORITHM
-        import jwt as pyjwt
-        from jwt import JWTError
         token = authorization[7:]
         try:
             payload = pyjwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
