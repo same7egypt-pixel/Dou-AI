@@ -104,9 +104,10 @@ def health():
 
 @app.get("/download/driver-apk")
 def download_driver_apk():
-    return RedirectResponse(
-        "https://github.com/same7egypt-pixel/dou-server/releases/download/driver-latest/DOU-Driver.apk",
-        status_code=302,
+    return FileResponse(
+        os.path.join(STATIC_DIR, "DOU-Driver.apk"),
+        media_type="application/vnd.android.package-archive",
+        filename="DOU-Driver.apk",
     )
 
 
