@@ -431,12 +431,13 @@ const WEEK = ["السبت","الأحد","الاثنين","الثلاثاء","ا�
 const WEEK_VALS = [48,62,55,78,70,86,94];
 
 const ADMIN_KEY = sessionStorage.getItem("dou_admin_key") || "";
-const ADMIN_TOKEN = localStorage.getItem("dou_token_admin") || "";
+const ADMIN_TOKEN = (sessionStorage.getItem("dou_admin_key") ? "" : localStorage.getItem("dou_token_admin")) || "";
 const AUTH = ADMIN_KEY ? {"X-Admin-Key": ADMIN_KEY} : (ADMIN_TOKEN ? {"Authorization": "Bearer "+ADMIN_TOKEN} : {});
 
 async function api(path, opts={}){
   const headers = {"Content-Type":"application/json", ...AUTH};
   const r = await fetch(API+path, Object.assign({headers}, opts));
+  if(r.status===401 && ADMIN_KEY){ throw new Error("انتهت الجلسة"); }
   if(r.status===401){ localStorage.removeItem("dou_token_admin"); localStorage.removeItem("dou_token"); sessionStorage.removeItem("dou_admin_key"); location.reload(); throw new Error("انتهت الجلسة"); }
   if(!r.ok) throw new Error((await r.text())||r.status);
   return r.json();
