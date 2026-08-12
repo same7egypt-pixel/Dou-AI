@@ -66,6 +66,23 @@ def admin_gate(payload: GateIn):
     raise HTTPException(410, "Use secure admin account login")
 
 
+@gate_router.get("/public-plans")
+def public_plans(db: Session = Depends(get_db)):
+    """الباقات النشطة المعروضة في صفحة المبيعات، بدون أي بيانات إدارية حساسة."""
+    return [
+        {
+            "code": plan.code,
+            "name": plan.name,
+            "monthly_price": plan.monthly_price,
+            "max_couriers": plan.max_couriers,
+        }
+        for plan in db.query(SubscriptionPlan)
+        .filter(SubscriptionPlan.is_active == True)
+        .order_by(SubscriptionPlan.monthly_price)
+        .all()
+    ]
+
+
 # ---------- Merchants ----------
 class MerchantIn(BaseModel):
     name: str
