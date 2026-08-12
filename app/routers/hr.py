@@ -169,9 +169,13 @@ def update_supervisor(sid: int, payload: dict, user: User = Depends(get_current_
 
 @router.get("/projects")
 def list_projects(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role not in (COMPANY_ROLES + (UserRole.SUPERVISOR,)):
+    if user.role not in (COMPANY_ROLES + (UserRole.SUPERVISOR, UserRole.COURIER)):
         raise HTTPException(403, "Not allowed")
-    q = db.query(Project).filter(Project.tenant_id == user.tenant_id) if user.tenant_id else db.query(Project)
+    tenant_id = user.tenant_id
+    if user.role == UserRole.COURIER and user.courier_id:
+        c = db.get(Courier, user.courier_id)
+        tenant_id = c.tenant_id if c else tenant_id
+    q = db.query(Project).filter(Project.tenant_id == tenant_id) if tenant_id else db.query(Project)
     return [{"id": p.id, "name": p.name, "is_active": p.is_active} for p in q.all()]
 
 
