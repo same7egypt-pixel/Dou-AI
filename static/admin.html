@@ -154,7 +154,7 @@ input:focus,select:focus{border-color:var(--orange)}
   <div class="group">الشركة</div>
   <button class="nav" data-view="staff"><i>👥</i><span>الفريق والصلاحيات</span></button>
   <button class="nav" data-view="settings"><i>⚙</i><span>إعدادات النظام</span></button>
-  <div class="user"><div class="photo">سم</div><div><b>سامح صالح</b><small>Super Admin</small></div></div>
+  <div class="user"><div class="photo">سم</div><div><b>سامح صالح</b><small>Super Admin</small></div><button class="btn ghost small" style="margin-right:8px;flex-shrink:0" onclick="logout()" title="تسجيل الخروج">🚪</button></div>
 </aside>
 <div class="overlay" id="overlay" onclick="toggleSide()"></div>
 <main class="main" id="main">
@@ -441,6 +441,10 @@ function barChart(elId, vals, color){
   const max = Math.max.apply(null, vals);
   document.getElementById(elId).innerHTML = vals.map((v,i)=>`
     <div class="col"><span class="v">${v}</span><i style="height:${Math.round(v/max*100)}%;background:${color||"linear-gradient(180deg,#ff8a55,var(--orange))"}"></i><small>${WEEK[i]}</small></div>`).join("");
+ }
+
+function logout(){
+  localStorage.removeItem("dou_token"); sessionStorage.removeItem("dou_admin_key"); location.reload();
 }
 
 function go(v){
