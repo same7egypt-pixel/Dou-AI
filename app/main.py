@@ -87,7 +87,9 @@ app.mount("/static", NoCacheHtml(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 def index(request: Request):
-    if (request.url.hostname or "") == "admin.dou.delivery":
+    forwarded_host = request.headers.get("x-forwarded-host", "").split(",")[0].strip().split(":")[0]
+    direct_host = request.headers.get("host", "").split(":")[0]
+    if "admin.dou.delivery" in {request.url.hostname or "", forwarded_host, direct_host}:
         return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
