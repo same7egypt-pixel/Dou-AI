@@ -13,6 +13,7 @@
 <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="/static/i18n.js" defer></script>
 <style>
 :root{--ink:#171b22;--muted:#757b86;--line:#e9e9ec;--orange:#ff5a13;--warm:#fff2eb;--green:#149467;--green2:#eaf8f0;--blue:#246bfd;--blue2:#eaf1ff;--soft:#f7f7f8;--nav:#11161d}
 *{box-sizing:border-box}body{margin:0;background:var(--soft);font-family:Alexandria,sans-serif;color:var(--ink)}
@@ -86,6 +87,7 @@
 </style>
 </head>
 <body>
+<button onclick="setDouLanguage(localStorage.getItem('dou_lang')==='en'?'ar':'en')" style="position:fixed;left:14px;bottom:14px;z-index:100;background:#111827;color:#fff;border:1px solid #374151;border-radius:20px;padding:8px 13px;font:700 11px Alexandria;cursor:pointer">AR / EN</button>
 <div class="stage">
   <div class="head">
     <div class="logo">D<i></i>ou <span style="font-size:10px;color:#ff7a42;letter-spacing:1px">COURIER</span></div>
@@ -283,6 +285,7 @@ async function api(path, opts={}){
 function loginView(){
   const stage = document.querySelector(".stage");
   stage.innerHTML = `
+    <button onclick="setDouLanguage(localStorage.getItem('dou_lang')==='en'?'ar':'en')" style="position:fixed;left:14px;bottom:14px;z-index:100;background:#111827;color:#fff;border:1px solid #374151;border-radius:20px;padding:8px 13px;font:700 11px Alexandria;cursor:pointer">AR / EN</button>
     <div style="display:flex;flex-direction:column;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(160deg,#141a24,#1f2a3a)">
       <div style="text-align:center;margin-bottom:22px">
         <div class="logo" style="color:#fff;font-size:28px">D<i></i>ou <span style="font-size:11px;color:#ff7a42;letter-spacing:1px">COURIER</span></div>

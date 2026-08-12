@@ -6,6 +6,7 @@
 <title>DOU | Super Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="/static/i18n.js" defer></script>
 <style>
 :root{--bg:#f4f6fb;--card:#fff;--line:#e6eaf2;--ink:#0f1b2d;--muted:#6b7a90;--soft:#f6f8fc;--nav:#0e1526;--nav2:#121c31;--orange:#ff5a13;--orange-soft:#ffefe6;--green:#16a34a;--green-soft:#e7f6ee;--red:#ef4444;--red-soft:#fdecec;--blue:#2563eb;--blue-soft:#e9f0fe;--amber:#f59e0b;--amber-soft:#fdf3e3;--radius:14px;--shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Alexandria,sans-serif;color:var(--ink);font-size:13.5px;-webkit-font-smoothing:antialiased}
@@ -138,6 +139,7 @@ input:focus,select:focus{border-color:var(--orange)}
 </style>
 </head>
 <body>
+<button onclick="setDouLanguage(localStorage.getItem('dou_lang')==='en'?'ar':'en')" style="position:fixed;left:14px;bottom:14px;z-index:100;background:#111827;color:#fff;border:1px solid #374151;border-radius:20px;padding:8px 13px;font:700 11px Alexandria;cursor:pointer">AR / EN</button>
 <div class="layout"><aside class="side" id="side">
   <div class="brand"><div class="lg">D</div><div><b>DOU</b><small>SUPER ADMIN</small></div></div>
   <div class="group">الإدارة</div>
@@ -884,6 +886,7 @@ async function boot(){
 function gateView(){
   document.querySelector(".layout").style.display = "none";
   document.body.innerHTML = `
+    <button onclick="setDouLanguage(localStorage.getItem('dou_lang')==='en'?'ar':'en')" style="position:fixed;left:14px;bottom:14px;z-index:100;background:#111827;color:#fff;border:1px solid #374151;border-radius:20px;padding:8px 13px;font:700 11px Alexandria;cursor:pointer">AR / EN</button>
     <div style="display:flex;flex-direction:column;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(160deg,#0e1526,#121c31)">
       <div style="text-align:center;margin-bottom:22px">
         <div style="font:800 26px Alexandria;letter-spacing:-1px;color:#fff;direction:ltr">DOU <span style="font-size:11px;color:#ff7a42;letter-spacing:2px">CONTROL PANEL</span></div>
@@ -919,6 +922,7 @@ async function gateLogin(){
     document.getElementById("gateMsg").textContent = "❌ " + e.message;
   }
 }
+
 const gatePassEl = document.getElementById("gatePass"); if(gatePassEl) gatePassEl.addEventListener("keydown", e=>{ if(e.key==="Enter") gateLogin(); });
 setInterval(()=>{ fetch("/health").catch(()=>{}); }, 10*60*1000);
 boot();

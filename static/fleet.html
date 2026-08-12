@@ -6,6 +6,7 @@
 <title>DOU Fleet Partners</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="/static/i18n.js" defer></script>
 <style>
 :root{--nav:#11161d;--nav2:#1b2330;--ink:#172033;--muted:#728096;--line:#e7ebf1;--soft:#f7f9fc;--blue:#246bfd;--blue2:#eaf1ff;--green:#16a46b;--green2:#e8f8f1;--amber:#f59e0b;--amber2:#fef4e2;--red:#ef5d67;--red2:#fdebeb}
 *{box-sizing:border-box}body{margin:0;background:var(--soft);font-family:Alexandria,sans-serif;color:var(--ink);font-size:14px}
@@ -99,6 +100,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 </style>
 </head>
 <body>
+<button onclick="setDouLanguage(localStorage.getItem('dou_lang')==='en'?'ar':'en')" style="position:fixed;left:14px;bottom:14px;z-index:100;background:#111827;color:#fff;border:1px solid #374151;border-radius:20px;padding:8px 13px;font:700 11px Alexandria;cursor:pointer">AR / EN</button>
 <div class="layout"><aside class="side" id="side">
   <div class="logo"><i>↗</i><b>DOU</b><small>FLEET PARTNERS</small></div>
   <div class="group">إدارة السائقين</div>
@@ -696,6 +698,7 @@ function loginView(){
   document.querySelector(".layout").style.display = "none";
   const body = document.body;
   body.innerHTML = `
+    <button onclick="setDouLanguage(localStorage.getItem('dou_lang')==='en'?'ar':'en')" style="position:fixed;left:14px;bottom:14px;z-index:100;background:#111827;color:#fff;border:1px solid #374151;border-radius:20px;padding:8px 13px;font:700 11px Alexandria;cursor:pointer">AR / EN</button>
     <div style="display:flex;flex-direction:column;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(160deg,#11161d,#1b2330)">
       <div style="text-align:center;margin-bottom:22px">
         <div style="font:800 26px Alexandria;letter-spacing:-1px;color:#fff">DOU <span style="font-size:11px;color:#ff7a42;letter-spacing:2px">FLEET PARTNERS</span></div>

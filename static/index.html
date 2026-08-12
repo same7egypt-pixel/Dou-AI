@@ -6,6 +6,7 @@
 <title>DOU — إدارة السائقين للشركات اللوجستية</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="/static/i18n.js" defer></script>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#11161d;font-family:Alexandria,sans-serif;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px}
 .logo{font-size:42px;font-weight:800;letter-spacing:-3px;direction:ltr;margin-bottom:8px}
@@ -29,7 +30,7 @@
 </style>
 </head>
 <body>
-<div class="lang"><a class="on" href="/">عربي</a></div>
+<div class="lang"><a href="#" onclick="setDouLanguage('ar');return false">AR</a><a href="#" onclick="setDouLanguage('en');return false">EN</a></div>
 <div class="logo">D<i></i>ou</div>
 <div class="sub">نظام إدارة السائقين للشركات اللوجستية · <span class="api" id="status">…</span></div>
 <div class="grid">
