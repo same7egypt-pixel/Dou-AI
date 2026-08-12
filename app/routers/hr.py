@@ -226,6 +226,12 @@ def create_bonus(payload: dict, user: User = Depends(get_current_user), db: Sess
     pj = db.get(Project, pid)
     if not pj or pj.tenant_id != user.tenant_id:
         raise HTTPException(404, "Project not found in your fleet")
+    try:
+        target_orders = int(payload.get("target_orders") or 0)
+        bonus_amount = float(payload.get("bonus_amount") or 0)
+        over_target_rate = float(payload.get("over_target_rate") or 0)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "قيم رقمية غير صالحة في خطة البونص")
     cid = payload.get("courier_id")
     if cid:
         c = db.get(Courier, cid)
@@ -240,12 +246,6 @@ def create_bonus(payload: dict, user: User = Depends(get_current_user), db: Sess
         dup = db.query(BonusPlan).filter(BonusPlan.courier_id.is_(None), BonusPlan.project_id == pid).first()
         if dup:
             raise HTTPException(400, "هناك خطة بونص عامة لهذا المشروع")
-    try:
-        target_orders = int(payload.get("target_orders") or 0)
-        bonus_amount = float(payload.get("bonus_amount") or 0)
-        over_target_rate = float(payload.get("over_target_rate") or 0)
-    except (ValueError, TypeError):
-        raise HTTPException(400, "قيم رقمية غير صالحة في خطة البونص")
     p = BonusPlan(
         tenant_id=user.tenant_id, courier_id=cid, project_id=pid,
         target_orders=target_orders,
