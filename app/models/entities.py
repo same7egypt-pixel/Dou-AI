@@ -341,6 +341,48 @@ class GeoDistrict(Base):
     city = relationship("GeoCity", back_populates="districts")
 
 
+class Contract(Base):
+    """عقد توظيف/تعاقد مع مندوب أو أسطول — يحدد الأجر ومدته."""
+    __tablename__ = "contracts"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"))
+    fleet_id = Column(Integer, ForeignKey("fleets.id"))
+    name = Column(String(120), nullable=False)
+    contract_type = Column(String(20), default="FIXED")   # FIXED / PER_DELIVERY
+    duration_months = Column(Integer, default=12)
+    couriers_count = Column(Integer, default=0)
+    base_salary = Column(Float, default=0.0)
+    per_delivery_rate = Column(Float, default=6.0)
+    status = Column(String(20), default="ACTIVE")          # ACTIVE / EXPIRED
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SupportTicket(Base):
+    """تذكرة دعم — يرفعها المندوب ويرد عليها فريق الشركة/المنصة."""
+    __tablename__ = "support_tickets"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"))
+    courier_id = Column(Integer, ForeignKey("couriers.id"))
+    subject = Column(String(160))
+    message = Column(Text)
+    status = Column(String(20), default="OPEN")   # OPEN / REPLIED / CLOSED
+    reply = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AppSetting(Base):
+    """إعدادات تشغيل/أسعار عامة (قواعد النظام، أسعار التوصيل…)."""
+    __tablename__ = "app_settings"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"))
+    key = Column(String(80), nullable=False)
+    value = Column(Text)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Channel(Base):
     """قناة بيع على المنصة (Own / Social / Partner)."""
     __tablename__ = "channels"

@@ -330,7 +330,7 @@ input:focus,select:focus{border-color:var(--orange)}
     <section id="view-pricing" style="display:none">
       <div class="welcome">
         <div><h1>العمولات والأسعار</h1><p>حدد عمولة كل قناة وتكلفة التوصيل لكل دولة.</p></div>
-        <div class="quickBtns"><button class="btn primary" onclick="alert('تم حفظ إعدادات الأسعار (UI)')">حفظ</button></div>
+        <div class="quickBtns"><button class="btn primary" onclick="savePricing()">حفظ</button></div>
       </div>
       <div class="grid2">
         <div class="panel">
@@ -476,7 +476,22 @@ function toggleNotifs(e){ e.stopPropagation(); const p=document.getElementById("
       <div><b>${n.t}</b><small>${n.s}</small></div></div>`).join("");
 }
 document.addEventListener("click",()=>{ const p=document.getElementById("notifPanel"); if(p) p.style.display="none"; });
-function exportReport(n){ alert('تم تصدير "'+n+'" (PDF) — نموذج UI'); }
+function exportReport(n){
+  const src = n==="سجل الطلبات" ? document.getElementById("view-orders") : document.getElementById("view-dashboard");
+  if(!src){ alert("لا توجد بيانات للتصدير"); return; }
+  const w = window.open("", "_blank");
+  if(!w){ alert("اسمح بالنوافذ المنبثقة للتصدير"); return; }
+  w.document.write(`<html dir="rtl"><head><title>DOU — ${n}</title><meta charset="utf-8"><style>body{font-family:Tahoma,sans-serif;padding:30px;color:#111}h1{font-size:18px;border-bottom:2px solid #ff5a13;padding-bottom:8px}table{width:100%;border-collapse:collapse;margin-top:14px;font-size:12px}td,th{border:1px solid #ddd;padding:8px;text-align:right}th{background:#f5f5f5}small{color:#888}</style></head><body><h1>DOU — ${n}</h1><small>صُدِّر ${new Date().toLocaleString("ar-SA")}</small>${src.outerHTML}</body></html>`);
+  w.document.close(); w.focus(); w.print();
+}
+function savePricing(){
+  const rows = [...document.querySelectorAll("#view-pricing .opt input")].map(i=>{
+    const b = i.closest(".opt").querySelector("b");
+    return (b?b.textContent:"")+" = "+i.value;
+  }).join("\n");
+  localStorage.setItem("dou_pricing", JSON.stringify(rows));
+  alert("✅ حُفظت إعدادات الأسعار بنجاح:\n\n"+(rows||"لا قيم"));
+}
 function openModal(id){ document.getElementById(id).classList.add("open"); }
 function closeModal(id){ document.getElementById(id).classList.remove("open"); }
 

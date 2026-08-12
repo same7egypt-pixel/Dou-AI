@@ -84,6 +84,8 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 .modal.open{display:flex}
 .modalBox{background:#fff;border-radius:18px;padding:24px;max-width:520px;width:100%;max-height:88vh;overflow:auto}
 .modalBox h3{margin:0 0 14px;font-size:16px}
+.fLabel{display:block;font-size:11px;color:var(--muted);margin:10px 0 4px}
+.fInput{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;margin-bottom:2px}
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 .filters input,.filters select{width:auto;min-width:140px}
 .ticket{display:flex;justify-content:space-between;align-items:flex-start;padding:13px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;gap:12px}
@@ -129,7 +131,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="rolebar" style="margin:0">
         <button class="active">حساب الشركة</button>
       </div>
-      <button class="btn ghost" onclick="alert('تم تصدير التقرير (PDF) — UI')">⬇ تصدير</button>
+      <button class="btn ghost" onclick="exportCSV()">⬇ تصدير</button>
     </div>
   </header>
   <div class="content">
@@ -187,7 +189,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
     <section id="view-dispatch" style="display:none">
       <div class="header"><div><div class="kicker">إشراف وتحكم</div><h1>الإرسال والتحكم</h1></div>
-        <button class="btn ghost" onclick="alert('إرسال طلب اختباري للتحقق (UI)')">🧪 طلب اختباري</button></div>
+        <button class="btn ghost" onclick="sendTestOrder()">🧪 طلب اختباري</button></div>
       <div class="cards">
         <div class="metric alert"><b>7</b><span>طلبات بدون مندوب</span></div>
         <div class="metric"><b>3</b><span>متأخرة عن SLA</span></div>
@@ -209,11 +211,11 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="card">
         <h3>معالجة الاستثناءات</h3>
         <div class="opt"><div><b>لا مندوب متاح — طلب #1195</b><small>تجاوز زمن الانتظار · يمكن التصعيد لمندوب خارجي</small></div>
-          <button class="btn amber small" onclick="alert('تم التصعيد لمندوب خارجي (UI)')">تصعيد خارجي</button></div>
+          <button class="btn amber small" onclick="escalateOrder(1195)">تصعيد خارجي</button></div>
         <div class="opt"><div><b>خرق SLA — طلب #1189</b><small>بقيت 4 دقائق على الموعد المتفق عليه</small></div>
-          <button class="btn blue small" onclick="alert('فتح إعادة تعيين سريع (UI)')">إعادة تعيين</button></div>
+          <button class="btn blue small" onclick="openReassign(1189)">إعادة تعيين</button></div>
         <div class="opt"><div><b>رفض متكرر — طلب #1184</b><small>رفضه مندوبان · تشغيل Broadcast للأقرب</small></div>
-          <button class="btn small" onclick="alert('تم تشغيل وضع البث للأقرب (UI)')">Broadcast</button></div>
+          <button class="btn small" onclick="broadcastOrder(1184)">Broadcast</button></div>
       </div>
     </section>
 
@@ -291,15 +293,14 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <table><thead><tr><th>المندوب</th><th>النوع</th><th>الحالة</th><th>ثابت</th><th>أجر/توصيلة</th><th>توصيلات</th><th>أرباح التوصيلات</th><th>البونص</th><th>الإجمالي</th><th>IBAN</th></tr></thead>
         <tbody id="payBody"></tbody></table></div>
       <div class="card"><h3>إدارة العقود</h3>
-        <div class="opt"><div><b>أسطول مقهى بن القهوة</b><small>عقد ثابت · مدة 12 شهر · 4 مناديب</small></div><span class="tag blue">Fixed</span></div>
-        <div class="opt"><div><b>أسطول مندوبي الشمال</b><small>عقد لكل توصيلة · مدة 6 أشهر · 8 مناديب</small></div><span class="tag gray">Per delivery</span></div>
-        <button class="btn ghost small" style="margin-top:8px" onclick="alert('إنشاء / تعديل عقد (UI)')">+ عقد جديد</button>
+        <div id="contractsBody"></div>
+        <button class="btn ghost small" style="margin-top:8px" onclick="openContractModal()">+ عقد جديد</button>
       </div>
     </section>
 
     <section id="view-channels" style="display:none">
       <div class="header"><div><div class="kicker">قنوات وتكلفة</div><h1>القنوات والتكاليف</h1></div>
-        <button class="btn ghost" onclick="alert('تم التصدير CSV — UI')">⬇ CSV</button></div>
+        <button class="btn ghost" onclick="exportCSV()">⬇ CSV</button></div>
       <div class="cards">
         <div class="metric"><b>2.4 ر.س</b><span>متوسط تكلفة التوصيلة (داخلي)</span></div>
         <div class="metric"><b>11.8 ر.س</b><span>متوسط تكلفة التوصيلة (خارجي)</span></div>
@@ -347,25 +348,25 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
     <section id="view-companies" style="display:none">
       <div class="header"><div><div class="kicker">فريق DOU فقط</div><h1>شركات التشغيل</h1></div>
-        <button class="btn blue" onclick="alert('إنشاء شركة تشغيل جديدة (UI)')">+ شركة</button></div>
+        <button class="btn blue" onclick="createOperatingCompany()">+ شركة</button></div>
       <div class="card"><table><thead><tr><th>الشركة</th><th>الأساطيل</th><th>مناديب</th><th>الأداء</th><th>الحالة</th></tr></thead>
         <tbody id="companiesBody"></tbody></table></div>
       <div class="card"><h3>تخصيص الأساطيل</h3>
         <div class="opt"><div><b>أسطول مقهى بن القهوة</b><small>4 مناديب · الرياض</small></div>
-          <select class="ruleNum" onchange="alert('تم تحديث إسناد الشركة (UI)')"><option>شركة النقل الذكي</option><option>شركة الإمداد السريع</option></select></div>
+          <select class="ruleNum" onchange="updateFleetCompany(this)"><option>شركة النقل الذكي</option><option>شركة الإمداد السريع</option></select></div>
         <div class="opt"><div><b>أسطول مندوبي الشمال</b><small>8 مناديب · الرياض</small></div>
-          <select class="ruleNum" onchange="alert('تم تحديث إسناد الشركة (UI)')"><option>شركة الإمداد السريع</option><option>شركة النقل الذكي</option></select></div>
+          <select class="ruleNum" onchange="updateFleetCompany(this)"><option>شركة الإمداد السريع</option><option>شركة النقل الذكي</option></select></div>
       </div>
     </section>
 
     <section id="view-rules" style="display:none">
       <div class="header"><div><div class="kicker">إعدادات التشغيل</div><h1>قواعد النظام</h1></div>
-        <button class="btn" onclick="alert('تم حفظ قواعد النظام (UI)')">حفظ التغييرات</button></div>
+        <button class="btn" onclick="saveRules()">حفظ التغييرات</button></div>
 
       <div class="card"><h3>قواعد الإرسال (Dispatch Rules)</h3>
-        <div class="opt"><div><b>أولوية الإسناد</b><small>ترتيب اختيار المندوب</small></div><input class="ruleNum" value="Dedicated → On-demand"></div>
-        <div class="opt"><div><b>عدد مرات إعادة المحاولة</b><small>قبل الانتقال لمرحلة التصعيد</small></div><input class="ruleNum" type="number" value="3"></div>
-        <div class="opt"><div><b>وضع البث (Broadcast)</b><small>المناديب القريبين بعد عدم استجابة</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="opt"><div><b>أولوية الإسناد</b><small>ترتيب اختيار المندوب</small></div><input id="rPriority" class="ruleNum" value="Dedicated → On-demand"></div>
+        <div class="opt"><div><b>عدد مرات إعادة المحاولة</b><small>قبل الانتقال لمرحلة التصعيد</small></div><input id="rRetries" class="ruleNum" type="number" value="3"></div>
+        <div class="opt"><div><b>وضع البث (Broadcast)</b><small>المناديب القريبين بعد عدم استجابة</small></div><input id="rBroadcast" type="checkbox" class="ruleNum" checked></div>
         <div class="opt"><div><b>التصعيد لمندوب خارجي</b><small>فتح الطلب لغير أسطولك</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
       </div>
 
@@ -439,6 +440,28 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     <div style="display:flex;gap:8px;margin-top:4px">
       <button class="btn ghost" style="flex:1" onclick="closeCourier()">إغلاق</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal: عقد جديد -->
+<div class="modal" id="contractModal">
+  <div class="modalBox">
+    <h3 id="ctTitle">📝 عقد جديد</h3>
+    <input id="ctId" type="hidden">
+    <label class="fLabel">اسم العقد</label>
+    <input class="fInput" id="ctName" placeholder="مثال: عقد مندوبي الشمال">
+    <label class="fLabel">نوع العقد</label>
+    <select class="fInput" id="ctType"><option value="FIXED">عقد ثابت (راتب شهري)</option><option value="PER_DELIVERY">عقد لكل توصيلة</option></select>
+    <div class="form-row">
+      <div><label class="fLabel">المدة (شهور)</label><input class="fInput" id="ctMonths" type="number" value="12"></div>
+      <div><label class="fLabel">عدد المناديب</label><input class="fInput" id="ctCount" type="number" value="0"></div>
+    </div>
+    <div class="form-row">
+      <div><label class="fLabel">الراتب الثابت (ر.س)</label><input class="fInput" id="ctSalary" type="number" value="0"></div>
+      <div><label class="fLabel">أجر التوصيلة (ر.س)</label><input class="fInput" id="ctRate" type="number" value="6"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn blue" style="flex:1" onclick="saveContract()">💾 حفظ العقد</button><button class="btn ghost" onclick="closeContractModal()">إلغاء</button></div>
+    <div id="ctMsg" class="msg"></div>
   </div>
 </div>
 
@@ -531,12 +554,9 @@ async function init(){
 
 function tag(s){ s=String(s); return `<span class="tag ${/DELIVER|COMPLETE/i.test(s)?"green":/ASSIGN|ACCEPT|READY|PICK/i.test(s)?"blue":/SHIPPING|PREPAR/i.test(s)?"amber":/CANCEL|FAIL/i.test(s)?"red":"gray"}">${s.replace(/_/g," ")}</span>`; }
 
-const TICKETS = [
-  {id:501, from:"تاجر", user:"مقهى بن القهوة", topic:"طلب #1199 متأخر ولم يُسند", status:"الانتظار (Queue)", time:"قبل ساعة"},
-  {id:502, from:"مندوب", user:"خالد القحطاني", topic:"مشكلة في احتساب الأرباح", status:"الانتظار (Queue)", time:"قبل 3 ساعات"},
-  {id:503, from:"تاجر", user:"مطعم الضيافة", topic:"تغيير وضع الإرسال إلى Auto", status:"محلولة", time:"أمس"},
-  {id:504, from:"مندوب", user:"محمد العتيبي", topic:"طلب تفعيل منطقة جديدة", status:"محلولة", time:"أمس"}
-];
+let TICKETS = [];
+
+function escapeHtml(s){ return String(s||"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 function go(v){
   document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
@@ -548,9 +568,11 @@ function go(v){
   if(v==="performance") loadPerformance();
   if(v==="payouts") loadPayouts();
   if(v==="compliance") loadCompliance();
-  if(v==="tickets") renderTickets();
+  if(v==="tickets") loadTickets();
   if(v==="attendance") loadAttendance();
   if(v==="billing") loadBilling();
+  if(v==="payouts"||v==="overview") renderContracts();
+  if(v==="dispatch") loadOverride();
 }
 document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
 
@@ -717,21 +739,65 @@ async function addCompany(){
   }catch(e){ document.getElementById("companyMsg").textContent="❌ "+e.message; }
 }
 
-document.getElementById("overrideBody").innerHTML = [1189,1192,1195,1198].map((o,i)=>`
-  <tr><td>#${o}</td><td><span class="tag ${i%2?"blue":"amber"}">${i%2?"PICKED_UP":"PLACED"}</span></td>
-  <td>${i%2?"محمد العتيبي":"—"}</td><td><span class="tag gray">${i%2?"On-demand":"Dedicated"}</span></td>
-  <td><button class="btn ghost small" onclick='openReassign(${o})'>🔄 إعادة تعيين</button>
-      <button class="btn small" onclick='alert("فرض الإسناد (Force Assign) — UI")'>فرض</button></td></tr>`).join("");
+async function loadOverride(){
+  try{
+    const orders = await api("/fleet/orders");
+    const recent = orders.slice(0,6);
+    const el = document.getElementById("overrideBody");
+    if(!el) return;
+    el.innerHTML = recent.map(o=>`
+      <tr><td>#${o.id}</td><td>${tag(o.status)}</td>
+      <td>${o.courier_name||"—"}</td><td><span class="tag gray">${o.delivery_method||"—"}</span></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn ghost small" onclick='openReassign(${o.id})'>🔄 إعادة تعيين</button>
+        <button class="btn small" onclick='forceAssign(${o.id})'>فرض</button>
+        <button class="btn amber small" onclick='escalateOrder(${o.id})'>تصعيد</button></td></tr>`).join("")
+      || '<tr><td colspan="5" style="color:var(--muted)">لا طلبات للتحكم اليدوي</td></tr>';
+  }catch(e){ const el=document.getElementById("overrideBody"); if(el) el.innerHTML='<tr><td colspan="5">تعذّر التحميل</td></tr>'; }
+}
 
 function openReassign(orderId){
   document.getElementById("rmOrder").value = orderId;
+  api("/fleet/couriers").then(rows=>{
+    const sel = document.getElementById("rmCourier");
+    sel.innerHTML = '<option value="">اختر المندوب</option>' + rows.map(c=>`<option value="${c.name}">${c.name} (${c.is_available?"متاح":"مشغول"})</option>`).join("");
+  });
   document.getElementById("reassignModal").classList.add("open");
 }
 function closeReassign(){ document.getElementById("reassignModal").classList.remove("open"); }
-function doReassign(){
-  document.getElementById("rmMsg").style.color="var(--green)";
-  document.getElementById("rmMsg").textContent = "✅ أُعيد تعيين الطلب #"+document.getElementById("rmOrder").value+" للمندوب المختار";
-  setTimeout(closeReassign, 1200);
+async function doReassign(){
+  const msg = document.getElementById("rmMsg");
+  const orderId = document.getElementById("rmOrder").value;
+  const cname = document.getElementById("rmCourier").value;
+  if(!cname || cname==="اختر المندوب"){ msg.style.color="var(--red)"; msg.textContent="اختر المندوب أولاً"; return; }
+  try{
+    const rows = await api("/fleet/couriers");
+    const c = rows.find(x=>x.name===cname);
+    if(!c){ throw new Error("المندوب غير موجود في أسطولك"); }
+    await api("/fleet/orders/"+orderId+"/reassign", {method:"POST", body:JSON.stringify({courier_id:c.id})});
+    msg.style.color="var(--green)";
+    msg.textContent = "✅ أُعيد تعيين الطلب #"+orderId+" للمندوب "+c.name;
+    setTimeout(closeReassign, 1200);
+    go("dispatch");
+  }catch(e){ msg.style.color="var(--red)"; msg.textContent="❌ "+e.message; }
+}
+async function forceAssign(orderId){
+  const rows = await api("/fleet/couriers");
+  const names = rows.map(c=>c.name).join("\n");
+  const pick = prompt("أدخل اسم المندوب لفرض الإسناد (الطلبيات الحالية):\n"+names+"\n\nالمناديب المتاحون:");
+  if(!pick) return;
+  const c = rows.find(x=>x.name===pick);
+  if(!c){ alert("❌ المندوب غير موجود"); return; }
+  try{
+    await api("/fleet/orders/"+orderId+"/reassign", {method:"POST", body:JSON.stringify({courier_id:c.id})});
+    alert("✅ فُرض إسناد الطلب #"+orderId+" على "+c.name);
+    loadOverride();
+  }catch(e){ alert("❌ "+e.message); }
+}
+async function updateFleetCompany(sel){
+  const v = sel.value;
+  await api("/fleet/settings", {method:"POST", body:JSON.stringify({fleet_company: v})});
+  alert("✅ حُدّث إسناد الشركة: "+v);
 }
 
 async function loadPerformance(){
@@ -799,18 +865,144 @@ async function loadCompliance(){
     `• <b>${c.delivery_investigations}</b> حالة توصيل تتطلب مراجعة تشغيلية`;
 }
 
+async function loadTickets(){
+  try{
+    TICKETS = await api("/fleet/tickets");
+    renderTickets();
+  }catch(e){ document.getElementById("ticketsBody").innerHTML = '<p class="msg">تعذّر تحميل التذاكر</p>'; }
+}
 function renderTickets(){
   const f = document.getElementById("ticketFilter").value;
-  const list = TICKETS.filter(t=> f==="الكل" || t.status===f || t.from===f);
+  const list = TICKETS.filter(t=> f==="الكل" || t.status===f || (f==="الانتظار (Queue)"&&t.status==="OPEN") || (f==="محلولة"&&t.status==="REPLIED"));
+  const statusTag = s=> s==="OPEN"?'<span class="tag amber">انتظار</span>':s==="REPLIED"?'<span class="tag green">تم الرد</span>':'<span class="tag gray">'+s+'</span>';
   document.getElementById("ticketsBody").innerHTML = list.map(t=>`
     <div class="ticket">
-      <div><b>#${t.id} · ${t.from} — ${t.user}</b><small>${t.topic}</small></div>
+      <div><b>#${t.id} · مندوب: ${escapeHtml(t.courier||"—")}</b><small>${escapeHtml(t.message)}</small>${t.reply?`<small style="color:var(--green)">↩ ردّ الشركة: ${escapeHtml(t.reply)}</small>`:""}</div>
       <div style="text-align:left;display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-        <span class="tag ${t.status==="محلولة"?"green":"amber"}">${t.status}</span>
-        <small style="color:var(--muted)">${t.time}</small>
-        <button class="btn ghost small" onclick="alert('فتح الرد على التذكرة (UI)')">الرد</button>
+        ${statusTag(t.status)}
+        <small style="color:var(--muted)">${t.created_at?new Date(t.created_at).toLocaleString("ar-SA"):""}</small>
+        <button class="btn ghost small" onclick="replyTicket(${t.id})">الرد</button>
       </div>
     </div>`).join("") || '<p class="msg" style="text-align:center">لا تذاكر مطابقة</p>';
+}
+async function replyTicket(id){
+  const reply = prompt("نص الرد للشركة على التذكرة #"+id+":");
+  if(!reply) return;
+  try{
+    await api("/fleet/tickets/"+id+"/reply", {method:"POST", body:JSON.stringify({reply})});
+    loadTickets();
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function renderContracts(){
+  try{
+    const list = await api("/fleet/contracts");
+    const el = document.getElementById("contractsBody");
+    if(!el) return;
+    el.innerHTML = list.map(c=>`
+      <div class="opt"><div><b>${escapeHtml(c.name)}</b><small>${c.contract_type==="FIXED"?"عقد ثابت":"لكل توصيلة"} · مدة ${c.duration_months} شهر · ${c.couriers_count} مناديب · ${(c.base_salary||0).toLocaleString()} ر.س</small></div>
+        <div style="display:flex;gap:6px;align-items:center"><span class="tag ${c.status==="ACTIVE"?"blue":"gray"}">${c.status==="ACTIVE"?"نشط":"منتهي"}</span>
+        <button class="btn ghost small" onclick="editContract(${c.id})">✏️ تعديل</button></div></div>`).join("")
+      || '<p class="msg" style="text-align:center">لا عقود بعد — أضف أول عقد</p>';
+  }catch(e){ const el=document.getElementById("contractsBody"); if(el) el.innerHTML='<p class="msg">تعذّر تحميل العقود</p>'; }
+}
+let CT_ID = null;
+function openContractModal(){
+  CT_ID = null;
+  document.getElementById("ctTitle").textContent = "📝 عقد جديد";
+  ["ctName","ctType","ctMonths","ctCount","ctSalary","ctRate"].forEach(i=>document.getElementById(i).value = i==="ctType"?"FIXED":i==="ctMonths"?"12":i==="ctRate"?"6":i==="ctCount"?"0":i==="ctSalary"?"0":"");
+  document.getElementById("ctMsg").textContent = "";
+  document.getElementById("contractModal").classList.add("open");
+}
+async function editContract(id){
+  const list = await api("/fleet/contracts");
+  const c = list.find(x=>x.id===id);
+  if(!c) return;
+  CT_ID = id;
+  document.getElementById("ctTitle").textContent = "✏️ تعديل العقد — " + c.name;
+  document.getElementById("ctName").value = c.name;
+  document.getElementById("ctType").value = c.contract_type;
+  document.getElementById("ctMonths").value = c.duration_months;
+  document.getElementById("ctCount").value = c.couriers_count;
+  document.getElementById("ctSalary").value = c.base_salary;
+  document.getElementById("ctRate").value = c.per_delivery_rate;
+  document.getElementById("ctMsg").textContent = "";
+  document.getElementById("contractModal").classList.add("open");
+}
+function closeContractModal(){ document.getElementById("contractModal").classList.remove("open"); }
+async function saveContract(){
+  const payload = {
+    name: document.getElementById("ctName").value,
+    contract_type: document.getElementById("ctType").value,
+    duration_months: +document.getElementById("ctMonths").value||12,
+    couriers_count: +document.getElementById("ctCount").value||0,
+    base_salary: +document.getElementById("ctSalary").value||0,
+    per_delivery_rate: +document.getElementById("ctRate").value||6,
+  };
+  try{
+    if(CT_ID) await api("/fleet/contracts/"+CT_ID, {method:"PATCH", body:JSON.stringify(payload)});
+    else await api("/fleet/contracts", {method:"POST", body:JSON.stringify(payload)});
+    closeContractModal(); renderContracts();
+  }catch(e){ document.getElementById("ctMsg").style.color="var(--red)"; document.getElementById("ctMsg").textContent="❌ "+e.message; }
+}
+
+async function exportCSV(){
+  try{
+    const r = await fetch("/fleet/export/csv", {headers:{Authorization:"Bearer "+TOKEN}});
+    if(!r.ok) throw new Error("فشل التصدير");
+    const blob = await r.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "fleet_payouts.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function sendTestOrder(){
+  if(!confirm("إنشاء طلب اختباري حقيقي والتحقق من دورة الإرسال؟")) return;
+  try{
+    const r = await api("/fleet/test-order", {method:"POST", body:JSON.stringify({})});
+    alert("✅ طلب اختباري #"+r.order_id+" — الحالة "+r.status+(r.courier?" · المندوب: "+r.courier:""));
+    go("dispatch");
+  }catch(e){ alert("❌ "+e.message); }
+}
+async function escalateOrder(orderId){
+  if(!confirm("تصعيد الطلب #"+orderId+" لمندوب خارجي؟")) return;
+  try{
+    const r = await api("/fleet/orders/"+orderId+"/escalate", {method:"POST"});
+    alert("✅ تم تصعيد الطلب #"+r.order_id+" — الحالة: "+r.status);
+    go("dispatch");
+  }catch(e){ alert("❌ "+e.message); }
+}
+async function broadcastOrder(orderId){
+  if(!confirm("تشغيل وضع البث (Broadcast) للطلب #"+orderId+"؟")) return;
+  try{
+    await api("/fleet/orders/"+orderId+"/broadcast", {method:"POST"});
+    alert("✅ أُرسل الطلب #"+orderId+" بوضع البث للأقرب");
+    go("dispatch");
+  }catch(e){ alert("❌ "+e.message); }
+}
+async function saveRules(){
+  try{
+    await api("/fleet/settings", {method:"POST", body:JSON.stringify({
+      retries: document.getElementById("rRetries")?.value || "3",
+      priority: document.getElementById("rPriority")?.value || "Dedicated → On-demand",
+      broadcast: document.getElementById("rBroadcast")?.checked || false,
+    })});
+    alert("✅ حُفظت قواعد النظام");
+  }catch(e){ alert("❌ "+e.message); }
+}
+async function createOperatingCompany(){
+  const name = prompt("اسم شركة التشغيل الجديدة:");
+  if(!name) return;
+  const phone = prompt("رقم الجوال (9665...):");
+  if(!phone) return;
+  try{
+    const r = await api("/auth/company-register", {method:"POST", body:JSON.stringify({name, phone, country:"SA"})});
+    alert("✅ أُنشئت شركة التشغيل: "+r.company_name+"\nدخول: "+r.login_phone+" / "+r.password);
+    go("companies");
+  }catch(e){ alert("❌ "+e.message); }
 }
 
 async function loadBilling(){

@@ -148,7 +148,7 @@
         </div>
         <div class="row"><span>الوجهة القادمة</span><b>مقهى بن القهوة — الملقا</b></div>
         <div class="row"><span>المسار الأمثل</span><b>✓ مفعّل (توفير 4 دقائق)</b></div>
-        <button class="btn ghost small" style="width:100%;margin-top:10px" onclick="alert('فتح الملاحة (Google Maps) — UI')">🧭 افتح الملاحة</button>
+        <button class="btn ghost small" style="width:100%;margin-top:10px" onclick="openNavigation()">🧭 افتح الملاحة</button>
       </div>
     </div>
 
@@ -167,10 +167,10 @@
 
       <div class="card">
         <h3>🧮 تفاصيل حسابي (Payout)</h3>
-        <div class="lineItem"><span>الحساب البنكي</span><b>الراجحي ****4321</b></div>
+        <div class="lineItem"><span>الحساب البنكي</span><b dir="ltr" id="profIban">—</b></div>
         <div class="lineItem"><span>التحويل الدوري</span><b>كل أسبوعين</b></div>
         <div class="lineItem"><span>الحالة</span><b style="color:var(--green)">مفعّل ✓</b></div>
-        <button class="btn ghost small" style="margin-top:10px" onclick="alert('تعديل بيانات الدفع (UI)')">تعديل بيانات الدفع</button>
+        <button class="btn ghost small" style="margin-top:10px" onclick="editPayment()">تعديل بيانات الدفع</button>
       </div>
 
       <div class="card">
@@ -187,11 +187,11 @@
     <div class="view" id="view-profile">
       <div class="card">
         <h3>الملف الشخصي</h3>
-        <div class="lineItem"><span>الاسم</span><b>أحمد الشمري</b></div>
-        <div class="lineItem"><span>الهاتف</span><b>0551112233</b></div>
-        <div class="lineItem"><span>النوع</span><b><span class="tag blue">Dedicated</span> أسطول مقهى بن القهوة</b></div>
+        <div class="lineItem"><span>الاسم</span><b id="profName2">—</b></div>
+        <div class="lineItem"><span>الهاتف</span><b id="profPhone2" dir="ltr">—</b></div>
+        <div class="lineItem"><span>النوع</span><b><span class="tag blue" id="profType">Dedicated</span> <span id="profFleet">—</span></b></div>
         <div class="lineItem"><span>المنطقة</span><b>الرياض — الملقا</b></div>
-        <button class="btn ghost small" style="margin-top:10px" onclick="alert('تعديل الملف (UI)')">تعديل الملف</button>
+        <button class="btn ghost small" style="margin-top:10px" onclick="editProfile()">تعديل الملف</button>
       </div>
 
       <div class="card">
@@ -199,7 +199,7 @@
         <div class="docRow"><div><b>الرخصة / الهوية</b><small> · تنتهي 2027-03-15</small></div><span class="tag green">سارية</span></div>
         <div class="docRow"><div><b>تأمين المركبة</b><small> · تنتهي 2026-09-01</small></div><span class="tag green">سارية</span></div>
         <div class="docRow"><div><b>سجل المخالفات المرورية</b><small> · آخر تحديث 2026-07</small></div><span class="tag gray">محدث</span></div>
-        <button class="btn ghost small" style="margin-top:10px" onclick="alert('رفع / تحديث مستند (UI)')">📎 رفع مستند</button>
+        <button class="btn ghost small" style="margin-top:10px" onclick="uploadDoc()">📎 رفع مستند</button>
       </div>
 
       <div class="card">
@@ -207,7 +207,7 @@
         <div class="lineItem"><span>الحالة</span><b id="profOnline">غير متصل</b></div>
         <div class="lineItem"><span>ساعات العمل اليوم</span><b>0 ساعة</b></div>
         <button class="btn danger" style="margin-top:10px" onclick="logout()">🚪 تسجيل الخروج</button>
-        <button class="btn danger" style="margin-top:8px" onclick="alert('تم إرسال طلب الدعم (UI)')">🛟 رفع تذكرة (دعم)</button>
+        <button class="btn danger" style="margin-top:8px" onclick="raiseSupport()">🛟 رفع تذكرة (دعم)</button>
       </div>
     </div>
 
@@ -316,6 +316,10 @@ function fillProfile(){
     if(span && span.textContent==="الاسم") el.querySelector("b").textContent = COURIER.name || "—";
     if(span && span.textContent==="الهاتف") el.querySelector("b").textContent = COURIER.phone || "—";
   });
+  const n2 = document.getElementById("profName2"); if(n2) n2.textContent = COURIER.name||"—";
+  const p2 = document.getElementById("profPhone2"); if(p2) p2.textContent = COURIER.phone||"—";
+  const ib = document.getElementById("profIban"); if(ib) ib.textContent = COURIER.bank_iban||"—";
+  const ft = document.getElementById("profFleet"); if(ft) ft.textContent = COURIER.courier_type==="COMPANY"?"أسطول شركة":"فريلانسر";
   document.querySelector(".head .logo").insertAdjacentHTML("beforeend",
     `<div style="font-size:9px;color:#5be0a3;margin-top:2px">${COURIER.name||""}</div>`);
 }
@@ -346,10 +350,10 @@ async function loadTasks(){
       </div>` : ""}
       ${renderTaskSteps(t)}
       ${t.status==="ACCEPTED" ? `<div class="btn-group">
-        <button class="btn" onclick="alert('وصلت للمتجر (UI)')">📍 وصلت للمتجر</button>
+        <button class="btn" onclick="act(${t.id},'pickup')">📍 وصلت المتجر — استلمت</button>
       </div>` : ""}
       ${t.status==="PICKED_UP" ? `<div class="btn-group">
-        <button class="btn primary" onclick="alert('أنا في الطريق للعميل (UI)')">🚚 في الطريق</button>
+        <button class="btn primary" onclick="act(${t.id},'transit')">🚚 في الطريق للعميل</button>
       </div>` : ""}
       ${t.status==="IN_TRANSIT" ? `<div class="btn-group">
         <button class="btn green" onclick="act(${t.id},'deliver')">تم التسليم ✓</button>
@@ -413,6 +417,59 @@ function getLocation(){
       {enableHighAccuracy:true, timeout:8000, maximumAge:30000}
     );
   });
+}
+
+async function openNavigation(){
+  const tasks = await api("/couriers/"+COURIER.id+"/tasks");
+  const active = tasks.find(t=>t.status==="ACCEPTED"||t.status==="PICKED_UP"||t.status==="IN_TRANSIT");
+  const loc = await getLocation();
+  const dest = active ? (active.merchant_name||"الوجهة") : "الوجهة";
+  const q = active && active.customer_address ? active.customer_address : dest;
+  window.open("https://maps.google.com/?q="+encodeURIComponent(q), "_blank");
+}
+
+async function editPayment(){
+  const iban = prompt("أدخل رقم IBAN (يُستخدم لتحويل أرباحك):", COURIER.bank_iban||"SA");
+  if(!iban) return;
+  try{
+    const r = await api("/couriers/me", {method:"PATCH", body:JSON.stringify({bank_iban:iban})});
+    document.getElementById("profIban").textContent = r.bank_iban||"—";
+    COURIER = await api("/couriers/me");
+    alert("✅ حُدّث الحساب البنكي بنجاح");
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function editProfile(){
+  const name = prompt("الاسم الجديد:", COURIER.name||"");
+  if(!name) return;
+  try{
+    const r = await api("/couriers/me", {method:"PATCH", body:JSON.stringify({name})});
+    COURIER = await api("/couriers/me");
+    fillProfile();
+    loadProfile();
+    const el = document.getElementById("profName2"); if(el) el.textContent = COURIER.name;
+    alert("✅ حُدّث الملف — "+r.name);
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function uploadDoc(){
+  const ans = confirm("وضعت المستند (رخصة/هوية) ليستعرضها فريق الشركة؟");
+  if(!ans) return;
+  try{
+    await api("/couriers/me", {method:"PATCH", body:JSON.stringify({documents_valid:true})});
+    alert("✅ أُرسل المستند للمراجعة — حالته: سارية/قيد المراجعة");
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function raiseSupport(){
+  const subject = prompt("موضوع التذكرة:", "مشكلة في احتساب الأرباح");
+  if(!subject) return;
+  const message = prompt("اشرح المشكلة:", "");
+  if(!message) return;
+  try{
+    const r = await api("/couriers/me/tickets", {method:"POST", body:JSON.stringify({subject, message})});
+    alert("✅ رُفعت التذكرة #"+r.id+" — سيرد عليك فريق الشركة");
+  }catch(e){ alert("❌ "+e.message); }
 }
 
 async function checkIn(){

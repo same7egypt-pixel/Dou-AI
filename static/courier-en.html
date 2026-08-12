@@ -141,7 +141,7 @@
         </div>
         <div class="row"><span>Next destination</span><b>Bin Coffee Cafe — Al Malqa</b></div>
         <div class="row"><span>Optimal route</span><b>✓ Enabled (saving 4 minutes)</b></div>
-        <button class="btn ghost small" style="width:100%;margin-top:10px" onclick="alert('Open navigation (Google Maps) — UI')">🧭 Open navigation</button>
+        <button class="btn ghost small" style="width:100%;margin-top:10px" onclick="openNavigation()">🧭 Open navigation</button>
       </div>
     </div>
 
@@ -160,10 +160,10 @@
 
       <div class="card">
         <h3>🧮 My payout details</h3>
-        <div class="lineItem"><span>Bank account</span><b>Al Rajhi ****4321</b></div>
+        <div class="lineItem"><span>Bank account</span><b dir="ltr" id="profIban">—</b></div>
         <div class="lineItem"><span>Recurring transfer</span><b>Every two weeks</b></div>
         <div class="lineItem"><span>Status</span><b style="color:var(--green)">Active ✓</b></div>
-        <button class="btn ghost small" style="margin-top:10px" onclick="alert('Edit payment details (UI)')">Edit payment details</button>
+        <button class="btn ghost small" style="margin-top:10px" onclick="editPayment()">Edit payment details</button>
       </div>
 
       <div class="card">
@@ -180,11 +180,11 @@
     <div class="view" id="view-profile">
       <div class="card">
         <h3>Personal profile</h3>
-        <div class="lineItem"><span>Name</span><b>Ahmed Al-Shammari</b></div>
-        <div class="lineItem"><span>Phone</span><b>0551112233</b></div>
-        <div class="lineItem"><span>Type</span><b><span class="tag blue">Dedicated</span> Bin Coffee Cafe fleet</b></div>
+        <div class="lineItem"><span>Name</span><b id="profName2">—</b></div>
+        <div class="lineItem"><span>Phone</span><b id="profPhone2" dir="ltr">—</b></div>
+        <div class="lineItem"><span>Type</span><b><span class="tag blue" id="profType">Dedicated</span> <span id="profFleet">—</span></b></div>
         <div class="lineItem"><span>Zone</span><b>Riyadh — Al Malqa</b></div>
-        <button class="btn ghost small" style="margin-top:10px" onclick="alert('Edit profile (UI)')">Edit profile</button>
+        <button class="btn ghost small" style="margin-top:10px" onclick="editProfile()">Edit profile</button>
       </div>
 
       <div class="card">
@@ -192,14 +192,14 @@
         <div class="docRow"><div><b>License / ID</b><small> · expires 2027-03-15</small></div><span class="tag green">Valid</span></div>
         <div class="docRow"><div><b>Vehicle insurance</b><small> · expires 2026-09-01</small></div><span class="tag green">Valid</span></div>
         <div class="docRow"><div><b>Traffic violations record</b><small> · last updated 2026-07</small></div><span class="tag gray">Updated</span></div>
-        <button class="btn ghost small" style="margin-top:10px" onclick="alert('Upload / update document (UI)')">📎 Upload document</button>
+        <button class="btn ghost small" style="margin-top:10px" onclick="uploadDoc()">📎 Upload document</button>
       </div>
 
       <div class="card">
         <h3>Availability & attendance</h3>
         <div class="lineItem"><span>Status</span><b id="profOnline">Offline</b></div>
         <div class="lineItem"><span>Hours worked today</span><b>0 hours</b></div>
-        <button class="btn danger" style="margin-top:10px" onclick="alert('Support request sent (UI)')">🛟 Raise a ticket (support)</button>
+        <button class="btn danger" style="margin-top:10px" onclick="raiseSupport()">🛟 Raise a ticket (support)</button>
       </div>
     </div>
 
@@ -213,8 +213,26 @@
 <script>
 const COURIER_ID = 1;
 const API = "";
+let TOKEN = localStorage.getItem("dou_token");
 let online = false;
 let checkedIn = false;
+
+async function api(path, opts={}){
+  const headers = {"Content-Type":"application/json"};
+  if(TOKEN) headers["Authorization"] = "Bearer "+TOKEN;
+  const r = await fetch(API+path, Object.assign({headers},opts));
+  if(r.status===401){ TOKEN=null; localStorage.removeItem("dou_token"); }
+  if(!r.ok) throw new Error((await r.text())||r.status);
+  return r.json();
+}
+async function silentLogin(){
+  if(TOKEN) return;
+  try{
+    const res = await api("/auth/login", {method:"POST", body:JSON.stringify({phone:"966551112233", password:"dou123456"})});
+    TOKEN = res.access_token;
+    localStorage.setItem("dou_token", TOKEN);
+  }catch(e){ console.warn("auto-login failed", e); }
+}
 
 const NOTIFS = [
   {ic:"📦", c:"#eaf1ff", t:"New order offer #1204 — 12 SAR", s:"2 minutes ago"},
@@ -228,13 +246,8 @@ const EARNINGS = [
   {order:1203, src:"DOU App", earn:12, type:"On-demand"},
   {order:1199, src:"DOU App", earn:12, type:"On-demand"},
   {order:1196, src:"HungerStation", earn:13, type:"Dedicated"}
-];
+ ];
 
-async function api(path, opts={}){
-  const r = await fetch(API+path, Object.assign({headers:{"Content-Type":"application/json"}},opts));
-  if(!r.ok) throw new Error((await r.text())||r.status);
-  return r.json();
-}
 function tag(s){ s=String(s); return `<span class="tag ${/DELIVER/i.test(s)?"green":/ACCEPT/i.test(s)?"blue":/OFFER/i.test(s)?"orange":"gray"}">${s.replace(/_/g," ")}</span>`; }
 function typeTag(t){ return `<span class="tag ${t==="Dedicated"?"blue":"gray"}">${t}</span>`; }
 
@@ -252,6 +265,69 @@ function renderNotifs(){
   document.getElementById("notifList").innerHTML = NOTIFS.map(n=>`
     <div class="notifItem"><div class="ic" style="background:${n.c}">${n.ic}</div>
       <div><b>${n.t}</b><small>${n.s}</small></div></div>`).join("");
+}
+
+function fillProfileFields(){
+  api("/couriers/me").then(me=>{
+    document.getElementById("profIban") ? document.getElementById("profIban").textContent = me.bank_iban||"—" : null;
+    document.getElementById("profName2") ? document.getElementById("profName2").textContent = me.name||"—" : null;
+    document.getElementById("profPhone2") ? document.getElementById("profPhone2").textContent = me.phone||"—" : null;
+    document.getElementById("profFleet") ? document.getElementById("profFleet").textContent = me.courier_type==="COMPANY"?"Company fleet":"Freelancer" : null;
+  }).catch(()=>{});
+}
+
+async function openNavigation(){
+  if(!TOKEN){ await silentLogin(); }
+  const tasks = await api("/couriers/"+COURIER_ID+"/tasks");
+  const active = tasks.find(t=>t.status==="ACCEPTED"||t.status==="PICKED_UP"||t.status==="IN_TRANSIT");
+  const dest = active && active.customer_address ? active.customer_address : (active && active.merchant_name ? active.merchant_name : "destination");
+  window.open("https://maps.google.com/?q="+encodeURIComponent(dest), "_blank");
+}
+
+async function editPayment(){
+  if(!TOKEN) await silentLogin();
+  const me = await api("/couriers/me");
+  const iban = prompt("Enter your IBAN (used for payouts):", me.bank_iban||"SA");
+  if(!iban) return;
+  try{
+    const r = await api("/couriers/me", {method:"PATCH", body:JSON.stringify({bank_iban:iban})});
+    document.getElementById("profIban").textContent = r.bank_iban||"—";
+    alert("✅ Bank details updated");
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function editProfile(){
+  if(!TOKEN) await silentLogin();
+  const me = await api("/couriers/me");
+  const name = prompt("New name:", me.name||"");
+  if(!name) return;
+  try{
+    await api("/couriers/me", {method:"PATCH", body:JSON.stringify({name})});
+    fillProfileFields();
+    alert("✅ Profile updated");
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function uploadDoc(){
+  if(!TOKEN) await silentLogin();
+  const ans = confirm("You've submitted your license/ID for the company team to review?");
+  if(!ans) return;
+  try{
+    await api("/couriers/me", {method:"PATCH", body:JSON.stringify({documents_valid:true})});
+    alert("✅ Document sent for review — status: valid/pending");
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function raiseSupport(){
+  if(!TOKEN) await silentLogin();
+  const subject = prompt("Ticket subject:", "Issue with earnings calculation");
+  if(!subject) return;
+  const message = prompt("Describe the issue:", "");
+  if(!message) return;
+  try{
+    const r = await api("/couriers/me/tickets", {method:"POST", body:JSON.stringify({subject, message})});
+    alert("✅ Ticket #"+r.id+" opened — the company team will reply");
+  }catch(e){ alert("❌ "+e.message); }
 }
 function loadEarnings(){
   document.getElementById("todayEarn").textContent = EARNINGS.reduce((s,e)=>s+e.earn,0)+" SAR";
@@ -281,10 +357,10 @@ async function loadTasks(){
       </div>` : ""}
       ${renderTaskSteps(t)}
       ${t.status==="ACCEPTED" ? `<div class="btn-group">
-        <button class="btn" onclick="alert('Arrived at the store (UI)')">📍 Arrived at store</button>
+        <button class="btn" onclick="act(${t.id},'pickup')">📍 Arrived at store — picked up</button>
       </div>` : ""}
       ${t.status==="PICKED_UP" ? `<div class="btn-group">
-        <button class="btn primary" onclick="alert('I'm on my way to the customer (UI)')">🚚 On the way</button>
+        <button class="btn primary" onclick="act(${t.id},'transit')">🚚 On the way to the customer</button>
       </div>` : ""}
       ${t.status==="IN_TRANSIT" ? `<div class="btn-group">
         <button class="btn green" onclick="act(${t.id},'deliver')">Delivered ✓</button>
@@ -367,6 +443,7 @@ async function checkOut(){
 }
 
 renderNotifs();
+silentLogin().then(fillProfileFields);
 loadProfile(); loadTasks();
 setInterval(()=>{ loadTasks(); }, 8000);
 setInterval(()=>{ updateShiftClock(); }, 30000);

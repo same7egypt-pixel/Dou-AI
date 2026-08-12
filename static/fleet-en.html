@@ -83,6 +83,8 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 .modal.open{display:flex}
 .modalBox{background:#fff;border-radius:18px;padding:24px;max-width:520px;width:100%;max-height:88vh;overflow:auto}
 .modalBox h3{margin:0 0 14px;font-size:16px}
+.fLabel{display:block;font-size:11px;color:var(--muted);margin:10px 0 4px}
+.fInput{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;margin-bottom:2px}
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
 .filters input,.filters select{width:auto;min-width:140px}
 .ticket{display:flex;justify-content:space-between;align-items:flex-start;padding:13px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;gap:12px}
@@ -128,7 +130,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="rolebar" style="margin:0">
         <button class="active">Company Account</button>
       </div>
-      <button class="btn ghost" onclick="alert('Report exported (PDF) — UI')">⬇ Export</button>
+      <button class="btn ghost" onclick="exportCSV()">⬇ Export</button>
     </div>
   </header>
   <div class="content">
@@ -186,7 +188,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
     <section id="view-dispatch" style="display:none">
       <div class="header"><div><div class="kicker">Supervision &amp; Control</div><h1>Dispatch &amp; Control</h1></div>
-        <button class="btn ghost" onclick="alert('Test order sent (UI)')">🧪 Test Order</button></div>
+        <button class="btn ghost" onclick="sendTestOrder()">🧪 Test Order</button></div>
       <div class="cards">
         <div class="metric alert"><b>7</b><span>Orders without Courier</span></div>
         <div class="metric"><b>3</b><span>Past SLA</span></div>
@@ -208,11 +210,11 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="card">
         <h3>Exception Handling</h3>
         <div class="opt"><div><b>No courier available — Order #1195</b><small>Waiting time exceeded · can escalate to external courier</small></div>
-          <button class="btn amber small" onclick="alert('Escalated to external courier (UI)')">Escalate</button></div>
+          <button class="btn amber small" onclick="escalateOrder(1195)">Escalate</button></div>
         <div class="opt"><div><b>SLA breach — Order #1189</b><small>4 minutes left on the agreed time</small></div>
-          <button class="btn blue small" onclick="alert('Quick reassign opened (UI)')">Reassign</button></div>
+          <button class="btn blue small" onclick="openReassign(1189)">Reassign</button></div>
         <div class="opt"><div><b>Repeated rejection — Order #1184</b><small>Rejected twice · broadcasting to nearest</small></div>
-          <button class="btn small" onclick="alert('Broadcast to nearest enabled (UI)')">Broadcast</button></div>
+          <button class="btn small" onclick="broadcastOrder(1184)">Broadcast</button></div>
       </div>
     </section>
 
@@ -290,15 +292,14 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <table><thead><tr><th>Courier</th><th>Type</th><th>Status</th><th>Fixed</th><th>Rate/Delivery</th><th>Deliveries</th><th>Delivery Earnings</th><th>Bonus</th><th>Total</th><th>IBAN</th></tr></thead>
         <tbody id="payBody"></tbody></table></div>
       <div class="card"><h3>Contract Management</h3>
-        <div class="opt"><div><b>Cafe Bin Coffee Fleet</b><small>Fixed contract · 12 months · 4 couriers</small></div><span class="tag blue">Fixed</span></div>
-        <div class="opt"><div><b>Northern Couriers Fleet</b><small>Per-delivery contract · 6 months · 8 couriers</small></div><span class="tag gray">Per delivery</span></div>
-        <button class="btn ghost small" style="margin-top:8px" onclick="alert('Create / edit contract (UI)')">+ New Contract</button>
+        <div id="contractsBody"></div>
+        <button class="btn ghost small" style="margin-top:8px" onclick="openContractModal()">+ New Contract</button>
       </div>
     </section>
 
     <section id="view-channels" style="display:none">
       <div class="header"><div><div class="kicker">Channels &amp; Cost</div><h1>Channels &amp; Costs</h1></div>
-        <button class="btn ghost" onclick="alert('CSV exported — UI')">⬇ CSV</button></div>
+        <button class="btn ghost" onclick="exportCSV()">⬇ CSV</button></div>
       <div class="cards">
         <div class="metric"><b>2.4 SAR</b><span>Avg Delivery Cost (Internal)</span></div>
         <div class="metric"><b>11.8 SAR</b><span>Avg Delivery Cost (External)</span></div>
@@ -346,25 +347,25 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
     <section id="view-companies" style="display:none">
       <div class="header"><div><div class="kicker">DOU Team Only</div><h1>Operating Companies</h1></div>
-        <button class="btn blue" onclick="alert('Create new operating company (UI)')">+ Company</button></div>
+        <button class="btn blue" onclick="createOperatingCompany()">+ Company</button></div>
       <div class="card"><table><thead><tr><th>Company</th><th>Fleets</th><th>Couriers</th><th>Performance</th><th>Status</th></tr></thead>
         <tbody id="companiesBody"></tbody></table></div>
       <div class="card"><h3>Fleet Assignment</h3>
         <div class="opt"><div><b>Cafe Bin Coffee Fleet</b><small>4 couriers · Riyadh</small></div>
           <select class="ruleNum" onchange="alert('Company assignment updated (UI)')"><option>Smart Transport Co.</option><option>Fast Supply Co.</option></select></div>
         <div class="opt"><div><b>Northern Couriers Fleet</b><small>8 couriers · Riyadh</small></div>
-          <select class="ruleNum" onchange="alert('Company assignment updated (UI)')"><option>Fast Supply Co.</option><option>Smart Transport Co.</option></select></div>
+          <select class="ruleNum" onchange="updateFleetCompany(this)"><option>Fast Supply Co.</option><option>Smart Transport Co.</option></select></div>
       </div>
     </section>
 
     <section id="view-rules" style="display:none">
       <div class="header"><div><div class="kicker">Operations Settings</div><h1>System Rules</h1></div>
-        <button class="btn" onclick="alert('System rules saved (UI)')">Save Changes</button></div>
+        <button class="btn" onclick="saveRules()">Save Changes</button></div>
 
       <div class="card"><h3>Dispatch Rules</h3>
-        <div class="opt"><div><b>Assignment Priority</b><small>Courier selection order</small></div><input class="ruleNum" value="Dedicated → On-demand"></div>
-        <div class="opt"><div><b>Retry Count</b><small>Before moving to escalation</small></div><input class="ruleNum" type="number" value="3"></div>
-        <div class="opt"><div><b>Broadcast Mode</b><small>Nearby couriers after no response</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="opt"><div><b>Assignment Priority</b><small>Courier selection order</small></div><input id="rPriority" class="ruleNum" value="Dedicated → On-demand"></div>
+        <div class="opt"><div><b>Retry Count</b><small>Before moving to escalation</small></div><input id="rRetries" class="ruleNum" type="number" value="3"></div>
+        <div class="opt"><div><b>Broadcast Mode</b><small>Nearby couriers after no response</small></div><input id="rBroadcast" type="checkbox" class="ruleNum" checked></div>
         <div class="opt"><div><b>External Escalation</b><small>Open order outside your fleet</small></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
       </div>
 
@@ -438,6 +439,27 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     <div style="display:flex;gap:8px;margin-top:4px">
       <button class="btn ghost" style="flex:1" onclick="closeCourier()">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal: New Contract -->
+<div class="modal" id="contractModal">
+  <div class="modalBox">
+    <h3 id="ctTitle">📝 New Contract</h3>
+    <label class="fLabel">Contract name</label>
+    <input class="fInput" id="ctName" placeholder="e.g. North Couriers Contract">
+    <label class="fLabel">Contract type</label>
+    <select class="fInput" id="ctType"><option value="FIXED">Fixed (monthly salary)</option><option value="PER_DELIVERY">Per delivery</option></select>
+    <div class="form-row">
+      <div><label class="fLabel">Duration (months)</label><input class="fInput" id="ctMonths" type="number" value="12"></div>
+      <div><label class="fLabel">Couriers</label><input class="fInput" id="ctCount" type="number" value="0"></div>
+    </div>
+    <div class="form-row">
+      <div><label class="fLabel">Fixed salary (SAR)</label><input class="fInput" id="ctSalary" type="number" value="0"></div>
+      <div><label class="fLabel">Delivery rate (SAR)</label><input class="fInput" id="ctRate" type="number" value="6"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn blue" style="flex:1" onclick="saveContract()">💾 Save Contract</button><button class="btn ghost" onclick="closeContractModal()">Cancel</button></div>
+    <div id="ctMsg" class="msg"></div>
   </div>
 </div>
 
@@ -530,12 +552,9 @@ async function init(){
 
 function tag(s){ s=String(s); return `<span class="tag ${/DELIVER|COMPLETE/i.test(s)?"green":/ASSIGN|ACCEPT|READY|PICK/i.test(s)?"blue":/SHIPPING|PREPAR/i.test(s)?"amber":/CANCEL|FAIL/i.test(s)?"red":"gray"}">${s.replace(/_/g," ")}</span>`; }
 
-const TICKETS = [
-  {id:501, from:"Merchant", user:"Cafe Bin Coffee", topic:"Order #1199 delayed and unassigned", status:"Queue", time:"1 hour ago"},
-  {id:502, from:"Courier", user:"Khaled Al-Qahtani", topic:"Issue with earnings calculation", status:"Queue", time:"3 hours ago"},
-  {id:503, from:"Merchant", user:"Al-Diyafa Restaurant", topic:"Switch dispatch mode to Auto", status:"Resolved", time:"Yesterday"},
-  {id:504, from:"Courier", user:"Mohammed Al-Otaibi", topic:"Request to activate new zone", status:"Resolved", time:"Yesterday"}
-];
+let TICKETS = [];
+
+function escapeHtml(s){ return String(s||"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 function go(v){
   document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
@@ -547,9 +566,11 @@ function go(v){
   if(v==="performance") loadPerformance();
   if(v==="payouts") loadPayouts();
   if(v==="compliance") loadCompliance();
-  if(v==="tickets") renderTickets();
+  if(v==="tickets") loadTickets();
   if(v==="attendance") loadAttendance();
   if(v==="billing") loadBilling();
+  if(v==="payouts"||v==="overview") renderContracts();
+  if(v==="dispatch") loadOverride();
 }
 document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
 
@@ -716,21 +737,65 @@ async function addCompany(){
   }catch(e){ document.getElementById("companyMsg").textContent="❌ "+e.message; }
 }
 
-document.getElementById("overrideBody").innerHTML = [1189,1192,1195,1198].map((o,i)=>`
-  <tr><td>#${o}</td><td><span class="tag ${i%2?"blue":"amber"}">${i%2?"PICKED_UP":"PLACED"}</span></td>
-  <td>${i%2?"Mohammed Al-Otaibi":"—"}</td><td><span class="tag gray">${i%2?"On-demand":"Dedicated"}</span></td>
-  <td><button class="btn ghost small" onclick='openReassign(${o})'>🔄 Reassign</button>
-      <button class="btn small" onclick='alert("Force Assign — UI")'>Force</button></td></tr>`).join("");
+async function loadOverride(){
+  try{
+    const orders = await api("/fleet/orders");
+    const recent = orders.slice(0,6);
+    const el = document.getElementById("overrideBody");
+    if(!el) return;
+    el.innerHTML = recent.map(o=>`
+      <tr><td>#${o.id}</td><td>${tag(o.status)}</td>
+      <td>${o.courier_name||"—"}</td><td><span class="tag gray">${o.delivery_method||"—"}</span></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn ghost small" onclick='openReassign(${o.id})'>🔄 Reassign</button>
+        <button class="btn small" onclick='forceAssign(${o.id})'>Force</button>
+        <button class="btn amber small" onclick='escalateOrder(${o.id})'>Escalate</button></td></tr>`).join("")
+      || '<tr><td colspan="5" style="color:var(--muted)">No orders for manual override</td></tr>';
+  }catch(e){ const el=document.getElementById("overrideBody"); if(el) el.innerHTML='<tr><td colspan="5">Failed to load</td></tr>'; }
+}
 
 function openReassign(orderId){
   document.getElementById("rmOrder").value = orderId;
+  api("/fleet/couriers").then(rows=>{
+    const sel = document.getElementById("rmCourier");
+    sel.innerHTML = '<option value="">Select courier</option>' + rows.map(c=>`<option value="${c.name}">${c.name} (${c.is_available?"available":"busy"})</option>`).join("");
+  });
   document.getElementById("reassignModal").classList.add("open");
 }
 function closeReassign(){ document.getElementById("reassignModal").classList.remove("open"); }
-function doReassign(){
-  document.getElementById("rmMsg").style.color="var(--green)";
-  document.getElementById("rmMsg").textContent = "✅ Order #"+document.getElementById("rmOrder").value+" reassigned to selected courier";
-  setTimeout(closeReassign, 1200);
+async function doReassign(){
+  const msg = document.getElementById("rmMsg");
+  const orderId = document.getElementById("rmOrder").value;
+  const cname = document.getElementById("rmCourier").value;
+  if(!cname || cname==="Select courier" || !cname){ msg.style.color="var(--red)"; msg.textContent="Select a courier first"; return; }
+  try{
+    const rows = await api("/fleet/couriers");
+    const c = rows.find(x=>x.name===cname);
+    if(!c){ throw new Error("Courier not found in your fleet"); }
+    await api("/fleet/orders/"+orderId+"/reassign", {method:"POST", body:JSON.stringify({courier_id:c.id})});
+    msg.style.color="var(--green)";
+    msg.textContent = "✅ Order #"+orderId+" reassigned to "+c.name;
+    setTimeout(closeReassign, 1200);
+    go("dispatch");
+  }catch(e){ msg.style.color="var(--red)"; msg.textContent="❌ "+e.message; }
+}
+async function forceAssign(orderId){
+  const rows = await api("/fleet/couriers");
+  const names = rows.map(c=>c.name).join("\n");
+  const pick = prompt("Enter courier name to force assign (order #"+orderId+"):\n"+names+"\n\nAvailable couriers:");
+  if(!pick) return;
+  const c = rows.find(x=>x.name===pick);
+  if(!c){ alert("❌ Courier not found"); return; }
+  try{
+    await api("/fleet/orders/"+orderId+"/reassign", {method:"POST", body:JSON.stringify({courier_id:c.id})});
+    alert("✅ Order #"+orderId+" force-assigned to "+c.name);
+    loadOverride();
+  }catch(e){ alert("❌ "+e.message); }
+}
+async function updateFleetCompany(sel){
+  const v = sel.value;
+  await api("/fleet/settings", {method:"POST", body:JSON.stringify({fleet_company: v})});
+  alert("✅ Company assignment updated: "+v);
 }
 
 async function loadPerformance(){
@@ -798,18 +863,144 @@ async function loadCompliance(){
     `• <b>${c.delivery_investigations}</b> delivery cases requiring operational review`;
 }
 
+async function loadTickets(){
+  try{
+    TICKETS = await api("/fleet/tickets");
+    renderTickets();
+  }catch(e){ document.getElementById("ticketsBody").innerHTML = '<p class="msg">Failed to load tickets</p>'; }
+}
 function renderTickets(){
   const f = document.getElementById("ticketFilter").value;
-  const list = TICKETS.filter(t=> f==="All" || t.status===f || t.from===f);
+  const list = TICKETS.filter(t=> f==="All" || t.status===f || (f==="Queue"&&t.status==="OPEN") || (f==="Resolved"&&t.status==="REPLIED"));
+  const statusTag = s=> s==="OPEN"?'<span class="tag amber">Waiting</span>':s==="REPLIED"?'<span class="tag green">Replied</span>':'<span class="tag gray">'+s+'</span>';
   document.getElementById("ticketsBody").innerHTML = list.map(t=>`
     <div class="ticket">
-      <div><b>#${t.id} · ${t.from} — ${t.user}</b><small>${t.topic}</small></div>
+      <div><b>#${t.id} · Courier: ${escapeHtml(t.courier||"—")}</b><small>${escapeHtml(t.message)}</small>${t.reply?`<small style="color:var(--green)">↩ Company reply: ${escapeHtml(t.reply)}</small>`:""}</div>
       <div style="text-align:right;display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-        <span class="tag ${t.status==="Resolved"?"green":"amber"}">${t.status}</span>
-        <small style="color:var(--muted)">${t.time}</small>
-        <button class="btn ghost small" onclick="alert('Open ticket reply (UI)')">Reply</button>
+        ${statusTag(t.status)}
+        <small style="color:var(--muted)">${t.created_at?new Date(t.created_at).toLocaleString():""}</small>
+        <button class="btn ghost small" onclick="replyTicket(${t.id})">Reply</button>
       </div>
     </div>`).join("") || '<p class="msg" style="text-align:center">No matching tickets</p>';
+}
+async function replyTicket(id){
+  const reply = prompt("Reply text for ticket #"+id+":");
+  if(!reply) return;
+  try{
+    await api("/fleet/tickets/"+id+"/reply", {method:"POST", body:JSON.stringify({reply})});
+    loadTickets();
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function renderContracts(){
+  try{
+    const list = await api("/fleet/contracts");
+    const el = document.getElementById("contractsBody");
+    if(!el) return;
+    el.innerHTML = list.map(c=>`
+      <div class="opt"><div><b>${escapeHtml(c.name)}</b><small>${c.contract_type==="FIXED"?"Fixed contract":"Per delivery"} · ${c.duration_months} months · ${c.couriers_count} couriers · ${(c.base_salary||0).toLocaleString()} SAR</small></div>
+        <div style="display:flex;gap:6px;align-items:center"><span class="tag ${c.status==="ACTIVE"?"blue":"gray"}">${c.status==="ACTIVE"?"Active":"Expired"}</span>
+        <button class="btn ghost small" onclick="editContract(${c.id})">✏️ Edit</button></div></div>`).join("")
+      || '<p class="msg" style="text-align:center">No contracts yet — add the first one</p>';
+  }catch(e){ const el=document.getElementById("contractsBody"); if(el) el.innerHTML='<p class="msg">Failed to load contracts</p>'; }
+}
+let CT_ID = null;
+function openContractModal(){
+  CT_ID = null;
+  document.getElementById("ctTitle").textContent = "📝 New Contract";
+  ["ctName","ctType","ctMonths","ctCount","ctSalary","ctRate"].forEach(i=>document.getElementById(i).value = i==="ctType"?"FIXED":i==="ctMonths"?"12":i==="ctRate"?"6":i==="ctCount"?"0":i==="ctSalary"?"0":"");
+  document.getElementById("ctMsg").textContent = "";
+  document.getElementById("contractModal").classList.add("open");
+}
+async function editContract(id){
+  const list = await api("/fleet/contracts");
+  const c = list.find(x=>x.id===id);
+  if(!c) return;
+  CT_ID = id;
+  document.getElementById("ctTitle").textContent = "✏️ Edit Contract — " + c.name;
+  document.getElementById("ctName").value = c.name;
+  document.getElementById("ctType").value = c.contract_type;
+  document.getElementById("ctMonths").value = c.duration_months;
+  document.getElementById("ctCount").value = c.couriers_count;
+  document.getElementById("ctSalary").value = c.base_salary;
+  document.getElementById("ctRate").value = c.per_delivery_rate;
+  document.getElementById("ctMsg").textContent = "";
+  document.getElementById("contractModal").classList.add("open");
+}
+function closeContractModal(){ document.getElementById("contractModal").classList.remove("open"); }
+async function saveContract(){
+  const payload = {
+    name: document.getElementById("ctName").value,
+    contract_type: document.getElementById("ctType").value,
+    duration_months: +document.getElementById("ctMonths").value||12,
+    couriers_count: +document.getElementById("ctCount").value||0,
+    base_salary: +document.getElementById("ctSalary").value||0,
+    per_delivery_rate: +document.getElementById("ctRate").value||6,
+  };
+  try{
+    if(CT_ID) await api("/fleet/contracts/"+CT_ID, {method:"PATCH", body:JSON.stringify(payload)});
+    else await api("/fleet/contracts", {method:"POST", body:JSON.stringify(payload)});
+    closeContractModal(); renderContracts();
+  }catch(e){ document.getElementById("ctMsg").style.color="var(--red)"; document.getElementById("ctMsg").textContent="❌ "+e.message; }
+}
+
+async function exportCSV(){
+  try{
+    const r = await fetch("/fleet/export/csv", {headers:{Authorization:"Bearer "+TOKEN}});
+    if(!r.ok) throw new Error("Export failed");
+    const blob = await r.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "fleet_payouts.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }catch(e){ alert("❌ "+e.message); }
+}
+
+async function sendTestOrder(){
+  if(!confirm("Create a real test order and verify the dispatch cycle?")) return;
+  try{
+    const r = await api("/fleet/test-order", {method:"POST", body:JSON.stringify({})});
+    alert("✅ Test order #"+r.order_id+" — status "+r.status+(r.courier?" · Courier: "+r.courier:""));
+    go("dispatch");
+  }catch(e){ alert("❌ "+e.message); }
+}
+async function escalateOrder(orderId){
+  if(!confirm("Escalate order #"+orderId+" to an external courier?")) return;
+  try{
+    const r = await api("/fleet/orders/"+orderId+"/escalate", {method:"POST"});
+    alert("✅ Order #"+r.order_id+" escalated — status: "+r.status);
+    go("dispatch");
+  }catch(e){ alert("❌ "+e.message); }
+}
+async function broadcastOrder(orderId){
+  if(!confirm("Enable broadcast mode for order #"+orderId+"?")) return;
+  try{
+    await api("/fleet/orders/"+orderId+"/broadcast", {method:"POST"});
+    alert("✅ Order #"+orderId+" broadcast to nearest couriers");
+    go("dispatch");
+  }catch(e){ alert("❌ "+e.message); }
+}
+async function saveRules(){
+  try{
+    await api("/fleet/settings", {method:"POST", body:JSON.stringify({
+      retries: document.getElementById("rRetries")?.value || "3",
+      priority: document.getElementById("rPriority")?.value || "Dedicated → On-demand",
+      broadcast: document.getElementById("rBroadcast")?.checked || false,
+    })});
+    alert("✅ System rules saved");
+  }catch(e){ alert("❌ "+e.message); }
+}
+async function createOperatingCompany(){
+  const name = prompt("Operating company name:");
+  if(!name) return;
+  const phone = prompt("Mobile number (9665...):");
+  if(!phone) return;
+  try{
+    const r = await api("/auth/company-register", {method:"POST", body:JSON.stringify({name, phone, country:"SA"})});
+    alert("✅ Operating company created: "+r.company_name+"\nSign-in: "+r.login_phone+" / "+r.password);
+    go("companies");
+  }catch(e){ alert("❌ "+e.message); }
 }
 
 async function loadBilling(){

@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+import csv, io
 
 from ..database import get_db
 from ..models.entities import (
-    Attendance, Courier, CourierTask, CourierTaskStatus, Country, CourierType, Merchant,
-    Order, OrderStatus, Shift, ShiftStatus, Tenant, User, UserRole, Fleet,
+    Attendance, AppSetting, Contract, Courier, CourierTask, CourierTaskStatus, Country, CourierType, Merchant,
+    Order, OrderStatus, Shift, ShiftStatus, SupportTicket, Tenant, User, UserRole, Fleet,
 )
 from .auth import get_current_user
 
@@ -355,3 +357,256 @@ def fleet_attendance(user: User = Depends(get_current_user), db: Session = Depen
             "check_out_lat": a.check_out_lat, "check_out_lng": a.check_out_lng,
         })
     return rows
+
+
+# ===== العقود (Contracts) =====
+
+@router.get("/contracts")
+def fleet_contracts(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    tenant_id = _scope(user, db)
+    q = db.query(Contract)
+    if tenant_id is not None:
+        q = q.filter(Contract.tenant_id == tenant_id)
+    return [
+        {
+            "id": c.id, "name": c.name, "contract_type": c.contract_type,
+            "duration_months": c.duration_months, "couriers_count": c.couriers_count,
+            "base_salary": c.base_salary or 0, "per_delivery_rate": c.per_delivery_rate or 0,
+            "status": c.status, "fleet": (db.get(Fleet, c.fleet_id).name if c.fleet_id else None),
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        }
+        for c in q.all()
+    ]
+
+
+@router.post("/contracts")
+def fleet_create_contract(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "Contract name is required")
+    tenant_id = _scope(user, db)
+    fleet = db.query(Fleet).filter(Fleet.tenant_id == user.tenant_id).first() if user.tenant_id else None
+    contract = Contract(
+        tenant_id=user.tenant_id if user.tenant_id else (tenant_id if tenant_id is not None else None),
+        fleet_id=fleet.id if fleet else payload.get("fleet_id"),
+        name=name,
+        contract_type=payload.get("contract_type") or "FIXED",
+        duration_months=int(payload.get("duration_months") or 12),
+        couriers_count=int(payload.get("couriers_count") or 0),
+        base_salary=float(payload.get("base_salary") or 0),
+        per_delivery_rate=float(payload.get("per_delivery_rate") or 6),
+        status=payload.get("status") or "ACTIVE",
+    )
+    db.add(contract)
+    db.commit()
+    db.refresh(contract)
+    return {"ok": True, "id": contract.id, "name": contract.name}
+
+
+@router.patch("/contracts/{cid}")
+def fleet_update_contract(cid: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    contract = db.get(Contract, cid)
+    if not contract:
+        raise HTTPException(404, "Contract not found")
+    allowed = {"name", "contract_type", "duration_months", "couriers_count",
+               "base_salary", "per_delivery_rate", "status"}
+    for k, v in payload.items():
+        if k in allowed:
+            setattr(contract, k, v)
+    db.commit()
+    return {"ok": True, "id": contract.id}
+
+
+# ===== التذاكر (Support Tickets) =====
+
+@router.get("/tickets")
+def fleet_tickets(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    tenant_id = _scope(user, db)
+    q = db.query(SupportTicket)
+    if tenant_id is not None:
+        q = q.filter(SupportTicket.tenant_id == tenant_id)
+    couriers = {c.id: c.name for c in db.query(Courier).all()}
+    return [
+        {
+            "id": t.id, "subject": t.subject, "message": t.message, "status": t.status,
+            "reply": t.reply, "courier": couriers.get(t.courier_id),
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        }
+        for t in q.order_by(SupportTicket.id.desc()).all()
+    ]
+
+
+@router.post("/tickets/{tid}/reply")
+def fleet_reply_ticket(tid: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    ticket = db.get(SupportTicket, tid)
+    if not ticket:
+        raise HTTPException(404, "Ticket not found")
+    reply = (payload.get("reply") or "").strip()
+    if not reply:
+        raise HTTPException(400, "Reply is required")
+    ticket.reply = reply
+    ticket.status = "REPLIED"
+    db.commit()
+    return {"ok": True, "id": ticket.id, "status": ticket.status}
+
+
+# ===== الإعدادات وقواعد النظام (Settings) =====
+
+@router.get("/settings")
+def fleet_settings(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    tenant_id = _scope(user, db)
+    q = db.query(AppSetting)
+    if tenant_id is not None:
+        q = q.filter(AppSetting.tenant_id == tenant_id)
+    return {s.key: s.value for s in q.all()}
+
+
+@router.post("/settings")
+def fleet_save_settings(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    tenant_id = _scope(user, db)
+    for key, value in payload.items():
+        setting = db.query(AppSetting).filter(
+            AppSetting.tenant_id == (user.tenant_id if user.tenant_id else 0),
+            AppSetting.key == key,
+        ).first()
+        if setting:
+            setting.value = str(value)
+        else:
+            db.add(AppSetting(
+                tenant_id=user.tenant_id if user.tenant_id else 0,
+                key=key, value=str(value),
+            ))
+    db.commit()
+    return {"ok": True}
+
+
+# ===== طلب اختباري (Test Order) =====
+
+@router.post("/test-order")
+def fleet_test_order(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """ينشئ طلباً حقيقياً ويُسنده لمندوب في نطاق الشركة (تحقق من الدورة كاملة)."""
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    tenant_id = _scope(user, db)
+    merchant = db.query(Merchant).filter(Merchant.is_active.is_(True)).first()
+    if not merchant:
+        raise HTTPException(400, "No active merchant available for a test order")
+    customer_name = payload.get("customer_name") or "عميل اختباري"
+    from datetime import datetime
+    order = Order(
+        merchant_id=merchant.id,
+        customer_name=customer_name,
+        customer_phone=payload.get("customer_phone") or "966500000000",
+        customer_lat=payload.get("lat") or merchant.lat or 24.7136,
+        customer_lng=payload.get("lng") or merchant.lng or 46.6753,
+        customer_address=payload.get("address") or "عنوان اختباري — الرياض",
+        delivery_method=merchant.delivery_method,
+        subtotal=0, delivery_fee=8.0, total=8.0,
+        status=OrderStatus.PLACED,
+        created_at=datetime.utcnow(),
+    )
+    db.add(order)
+    db.flush()
+    ids = _courier_ids(db, tenant_id)
+    courier = None
+    if ids:
+        courier = db.query(Courier).filter(Courier.id.in_(ids), Courier.is_online.is_(True)).first()
+        if not courier:
+            courier = db.query(Courier).filter(Courier.id.in_(ids)).first()
+    if courier:
+        order.courier_id = courier.id
+        order.status = OrderStatus.ASSIGNED
+        courier.current_load = (courier.current_load or 0) + 1
+        db.add(CourierTask(
+            courier_id=courier.id, order_id=order.id,
+            status=CourierTaskStatus.ACCEPTED,
+        ))
+    db.commit()
+    return {
+        "ok": True, "order_id": order.id, "total": order.total,
+        "courier": courier.name if courier else None,
+        "status": order.status.value,
+    }
+
+
+# ===== تصعيد / بث (Escalate / Broadcast) =====
+
+@router.post("/orders/{order_id}/escalate")
+def fleet_escalate(order_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    order = db.get(Order, order_id)
+    if not order:
+        raise HTTPException(404, "Order not found")
+    order.status = OrderStatus.TIMEOUT if hasattr(OrderStatus, "TIMEOUT") else OrderStatus.PLACED
+    order.courier_id = None
+    db.commit()
+    return {"ok": True, "order_id": order.id, "status": order.status.value if hasattr(order.status, "value") else order.status}
+
+
+@router.post("/orders/{order_id}/broadcast")
+def fleet_broadcast(order_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    order = db.get(Order, order_id)
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order.courier_id:
+        order.courier_id = None
+    order.status = OrderStatus.PLACED
+    db.commit()
+    return {"ok": True, "order_id": order.id, "broadcast": True}
+
+
+# ===== تصدير (Export) =====
+
+@router.get("/export/csv")
+def fleet_export_csv(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """تصدير رواتب المناديب بصيغة CSV حقيقية."""
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    tenant_id = _scope(user, db)
+    rows = []
+    q = db.query(Courier)
+    if tenant_id is not None:
+        q = q.filter(Courier.tenant_id == tenant_id)
+    for c in q.all():
+        done = db.query(CourierTask).filter(
+            CourierTask.courier_id == c.id,
+            CourierTask.status == CourierTaskStatus.DELIVERED,
+        ).count()
+        per_delivery = c.per_delivery_rate or 6.0
+        fixed = c.base_salary or 0.0
+        bonus = c.bonus_target or 0.0
+        if bonus and c.score and c.score >= 4.7 and done > 0:
+            bonus = round(bonus * 0.8, 2)
+        rows.append([
+            c.name, c.phone, c.courier_type.value, c.employment_status or "ACTIVE",
+            done, fixed, per_delivery, round(done * per_delivery, 2), bonus,
+            round(fixed + done * per_delivery + bonus, 2), c.bank_iban or "",
+        ])
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["Name", "Phone", "Type", "Status", "Deliveries", "Fixed", "PerDelivery",
+                     "DeliveryEarned", "Incentive", "EstimatedTotal", "IBAN"])
+    writer.writerows(rows)
+    buffer.seek(0)
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=fleet_payouts.csv"},
+    )
