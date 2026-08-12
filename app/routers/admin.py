@@ -384,5 +384,11 @@ def patch_user(uid: int, payload: dict, db: Session = Depends(get_db)):
         u.role = r
     if payload.get("is_active") is not None:
         u.is_active = bool(payload["is_active"])
+    password = payload.get("password")
+    if password is not None:
+        if len(password) < 6:
+            raise HTTPException(400, "كلمة المرور قصيرة جداً (6 أحرف على الأقل)")
+        u.password_hash = hash_password(password)
+        u.token_version = (u.token_version or 0) + 1
     db.commit()
     return {"ok": True, "id": u.id, "role": u.role, "is_active": u.is_active}
