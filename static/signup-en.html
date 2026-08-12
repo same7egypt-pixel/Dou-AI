@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Register your company — DOU Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#11161d;font-family:Inter,sans-serif;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.logo{font-size:42px;font-weight:800;letter-spacing:-3px;text-align:center;margin-bottom:6px}
+.logo i{display:inline-block;background:#ff5a13;height:12px;width:30px;border-radius:8px;margin:0 3px 12px 0}
+.title{font-size:19px;font-weight:700;margin-bottom:6px;text-align:center}
+.sub{color:#8b94a3;font-size:13px;margin-bottom:26px;text-align:center}
+.card{background:#1b2330;border:1px solid #273245;border-radius:18px;padding:28px;width:100%;max-width:400px}
+label{display:block;font-size:12px;color:#8b94a3;margin:14px 0 6px}
+input,select{width:100%;padding:12px;border-radius:10px;border:1px solid #273245;background:#11161d;color:#fff;font-family:inherit;font-size:14px;outline:none}
+input:focus,select:focus{border-color:#ff5a13}
+.btn{display:block;width:100%;padding:13px;margin-top:20px;background:#ff5a13;border:0;border-radius:10px;color:#fff;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer}
+.btn:disabled{opacity:.6;cursor:wait}
+.msg{display:none;margin-top:14px;padding:12px;border-radius:10px;font-size:12px;line-height:1.9}
+.msg.ok{display:block;background:#0d2418;border:1px solid #1f7a45;color:#7ef0a8}
+.msg.err{display:block;background:#2a1210;border:1px solid #8f2c1f;color:#ff9a8a}
+.msg b{font-size:13px}
+.back{margin-top:20px;color:#8b94a3;font-size:12px;text-decoration:none}
+.back:hover{color:#fff}
+.hint{color:#5b6575;font-size:11px;margin-top:10px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="logo">D<i></i>ou</div>
+<div class="title">Register your logistics company</div>
+<div class="sub">Free 14-day trial — your sign-in details are generated automatically and your dashboard opens right away</div>
+<div class="card">
+  <form id="regForm">
+    <label>Company name</label>
+    <input id="compName" type="text" placeholder="e.g. Al Amanah Logistics" required>
+    <label>Mobile number (with country code)</label>
+    <input id="compPhone" type="tel" dir="ltr" placeholder="9665xxxxxxxx" required>
+    <label>Country</label>
+    <select id="compCountry">
+      <option value="SA">Saudi Arabia 🇸🇦</option>
+      <option value="EG">Egypt 🇪🇬</option>
+    </select>
+    <button class="btn" id="regBtn" type="submit">Create account &amp; sign in</button>
+  </form>
+  <div class="msg" id="regMsg"></div>
+  <div class="hint">Keep these credentials — share them with whoever manages your company dashboard, or change the password later.</div>
+</div>
+<a class="back" href="/static/fleet-en.html">← Back to company sign-in</a>
+<script>
+async function normalizePhone(p){
+  let ph = p.trim().replace(/\D/g,"");
+  if(/^0\d{9}$/.test(ph)) ph = ph.replace(/^0/,"");
+  if(/^5\d{8}$/.test(ph)) ph = "966"+ph;
+  if(/^1\d{9}$/.test(ph)) ph = "20"+ph;
+  return ph;
+}
+const form = document.getElementById("regForm");
+const btn = document.getElementById("regBtn");
+const msg = document.getElementById("regMsg");
+form.addEventListener("submit", async function(e){
+  e.preventDefault();
+  btn.disabled = true; btn.textContent = "Creating account…";
+  msg.className = "msg"; msg.innerHTML = "";
+  try {
+    const phone = await normalizePhone(document.getElementById("compPhone").value);
+    const res = await fetch("/auth/company-register", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:document.getElementById("compName").value.trim(), phone, country:document.getElementById("compCountry").value})});
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || "Something went wrong");
+    const due = data.due_date ? new Date(data.due_date).toLocaleDateString("en-GB") : "";
+    msg.className = "msg ok";
+    msg.innerHTML = "✅ Account created! <b>"+data.company_name+"</b><br>Sign-in: <b dir='ltr'>"+data.login_phone+"</b><br>Password: <b dir='ltr'>"+data.password+"</b><br>Plan: 14-day free trial"+(due? " — ends "+due : "")+"<br><b>Opening your dashboard…</b>";
+    localStorage.setItem("dou_token", data.access_token);
+    setTimeout(function(){ location.href = "/static/fleet-en.html"; }, 1800);
+  } catch(err){
+    msg.className = "msg err";
+    msg.innerHTML = "⚠️ "+err.message;
+    btn.disabled = false; btn.textContent = "Create account & sign in";
+  }
+});
+</script>
+</body>
+</html>
