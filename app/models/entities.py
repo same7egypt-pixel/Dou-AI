@@ -256,6 +256,7 @@ class User(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id"))
     country = Column(Enum(Country))
     is_active = Column(Boolean, default=True)
+    token_version = Column(Integer, default=0)   # يزداد عند تسجيل الخروج الجماعي = تبطل كل التوكنات
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

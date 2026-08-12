@@ -4,6 +4,9 @@ from sqlalchemy import text
 
 # الأعمدة الجديدة لكل جدول: {table: {column: "DDL TYPE"}}
 MIGRATIONS = {
+    "users": {
+        "token_version": "INTEGER DEFAULT 0",
+    },
     "couriers": {
         "base_salary": "FLOAT DEFAULT 0",
         "per_delivery_rate": "FLOAT DEFAULT 6",

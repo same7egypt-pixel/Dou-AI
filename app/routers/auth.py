@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from passlib.context import CryptContext
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ..config import SECRET_KEY
@@ -30,6 +31,7 @@ def create_token(user: User) -> str:
         "sub": str(user.id),
         "phone": user.phone,
         "role": user.role.value,
+        "ver": user.token_version or 0,
         "exp": datetime.utcnow() + timedelta(days=TOKEN_EXPIRE_DAYS),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
@@ -117,6 +119,17 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
     return TokenOut(access_token=create_token(user), role=user.role.value)
 
 
+@router.post("/logout-all")
+def logout_all(admin_key: str, db: Session = Depends(get_db)):
+    """يبطل جميع الجلسات الحالية في النظام دفعة واحدة (يرفع token_version للجميع)."""
+    from ..config import ADMIN_KEY
+    if admin_key != ADMIN_KEY:
+        raise HTTPException(403, "Invalid admin key")
+    db.execute(text("UPDATE users SET token_version = COALESCE(token_version, 0) + 1"))
+    db.commit()
+    return {"ok": True, "message": "All sessions invalidated"}
+
+
 def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> User:
@@ -128,6 +141,8 @@ def get_current_user(
         raise credentials_exc
     user = db.get(User, user_id)
     if not user or not user.is_active:
+        raise credentials_exc
+    if int(payload.get("ver", 0)) != (user.token_version or 0):
         raise credentials_exc
     return user
 
