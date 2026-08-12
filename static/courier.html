@@ -212,6 +212,12 @@
         <button class="btn danger" style="margin-top:10px" onclick="logout()">🚪 تسجيل الخروج</button>
         <button class="btn danger" style="margin-top:8px" onclick="raiseSupport()">🛟 رفع تذكرة (دعم)</button>
       </div>
+
+      <div class="card">
+        <h3>🎫 تذاكري وردود الشركة</h3>
+        <div id="myTickets"><p style="color:var(--muted);font-size:12px">جارِ تحميل التذاكر...</p></div>
+        <button class="btn ghost small" style="margin-top:10px" onclick="loadMyTickets()">↻ تحديث الردود</button>
+      </div>
     </div>
 
     <!-- التنبيهات -->
@@ -272,6 +278,7 @@ let TOKEN = localStorage.getItem("dou_token_courier")||localStorage.getItem("dou
 let COURIER = null;
 let online = false;
 let checkedIn = false;
+function escapeHtml(value){return String(value||"").replace(/[&<>\"]/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;"}[char]));}
 
 async function api(path, opts={}){
   const headers = {"Content-Type":"application/json"};
@@ -361,7 +368,7 @@ async function init(){
     COURIER = await api("/couriers/me");
     document.querySelectorAll(".tabs").forEach(t=>t.style.display="flex");
     fillProfile();
-    await Promise.all([loadProfile(), loadTasks(), loadHRWarnings(),loadMyDocuments()]);
+    await Promise.all([loadProfile(), loadTasks(), loadHRWarnings(),loadMyDocuments(),loadMyTickets()]);
   }catch(e){
     logout();
   }
@@ -525,7 +532,22 @@ async function raiseSupport(){
   try{
     const r = await api("/couriers/me/tickets", {method:"POST", body:JSON.stringify({subject, message})});
     alert("✅ رُفعت التذكرة #"+r.id+" — سيرد عليك فريق الشركة");
+    loadMyTickets();
   }catch(e){ alert("❌ "+e.message); }
+}
+
+async function loadMyTickets(){
+  const box=document.getElementById("myTickets");
+  if(!box)return;
+  try{
+    const rows=await api("/couriers/me/tickets");
+    box.innerHTML=rows.map(t=>`<div class="lineItem" style="display:block">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>#${t.id} · ${escapeHtml(t.subject)}</b><span class="tag ${t.status==='REPLIED'?'green':'amber'}">${t.status==='REPLIED'?'تم الرد':'بانتظار الرد'}</span></div>
+      <small style="display:block;color:var(--muted);margin-top:5px">${escapeHtml(t.message)}</small>
+      ${t.reply?`<div style="margin-top:8px;padding:9px;border-radius:9px;background:#ecfdf5;color:#047857"><b>رد الشركة:</b> ${escapeHtml(t.reply)}</div>`:''}
+      <small style="display:block;color:var(--muted);margin-top:5px">${t.created_at?new Date(t.created_at).toLocaleString('ar-SA'):''}</small>
+    </div>`).join('')||'<small style="color:var(--muted)">لا توجد تذاكر حتى الآن</small>';
+  }catch(e){box.innerHTML='<small style="color:var(--red)">تعذر تحميل التذاكر</small>'}
 }
 
 async function checkIn(){
