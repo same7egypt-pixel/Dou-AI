@@ -7,11 +7,13 @@ from sqlalchemy.orm import Session
 
 from ..config import SECRET_KEY
 from ..database import get_db
-from ..models.entities import User, UserRole
-from ..schemas.dou import LoginIn, TokenOut
+from ..models.entities import Country, Fleet, Tenant, User, UserRole
+from ..schemas.dou import CompanyRegisterIn, CompanyRegisterOut, LoginIn, TokenOut
 
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 7
+DEFAULT_PASSWORD = "dou123456"
+TRIAL_DAYS = 14
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -52,6 +54,57 @@ def register(payload: LoginIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
     return TokenOut(access_token=create_token(user), role=user.role.value)
+
+
+@router.post("/company-register", response_model=CompanyRegisterOut)
+def company_register(payload: CompanyRegisterIn, db: Session = Depends(get_db)):
+    country = Country(payload.country) if payload.country in ("SA", "EG") else Country.SA
+    exists = db.query(User).filter(User.phone == payload.phone).first()
+    if exists:
+        raise HTTPException(400, "Phone already registered")
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(400, "Company name is required")
+
+    now = datetime.utcnow()
+    tenant = Tenant(
+        name=name, country=country,
+        plan="TRIAL", monthly_fee=0, billing_day=1,
+        subscription_status="ACTIVE", due_date=now + timedelta(days=TRIAL_DAYS),
+        created_at=now,
+    )
+    db.add(tenant)
+    db.flush()
+
+    fleet = Fleet(tenant_id=tenant.id, name=f"أسطول {name}", zone="", created_at=now)
+    db.add(fleet)
+    db.flush()
+
+    user = User(
+        phone=payload.phone,
+        name=f"إدارة {name}",
+        password_hash=hash_password(DEFAULT_PASSWORD),
+        role=UserRole.COMPANY,
+        country=country,
+        tenant_id=tenant.id,
+        is_active=True,
+        created_at=now,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return CompanyRegisterOut(
+        access_token=create_token(user),
+        role=user.role.value,
+        company_id=tenant.id,
+        company_name=tenant.name,
+        fleet_id=fleet.id,
+        login_phone=user.phone,
+        password=DEFAULT_PASSWORD,
+        plan=tenant.plan,
+        due_date=tenant.due_date,
+    )
 
 
 @router.post("/login", response_model=TokenOut)

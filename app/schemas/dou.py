@@ -15,6 +15,24 @@ class TokenOut(BaseModel):
     role: str
 
 
+class CompanyRegisterIn(BaseModel):
+    name: str
+    phone: str
+    country: Optional[str] = "SA"
+
+
+class CompanyRegisterOut(BaseModel):
+    access_token: str
+    role: str
+    company_id: int
+    company_name: str
+    fleet_id: int
+    login_phone: str
+    password: str
+    plan: str
+    due_date: Optional[object] = None
+
+
 class ShiftCreate(BaseModel):
     name: str
     zone: Optional[str] = None

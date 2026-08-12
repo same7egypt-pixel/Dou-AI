@@ -20,6 +20,8 @@
 .app.locked{position:relative}
 .app.locked::after{content:"🔒";position:absolute;top:16px;left:16px;font-size:15px}
 .foot{margin-top:32px;color:#5b6575;font-size:11px}
+.signup{margin-top:16px;color:#ff8a5c;font-size:12px;text-decoration:none}
+.signup:hover{color:#ffb28f}
 .api{color:#5be0a3}
 </style>
 </head>
@@ -31,6 +33,7 @@
   <a class="app" href="/static/courier.html"><div class="icon">🛵</div><b>تطبيق المندوب</b><p>الحضور بالموقع، المهام، الأرباح وملف الموظف — يُثبَّت على جوال المندوب كتطبيق</p></a>
   <a class="app locked" href="/static/admin.html"><div class="icon">🛡️</div><b>لوحة التحكم DOU</b><p>إدارة المنصة: الشركات، الاشتراكات، والفواتير — مخصصة لمالك DOU</p></a>
 </div>
+<a class="signup" href="/static/signup.html">شركة لوجستية جديدة؟ سجّل حسابك هنا ←</a>
 <div class="foot">DOU Platform · المنظومة قيد التطوير — للاستفسار تواصل مع فريق DOU</div>
 <script>
 fetch("/health").then(r=>r.json()).then(d=>document.getElementById("status").textContent="✓ الخادم متصل").catch(()=>document.getElementById("status").textContent="✗ الخادم غير متصل");
