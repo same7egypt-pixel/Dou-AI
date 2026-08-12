@@ -438,12 +438,7 @@ async function api(path, opts={}){
   const headers = {"Content-Type":"application/json", ...AUTH};
   const r = await fetch(API+path, Object.assign({headers}, opts));
   if(r.status===401){
-    localStorage.removeItem("dou_token_admin"); localStorage.removeItem("dou_token");
-    const key = sessionStorage.getItem("dou_admin_key");
-    if(key){ sessionStorage.setItem("dou_admin_key", key); throw new Error("انتهت الجلسة"); }
-    sessionStorage.removeItem("dou_admin_key");
-    if(document.getElementById("gateView")) gateView();
-    else location.reload();
+    localStorage.removeItem("dou_token_admin"); localStorage.removeItem("dou_token"); sessionStorage.removeItem("dou_admin_key");
     throw new Error("انتهت الجلسة");
   }
   if(!r.ok) throw new Error((await r.text())||r.status);
@@ -858,10 +853,17 @@ async function toggleUser(id,currentActive){
 
 if(ADMIN_KEY || ADMIN_TOKEN){ go("dashboard"); }
 
-if(!ADMIN_KEY && !ADMIN_TOKEN){
-  gateView();
-}else{
+async function boot(){
   document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
+  if(!ADMIN_KEY && !ADMIN_TOKEN){ gateView(); return; }
+  try{
+    const t = await api("/admin/couriers", {method:"GET"});
+    if(ADMIN_TOKEN && !ADMIN_KEY){ localStorage.setItem("dou_token_admin", ADMIN_TOKEN); }
+    go("dashboard");
+  }catch(e){
+    localStorage.removeItem("dou_token_admin"); localStorage.removeItem("dou_token"); sessionStorage.removeItem("dou_admin_key");
+    gateView();
+  }
 }
 
 function gateView(){
@@ -902,6 +904,7 @@ async function gateLogin(){
 }
 const gatePassEl = document.getElementById("gatePass"); if(gatePassEl) gatePassEl.addEventListener("keydown", e=>{ if(e.key==="Enter") gateLogin(); });
 setInterval(()=>{ fetch("/health").catch(()=>{}); }, 10*60*1000);
+boot();
 </script>
 </body>
 </html>
