@@ -87,14 +87,25 @@ app.mount("/static", NoCacheHtml(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 def index(request: Request):
-    """اعرض الواجهة الصحيحة حسب النطاق، مع بقاء روابط Render والمحلي متوافقة."""
-    host = request.url.hostname or ""
-    page_by_host = {
-        "app.dou.delivery": "fleet.html",
-        "driver.dou.delivery": "courier.html",
-        "admin.dou.delivery": "admin.html",
-    }
-    return FileResponse(os.path.join(STATIC_DIR, page_by_host.get(host, "index.html")))
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.get("/app")
+@app.get("/app/")
+def fleet_app():
+    return FileResponse(os.path.join(STATIC_DIR, "fleet.html"))
+
+
+@app.get("/driver")
+@app.get("/driver/")
+def driver_app():
+    return FileResponse(os.path.join(STATIC_DIR, "courier.html"))
+
+
+@app.get("/admin")
+@app.get("/admin/")
+def dou_admin():
+    return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
 
 
 @app.get("/health")

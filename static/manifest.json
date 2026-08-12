@@ -2,7 +2,7 @@
   "name": "DOU — تطبيق المندوب",
   "short_name": "DOU",
   "description": "حضور، مهام وأرباح مندوبي التوصيل على منصة DOU",
-  "start_url": "/static/courier.html",
+  "start_url": "/driver",
   "scope": "/static/",
   "display": "standalone",
   "orientation": "portrait",
