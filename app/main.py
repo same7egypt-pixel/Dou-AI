@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-
 from .database import Base, engine
 from .routers import merchants, couriers, orders, auth, shifts, shipping, analytics, geo, admin, fleet, billing
 from .models import entities  # noqa: F401 — يسجّل الجداول على Base
@@ -36,7 +35,17 @@ app.include_router(billing.router)
 import os
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+class NoCacheHtml(StaticFiles):
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if path.endswith(".html") and response.status_code == 200:
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        return response
+
+
+app.mount("/static", NoCacheHtml(directory=STATIC_DIR), name="static")
 
 
 @app.get("/")
