@@ -440,9 +440,9 @@ async function loadViolations(){
 async function init(){
   if(!TOKEN){loginView();return;}
   try{
-    const m=await api("/fleet/me");
+    const m=await api("/hr/me/profile");
     document.getElementById("spName").textContent=m.name;
-    document.getElementById("spPhoto").textContent=m.name[0]||"م";
+    document.getElementById("spPhoto").textContent=(m.name||"م")[0]||"م";
     document.getElementById("spRole").textContent=(m.role==="COMPANY"?"أدمن الشركة — رؤية كل الفرق":m.role==="SUPERVISOR"?"مشرف — مجموعتي فقط":"مدير منصة");
   }catch(e){}
   go("team");

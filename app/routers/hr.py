@@ -497,6 +497,15 @@ def hr_export(user: User = Depends(get_current_user), db: Session = Depends(get_
                              headers={"Content-Disposition": "attachment; filename=hr_report.csv"})
 
 
+# ===================== المشرف/الأدمن: ملفي الشخصي =====================
+
+@router.get("/me/profile")
+def hr_my_profile(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """هوية المستخدم للوحات HR (مشرف/أدمن) — تسمح بأي دور في النظام."""
+    return {"id": user.id, "name": user.name or "—", "role": user.role.value,
+            "phone": user.phone, "tenant_id": user.tenant_id}
+
+
 # ===================== المندوب: سجل يومي =====================
 
 def _my_courier(user: User, db: Session) -> Courier:
