@@ -88,6 +88,9 @@ html[dir=ltr] .main{margin-right:0;margin-left:242px}
   <div class="group">Communication</div>
   <button class="nav" data-view="broadcast"><i>📢</i><span>Broadcast to Team</span></button>
   <button class="nav" data-view="weekly"><i>📊</i><span>Weekly Report</span></button>
+  <div class="group">Analytics</div>
+  <button class="nav" data-view="leaderboard"><i>🏆</i><span>Leaderboard</span></button>
+  <button class="nav" data-view="violations"><i>🚨</i><span>Violations</span></button>
   <div class="user"><div class="photo" id="spPhoto">م</div><b id="spName">Supervisor</b><small id="spRole">Supervisor Panel — HR</small></div>
 </aside>
 <div class="main">
@@ -138,6 +141,17 @@ html[dir=ltr] .main{margin-right:0;margin-left:242px}
       <div class="header"><div><div class="kicker">Weekly performance summary</div><h1>Weekly Report</h1></div>
         <button class="btn ghost" onclick="exportReport()">⬇ تصدير التقرير</button></div>
       <div class="card" id="weeklyBody"></div>
+    </section>
+
+    <section id="view-leaderboard" style="display:none">
+      <div class="header"><div><div class="kicker">Month orders + estimated pay</div><h1>🏆 Leaderboard</h1></div></div>
+      <div class="card"><table><thead><tr><th>#</th><th>Courier</th><th>Month Orders</th><th>Per Delivery</th><th>Bonus</th><th>Est. Pay</th><th>Rating</th></tr></thead>
+        <tbody id="lbBody"></tbody></table></div>
+    </section>
+
+    <section id="view-violations" style="display:none">
+      <div class="header"><div><div class="kicker">Expired docs / suspended / leave / low rating</div><h1>🚨 Violations</h1></div></div>
+      <div class="card"><div id="vBody"></div></div>
     </section>
 
   </div>
@@ -210,15 +224,17 @@ function riskPills(c){
 
 function go(v){
   document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
-  const views=["team","logs","leaves","notes","broadcast","weekly"];
+  const views=["team","logs","leaves","notes","broadcast","weekly","leaderboard","violations"];
   views.forEach(x=>{const el=document.getElementById("view-"+x);if(el)el.style.display=x===v?"block":"none";});
-  const names={team:"My Couriers",logs:"Orders Log",leaves:"Leave Requests",notes:"Notes & Ratings",broadcast:"Broadcast to Team",weekly:"Weekly Report"};
+  const names={team:"My Couriers",logs:"Orders Log",leaves:"Leave Requests",notes:"Notes & Ratings",broadcast:"Broadcast to Team",weekly:"Weekly Report",leaderboard:"Leaderboard",violations:"Violations"};
   document.getElementById("crumb").textContent=names[v];
   if(v==="team") loadTeam();
   if(v==="logs") loadLogSelect();
   if(v==="leaves") loadLeaves();
   if(v==="notes") loadNotes();
   if(v==="weekly") loadWeekly();
+  if(v==="leaderboard") loadLB();
+  if(v==="violations") loadViolations();
 }
 document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
 
@@ -359,6 +375,11 @@ async function saveRating(id){
   try{await api("/hr/couriers/"+id+"/rating",{method:"POST",body:JSON.stringify({score:document.getElementById("rt"+id).value,comment:document.getElementById("rc"+id).value})});alert("✅ حُفظ Rate الشهر");loadNotes();}
   catch(e){alert(e.message);}
 }
+function rateCourier(id){
+  go("notes");
+  document.getElementById("rt"+id).focus();
+  document.getElementById("rt"+id).select();
+}
 async function addNote(id){
   const c=COURIERS.find(x=>x.id===id);
   const n=prompt("Performance note on "+c.name+":");if(!n)return;
@@ -396,6 +417,27 @@ async function exportReport(){
   const blob=await r.blob();
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);a.download="hr_report.csv";a.click();
+}
+
+async function loadLB(){
+  try{
+    const lb = await api("/hr/leaderboard");
+    document.getElementById("lbBody").innerHTML = lb.rows.slice(0,15).map(r=>`
+      <tr><td><b>${r.rank}</b></td><td><b>${r.name}</b></td>
+      <td><b>${r.month_orders}</b></td><td>${r.per_delivery_rate} SAR</td>
+      <td><span class="tag green">${r.bonus} SAR</span></td><td><b>${r.estimated_pay} SAR</b></td>
+      <td>${r.avg_rating!=null?r.avg_rating.toFixed(1):'—'}</td></tr>`).join("")
+      || '<tr><td colspan="7" style="color:var(--muted)">No data yet</td></tr>';
+  }catch(e){}
+}
+async function loadViolations(){
+  try{
+    const v = await api("/hr/violations");
+    document.getElementById("vBody").innerHTML = v.rows.map(r=>`
+      <div class="opt"><div><b>${r.name}</b><small>${r.phone} · ${r.details.join(' · ')||'—'}</small></div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">${Object.keys(r.flags).filter(k=>r.flags[k]).map(k=>`<span class="tag red">${k}</span>`).join("")}</div></div>`).join("")
+      || '<p style="color:var(--muted)">No violations — all clear 🎉</p>';
+  }catch(e){}
 }
 
 async function init(){

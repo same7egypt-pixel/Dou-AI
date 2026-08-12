@@ -362,6 +362,36 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="card"><h3>Leave Requests (two-level approval)</h3>
         <div id="hrLeaves"></div>
       </div>
+      <div class="card"><h3>🏆 Leaderboard (month orders + estimated pay)</h3>
+        <table><thead><tr><th>#</th><th>Courier</th><th>Month Orders</th><th>Per Delivery</th><th>Bonus</th><th>Est. Pay</th><th>Rating</th></tr></thead>
+          <tbody id="lbBody"></tbody></table>
+      </div>
+      <div class="card"><h3>💰 Monthly Payroll <span style="color:var(--muted);font-weight:400;font-size:11px">(fixed + orders×rate + bonus)</span></h3>
+        <div class="cards" style="grid-template-columns:repeat(4,1fr);margin-bottom:10px">
+          <div class="metric"><b id="payFixed">–</b><span>Fixed base</span></div>
+          <div class="metric"><b id="payDelivery">–</b><span>Delivery pay</span></div>
+          <div class="metric trend"><b id="payBonus">–</b><span>Bonus</span></div>
+          <div class="metric alert"><b id="payTotal">–</b><span>Total</span></div>
+        </div>
+        <table><thead><tr><th>Courier</th><th>Platform</th><th>Orders</th><th>Fixed</th><th>Delivery</th><th>Bonus</th><th>Total</th><th>IBAN</th></tr></thead>
+          <tbody id="payBody"></tbody></table>
+      </div>
+      <div class="card"><h3>📄 Contracts <span style="color:var(--muted);font-weight:400;font-size:11px">(alert 30 days before expiry)</span></h3>
+        <div class="opt"><div><b>Add a contract</b><small>Courier/fleet contract with an end date</small></div>
+          <button class="btn small" onclick="openHrContract()">+ Contract</button></div>
+        <table><thead><tr><th>Contract</th><th>Type</th><th>Duration</th><th>Couriers</th><th>Base</th><th>Per Delivery</th><th>End Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="contractsBody"></tbody></table>
+      </div>
+      <div class="card"><h3>🚨 Violations</h3>
+        <div class="cards" style="grid-template-columns:repeat(5,1fr);margin-bottom:10px">
+          <div class="metric alert"><b id="vExpired">–</b><span>Expired docs</span></div>
+          <div class="metric"><b id="vSoon">–</b><span>Expiring soon</span></div>
+          <div class="metric alert"><b id="vSuspended">–</b><span>Suspended</span></div>
+          <div class="metric"><b id="vLeave">–</b><span>On leave</span></div>
+          <div class="metric"><b id="vRating">–</b><span>Low rating</span></div>
+        </div>
+        <div id="vBody"></div>
+      </div>
     </section>
 
     <section id="view-tickets" style="display:none">
@@ -508,6 +538,20 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     <label class="fLabel">Per extra order over target (SAR)</label><input id="bnOver" type="number" class="fInput" placeholder="5">
     <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveBonus()">Save plan</button><button class="btn ghost" onclick="closeBonusModal()">Cancel</button></div>
     <div id="bnMsg" class="msg"></div>
+  </div>
+</div>
+<div class="modal" id="hrCModal">
+  <div class="modalBox">
+    <h3>📄 New Contract</h3>
+    <label class="fLabel">Contract name</label><input id="hrCtName" class="fInput" placeholder="Riyadh couriers 2026">
+    <label class="fLabel">Type</label><select id="hrCtType" class="fInput"><option value="FIXED">Fixed salary</option><option value="PER_DELIVERY">Per delivery</option></select>
+    <div class="form-row"><input id="hrCtMonths" type="number" class="fInput" placeholder="Duration (months)" value="12">
+      <input id="hrCtCount" type="number" class="fInput" placeholder="Couriers count"></div>
+    <div class="form-row"><input id="hrCtBase" type="number" class="fInput" placeholder="Monthly base (SAR)" value="0">
+      <input id="hrCtRate" type="number" class="fInput" placeholder="Per delivery (SAR)" value="6"></div>
+    <label class="fLabel">End date</label><input id="hrCtEnd" type="date" class="fInput">
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveHrContract()">Save contract</button><button class="btn ghost" onclick="closeHrContract()">Cancel</button></div>
+    <div id="hrCtMsg" class="msg"></div>
   </div>
 </div>
 <!-- Modal: Reassign courier -->
@@ -1155,6 +1199,86 @@ async function loadHR(){
           `<button class="btn green small" onclick="decideHrLeave(${l.id},'approve')">✔ Approve</button>
            <button class="btn red small" onclick="decideHrLeave(${l.id},'reject')">✖ Reject</button>`:''}</div></div>`).join("")
       || '<p style="color:var(--muted)">No leave requests currently</p>';
+  }catch(e){}
+  loadLB(); loadPayroll(); loadContracts(); loadViolations();
+}
+async function loadLB(){
+  try{
+    const lb = await api("/hr/leaderboard");
+    document.getElementById("lbBody").innerHTML = lb.rows.slice(0,15).map(r=>`
+      <tr><td><b>${r.rank}</b></td><td><b>${r.name}</b><br><small>${r.supervisor||'No supervisor'}</small></td>
+      <td><b>${r.month_orders}</b></td><td>${r.per_delivery_rate} SAR</td>
+      <td><span class="tag green">${r.bonus} SAR</span></td><td><b>${r.estimated_pay} SAR</b></td>
+      <td>${r.avg_rating!=null?r.avg_rating.toFixed(1):'—'}</td></tr>`).join("")
+      || '<tr><td colspan="7" style="color:var(--muted)">No data yet — couriers log their orders daily</td></tr>';
+  }catch(e){}
+}
+async function loadPayroll(){
+  try{
+    const p = await api("/hr/payroll");
+    document.getElementById("payFixed").textContent = p.totals.fixed;
+    document.getElementById("payDelivery").textContent = p.totals.delivery;
+    document.getElementById("payBonus").textContent = p.totals.bonus;
+    document.getElementById("payTotal").textContent = p.totals.total;
+    document.getElementById("payBody").innerHTML = p.rows.map(r=>`
+      <tr><td><b>${r.name}</b></td><td>${r.platform}</td><td>${r.orders}</td>
+      <td>${r.fixed}</td><td>${r.delivery}</td><td>${r.bonus}</td><td><b>${r.total} SAR</b></td>
+      <td dir="ltr" style="font-size:11px">${r.bank_iban}</td></tr>`).join("")
+      || '<tr><td colspan="8" style="color:var(--muted)">No couriers</td></tr>';
+  }catch(e){}
+}
+async function loadContracts(){
+  try{
+    const ct = await api("/hr/contracts");
+    const statusT = {ACTIVE:'<span class="tag green">Active</span>',EXPIRING:'<span class="tag amber">Expiring</span>',EXPIRED:'<span class="tag red">Expired</span>'};
+    document.getElementById("contractsBody").innerHTML = ct.rows.map(c=>`
+      <tr><td><b>${c.name}</b></td><td>${c.contract_type==="FIXED"?"Fixed":"Per delivery"}</td>
+      <td>${c.duration_months} mo</td><td>${c.couriers_count}</td><td>${c.base_salary} SAR</td>
+      <td>${c.per_delivery_rate} SAR</td><td>${c.end_date||'—'}</td>
+      <td>${statusT[c.status]||c.status}</td>
+      <td><button class="btn blue small" onclick="renewContract(${c.id})">↻ Renew</button></td></tr>`).join("")
+      || '<tr><td colspan="9" style="color:var(--muted)">No contracts yet — add the first one</td></tr>';
+  }catch(e){}
+}
+async function renewContract(id){
+  const m = prompt("Renew months (default 12):");
+  if(m===null)return;
+  try{
+    const r = await api("/hr/contracts/"+id+"/renew",{method:"POST",body:JSON.stringify({months:parseInt(m||12)})});
+    alert("✅ Contract renewed — new end date: "+r.end_date);
+    loadContracts();
+  }catch(e){alert(e.message);}
+}
+function openHrContract(){ document.getElementById("hrCtMsg").textContent=""; document.getElementById("hrCModal").classList.add("open"); }
+function closeHrContract(){ document.getElementById("hrCModal").classList.remove("open"); }
+async function saveHrContract(){
+  try{
+    await api("/hr/contracts",{method:"POST",body:JSON.stringify({
+      name:document.getElementById("hrCtName").value.trim(),
+      contract_type:document.getElementById("hrCtType").value,
+      duration_months:parseInt(document.getElementById("hrCtMonths").value||12),
+      couriers_count:parseInt(document.getElementById("hrCtCount").value||0),
+      base_salary:parseFloat(document.getElementById("hrCtBase").value||0),
+      per_delivery_rate:parseFloat(document.getElementById("hrCtRate").value||6),
+      end_date:document.getElementById("hrCtEnd").value||null,
+    })});
+    document.getElementById("hrCtMsg").style.color="var(--green)";
+    document.getElementById("hrCtMsg").textContent="✅ Contract added";
+    setTimeout(()=>{closeHrContract();loadContracts();},900);
+  }catch(e){ document.getElementById("hrCtMsg").style.color="var(--red)"; document.getElementById("hrCtMsg").textContent="❌ "+e.message; }
+}
+async function loadViolations(){
+  try{
+    const v = await api("/hr/violations");
+    document.getElementById("vExpired").textContent = v.counts.documents_expired;
+    document.getElementById("vSoon").textContent = v.counts.documents_soon;
+    document.getElementById("vSuspended").textContent = v.counts.suspended;
+    document.getElementById("vLeave").textContent = v.counts.on_leave;
+    document.getElementById("vRating").textContent = v.counts.low_rating;
+    document.getElementById("vBody").innerHTML = v.rows.map(r=>`
+      <div class="opt"><div><b>${r.name}</b><small>${r.phone} · ${r.details.join(' · ')||'—'}</small></div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">${Object.keys(r.flags).filter(k=>r.flags[k]).map(k=>`<span class="tag red">${k}</span>`).join("")}</div></div>`).join("")
+      || '<p style="color:var(--muted)">No violations — all clear 🎉</p>';
   }catch(e){}
 }
 async function toggleSup(id,active){ await api("/hr/supervisors/"+id,{method:"PATCH",body:JSON.stringify({is_active:!active})}); loadHR(); }

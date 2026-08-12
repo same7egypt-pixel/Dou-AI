@@ -363,6 +363,36 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="card"><h3>طلبات الإجازة (موافقة من مستويين)</h3>
         <div id="hrLeaves"></div>
       </div>
+      <div class="card"><h3>🏆 لوحة المتصدرين (أوردرات الشهر + الأرباح المقدرة)</h3>
+        <table><thead><tr><th>#</th><th>المندوب</th><th>أوردرات الشهر</th><th>أجر التوصيلة</th><th>البونص</th><th>الأرباح المقدرة</th><th>التقييم</th></tr></thead>
+          <tbody id="lbBody"></tbody></table>
+      </div>
+      <div class="card"><h3>💰 كشف الرواتب الشهري <span style="color:var(--muted);font-weight:400;font-size:11px">(راتب ثابت + أوردرات × أجر + بونص)</span></h3>
+        <div class="cards" style="grid-template-columns:repeat(4,1fr);margin-bottom:10px">
+          <div class="metric"><b id="payFixed">–</b><span>رواتب ثابتة</span></div>
+          <div class="metric"><b id="payDelivery">–</b><span>أجر التوصيل</span></div>
+          <div class="metric trend"><b id="payBonus">–</b><span>البونص</span></div>
+          <div class="metric alert"><b id="payTotal">–</b><span>الإجمالي</span></div>
+        </div>
+        <table><thead><tr><th>المندوب</th><th>المنصة</th><th>أوردرات</th><th>الثابت</th><th>التوصيل</th><th>البونص</th><th>الإجمالي</th><th>الـIBAN</th></tr></thead>
+          <tbody id="payBody"></tbody></table>
+      </div>
+      <div class="card"><h3>📄 عقود التعاقد <span style="color:var(--muted);font-weight:400;font-size:11px">(تنبيه قبل انتهاء العقد بـ 30 يوم)</span></h3>
+        <div class="opt"><div><b>إضافة عقد جديد</b><small>عقد مندوبين/أسطول مع تاريخ انتهاء</small></div>
+          <button class="btn small" onclick="openHrContract()">+ عقد</button></div>
+        <table><thead><tr><th>العقد</th><th>النوع</th><th>المدة</th><th>المناديب</th><th>الراتب الثابت</th><th>أجر التوصيلة</th><th>الانتهاء</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <tbody id="contractsBody"></tbody></table>
+      </div>
+      <div class="card"><h3>🚨 كشف التجاوزات</h3>
+        <div class="cards" style="grid-template-columns:repeat(5,1fr);margin-bottom:10px">
+          <div class="metric alert"><b id="vExpired">–</b><span>مستندات منتهية</span></div>
+          <div class="metric"><b id="vSoon">–</b><span>قرب الانتهاء</span></div>
+          <div class="metric alert"><b id="vSuspended">–</b><span>موقوفون</span></div>
+          <div class="metric"><b id="vLeave">–</b><span>في إجازة</span></div>
+          <div class="metric"><b id="vRating">–</b><span>تقييم منخفض</span></div>
+        </div>
+        <div id="vBody"></div>
+      </div>
       <div class="card"><h3>تعديلات HR (Audit Log)</h3>
         <div id="hrAudit" style="font-size:12px;color:var(--muted)"></div>
       </div>
@@ -514,6 +544,20 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     <label class="fLabel">سعر الطلب الزائد فوق التارجت (ر.س)</label><input id="bnOver" type="number" class="fInput" placeholder="5">
     <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveBonus()">حفظ الخطة</button><button class="btn ghost" onclick="closeBonusModal()">إلغاء</button></div>
     <div id="bnMsg" class="msg"></div>
+  </div>
+</div>
+<div class="modal" id="hrCModal">
+  <div class="modalBox">
+    <h3>📄 عقد جديد</h3>
+    <label class="fLabel">اسم العقد</label><input id="hrCtName" class="fInput" placeholder="عقد مناديب الرياض 2026">
+    <label class="fLabel">النوع</label><select id="hrCtType" class="fInput"><option value="FIXED">راتب ثابت</option><option value="PER_DELIVERY">أجر التوصيلة</option></select>
+    <div class="form-row"><input id="hrCtMonths" type="number" class="fInput" placeholder="المدة بالشهور" value="12">
+      <input id="hrCtCount" type="number" class="fInput" placeholder="عدد المناديب"></div>
+    <div class="form-row"><input id="hrCtBase" type="number" class="fInput" placeholder="الراتب الثابت الشهري (ر.س)" value="0">
+      <input id="hrCtRate" type="number" class="fInput" placeholder="أجر التوصيلة (ر.س)" value="6"></div>
+    <label class="fLabel">تاريخ الانتهاء</label><input id="hrCtEnd" type="date" class="fInput">
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveHrContract()">حفظ العقد</button><button class="btn ghost" onclick="closeHrContract()">إلغاء</button></div>
+    <div id="hrCtMsg" class="msg"></div>
   </div>
 </div>
 <div class="modal" id="reassignModal">
@@ -1117,7 +1161,7 @@ async function loadBilling(){
     document.getElementById("billingMsg").textContent = "";
   }catch(e){ document.getElementById("invoiceCard").style.display="none"; }
 }
-async init();
+async function payInvoice(){
   const msg = document.getElementById("billingMsg");
   msg.textContent = "⏳ جاري معالجة الدفع..."; msg.style.color = "var(--muted)";
   try{
@@ -1161,6 +1205,86 @@ async function loadHR(){
            <button class="btn red small" onclick="decideHrLeave(${l.id},'reject')">✖ أرفض</button>`:''}</div></div>`).join("")
       || '<p style="color:var(--muted)">لا طلبات إجازة حالياً</p>';
     document.getElementById("hrAudit").innerHTML = '';
+  }catch(e){}
+  loadLB(); loadPayroll(); loadContracts(); loadViolations();
+}
+async function loadLB(){
+  try{
+    const lb = await api("/hr/leaderboard");
+    document.getElementById("lbBody").innerHTML = lb.rows.slice(0,15).map(r=>`
+      <tr><td><b>${r.rank}</b></td><td><b>${r.name}</b><br><small>${r.supervisor||'بدون مشرف'}</small></td>
+      <td><b>${r.month_orders}</b></td><td>${r.per_delivery_rate} ر.س</td>
+      <td><span class="tag green">${r.bonus} ر.س</span></td><td><b>${r.estimated_pay} ر.س</b></td>
+      <td>${r.avg_rating!=null?r.avg_rating.toFixed(1):'—'}</td></tr>`).join("")
+      || '<tr><td colspan="7" style="color:var(--muted)">لا بيانات بعد — المندوبون يسجلون أوردراتهم يومياً</td></tr>';
+  }catch(e){}
+}
+async function loadPayroll(){
+  try{
+    const p = await api("/hr/payroll");
+    document.getElementById("payFixed").textContent = p.totals.fixed;
+    document.getElementById("payDelivery").textContent = p.totals.delivery;
+    document.getElementById("payBonus").textContent = p.totals.bonus;
+    document.getElementById("payTotal").textContent = p.totals.total;
+    document.getElementById("payBody").innerHTML = p.rows.map(r=>`
+      <tr><td><b>${r.name}</b></td><td>${r.platform}</td><td>${r.orders}</td>
+      <td>${r.fixed}</td><td>${r.delivery}</td><td>${r.bonus}</td><td><b>${r.total} ر.س</b></td>
+      <td dir="ltr" style="font-size:11px">${r.bank_iban}</td></tr>`).join("")
+      || '<tr><td colspan="8" style="color:var(--muted)">لا مناديب</td></tr>';
+  }catch(e){}
+}
+async function loadContracts(){
+  try{
+    const ct = await api("/hr/contracts");
+    const statusT = {ACTIVE:'<span class="tag green">نشط</span>',EXPIRING:'<span class="tag amber">قرب الانتهاء</span>',EXPIRED:'<span class="tag red">منتهي</span>'};
+    document.getElementById("contractsBody").innerHTML = ct.rows.map(c=>`
+      <tr><td><b>${c.name}</b></td><td>${c.contract_type==="FIXED"?"ثابت":"أجر التوصيلة"}</td>
+      <td>${c.duration_months} شهر</td><td>${c.couriers_count}</td><td>${c.base_salary} ر.س</td>
+      <td>${c.per_delivery_rate} ر.س</td><td>${c.end_date||'—'}</td>
+      <td>${statusT[c.status]||c.status}</td>
+      <td><button class="btn blue small" onclick="renewContract(${c.id})">↻ تجديد</button></td></tr>`).join("")
+      || '<tr><td colspan="9" style="color:var(--muted)">لا عقود بعد — أضف عقد التعاقد الأول</td></tr>';
+  }catch(e){}
+}
+async function renewContract(id){
+  const m = prompt("عدد شهور التجديد (افتراضي 12):");
+  if(m===null)return;
+  try{
+    const r = await api("/hr/contracts/"+id+"/renew",{method:"POST",body:JSON.stringify({months:parseInt(m||12)})});
+    alert("✅ جُدّد العقد — الانتهاء الجديد: "+r.end_date);
+    loadContracts();
+  }catch(e){alert(e.message);}
+}
+function openHrContract(){ document.getElementById("hrCtMsg").textContent=""; document.getElementById("hrCModal").classList.add("open"); }
+function closeHrContract(){ document.getElementById("hrCModal").classList.remove("open"); }
+async function saveHrContract(){
+  try{
+    await api("/hr/contracts",{method:"POST",body:JSON.stringify({
+      name:document.getElementById("hrCtName").value.trim(),
+      contract_type:document.getElementById("hrCtType").value,
+      duration_months:parseInt(document.getElementById("hrCtMonths").value||12),
+      couriers_count:parseInt(document.getElementById("hrCtCount").value||0),
+      base_salary:parseFloat(document.getElementById("hrCtBase").value||0),
+      per_delivery_rate:parseFloat(document.getElementById("hrCtRate").value||6),
+      end_date:document.getElementById("hrCtEnd").value||null,
+    })});
+    document.getElementById("hrCtMsg").style.color="var(--green)";
+    document.getElementById("hrCtMsg").textContent="✅ أُضيف العقد";
+    setTimeout(()=>{closeHrContract();loadContracts();},900);
+  }catch(e){ document.getElementById("hrCtMsg").style.color="var(--red)"; document.getElementById("hrCtMsg").textContent="❌ "+e.message; }
+}
+async function loadViolations(){
+  try{
+    const v = await api("/hr/violations");
+    document.getElementById("vExpired").textContent = v.counts.documents_expired;
+    document.getElementById("vSoon").textContent = v.counts.documents_soon;
+    document.getElementById("vSuspended").textContent = v.counts.suspended;
+    document.getElementById("vLeave").textContent = v.counts.on_leave;
+    document.getElementById("vRating").textContent = v.counts.low_rating;
+    document.getElementById("vBody").innerHTML = v.rows.map(r=>`
+      <div class="opt"><div><b>${r.name}</b><small>${r.phone} · ${r.details.join(' · ')||'—'}</small></div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">${Object.keys(r.flags).filter(k=>r.flags[k]).map(k=>`<span class="tag red">${k}</span>`).join("")}</div></div>`).join("")
+      || '<p style="color:var(--muted)">لا تجاوزات — كل شيء سليم 🎉</p>';
   }catch(e){}
 }
 async function toggleSup(id,active){

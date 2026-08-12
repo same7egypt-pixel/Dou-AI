@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.entities import (
-    Attendance, AuditLog, BonusPlan, BroadcastMessage, Courier, CourierRating,
+    Attendance, AuditLog, BonusPlan, BroadcastMessage, Contract, Courier, CourierRating,
     DailyLog, LeaveRequest, PerformanceNote, Project, Tenant, User, UserRole,
 )
 from .auth import get_current_user, hash_password
@@ -565,6 +565,7 @@ def my_logs(user: User = Depends(get_current_user), db: Session = Depends(get_db
     return {
         "today": today.isoformat(), "month": cur, "month_orders": month_orders,
         "today_orders": today_orders, "bonus_earned": round(bonus, 2),
+        "per_delivery_rate": c.per_delivery_rate or 0,
         "days": [{"date": l.log_date.isoformat(), "project": projects.get(l.project_id),
                   "orders": l.orders_count, "notes": l.notes} for l in cur_logs],
         "previous_months": months,
@@ -621,6 +622,10 @@ def my_hr(user: User = Depends(get_current_user), db: Session = Depends(get_db))
     j["notes"] = [{"author_name": n.author_name, "note": n.note,
                    "created_at": n.created_at.isoformat() if n.created_at else None} for n in notes]
     j["ratings"] = [{"month": r.month, "score": r.score, "comment": r.comment} for r in ratings]
+    today = date.today()
+    today_logs = db.query(DailyLog).filter(DailyLog.courier_id == c.id, DailyLog.log_date == today).all()
+    j["today_orders"] = sum(l.orders_count or 0 for l in today_logs)
+    j["daily_earnings"] = round(j["today_orders"] * (c.per_delivery_rate or 0), 2)
     return j
 
 
@@ -650,3 +655,150 @@ def stop_shift(user: User = Depends(get_current_user), db: Session = Depends(get
     c.is_online = False
     db.commit()
     return {"ok": True, "stopped": True}
+
+
+# ===================== الأدمن/المشرف: لوحة المتصدرين (Leaderboard) =====================
+
+@router.get("/leaderboard")
+def hr_leaderboard(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """ترتيب المناديب: أوردرات هذا الشهر + البونص + التقييم للتمييز عند التعادل."""
+    if user.role not in (COMPANY_ROLES + (UserRole.SUPERVISOR,)):
+        raise HTTPException(403, "Not allowed")
+    rows = []
+    for c in _tenant_couriers(db, user).all():
+        j = _courier_json(c, db)
+        rows.append({"name": c.name, "phone": c.phone, "supervisor": (db.get(User, c.supervisor_id).name if c.supervisor_id else None),
+                     "month_orders": j["month_orders"], "bonus": j["bonus"]["total"],
+                     "avg_rating": j["avg_rating"], "per_delivery_rate": j["per_delivery_rate"],
+                     "estimated_pay": round((j["month_orders"] * j["per_delivery_rate"]) + j["bonus"]["total"], 2),
+                     "zone": c.zone})
+    rows.sort(key=lambda r: (-r["month_orders"], -(r["avg_rating"] or 0)))
+    for i, r in enumerate(rows[:50], 1):
+        r["rank"] = i
+    return {"month": date.today().strftime("%Y-%m"), "rows": rows}
+
+
+# ===================== الأدمن: كشف الرواتب (Payroll) =====================
+
+@router.get("/payroll")
+def hr_payroll(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """كشف رواتب شهر محدد: راتب ثابت + (أوردرات × أجر التوصيلة) + بونص."""
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Admin only")
+    rows = []
+    grand = {"fixed": 0.0, "delivery": 0.0, "bonus": 0.0, "total": 0.0}
+    for c in _tenant_couriers(db, user).all():
+        j = _courier_json(c, db)
+        fixed = c.base_salary or 0
+        delivery = (j["month_orders"] * (c.per_delivery_rate or 0))
+        bonus = j["bonus"]["total"]
+        total = round(fixed + delivery + bonus, 2)
+        rows.append({"id": c.id, "name": c.name, "phone": c.phone, "platform": c.platform or "—",
+                     "zone": c.zone, "orders": j["month_orders"], "fixed": round(fixed, 2),
+                     "delivery": round(delivery, 2), "bonus": round(bonus, 2), "total": total,
+                     "average_per_order": round(delivery / j["month_orders"], 2) if j["month_orders"] else 0,
+                     "bank_iban": c.bank_iban or "—"})
+        grand["fixed"] += fixed; grand["delivery"] += delivery
+        grand["bonus"] += bonus; grand["total"] += total
+    return {"month": date.today().strftime("%Y-%m"), "rows": rows, "totals": {k: round(v, 2) for k, v in grand.items()},
+            "couriers_count": len(rows)}
+
+
+# ===================== الأدمن: عقود التعاقد + التجديد =====================
+
+@router.get("/contracts")
+def hr_contracts(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """عقود التعاقد مع المناديب/الأساطيل + حالة الانتهاء."""
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Admin only")
+    today = date.today()
+    q = db.query(Contract)
+    if user.tenant_id is not None:
+        q = q.filter(Contract.tenant_id == user.tenant_id)
+    rows = []
+    for ct in q.all():
+        days = (ct.end_date.date() - today).days if ct.end_date else None
+        status = ct.status
+        if days is not None and days < 0:
+            status = "EXPIRED"
+        elif days is not None and days <= 30:
+            status = "EXPIRING"
+        rows.append({"id": ct.id, "name": ct.name, "contract_type": ct.contract_type,
+                     "duration_months": ct.duration_months, "couriers_count": ct.couriers_count,
+                     "base_salary": ct.base_salary or 0, "per_delivery_rate": ct.per_delivery_rate or 0,
+                     "status": status, "days_left": days,
+                     "end_date": ct.end_date.isoformat() if ct.end_date else None})
+    rows.sort(key=lambda r: (r["days_left"] or 999))
+    return {"rows": rows, "expiring_soon": sum(1 for r in rows if r["status"] in ("EXPIRING", "EXPIRED"))}
+
+
+@router.post("/contracts")
+def create_contract(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Admin only")
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "Contract name required")
+    end = payload.get("end_date")
+    end_dt = date.fromisoformat(end) if end else (date.today() + timedelta(days=365))
+    ct = Contract(
+        tenant_id=user.tenant_id, name=name,
+        contract_type=payload.get("contract_type", "FIXED"),
+        duration_months=int(payload.get("duration_months") or 12),
+        couriers_count=int(payload.get("couriers_count") or 0),
+        base_salary=float(payload.get("base_salary") or 0),
+        per_delivery_rate=float(payload.get("per_delivery_rate") or 6),
+        status="ACTIVE", end_date=end_dt,
+    )
+    db.add(ct); db.commit(); db.refresh(ct)
+    _log(db, user, f"أنشأ عقد {name} حتى {end_dt}", "contract", ct.id)
+    return {"ok": True, "id": ct.id}
+
+
+@router.post("/contracts/{cid}/renew")
+def renew_contract(cid: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """تجديد عقد: إضافة مدة بالشهور وتحديث تاريخ الانتهاء."""
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Admin only")
+    ct = db.get(Contract, cid)
+    if not ct:
+        raise HTTPException(404, "Contract not found")
+    months = int(payload.get("months") or 12)
+    base = ct.end_date or datetime.utcnow()
+    if (base < datetime.utcnow()):
+        base = datetime.utcnow()
+    new_end = base + timedelta(days=months * 30)
+    ct.end_date = new_end
+    ct.status = "ACTIVE"
+    db.commit()
+    _log(db, user, f"جدّد عقد {ct.name} إلى {new_end.date()}", "contract", ct.id)
+    return {"ok": True, "end_date": new_end.date().isoformat()}
+
+
+# ===================== الأدمن/المشرف: كشف التجاوزات =====================
+
+@router.get("/violations")
+def hr_violations(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """كل المندوبين المتجاوزين: مستندات منتهية/قرب الانتهاء، موقوف، في إجازة، تقييم منخفض."""
+    if user.role not in (COMPANY_ROLES + (UserRole.SUPERVISOR,)):
+        raise HTTPException(403, "Not allowed")
+    today = date.today()
+    cols = ["documents_expired", "documents_soon", "suspended", "on_leave", "low_rating"]
+    rows = []
+    for c in _tenant_couriers(db, user).all():
+        j = _courier_json(c, db)
+        flags = {k: False for k in cols}
+        expired = [k for k, v in j["doc_days_left"].items() if v is not None and v < 0]
+        soon = [k for k, v in j["doc_days_left"].items() if v is not None and 0 <= v <= 7]
+        flags["documents_expired"] = bool(expired)
+        flags["documents_soon"] = bool(soon)
+        flags["suspended"] = c.employment_status == "SUSPENDED"
+        flags["on_leave"] = c.is_on_leave
+        flags["low_rating"] = j["avg_rating"] is not None and j["avg_rating"] < 3.5
+        if any(flags.values()):
+            rows.append({"id": c.id, "name": c.name, "phone": c.phone, "flags": flags,
+                         "details": j["risks"],
+                         "rating": j["avg_rating"], "orders": j["month_orders"],
+                         "supervisor": (db.get(User, c.supervisor_id).name if c.supervisor_id else None)})
+    counts = {k: sum(1 for r in rows if r["flags"][k]) for k in cols}
+    return {"rows": rows, "counts": counts, "total": len(rows)}

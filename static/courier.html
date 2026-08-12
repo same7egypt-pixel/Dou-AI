@@ -631,7 +631,9 @@ async function loadHRWarnings(){
       docEl.innerHTML = b("الإقامة", hr.doc_days_left.iqama, hr.iqama_expiry) + b("رخصة القيادة", hr.doc_days_left.license, hr.license_expiry) + b("رخصة المركبة", hr.doc_days_left.vehicle, hr.vehicle_license_expiry)
         + `<div class="lineItem"><span>منصّة العمل</span><b>${hr.platform||'—'} ${hr.platform_courier_id?'('+hr.platform_courier_id+')':''}</b></div>
            <div class="lineItem"><span>مشرفي</span><b>${hr.supervisor_name||'—'}</b></div>
-           <div class="lineItem"><span>تقييمي</span><b>${hr.avg_rating||'—'} ${hr.bonus&&hr.bonus.total?'· بونص '+hr.bonus.total+' ر.س':''}</b></div>`;
+           <div class="lineItem"><span>تقييمي</span><b>${hr.avg_rating||'—'} ${hr.bonus&&hr.bonus.total?'· بونص '+hr.bonus.total+' ر.س':''}</b></div>
+           <div class="lineItem"><span>أوردرات اليوم</span><b>${hr.today_orders||0}</b></div>
+           <div class="lineItem"><span>أرباح اليوم (تقديري)</span><b class="earn">${hr.daily_earnings||0} ر.س</b></div>`;
     }
     const alerts = [];
     (hr.notes||[]).slice(0,2).forEach(n=>alerts.push({ic:"📝",c:"#fff2eb",t:"ملاحظة من "+n.author_name+": "+n.note,s:"ملاحظة أداء"}));

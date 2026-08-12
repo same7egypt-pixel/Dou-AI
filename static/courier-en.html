@@ -557,7 +557,9 @@ async function loadHRWarnings(){
       docEl.innerHTML = b("Iqama", hr.doc_days_left.iqama, hr.iqama_expiry) + b("Driving license", hr.doc_days_left.license, hr.license_expiry) + b("Vehicle license", hr.doc_days_left.vehicle, hr.vehicle_license_expiry)
         + `<div class="lineItem"><span>Platform</span><b>${hr.platform||'—'} ${hr.platform_courier_id?'('+hr.platform_courier_id+')':''}</b></div>
            <div class="lineItem"><span>My supervisor</span><b>${hr.supervisor_name||'—'}</b></div>
-           <div class="lineItem"><span>My rating</span><b>${hr.avg_rating||'—'} ${hr.bonus&&hr.bonus.total?'· bonus '+hr.bonus.total+' SAR':''}</b></div>`;
+           <div class="lineItem"><span>My rating</span><b>${hr.avg_rating||'—'} ${hr.bonus&&hr.bonus.total?'· bonus '+hr.bonus.total+' SAR':''}</b></div>
+           <div class="lineItem"><span>Today's orders</span><b>${hr.today_orders||0}</b></div>
+           <div class="lineItem"><span>Today's earnings (est.)</span><b class="earn">${hr.daily_earnings||0} SAR</b></div>`;
     }
     const alerts = [];
     (hr.risks||[]).filter(r=>/expired|soon|منتهية|قرب/.test(r)).forEach(w=>alerts.push({ic:"⚠️",c:"#fff0f1",t:"Document alert: "+w,s:"Important"}));
