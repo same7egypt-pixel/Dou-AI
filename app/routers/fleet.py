@@ -28,8 +28,8 @@ TENANT_ROLES = (
 )
 
 ROLE_PERMISSIONS = {
-    UserRole.COMPANY: ["dashboard", "drivers", "attendance", "hr", "payroll", "reports", "export", "users", "settings", "billing", "supervision"],
-    UserRole.COMPANY_ADMIN: ["dashboard", "drivers", "attendance", "hr", "payroll", "reports", "export", "users", "settings", "supervision"],
+    UserRole.COMPANY: ["dashboard", "drivers", "attendance", "performance", "tickets", "hr", "payroll", "reports", "export", "users", "settings", "billing", "supervision"],
+    UserRole.COMPANY_ADMIN: ["dashboard", "drivers", "attendance", "performance", "tickets", "hr", "payroll", "reports", "export", "users", "settings", "supervision"],
     UserRole.OPERATIONS: ["dashboard", "drivers", "attendance", "performance", "tickets"],
     UserRole.HR: ["dashboard", "drivers", "attendance", "hr", "payroll", "reports", "export"],
     UserRole.ACCOUNTANT: ["dashboard", "payroll", "reports", "export"],
@@ -183,9 +183,10 @@ def fleet_me(user: User = Depends(get_current_user), db: Session = Depends(get_d
     if tenant:
         for f in db.query(Fleet).filter(Fleet.tenant_id == tenant.id).all():
             fleets.append({"id": f.id, "name": f.name, "zone": f.zone or ""})
+    permissions = json.loads(user.custom_permissions) if user.custom_permissions else ROLE_PERMISSIONS.get(user.role, [])
     return {
         "role": user.role.value,
-        "permissions": ROLE_PERMISSIONS.get(user.role, []),
+        "permissions": permissions,
         "tenant": {"id": tenant.id, "name": tenant.name, "country": tenant.country.value} if tenant else None,
         "fleets": fleets,
         "name": user.name or (tenant.name if tenant else "شركة"),
