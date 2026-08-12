@@ -6,6 +6,9 @@ from sqlalchemy import text
 MIGRATIONS = {
     "users": {
         "token_version": "INTEGER DEFAULT 0",
+        "last_login_at": "TIMESTAMP",
+        "custom_permissions": "TEXT",
+        "managed_project_ids": "TEXT",
     },
     "couriers": {
         "base_salary": "FLOAT DEFAULT 0",
@@ -14,7 +17,17 @@ MIGRATIONS = {
         "employment_status": "VARCHAR(20) DEFAULT 'ACTIVE'",
         "hired_at": "TIMESTAMP",
         "bank_iban": "VARCHAR(34)",
+        "nationality": "VARCHAR(60)",
+        "iqama_number": "VARCHAR(40)",
+        "emergency_name": "VARCHAR(120)",
+        "emergency_phone": "VARCHAR(40)",
+        "passport_number": "VARCHAR(40)",
+        "passport_expiry": "DATE",
+        "insurance_expiry": "DATE",
+        "inspection_expiry": "DATE",
+        "work_permit_expiry": "DATE",
         "supervisor_id": "INTEGER",
+        "primary_project_id": "INTEGER",
         "platform": "VARCHAR(60)",
         "platform_courier_id": "VARCHAR(60)",
         "iqama_expiry": "DATE",
@@ -26,10 +39,13 @@ MIGRATIONS = {
         "photo_url": "VARCHAR(300)",
         "is_on_leave": "BOOLEAN DEFAULT FALSE",
         "shift_started_at": "TIMESTAMP",
+        "shift_preference": "VARCHAR(120)",
     },
     "contracts": {
         "end_date": "TIMESTAMP",
+        "project_id": "INTEGER",
     },
+    "projects": {"manager_id": "INTEGER"},
     "attendances": {
         "check_out_lat": "FLOAT",
         "check_out_lng": "FLOAT",
@@ -41,6 +57,7 @@ MIGRATIONS = {
         "due_date": "TIMESTAMP",
         "subscription_status": "VARCHAR(20) DEFAULT 'ACTIVE'",
         "last_paid_at": "TIMESTAMP",
+        "last_activity_at": "TIMESTAMP",
     },
 }
 
@@ -59,15 +76,16 @@ def run_migrations(engine):
                 if col not in existing:
                     conn.execute(text(f'ALTER TABLE {table} ADD COLUMN {col} {ddl}'))
                     print(f"   ➕ migration: {table}.{col}")
-        # توسيع enum userrole بقيمة SUPERVISOR إن لم تكن موجودة (PostgreSQL)
+        # توسيع enum userrole بأدوار الشركة (PostgreSQL)
         if engine.dialect.name == "postgresql":
-            has = conn.execute(text(
-                "SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid "
-                "WHERE t.typname='userrole' AND e.enumlabel='SUPERVISOR'"
-            )).first()
-            if not has:
-                conn.execute(text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'SUPERVISOR'"))
-                print("   ➕ migration: userrole enum + SUPERVISOR")
+            for role in ("SUPERVISOR", "COMPANY_ADMIN", "OPERATIONS", "HR", "ACCOUNTANT", "VIEWER", "PROJECT_MANAGER"):
+                has = conn.execute(text(
+                    "SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid "
+                    f"WHERE t.typname='userrole' AND e.enumlabel='{role}'"
+                )).first()
+                if not has:
+                    conn.execute(text(f"ALTER TYPE userrole ADD VALUE IF NOT EXISTS '{role}'"))
+                    print(f"   ➕ migration: userrole enum + {role}")
         # توسيع عمود action في audit_logs إلى TEXT حتى يسع رسائل السجل الطويلة
         if engine.dialect.name == "postgresql":
             t = conn.execute(text(

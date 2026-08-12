@@ -45,6 +45,8 @@ input:focus,select:focus{border-color:#ff5a13}
     <input id="compName" type="text" placeholder="مثال: شركة الأمانة للنقل" required>
     <label>رقم الجوال (Arabic digits بلا ٠ أو ٠+)</label>
     <input id="compPhone" type="tel" dir="ltr" placeholder="9665xxxxxxxx" required>
+    <label>كلمة المرور (8 أحرف على الأقل)</label>
+    <input id="compPassword" type="password" dir="ltr" minlength="8" placeholder="اختر كلمة مرور قوية" required>
     <label>البلد</label>
     <select id="compCountry">
       <option value="SA">السعودية 🇸🇦</option>
@@ -78,13 +80,14 @@ form.addEventListener("submit", async function(e){
   msg.className = "msg"; msg.innerHTML = "";
   try {
     const phone = await normalizePhone(document.getElementById("compPhone").value);
-    const res = await fetch("/auth/company-register", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:document.getElementById("compName").value.trim(), phone, country:document.getElementById("compCountry").value})});
+    const password = document.getElementById("compPassword").value;
+    const res = await fetch("/auth/company-register", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:document.getElementById("compName").value.trim(), phone, password, country:document.getElementById("compCountry").value})});
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || "حدث خطأ");
     const due = data.due_date ? new Date(data.due_date).toLocaleDateString("ar-EG") : "";
     form.style.display = "none";
     msg.className = "msg ok";
-    msg.innerHTML = "✅ تم إنشاء الحساب! <b>"+data.company_name+"</b><br>رقم الدخول: <b dir='ltr'>"+data.login_phone+"</b> <button class='copy' onclick=\"copyVal('"+data.login_phone+"')\">نسخ</button><br>كلمة المرور: <b dir='ltr'>"+data.password+"</b> <button class='copy' onclick=\"copyVal('"+data.password+"')\">نسخ</button><br>الخطة: تجربة مجانية"+(due?" — تنتهي "+due:"")+"<br><b>احفظها الآن، ثم سجّل دخولك بها:</b>";
+    msg.innerHTML = "✅ تم إنشاء الحساب! <b>"+data.company_name+"</b><br>رقم الدخول: <b dir='ltr'>"+data.login_phone+"</b> <button class='copy' onclick=\"copyVal('"+data.login_phone+"')\">نسخ</button><br>الخطة: تجربة مجانية"+(due?" — تنتهي "+due:"")+"<br><b>تقدر تسجّل الدخول الآن بكلمة المرور اللي اخترتها.</b>";
     const nb = document.getElementById("nextBtn");
     nb.style.display = "block";
     nb.href = "/static/fleet.html";

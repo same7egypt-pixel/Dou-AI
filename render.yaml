@@ -12,5 +12,11 @@ services:
     envVars:
       - key: SECRET_KEY
         generateValue: true
+      - key: ADMIN_KEY
+        generateValue: true
       - key: DATABASE_URL
         sync: false
+      - key: CORS_ORIGINS
+        value: https://dou-platform.onrender.com
+      - key: SEED_DEMO_DATA
+        value: "false"

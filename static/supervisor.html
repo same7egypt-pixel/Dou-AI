@@ -1,6 +1,8 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
+<meta http-equiv="refresh" content="0; url=/static/fleet.html">
+<script>location.replace('/static/fleet.html');</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DOU — لوحة المشرف</title>
@@ -79,6 +81,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
   <div class="group">فريقي</div>
   <button class="nav active" data-view="team"><i>◉</i><span>مناديب مجموعتي</span></button>
   <button class="nav" data-view="logs"><i>📆</i><span>سجل الأوردرات</span></button>
+  <button class="nav" data-view="daily"><i>📊</i><span>تقرير الإنجاز اليومي</span></button>
   <div class="group">الإدارة</div>
   <button class="nav" data-view="leaves"><i>🌴</i><span>طلبات الإجازة</span></button>
   <button class="nav" data-view="notes"><i>📝</i><span>الملاحظات والتقييم</span></button>
@@ -104,6 +107,10 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <div class="metric"><b id="tOnline">–</b><span>متصل الآن</span></div>
         <div class="metric alert"><b id="tRisk">–</b><span>مستندات قرب الانتهاء</span></div>
       </div>
+      <div class="card"><h3>طلب إضافة سائق لمجموعتي</h3>
+        <div class="form-row"><select id="assignmentCourier"></select><input id="assignmentNote" placeholder="سبب الطلب (اختياري)"><button class="btn blue" onclick="requestAssignment()">إرسال طلب موافقة</button></div>
+        <div id="assignmentMsg" class="msg"></div><div id="myAssignmentRequests"></div>
+      </div>
       <div class="card"><h3>جدول الفريق</h3>
         <table><thead><tr><th>المندوب</th><th>المنصة / الكود</th><th>المستندات</th><th>المركبة</th><th>أوردرات الشهر</th><th>البونص</th><th>التقييم</th><th>إجراءات</th></tr></thead>
           <tbody id="teamBody"></tbody></table>
@@ -114,6 +121,17 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="header"><div><div class="kicker">سجل الأوردرات اليومي لكل مندوب</div><h1>سجل الأوردرات</h1></div>
         <select id="logCourier" onchange="loadCourierLogs()" style="width:auto;min-width:180px"></select></div>
       <div class="card" id="logBody"></div>
+    </section>
+    <section id="view-daily" style="display:none">
+      <div class="header"><div><div class="kicker">مناديبي فقط — متابعة اليوم والتارجت</div><h1>تقرير الإنجاز اليومي</h1></div><button class="btn ghost" onclick="downloadDailyReport()">⬇ Excel</button></div>
+      <div class="card"><div class="form-row">
+        <input id="drDate" type="date" onchange="loadDailyReport()"><select id="drProject" onchange="loadDailyReport()"><option value="">كل المشاريع</option></select>
+        <select id="drNationality" onchange="loadDailyReport()"><option value="">كل الجنسيات</option></select><select id="drZone" onchange="loadDailyReport()"><option value="">كل المدن والمناطق</option></select>
+        <input id="drName" placeholder="اسم المندوب" oninput="loadDailyReport()"><select id="drLogged" onchange="loadDailyReport()"><option value="">الكل</option><option value="LOGGED">سجل</option><option value="NOT_LOGGED">لم يسجل</option></select>
+        <select id="drTarget" onchange="loadDailyReport()"><option value="">كل حالات التارجت</option><option value="PENDING">لم يكمل</option><option value="OVER">وصل أو تخطى</option><option value="NO_TARGET">بدون تارجت</option></select>
+        <select id="drAttendance" onchange="loadDailyReport()"><option value="">كل الحضور</option><option value="PRESENT">حاضر</option><option value="ABSENT">غائب</option><option value="LEAVE">إجازة</option></select>
+      </div></div><div class="cards" id="drSummary"></div>
+      <div class="card" style="overflow:auto"><table><thead id="drHead"></thead><tbody id="drBody"></tbody></table></div>
     </section>
 
     <section id="view-leaves" style="display:none">
@@ -224,12 +242,13 @@ function riskPills(c){
 
 function go(v){
   document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
-  const views=["team","logs","leaves","notes","broadcast","weekly","leaderboard","violations"];
+  const views=["team","logs","daily","leaves","notes","broadcast","weekly","leaderboard","violations"];
   views.forEach(x=>{const el=document.getElementById("view-"+x);if(el)el.style.display=x===v?"block":"none";});
-  const names={team:"مناديب مجموعتي",logs:"سجل الأوردرات",leaves:"طلبات الإجازة",notes:"الملاحظات والتقييم",broadcast:"رسالة للفريق",weekly:"التقرير الأسبوعي",leaderboard:"المتصدرون",violations:"التجاوزات"};
+  const names={team:"مناديب مجموعتي",logs:"سجل الأوردرات",daily:"تقرير الإنجاز اليومي",leaves:"طلبات الإجازة",notes:"الملاحظات والتقييم",broadcast:"رسالة للفريق",weekly:"التقرير الأسبوعي",leaderboard:"المتصدرون",violations:"التجاوزات"};
   document.getElementById("crumb").textContent=names[v];
   if(v==="team") loadTeam();
   if(v==="logs") loadLogSelect();
+  if(v==="daily") initDailyReport();
   if(v==="leaves") loadLeaves();
   if(v==="notes") loadNotes();
   if(v==="weekly") loadWeekly();
@@ -268,7 +287,23 @@ async function loadTeam(){
           <button class="btn red small" onclick="toggleLeave(${c.id})">🌴 ${c.is_on_leave?'إلغاء إجازة':'إجازة اليوم'}</button></td></tr>`;
     }).join("");
     document.getElementById("teamBody").innerHTML=rows||'<tr><td colspan="8" style="color:var(--muted)">لا مناديب في مجموعتك بعد</td></tr>';
+    loadAssignmentOptions();
   }catch(e){document.getElementById("teamBody").innerHTML='<tr><td colspan="8">تعذّر التحميل: '+e.message+'</td></tr>';}
+}
+
+async function loadAssignmentOptions(){
+  try{
+    const [candidates,requests]=await Promise.all([api("/hr/assignment-candidates"),api("/hr/assignment-requests")]);
+    document.getElementById("assignmentCourier").innerHTML=candidates.map(c=>`<option value="${c.id}">${c.name} — ${c.platform||'بدون مشروع'}${c.current_supervisor?' (حاليًا مع '+c.current_supervisor+')':''}</option>`).join("")||'<option value="">لا يوجد سائقون متاحون</option>';
+    const names={PENDING:'بانتظار موافقة الإدارة',APPROVED:'تمت الموافقة',REJECTED:'مرفوض'};
+    document.getElementById("myAssignmentRequests").innerHTML=requests.slice(0,5).map(r=>`<div class="lineItem"><span>${r.courier}</span><b>${names[r.status]||r.status}</b></div>`).join("");
+  }catch(e){}
+}
+async function requestAssignment(){
+  const courier_id=parseInt(document.getElementById("assignmentCourier").value);
+  if(!courier_id)return;
+  try{await api("/hr/assignment-requests",{method:"POST",body:JSON.stringify({courier_id,note:document.getElementById("assignmentNote").value})});document.getElementById("assignmentMsg").textContent="✅ أُرسل الطلب للإدارة";loadAssignmentOptions();}
+  catch(e){document.getElementById("assignmentMsg").textContent="❌ "+e.message;}
 }
 
 let editId=null;
@@ -333,6 +368,34 @@ async function loadCourierLogs(){
     <table><thead><tr><th>التاريخ</th><th>المشروع</th><th>الأوردرات</th><th>ملاحظات</th></tr></thead>
     <tbody>${byMonth[m].map(l=>`<tr><td>${l.date}</td><td>${l.project||'—'}</td><td><b>${l.orders}</b></td><td>${l.notes||''}</td></tr>`).join("")}</tbody></table>`).join("")
     ||'<p style="color:var(--muted)">لا سجلات بعد — المندوب يسجل يومياً من تطبيقه</p>';
+}
+
+function dailyQuery(){
+  const p=new URLSearchParams(), fields={report_date:"drDate",project_id:"drProject",nationality:"drNationality",zone:"drZone",courier_name:"drName",log_status:"drLogged",target_status:"drTarget",attendance_status:"drAttendance"};
+  Object.entries(fields).forEach(([k,id])=>{const v=document.getElementById(id).value;if(v)p.set(k,v)});return p.toString();
+}
+async function initDailyReport(){
+  if(!document.getElementById("drDate").value)document.getElementById("drDate").value=new Date().toISOString().slice(0,10);
+  if(!document.getElementById("drProject").dataset.loaded){
+    const [projects,couriers]=await Promise.all([api("/hr/projects"),api("/hr/couriers")]);
+    const uniq=x=>[...new Set(x.filter(Boolean))].sort();
+    document.getElementById("drProject").innerHTML='<option value="">كل المشاريع</option>'+projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
+    document.getElementById("drNationality").innerHTML='<option value="">كل الجنسيات</option>'+uniq(couriers.map(c=>c.nationality)).map(x=>`<option>${x}</option>`).join("");
+    document.getElementById("drZone").innerHTML='<option value="">كل المدن والمناطق</option>'+uniq(couriers.map(c=>c.zone)).map(x=>`<option>${x}</option>`).join("");
+    document.getElementById("drProject").dataset.loaded="1";
+  }
+  loadDailyReport();
+}
+async function loadDailyReport(){
+  try{
+    const d=await api("/hr/daily-report?"+dailyQuery()), rows=d.rows, keys=rows.length?Object.keys(rows[0]).filter(k=>!k.startsWith("_")):[];
+    document.getElementById("drHead").innerHTML=keys.length?'<tr>'+keys.map(k=>`<th>${k}</th>`).join("")+'</tr>':'';
+    document.getElementById("drBody").innerHTML=rows.map(r=>`<tr style="background:${r._target_state==="OVER"?'#effcf4':r._target_state==="PENDING"?'#fff1f1':'transparent'}">`+keys.map(k=>`<td>${r[k]??'—'}</td>`).join("")+'</tr>').join("")||'<tr><td>لا توجد نتائج</td></tr>';
+    document.getElementById("drSummary").innerHTML=`<div class="metric"><b>${d.summary.couriers}</b><span>السائقون</span></div><div class="metric trend"><b>${d.summary.logged}</b><span>سجلوا</span></div><div class="metric alert"><b>${d.summary.not_logged}</b><span>لم يسجلوا</span></div><div class="metric"><b>${d.summary.orders}</b><span>الطلبات</span></div>`;
+  }catch(e){document.getElementById("drBody").innerHTML='<tr><td>تعذّر تحميل التقرير</td></tr>'}
+}
+async function downloadDailyReport(){
+  const r=await fetch("/hr/daily-report/export?"+dailyQuery(),{headers:{Authorization:"Bearer "+TOKEN}});if(!r.ok){alert("تعذّر التنزيل");return}const b=await r.blob(),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="تقرير-الإنجاز-اليومي.csv";a.click();URL.revokeObjectURL(a.href);
 }
 function viewLogs(id){
   const sel=document.getElementById("logCourier");

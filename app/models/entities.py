@@ -18,6 +18,12 @@ class UserRole(str, enum.Enum):
     MERCHANT = "MERCHANT"
     COURIER = "COURIER"
     COMPANY = "COMPANY"        # مسؤول شركة لوجستية
+    COMPANY_ADMIN = "COMPANY_ADMIN"  # مدير نظام داخل الشركة
+    OPERATIONS = "OPERATIONS"  # مدير تشغيل
+    HR = "HR"                  # موارد بشرية
+    ACCOUNTANT = "ACCOUNTANT"  # محاسب / رواتب
+    VIEWER = "VIEWER"          # مشاهدة فقط
+    PROJECT_MANAGER = "PROJECT_MANAGER"
     SUPERVISOR = "SUPERVISOR"  # مشرف على مجموعة مناديب داخل الشركة
     DOU_OPS = "DOU_OPS"        # فريق Dou الداخلي
     DOU_ADMIN = "DOU_ADMIN"    # مدير المنصة
@@ -83,6 +89,7 @@ class Tenant(Base):
     due_date = Column(DateTime)                       # تاريخ استحقاق الفاتورة القادم
     subscription_status = Column(String(20), default="ACTIVE")  # ACTIVE / OVERDUE / SUSPENDED
     last_paid_at = Column(DateTime)
+    last_activity_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     fleets = relationship("Fleet", back_populates="tenant")
@@ -133,7 +140,17 @@ class Courier(Base):
     employment_status = Column(String(20), default="ACTIVE")  # ACTIVE / SUSPENDED / TERMINATED
     hired_at = Column(DateTime, default=datetime.utcnow)      # تاريخ التعيين
     bank_iban = Column(String(34))                   # IBAN لتحويل الراتب
+    nationality = Column(String(60))                # جنسية المندوب
+    iqama_number = Column(String(40))
+    emergency_name = Column(String(120))
+    emergency_phone = Column(String(40))
+    passport_number = Column(String(40))
+    passport_expiry = Column(Date)
+    insurance_expiry = Column(Date)
+    inspection_expiry = Column(Date)
+    work_permit_expiry = Column(Date)
     supervisor_id = Column(Integer, ForeignKey("users.id"))  # المشرف المسؤول عن المندوب
+    primary_project_id = Column(Integer, ForeignKey("projects.id"))  # المشروع الأساسي
     platform = Column(String(60))                    # المنصة/المشروع الرئيسي (هنقرستيشن/جاهز/...)
     platform_courier_id = Column(String(60))         # كود/ID المندوب داخل المنصة الخارجية
     iqama_expiry = Column(Date)                      # موعد انتهاء الإقامة
@@ -145,11 +162,13 @@ class Courier(Base):
     photo_url = Column(String(300))                  # صورة المندوب
     is_on_leave = Column(Boolean, default=False)     # في إجازة اليوم
     shift_started_at = Column(DateTime)              # بداية الوردية الحية
+    shift_preference = Column(String(120))           # الوردية المعتمدة/المطلوبة
     created_at = Column(DateTime, default=datetime.utcnow)
 
     tenant = relationship("Tenant", back_populates="couriers")
     fleet = relationship("Fleet", back_populates="couriers")
     supervisor = relationship("User", foreign_keys=[supervisor_id])
+    primary_project = relationship("Project", foreign_keys=[primary_project_id])
 
 
 class Merchant(Base):
@@ -257,6 +276,9 @@ class User(Base):
     country = Column(Enum(Country))
     is_active = Column(Boolean, default=True)
     token_version = Column(Integer, default=0)   # يزداد عند تسجيل الخروج الجماعي = تبطل كل التوكنات
+    last_login_at = Column(DateTime)
+    custom_permissions = Column(Text)            # JSON permissions override
+    managed_project_ids = Column(Text)           # JSON list for project managers
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -363,6 +385,7 @@ class Contract(Base):
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"))
     fleet_id = Column(Integer, ForeignKey("fleets.id"))
+    project_id = Column(Integer, ForeignKey("projects.id"))
     name = Column(String(120), nullable=False)
     contract_type = Column(String(20), default="FIXED")   # FIXED / PER_DELIVERY
     duration_months = Column(Integer, default=12)
@@ -434,6 +457,7 @@ class Project(Base):
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     name = Column(String(120), nullable=False)
+    manager_id = Column(Integer, ForeignKey("users.id"))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -483,6 +507,20 @@ class LeaveRequest(Base):
     admin_id = Column(Integer, ForeignKey("users.id"))         # الأدمن الذي وافق أخيراً
     supervisor_comment = Column(String(300))
     admin_comment = Column(String(300))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SupervisorAssignmentRequest(Base):
+    """طلب من المشرف لضم سائق لمجموعته، ولا يُنفذ إلا بعد موافقة إدارة الشركة."""
+    __tablename__ = "supervisor_assignment_requests"
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    supervisor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
+    status = Column(String(20), default="PENDING")
+    note = Column(String(300))
+    reviewed_by = Column(Integer, ForeignKey("users.id"))
+    reviewed_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -540,4 +578,104 @@ class CourierRating(Base):
     month = Column(String(7), nullable=False)         # "2026-08"
     score = Column(Float, default=0)                  # 1-5
     comment = Column(String(300))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SubscriptionPlan(Base):
+    __tablename__ = "subscription_plans"
+    id = Column(Integer, primary_key=True)
+    code = Column(String(30), unique=True, nullable=False)
+    name = Column(String(80), nullable=False)
+    monthly_price = Column(Float, default=0)
+    max_couriers = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AdminAuditLog(Base):
+    __tablename__ = "admin_audit_logs"
+    id = Column(Integer, primary_key=True)
+    actor_id = Column(Integer, ForeignKey("users.id"))
+    actor_name = Column(String(120))
+    action = Column(Text, nullable=False)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"))
+    entity = Column(String(50))
+    entity_id = Column(Integer)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SubscriptionPayment(Base):
+    """دفعة اشتراك مسجلة يدويًا أو إلكترونيًا مع مرجع قابل للمراجعة."""
+    __tablename__ = "subscription_payments"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    payment_method = Column(String(30), default="CASH")
+    paid_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    period_months = Column(Integer, default=1)
+    reference = Column(String(100))
+    receipt_number = Column(String(60), unique=True, nullable=False)
+    notes = Column(Text)
+    recorded_by_id = Column(Integer, ForeignKey("users.id"))
+    recorded_by_name = Column(String(120))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ProjectTransfer(Base):
+    __tablename__ = "project_transfers"
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
+    from_project_id = Column(Integer, ForeignKey("projects.id"))
+    to_project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    changed_by = Column(Integer, ForeignKey("users.id"))
+    note = Column(String(300))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PayrollAdjustment(Base):
+    __tablename__ = "payroll_adjustments"
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
+    month = Column(String(7), nullable=False)
+    kind = Column(String(30), nullable=False)  # ABSENCE/LATE/ADVANCE/DEDUCTION/VIOLATION/OVERTIME
+    amount = Column(Float, default=0)
+    note = Column(String(300))
+    created_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class EmployeeRequest(Base):
+    __tablename__ = "employee_requests"
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
+    request_type = Column(String(30), nullable=False)  # ADVANCE/SHIFT_CHANGE/PROJECT_TRANSFER/MAINTENANCE/INCIDENT
+    title = Column(String(160))
+    details = Column(Text)
+    amount = Column(Float)
+    requested_project_id = Column(Integer, ForeignKey("projects.id"))
+    status = Column(String(20), default="PENDING")
+    reviewed_by = Column(Integer, ForeignKey("users.id"))
+    review_note = Column(String(300))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    reviewed_at = Column(DateTime)
+
+
+class CourierDocumentSubmission(Base):
+    """ملف مستند يرفعه السائق ويظل معلقًا لحين مراجعة الشركة."""
+    __tablename__ = "courier_document_submissions"
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False, index=True)
+    document_type = Column(String(40), nullable=False)
+    filename = Column(String(180), nullable=False)
+    mime_type = Column(String(80), nullable=False)
+    file_data = Column(Text, nullable=False)
+    status = Column(String(20), default="PENDING")
+    review_note = Column(String(300))
+    reviewed_by = Column(Integer, ForeignKey("users.id"))
+    reviewed_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)

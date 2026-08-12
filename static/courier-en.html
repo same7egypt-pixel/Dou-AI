@@ -262,11 +262,7 @@ async function api(path, opts={}){
 }
 async function silentLogin(){
   if(TOKEN) return;
-  try{
-    const res = await api("/auth/login", {method:"POST", body:JSON.stringify({phone:"966551112233", password:"dou123456"})});
-    TOKEN = res.access_token;
-    localStorage.setItem("dou_token_courier", TOKEN); localStorage.setItem("dou_role", res.role);
- }catch(e){ console.warn("auto-login failed", e); }
+  location.href="/static/courier.html";
  }
  function logout(){
    TOKEN = null; localStorage.removeItem("dou_token_courier"); localStorage.removeItem("dou_token"); location.reload();

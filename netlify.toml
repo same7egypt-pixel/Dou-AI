@@ -1,0 +1,56 @@
+[build]
+  publish = "static"
+
+# حافظ على نفس روابط Render داخل صفحات الواجهة المنشورة على Netlify.
+[[redirects]]
+  from = "/static/*"
+  to = "/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/auth/*"
+  to = "https://dou-platform.onrender.com/auth/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/fleet/*"
+  to = "https://dou-platform.onrender.com/fleet/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/hr/*"
+  to = "https://dou-platform.onrender.com/hr/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/couriers/*"
+  to = "https://dou-platform.onrender.com/couriers/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/shifts/*"
+  to = "https://dou-platform.onrender.com/shifts/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/billing/*"
+  to = "https://dou-platform.onrender.com/billing/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/admin/*"
+  to = "https://dou-platform.onrender.com/admin/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/health"
+  to = "https://dou-platform.onrender.com/health"
+  status = 200
+  force = true

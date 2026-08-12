@@ -2,6 +2,7 @@
 الأدمن يدير كل شيء، والمشرف يدير مناديب مجموعته فقط، والمندوب يخدم نفسه."""
 from datetime import datetime, date, timedelta
 import csv, io
+import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
@@ -11,13 +12,150 @@ from ..database import get_db
 from ..models.entities import (
     Attendance, AuditLog, BonusPlan, BroadcastMessage, Contract, Courier, CourierRating,
     DailyLog, LeaveRequest, PerformanceNote, Project, Tenant, User, UserRole,
+    SupervisorAssignmentRequest, ProjectTransfer, PayrollAdjustment, EmployeeRequest, CourierDocumentSubmission,
 )
 from .auth import get_current_user, hash_password
 
 router = APIRouter(prefix="/hr", tags=["hr"])
 
-COMPANY_ROLES = (UserRole.COMPANY, UserRole.DOU_OPS, UserRole.DOU_ADMIN)
+COMPANY_ROLES = (
+    UserRole.COMPANY, UserRole.COMPANY_ADMIN, UserRole.HR,
+    UserRole.DOU_OPS, UserRole.DOU_ADMIN,
+)
 LEAVE_STATUSES = ("PENDING", "SUPERVISOR_APPROVED", "APPROVED", "REJECTED")
+
+
+def calculate_target_bonus(orders: int, target: int, target_bonus: float,
+                           over_target_rate: float) -> dict:
+    """حساب بونص مشروع شهري.
+
+    أقل من التارجت = صفر. عند بلوغ التارجت يستحق المبلغ الأساسي كاملًا،
+    ثم يضاف سعر كل طلب منفذ فوق التارجت.
+    """
+    orders = max(int(orders or 0), 0)
+    target = max(int(target or 0), 0)
+    target_bonus = max(float(target_bonus or 0), 0.0)
+    over_target_rate = max(float(over_target_rate or 0), 0.0)
+    achieved = target > 0 and orders >= target
+    over_orders = max(orders - target, 0) if achieved else 0
+    earned = target_bonus + over_orders * over_target_rate if achieved else 0.0
+    return {
+        "achieved": achieved,
+        "remaining_orders": max(target - orders, 0),
+        "over_orders": over_orders,
+        "earned": round(earned, 2),
+    }
+
+
+def _daily_report_data(db: Session, user: User, selected: date, project_id=None,
+                       nationality=None, zone=None, supervisor_id=None,
+                       log_status=None, target_status=None, attendance_status=None,
+                       employment_status=None, courier_name=None):
+    q = db.query(Courier).filter(Courier.tenant_id == user.tenant_id)
+    if user.role == UserRole.SUPERVISOR:
+        q = q.filter(Courier.supervisor_id == user.id)
+    elif user.role==UserRole.PROJECT_MANAGER:
+        q=q.filter(Courier.primary_project_id.in_(json.loads(user.managed_project_ids or "[]")))
+    elif supervisor_id:
+        q = q.filter(Courier.supervisor_id == int(supervisor_id))
+    if project_id: q = q.filter(Courier.primary_project_id == int(project_id))
+    if nationality: q = q.filter(Courier.nationality == nationality)
+    if zone: q = q.filter(Courier.zone == zone)
+    if employment_status: q = q.filter(Courier.employment_status == employment_status)
+    if courier_name: q = q.filter(Courier.name.ilike(f"%{courier_name}%"))
+    start = date(selected.year, selected.month, 1)
+    day_start = datetime.combine(selected, datetime.min.time())
+    day_end = day_start + timedelta(days=1)
+    projects = {p.id: p.name for p in db.query(Project).filter(Project.tenant_id == user.tenant_id).all()}
+    supervisors = {u.id: u.name for u in db.query(User).filter(User.tenant_id == user.tenant_id).all()}
+    rows = []
+    for c in q.order_by(Courier.name).all():
+        logs = db.query(DailyLog).filter(DailyLog.courier_id == c.id, DailyLog.log_date >= start,
+                                         DailyLog.log_date <= selected).all()
+        day_logs = [x for x in logs if x.log_date == selected]
+        pid = int(project_id) if project_id else c.primary_project_id
+        if pid:
+            day_logs = [x for x in day_logs if x.project_id == pid]
+            project_logs = [x for x in logs if x.project_id == pid]
+        else:
+            project_logs = logs
+        day_orders = sum(x.orders_count or 0 for x in day_logs)
+        month_orders = sum(x.orders_count or 0 for x in project_logs)
+        if log_status == "LOGGED" and not day_logs: continue
+        if log_status == "NOT_LOGGED" and day_logs: continue
+        attendance = db.query(Attendance).filter(Attendance.courier_id == c.id,
+                                                  Attendance.check_in >= day_start,
+                                                  Attendance.check_in < day_end).first()
+        att_status = "حاضر" if attendance else ("إجازة" if c.is_on_leave else "لم يسجل حضور")
+        if attendance_status == "PRESENT" and not attendance: continue
+        if attendance_status == "ABSENT" and (attendance or c.is_on_leave): continue
+        if attendance_status == "LEAVE" and not c.is_on_leave: continue
+        plan = None
+        if pid:
+            plan = db.query(BonusPlan).filter(BonusPlan.tenant_id == c.tenant_id,
+                BonusPlan.project_id == pid, BonusPlan.courier_id == c.id).first()
+            if not plan:
+                plan = db.query(BonusPlan).filter(BonusPlan.tenant_id == c.tenant_id,
+                    BonusPlan.project_id == pid, BonusPlan.courier_id.is_(None)).first()
+        target = plan.target_orders if plan else 0
+        result = calculate_target_bonus(month_orders, target, plan.bonus_amount if plan else 0,
+                                        plan.over_target_rate if plan else 0)
+        state = "OVER" if target and result["achieved"] else "PENDING" if target else "NO_TARGET"
+        if target_status and target_status != state: continue
+        hours = 0
+        if attendance and attendance.check_out:
+            hours = round((attendance.check_out - attendance.check_in).total_seconds()/3600, 1)
+        rows.append({
+            "المندوب": c.name, "الجنسية": c.nationality or "—", "المدينة": c.zone or "—",
+            "المشرف": supervisors.get(c.supervisor_id, "—"), "المشروع": projects.get(pid, c.platform or "—"),
+            "طلبات اليوم": day_orders, "حالة التسجيل": "سجل" if day_logs else "لم يسجل",
+            "طلبات الشهر": month_orders, "التارجت": target or "—",
+            "حالة التارجت": (f"زائد {result['over_orders']}" if state == "OVER" else f"متبقي {result['remaining_orders']}" if state == "PENDING" else "بدون تارجت"),
+            "البونص المستحق": result["earned"], "الحضور": att_status,
+            "دخول": attendance.check_in.strftime("%H:%M") if attendance else "—",
+            "خروج": attendance.check_out.strftime("%H:%M") if attendance and attendance.check_out else "—",
+            "ساعات العمل": hours, "ملاحظات اليوم": " | ".join(x.notes for x in day_logs if x.notes) or "—",
+            "_target_state": state,
+        })
+    total_orders = sum(r["طلبات اليوم"] for r in rows)
+    return {"date": selected.isoformat(), "rows": rows, "summary": {
+        "couriers": len(rows), "logged": sum(r["حالة التسجيل"] == "سجل" for r in rows),
+        "not_logged": sum(r["حالة التسجيل"] == "لم يسجل" for r in rows),
+        "orders": total_orders, "average": round(total_orders / len(rows), 1) if rows else 0,
+        "top": max(rows, key=lambda r: r["طلبات اليوم"])["المندوب"] if rows else "—",
+    }}
+
+
+@router.get("/daily-report")
+def daily_report(report_date: date = None, project_id: int = None, nationality: str = None,
+                 zone: str = None, supervisor_id: int = None, log_status: str = None,
+                 target_status: str = None, attendance_status: str = None,
+                 employment_status: str = None, courier_name: str = None,
+                 user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES + (UserRole.OPERATIONS, UserRole.SUPERVISOR, UserRole.PROJECT_MANAGER):
+        raise HTTPException(403, "Not allowed")
+    return _daily_report_data(db, user, report_date or date.today(), project_id, nationality, zone,
+                              supervisor_id, log_status, target_status, attendance_status,
+                              employment_status, courier_name)
+
+
+@router.get("/daily-report/export")
+def daily_report_export(report_date: date = None, project_id: int = None, nationality: str = None,
+                        zone: str = None, supervisor_id: int = None, log_status: str = None,
+                        target_status: str = None, attendance_status: str = None,
+                        employment_status: str = None, courier_name: str = None,
+                        user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES + (UserRole.OPERATIONS, UserRole.SUPERVISOR, UserRole.PROJECT_MANAGER):
+        raise HTTPException(403, "Not allowed")
+    chosen = report_date or date.today()
+    data = _daily_report_data(db, user, chosen, project_id, nationality, zone, supervisor_id,
+                              log_status, target_status, attendance_status, employment_status, courier_name)
+    output = io.StringIO(); output.write("\ufeff")
+    rows = [{k: v for k, v in row.items() if not k.startswith("_")} for row in data["rows"]]
+    if rows:
+        writer = csv.DictWriter(output, fieldnames=list(rows[0].keys())); writer.writeheader(); writer.writerows(rows)
+    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="daily-couriers-{chosen.isoformat()}.csv"'})
 
 
 def _log(db: Session, user: User, action: str, entity: str, entity_id: int = None):
@@ -30,12 +168,14 @@ def _log(db: Session, user: User, action: str, entity: str, entity_id: int = Non
 
 def _tenant_couriers(db: Session, user: User):
     """مناديب ضمن نطاق المستخدم: أدمن → كل شركته، مشرف → مجموعته فقط."""
-    if user.role == UserRole.COMPANY:
+    if user.role in (UserRole.COMPANY, UserRole.COMPANY_ADMIN, UserRole.HR):
         q = db.query(Courier).filter(Courier.tenant_id == user.tenant_id)
-    elif user.role in (UserRole.SUPERVISOR, UserRole.DOU_OPS, UserRole.DOU_ADMIN):
+    elif user.role in (UserRole.SUPERVISOR, UserRole.PROJECT_MANAGER, UserRole.DOU_OPS, UserRole.DOU_ADMIN):
         q = db.query(Courier)
         if user.role == UserRole.SUPERVISOR:
             q = q.filter(Courier.supervisor_id == user.id)
+        elif user.role==UserRole.PROJECT_MANAGER:
+            q=q.filter(Courier.tenant_id==user.tenant_id,Courier.primary_project_id.in_(json.loads(user.managed_project_ids or "[]")))
         elif user.tenant_id is not None:
             q = q.filter(Courier.tenant_id == user.tenant_id)
     else:
@@ -59,6 +199,7 @@ def _courier_json(c: Courier, db: Session, month: str = None):
     ).all()
     month_orders = sum(l.orders_count or 0 for l in logs)
     plans = db.query(BonusPlan).filter(
+        BonusPlan.tenant_id == c.tenant_id,
         (BonusPlan.courier_id == c.id) | (BonusPlan.courier_id.is_(None))
     ).all()
     bonus = {"total": 0.0, "details": []}
@@ -67,16 +208,17 @@ def _courier_json(c: Courier, db: Session, month: str = None):
     for p in sorted(plans, key=lambda x: 1 if x.courier_id is None else 0):
         po = sum(l.orders_count or 0 for l in logs if l.project_id == p.project_id)
         pj = db.get(Project, p.project_id)
-        b = 0.0
-        if p.target_orders and po >= p.target_orders:
-            b = p.bonus_amount + (po - p.target_orders) * p.over_target_rate
+        result = calculate_target_bonus(po, p.target_orders, p.bonus_amount, p.over_target_rate)
+        b = result["earned"]
         if p.project_id in covered:
             continue
         covered.add(p.project_id)
         bonus["total"] += b
         bonus["details"].append({
             "project": pj.name if pj else "—", "target": p.target_orders, "orders": po,
-            "earned": round(b, 2), "scope": "courier" if p.courier_id else "project",
+            "earned": b, "scope": "courier" if p.courier_id else "project",
+            "achieved": result["achieved"], "remaining_orders": result["remaining_orders"],
+            "over_orders": result["over_orders"], "over_target_rate": p.over_target_rate,
         })
     ratings = db.query(CourierRating).filter(CourierRating.courier_id == c.id).all()
     avg_rating = round(sum(r.score for r in ratings) / len(ratings), 1) if ratings else None
@@ -97,8 +239,14 @@ def _courier_json(c: Courier, db: Session, month: str = None):
         "iqama_expiry": c.iqama_expiry.isoformat() if c.iqama_expiry else None,
         "license_expiry": c.license_expiry.isoformat() if c.license_expiry else None,
         "vehicle_license_expiry": c.vehicle_license_expiry.isoformat() if c.vehicle_license_expiry else None,
+        "passport_expiry": c.passport_expiry.isoformat() if c.passport_expiry else None,
+        "insurance_expiry": c.insurance_expiry.isoformat() if c.insurance_expiry else None,
+        "inspection_expiry": c.inspection_expiry.isoformat() if c.inspection_expiry else None,
+        "work_permit_expiry": c.work_permit_expiry.isoformat() if c.work_permit_expiry else None,
+        "iqama_number": c.iqama_number, "passport_number": c.passport_number,
+        "emergency_name": c.emergency_name, "emergency_phone": c.emergency_phone,
         "vehicle_type": c.vehicle_type, "vehicle_plate": c.vehicle_plate,
-        "zone": c.zone, "photo_url": c.photo_url,
+        "zone": c.zone, "shift_preference": c.shift_preference, "nationality": c.nationality, "photo_url": c.photo_url,
         "doc_days_left": days_left,
         "doc_status": {k: ("expired" if v is not None and v < 0 else "soon" if v is not None and v <= 7 else "ok" if v is not None else "n/a") for k, v in days_left.items()},
         "employment_status": c.employment_status or "ACTIVE",
@@ -140,7 +288,9 @@ def create_supervisor(payload: dict, user: User = Depends(get_current_user), db:
     phone = phone if phone.startswith("966") else "966" + phone.lstrip("0")
     if db.query(User).filter(User.phone == phone).first():
         raise HTTPException(400, "Phone already registered")
-    password = payload.get("password") or "dou123456"
+    password = str(payload.get("password") or "")
+    if len(password) < 8:
+        raise HTTPException(400, "كلمة مرور المشرف يجب أن تكون 8 أحرف على الأقل")
     sup = User(phone=phone, name=name, password_hash=hash_password(password),
                role=UserRole.SUPERVISOR, tenant_id=user.tenant_id,
                country=None, is_active=True)
@@ -183,18 +333,100 @@ def delete_supervisor(sid: int, user: User = Depends(get_current_user), db: Sess
     return {"ok": True}
 
 
+@router.get("/assignment-candidates")
+def assignment_candidates(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != UserRole.SUPERVISOR:
+        raise HTTPException(403, "Supervisor only")
+    couriers = db.query(Courier).filter(
+        Courier.tenant_id == user.tenant_id,
+        Courier.supervisor_id.is_(None) | (Courier.supervisor_id != user.id),
+    ).order_by(Courier.name).all()
+    return [{
+        "id": c.id, "name": c.name, "phone": c.phone,
+        "platform": c.platform, "current_supervisor": db.get(User, c.supervisor_id).name if c.supervisor_id else None,
+    } for c in couriers]
+
+
+@router.get("/assignment-requests")
+def assignment_requests(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in (COMPANY_ROLES + (UserRole.SUPERVISOR,)):
+        raise HTTPException(403, "Not allowed")
+    q = db.query(SupervisorAssignmentRequest).filter(SupervisorAssignmentRequest.tenant_id == user.tenant_id)
+    if user.role == UserRole.SUPERVISOR:
+        q = q.filter(SupervisorAssignmentRequest.supervisor_id == user.id)
+    return [{
+        "id": r.id, "status": r.status, "note": r.note,
+        "supervisor_id": r.supervisor_id,
+        "supervisor": db.get(User, r.supervisor_id).name if db.get(User, r.supervisor_id) else "—",
+        "courier_id": r.courier_id,
+        "courier": db.get(Courier, r.courier_id).name if db.get(Courier, r.courier_id) else "—",
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+    } for r in q.order_by(SupervisorAssignmentRequest.id.desc()).all()]
+
+
+@router.post("/assignment-requests")
+def request_assignment(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != UserRole.SUPERVISOR:
+        raise HTTPException(403, "Supervisor only")
+    courier = db.get(Courier, payload.get("courier_id"))
+    if not courier or courier.tenant_id != user.tenant_id or courier.supervisor_id == user.id:
+        raise HTTPException(404, "Courier not available")
+    pending = db.query(SupervisorAssignmentRequest).filter(
+        SupervisorAssignmentRequest.supervisor_id == user.id,
+        SupervisorAssignmentRequest.courier_id == courier.id,
+        SupervisorAssignmentRequest.status == "PENDING",
+    ).first()
+    if pending:
+        raise HTTPException(400, "هناك طلب موافقة قائم لهذا السائق")
+    row = SupervisorAssignmentRequest(
+        tenant_id=user.tenant_id, supervisor_id=user.id, courier_id=courier.id,
+        note=(payload.get("note") or "").strip(), status="PENDING",
+    )
+    db.add(row); db.commit(); db.refresh(row)
+    _log(db, user, f"طلب ضم السائق {courier.name} لمجموعته", "assignment", row.id)
+    return {"ok": True, "id": row.id, "status": row.status}
+
+
+@router.post("/assignment-requests/{rid}/decide")
+def decide_assignment(rid: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Company admin only")
+    row = db.get(SupervisorAssignmentRequest, rid)
+    if not row or (user.tenant_id is not None and row.tenant_id != user.tenant_id):
+        raise HTTPException(404, "Assignment request not found")
+    if row.status != "PENDING":
+        raise HTTPException(400, "Request already reviewed")
+    action = payload.get("action")
+    if action not in ("approve", "reject"):
+        raise HTTPException(400, "Invalid action")
+    row.status = "APPROVED" if action == "approve" else "REJECTED"
+    row.reviewed_by = user.id; row.reviewed_at = datetime.utcnow()
+    courier = db.get(Courier, row.courier_id)
+    if action == "approve" and courier:
+        courier.supervisor_id = row.supervisor_id
+        db.query(SupervisorAssignmentRequest).filter(
+            SupervisorAssignmentRequest.courier_id == row.courier_id,
+            SupervisorAssignmentRequest.status == "PENDING",
+            SupervisorAssignmentRequest.id != row.id,
+        ).update({"status": "REJECTED"}, synchronize_session=False)
+    db.commit()
+    _log(db, user, f"{'وافق على' if action == 'approve' else 'رفض'} طلب إسناد السائق", "assignment", row.id)
+    return {"ok": True, "status": row.status}
+
+
 # ===================== الأدمن/المشرف: مشاريع =====================
 
 @router.get("/projects")
 def list_projects(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role not in (COMPANY_ROLES + (UserRole.SUPERVISOR, UserRole.COURIER)):
+    if user.role not in (COMPANY_ROLES + (UserRole.SUPERVISOR, UserRole.PROJECT_MANAGER, UserRole.COURIER)):
         raise HTTPException(403, "Not allowed")
     tenant_id = user.tenant_id
+    c = None
     if user.role == UserRole.COURIER and user.courier_id:
         c = db.get(Courier, user.courier_id)
         tenant_id = c.tenant_id if c else tenant_id
     q = db.query(Project).filter(Project.tenant_id == tenant_id) if tenant_id else db.query(Project)
-    return [{"id": p.id, "name": p.name, "is_active": p.is_active} for p in q.all()]
+    return [{"id": p.id, "name": p.name, "is_active": p.is_active,"is_current":bool(c and c.primary_project_id==p.id),"manager_id":p.manager_id,"manager":db.get(User,p.manager_id).name if p.manager_id and db.get(User,p.manager_id) else None} for p in q.all()]
 
 
 @router.post("/projects")
@@ -204,11 +436,125 @@ def create_project(payload: dict, user: User = Depends(get_current_user), db: Se
     name = (payload.get("name") or "").strip()
     if not name:
         raise HTTPException(400, "Project name required")
-    p = Project(tenant_id=user.tenant_id, name=name)
+    manager_id=payload.get("manager_id")
+    manager=db.get(User,int(manager_id)) if manager_id else None
+    if manager and manager.tenant_id!=user.tenant_id: raise HTTPException(400,"مدير المشروع غير تابع للشركة")
+    p = Project(tenant_id=user.tenant_id, name=name, manager_id=manager.id if manager else None)
     db.add(p)
     db.commit()
     db.refresh(p)
     return {"ok": True, "id": p.id, "name": p.name}
+
+@router.post("/couriers/{cid}/transfer-project")
+def transfer_project(cid:int,payload:dict,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    if user.role not in COMPANY_ROLES: raise HTTPException(403,"Admin only")
+    c=_tenant_couriers(db,user).filter(Courier.id==cid).first(); p=db.get(Project,int(payload.get("project_id") or 0))
+    if not c or not p or p.tenant_id!=user.tenant_id: raise HTTPException(404,"Courier or project not found")
+    db.add(ProjectTransfer(tenant_id=user.tenant_id,courier_id=cid,from_project_id=c.primary_project_id,to_project_id=p.id,changed_by=user.id,note=payload.get("note")))
+    c.primary_project_id=p.id;c.platform=p.name;db.commit();return {"ok":True}
+
+@router.get("/couriers/{cid}/project-history")
+def project_history(cid:int,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    if not _tenant_couriers(db,user).filter(Courier.id==cid).first(): raise HTTPException(404,"Courier not found")
+    names={p.id:p.name for p in db.query(Project).filter(Project.tenant_id==user.tenant_id).all()}
+    return [{"from":names.get(x.from_project_id,"—"),"to":names.get(x.to_project_id,"—"),"note":x.note,"date":x.created_at.isoformat()} for x in db.query(ProjectTransfer).filter(ProjectTransfer.courier_id==cid).order_by(ProjectTransfer.id.desc()).all()]
+
+@router.get("/adjustments")
+def adjustments(month:str=None,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    if user.role not in COMPANY_ROLES: raise HTTPException(403,"Not allowed")
+    q=db.query(PayrollAdjustment).filter(PayrollAdjustment.tenant_id==user.tenant_id)
+    if month:q=q.filter(PayrollAdjustment.month==month)
+    return [{"id":x.id,"courier_id":x.courier_id,"courier":db.get(Courier,x.courier_id).name,"month":x.month,"kind":x.kind,"amount":x.amount,"note":x.note} for x in q.order_by(PayrollAdjustment.id.desc()).all()]
+
+@router.post("/adjustments")
+def add_adjustment(payload:dict,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    if user.role not in COMPANY_ROLES: raise HTTPException(403,"Not allowed")
+    c=_tenant_couriers(db,user).filter(Courier.id==int(payload.get("courier_id") or 0)).first()
+    if not c:raise HTTPException(404,"Courier not found")
+    x=PayrollAdjustment(tenant_id=user.tenant_id,courier_id=c.id,month=payload.get("month") or date.today().strftime("%Y-%m"),kind=payload.get("kind"),amount=float(payload.get("amount") or 0),note=payload.get("note"),created_by=user.id);db.add(x);db.commit();return {"ok":True}
+
+@router.get("/employee-requests")
+def employee_requests(user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    if user.role==UserRole.COURIER:q=db.query(EmployeeRequest).filter(EmployeeRequest.courier_id==user.courier_id)
+    elif user.role in COMPANY_ROLES+(UserRole.SUPERVISOR,):q=db.query(EmployeeRequest).filter(EmployeeRequest.courier_id.in_([c.id for c in _tenant_couriers(db,user).all()]))
+    else:raise HTTPException(403,"Not allowed")
+    return [{"id":x.id,"courier":db.get(Courier,x.courier_id).name,"request_type":x.request_type,"title":x.title,"details":x.details,"amount":x.amount,"status":x.status,"created_at":x.created_at.isoformat()} for x in q.order_by(EmployeeRequest.id.desc()).all()]
+
+@router.post("/employee-requests")
+def create_employee_request(payload:dict,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    c=_my_courier(user,db); typ=payload.get("request_type")
+    if typ not in ("ADVANCE","SHIFT_CHANGE","PROJECT_TRANSFER","MAINTENANCE","INCIDENT"):raise HTTPException(400,"Invalid request type")
+    requested_project_id=payload.get("project_id")
+    if typ=="PROJECT_TRANSFER":
+        p=db.get(Project,int(requested_project_id or 0))
+        if not p or p.tenant_id!=c.tenant_id:raise HTTPException(400,"اختر مشروعًا صحيحًا تابعًا لشركتك")
+        requested_project_id=p.id
+    x=EmployeeRequest(tenant_id=c.tenant_id,courier_id=c.id,request_type=typ,title=payload.get("title"),details=payload.get("details"),amount=float(payload.get("amount") or 0) or None,requested_project_id=requested_project_id);db.add(x);db.commit();return {"ok":True,"id":x.id}
+
+@router.post("/employee-requests/{rid}/decide")
+def decide_employee_request(rid:int,payload:dict,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    if user.role not in COMPANY_ROLES+(UserRole.SUPERVISOR,):raise HTTPException(403,"Not allowed")
+    x=db.get(EmployeeRequest,rid)
+    if not x or not _tenant_couriers(db,user).filter(Courier.id==x.courier_id).first():raise HTTPException(404,"Request not found")
+    if x.status in ("APPROVED","REJECTED"):raise HTTPException(400,"تم اتخاذ قرار نهائي على هذا الطلب بالفعل")
+    approve=payload.get("action")=="approve"
+    if approve and user.role==UserRole.SUPERVISOR and x.request_type in ("ADVANCE","PROJECT_TRANSFER"):
+        x.status="SUPERVISOR_APPROVED";x.reviewed_by=user.id;x.review_note=payload.get("note");x.reviewed_at=datetime.utcnow();db.commit();return {"ok":True,"status":x.status}
+    x.status="APPROVED" if approve else "REJECTED";x.reviewed_by=user.id;x.review_note=payload.get("note");x.reviewed_at=datetime.utcnow()
+    if approve:
+        courier=db.get(Courier,x.courier_id)
+        if x.request_type=="ADVANCE":
+            if not x.amount or x.amount<=0:raise HTTPException(400,"طلب السلفة لا يحتوي مبلغًا صحيحًا")
+            db.add(PayrollAdjustment(tenant_id=x.tenant_id,courier_id=x.courier_id,month=date.today().strftime("%Y-%m"),kind="ADVANCE",amount=x.amount,note=f"سلفة معتمدة — طلب #{x.id}",created_by=user.id))
+        elif x.request_type=="PROJECT_TRANSFER":
+            project=db.get(Project,x.requested_project_id) if x.requested_project_id else None
+            if not project or project.tenant_id!=x.tenant_id:raise HTTPException(400,"المشروع المطلوب غير صحيح")
+            if courier.primary_project_id!=project.id:db.add(ProjectTransfer(tenant_id=x.tenant_id,courier_id=courier.id,from_project_id=courier.primary_project_id,to_project_id=project.id,changed_by=user.id,note=f"طلب سائق #{x.id}"));courier.primary_project_id=project.id;courier.platform=project.name
+        elif x.request_type=="SHIFT_CHANGE":
+            courier.shift_preference=(x.details or x.title or "وردية معدلة")[:120]
+        elif x.request_type in ("MAINTENANCE","INCIDENT"):
+            courier.is_available=False
+    db.commit();return {"ok":True,"status":x.status}
+
+
+@router.post("/me/documents")
+def upload_my_document(payload:dict,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    c=_my_courier(user,db);data=str(payload.get("file_data") or "")
+    if not data.startswith("data:") or len(data)>1_500_000:raise HTTPException(400,"الملف غير صالح أو أكبر من 1 ميجابايت")
+    typ=payload.get("document_type")
+    if typ not in ("IQAMA","DRIVING_LICENSE","VEHICLE_LICENSE","PASSPORT","INSURANCE","WORK_PERMIT"):raise HTTPException(400,"نوع المستند غير صحيح")
+    row=CourierDocumentSubmission(tenant_id=c.tenant_id,courier_id=c.id,document_type=typ,filename=(payload.get("filename") or "document")[:180],mime_type=(payload.get("mime_type") or "application/octet-stream")[:80],file_data=data,status="PENDING")
+    db.add(row);db.commit();db.refresh(row);return {"ok":True,"id":row.id,"status":row.status}
+
+
+@router.get("/me/documents")
+def my_documents(user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    c=_my_courier(user,db);rows=db.query(CourierDocumentSubmission).filter(CourierDocumentSubmission.courier_id==c.id).order_by(CourierDocumentSubmission.id.desc()).all();return [_document_json(x,db) for x in rows]
+
+
+def _document_json(x,db):
+    c=db.get(Courier,x.courier_id);return {"id":x.id,"courier":c.name if c else "—","document_type":x.document_type,"filename":x.filename,"mime_type":x.mime_type,"status":x.status,"review_note":x.review_note,"created_at":x.created_at.isoformat() if x.created_at else None}
+
+
+@router.get("/documents")
+def company_documents(user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    if user.role not in COMPANY_ROLES+(UserRole.SUPERVISOR,):raise HTTPException(403,"Not allowed")
+    ids=[c.id for c in _tenant_couriers(db,user).all()];rows=db.query(CourierDocumentSubmission).filter(CourierDocumentSubmission.courier_id.in_(ids)).order_by(CourierDocumentSubmission.id.desc()).all();return [_document_json(x,db) for x in rows]
+
+
+@router.get("/documents/{did}/content")
+def document_content(did:int,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    x=db.get(CourierDocumentSubmission,did)
+    if not x or not _tenant_couriers(db,user).filter(Courier.id==x.courier_id).first():raise HTTPException(404,"Document not found")
+    return {"filename":x.filename,"mime_type":x.mime_type,"file_data":x.file_data}
+
+
+@router.post("/documents/{did}/decide")
+def decide_document(did:int,payload:dict,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    if user.role not in COMPANY_ROLES:raise HTTPException(403,"Company approval required")
+    x=db.get(CourierDocumentSubmission,did)
+    if not x or x.tenant_id!=user.tenant_id:raise HTTPException(404,"Document not found")
+    x.status="APPROVED" if payload.get("action")=="approve" else "REJECTED";x.review_note=payload.get("note");x.reviewed_by=user.id;x.reviewed_at=datetime.utcnow();db.commit();return {"ok":True,"status":x.status}
 
 
 # ===================== الأدمن/المشرف: بونص =====================
@@ -250,6 +596,10 @@ def create_bonus(payload: dict, user: User = Depends(get_current_user), db: Sess
         over_target_rate = float(payload.get("over_target_rate") or 0)
     except (ValueError, TypeError):
         raise HTTPException(400, "قيم رقمية غير صالحة في خطة البونص")
+    if target_orders <= 0:
+        raise HTTPException(400, "التارجت يجب أن يكون أكبر من صفر")
+    if bonus_amount < 0 or over_target_rate < 0:
+        raise HTTPException(400, "مبالغ البونص لا يمكن أن تكون سالبة")
     cid = payload.get("courier_id")
     if cid:
         c = db.get(Courier, cid)
@@ -282,11 +632,17 @@ def update_bonus(bid: int, payload: dict, user: User = Depends(get_current_user)
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Admin only")
     p = db.get(BonusPlan, bid)
-    if not p:
+    if not p or (user.tenant_id is not None and p.tenant_id != user.tenant_id):
         raise HTTPException(404, "Bonus plan not found")
-    for k in ("target_orders", "bonus_amount", "over_target_rate"):
-        if k in payload and payload[k] is not None:
-            setattr(p, k, payload[k])
+    try:
+        target = int(payload.get("target_orders", p.target_orders))
+        amount = float(payload.get("bonus_amount", p.bonus_amount))
+        rate = float(payload.get("over_target_rate", p.over_target_rate))
+    except (ValueError, TypeError):
+        raise HTTPException(400, "قيم رقمية غير صالحة في خطة البونص")
+    if target <= 0 or amount < 0 or rate < 0:
+        raise HTTPException(400, "راجع التارجت ومبالغ البونص")
+    p.target_orders, p.bonus_amount, p.over_target_rate = target, amount, rate
     db.commit()
     return {"ok": True}
 
@@ -296,7 +652,7 @@ def delete_bonus(bid: int, user: User = Depends(get_current_user), db: Session =
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Admin only")
     p = db.get(BonusPlan, bid)
-    if not p:
+    if not p or (user.tenant_id is not None and p.tenant_id != user.tenant_id):
         raise HTTPException(404, "Bonus plan not found")
     db.delete(p)
     db.commit()
@@ -394,16 +750,32 @@ def hr_update_courier(cid: int, payload: dict, user: User = Depends(get_current_
     mine = _tenant_couriers(db, user).filter(Courier.id == cid).first()
     if not mine:
         raise HTTPException(403, "This courier is not in your group")
+    if "primary_project_id" in payload:
+        project_id = payload.get("primary_project_id")
+        project = db.get(Project, int(project_id)) if project_id else None
+        if project and project.tenant_id != user.tenant_id:
+            raise HTTPException(400, "المشروع غير تابع للشركة")
+        if user.role == UserRole.SUPERVISOR and project_id:
+            raise HTTPException(403, "تغيير مشروع السائق يحتاج موافقة إدارة الشركة")
+        old_project_id = c.primary_project_id
+        if project and old_project_id != project.id:
+            db.add(ProjectTransfer(tenant_id=user.tenant_id, courier_id=c.id,
+                                   from_project_id=old_project_id, to_project_id=project.id,
+                                   changed_by=user.id, note="تعديل من ملف السائق"))
+        c.primary_project_id = project.id if project else None
+        c.platform = project.name if project else None
     allowed = {
         "platform", "platform_courier_id", "iqama_expiry", "license_expiry",
-        "vehicle_license_expiry", "vehicle_type", "vehicle_plate", "zone",
+        "vehicle_license_expiry", "passport_expiry", "insurance_expiry", "inspection_expiry", "work_permit_expiry",
+        "vehicle_type", "vehicle_plate", "zone", "nationality", "iqama_number", "passport_number",
+        "emergency_name", "emergency_phone",
         "photo_url", "is_on_leave", "supervisor_id", "employment_status",
         "base_salary", "per_delivery_rate", "bank_iban", "name",
     }
     changed = []
     for k, v in payload.items():
         if k in allowed and v is not None:
-            if k in ("iqama_expiry", "license_expiry", "vehicle_license_expiry"):
+            if k in ("iqama_expiry", "license_expiry", "vehicle_license_expiry", "passport_expiry", "insurance_expiry", "inspection_expiry", "work_permit_expiry"):
                 try:
                     v = date.fromisoformat(v)
                 except (ValueError, TypeError):
@@ -429,6 +801,8 @@ def add_note(cid: int, payload: dict, user: User = Depends(get_current_user), db
     c = db.get(Courier, cid)
     if not c:
         raise HTTPException(404, "Courier not found")
+    if not _tenant_couriers(db, user).filter(Courier.id == cid).first():
+        raise HTTPException(403, "This courier is not in your group")
     note = (payload.get("note") or "").strip()
     if not note:
         raise HTTPException(400, "Note required")
@@ -451,6 +825,8 @@ def courier_notes(cid: int, user: User = Depends(get_current_user), db: Session 
 def rate_courier(cid: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in (COMPANY_ROLES + (UserRole.SUPERVISOR,)):
         raise HTTPException(403, "Not allowed")
+    if not _tenant_couriers(db, user).filter(Courier.id == cid).first():
+        raise HTTPException(403, "This courier is not in your group")
     month = payload.get("month") or date.today().strftime("%Y-%m")
     try:
         score = float(payload.get("score") or 0)
@@ -612,15 +988,18 @@ def add_daily_log(payload: dict, user: User = Depends(get_current_user), db: Ses
     project_id = payload.get("project_id")
     if project_id is None:
         raise HTTPException(400, "project_id required")
-    if not db.get(Project, project_id):
+    project=db.get(Project, int(project_id))
+    if not project or project.tenant_id!=c.tenant_id:
         raise HTTPException(404, "Project not found")
+    if c.primary_project_id and project.id!=c.primary_project_id:
+        raise HTTPException(403,"يمكنك تسجيل الطلبات على مشروعك الحالي فقط")
     row = db.query(DailyLog).filter(DailyLog.courier_id == c.id, DailyLog.log_date == log_date,
-                                    DailyLog.project_id == project_id).first()
+                                    DailyLog.project_id == project.id).first()
     if row:
         row.orders_count = orders
         row.notes = payload.get("notes") or row.notes
     else:
-        row = DailyLog(courier_id=c.id, tenant_id=c.tenant_id, project_id=project_id,
+        row = DailyLog(courier_id=c.id, tenant_id=c.tenant_id, project_id=project.id,
                        log_date=log_date, orders_count=orders, notes=payload.get("notes"))
         db.add(row)
     db.commit()
@@ -641,17 +1020,24 @@ def my_logs(user: User = Depends(get_current_user), db: Session = Depends(get_db
     month_orders = sum(l.orders_count or 0 for l in cur_logs)
     today_orders = sum(l.orders_count or 0 for l in cur_logs if l.log_date == today)
     plans = db.query(BonusPlan).filter(
+        BonusPlan.tenant_id == c.tenant_id,
         (BonusPlan.courier_id == c.id) | (BonusPlan.courier_id.is_(None))
     ).all()
     bonus = 0.0
+    bonus_details = []
     covered = set()
     for p in sorted(plans, key=lambda x: 1 if x.courier_id is None else 0):
         if p.project_id in covered:
             continue
         covered.add(p.project_id)
         po = sum(l.orders_count or 0 for l in cur_logs if l.project_id == p.project_id)
-        if p.target_orders and po >= p.target_orders:
-            bonus += p.bonus_amount + (po - p.target_orders) * p.over_target_rate
+        result = calculate_target_bonus(po, p.target_orders, p.bonus_amount, p.over_target_rate)
+        bonus += result["earned"]
+        bonus_details.append({
+            "project": projects.get(p.project_id, "—"), "orders": po,
+            "target": p.target_orders, "target_bonus": p.bonus_amount,
+            "over_target_rate": p.over_target_rate, **result,
+        })
     # الشهور السابقة (آخر 6)
     months = []
     for i in range(1, 7):
@@ -667,6 +1053,7 @@ def my_logs(user: User = Depends(get_current_user), db: Session = Depends(get_db
     return {
         "today": today.isoformat(), "month": cur, "month_orders": month_orders,
         "today_orders": today_orders, "bonus_earned": round(bonus, 2),
+        "bonus_details": bonus_details,
         "per_delivery_rate": c.per_delivery_rate or 0,
         "days": [{"date": l.log_date.isoformat(), "project": projects.get(l.project_id),
                   "orders": l.orders_count, "notes": l.notes} for l in cur_logs],
@@ -730,7 +1117,10 @@ def my_hr(user: User = Depends(get_current_user), db: Session = Depends(get_db))
     today = date.today()
     today_logs = db.query(DailyLog).filter(DailyLog.courier_id == c.id, DailyLog.log_date == today).all()
     j["today_orders"] = sum(l.orders_count or 0 for l in today_logs)
-    j["daily_earnings"] = round(j["today_orders"] * (c.per_delivery_rate or 0), 2)
+    j["orders_earnings"] = round(j["month_orders"] * (c.per_delivery_rate or 0), 2)
+    j["monthly_estimated"] = round(
+        (c.base_salary or 0) + j["orders_earnings"] + (j["bonus"]["total"] or 0), 2
+    )
     return j
 
 
@@ -797,10 +1187,12 @@ def hr_payroll(user: User = Depends(get_current_user), db: Session = Depends(get
         fixed = c.base_salary or 0
         delivery = (j["month_orders"] * (c.per_delivery_rate or 0))
         bonus = j["bonus"]["total"]
-        total = round(fixed + delivery + bonus, 2)
+        adjs=db.query(PayrollAdjustment).filter(PayrollAdjustment.courier_id==c.id,PayrollAdjustment.month==date.today().strftime("%Y-%m")).all()
+        additions=sum(x.amount or 0 for x in adjs if x.kind=="OVERTIME"); deductions=sum(x.amount or 0 for x in adjs if x.kind!="OVERTIME")
+        total = round(fixed + delivery + bonus + additions - deductions, 2)
         rows.append({"id": c.id, "name": c.name, "phone": c.phone, "platform": c.platform or "—",
                      "zone": c.zone, "orders": j["month_orders"], "fixed": round(fixed, 2),
-                     "delivery": round(delivery, 2), "bonus": round(bonus, 2), "total": total,
+                     "delivery": round(delivery, 2), "bonus": round(bonus, 2), "additions":round(additions,2),"deductions":round(deductions,2), "total": total,
                      "average_per_order": round(delivery / j["month_orders"], 2) if j["month_orders"] else 0,
                      "bank_iban": c.bank_iban or "—"})
         grand["fixed"] += fixed; grand["delivery"] += delivery
@@ -859,8 +1251,11 @@ def create_contract(payload: dict, user: User = Depends(get_current_user), db: S
         per_delivery_rate = float(payload.get("per_delivery_rate") or 6)
     except (ValueError, TypeError):
         raise HTTPException(400, "قيم رقمية غير صالحة في العقد")
+    project=db.query(Project).filter(Project.tenant_id==user.tenant_id,Project.name==name).first()
+    if not project: project=Project(tenant_id=user.tenant_id,name=name,is_active=True);db.add(project);db.flush()
     ct = Contract(
         tenant_id=user.tenant_id, name=name,
+        project_id=project.id,
         contract_type=payload.get("contract_type", "FIXED"),
         duration_months=duration_months,
         couriers_count=couriers_count,
@@ -868,7 +1263,8 @@ def create_contract(payload: dict, user: User = Depends(get_current_user), db: S
         per_delivery_rate=per_delivery_rate,
         status="ACTIVE", end_date=end_dt,
     )
-    db.add(ct); db.commit(); db.refresh(ct)
+    db.add(ct)
+    db.commit(); db.refresh(ct)
     _log(db, user, f"أنشأ عقد {name} حتى {end_dt}", "contract", ct.id)
     return {"ok": True, "id": ct.id}
 
@@ -910,7 +1306,7 @@ def hr_violations(user: User = Depends(get_current_user), db: Session = Depends(
         j = _courier_json(c, db)
         flags = {k: False for k in cols}
         expired = [k for k, v in j["doc_days_left"].items() if v is not None and v < 0]
-        soon = [k for k, v in j["doc_days_left"].items() if v is not None and 0 <= v <= 7]
+        soon = [k for k, v in j["doc_days_left"].items() if v is not None and 0 <= v <= 30]
         flags["documents_expired"] = bool(expired)
         flags["documents_soon"] = bool(soon)
         flags["suspended"] = c.employment_status == "SUSPENDED"

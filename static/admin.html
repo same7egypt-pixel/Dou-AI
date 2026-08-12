@@ -142,15 +142,10 @@ input:focus,select:focus{border-color:var(--orange)}
   <div class="brand"><div class="lg">D</div><div><b>DOU</b><small>SUPER ADMIN</small></div></div>
   <div class="group">الإدارة</div>
   <button class="nav active" data-view="dashboard"><i>📊</i><span>لوحة القيادة</span></button>
-  <button class="nav" data-view="merchants"><i>🏪</i><span>كل المتاجر</span><span class="ct" id="ctMerchants">0</span></button>
-  <button class="nav" data-view="channels"><i>🔌</i><span>القنوات</span><span class="ct" id="ctChannels">0</span></button>
-  <button class="nav" data-view="companies"><i>🚚</i><span>شركات التشغيل</span><span class="ct" id="ctCompanies">0</span></button>
-  <button class="nav" data-view="couriers"><i>👤</i><span>المناديب</span><span class="ct" id="ctCouriers">0</span></button>
-  <div class="group">المناطق</div>
-  <button class="nav" data-view="geo"><i>🌍</i><span>الدول والمناطق</span></button>
-  <div class="group">التمويل</div>
-  <button class="nav" data-view="orders"><i>📦</i><span>الطلبات</span></button>
-  <button class="nav" data-view="pricing"><i>💰</i><span>العمولات والأسعار</span></button>
+  <button class="nav" data-view="companies"><i>🏢</i><span>الشركات المشتركة</span><span class="ct" id="ctCompanies">0</span></button>
+  <button class="nav" data-view="plans"><i>💳</i><span>الباقات والأسعار</span></button>
+  <button class="nav" data-view="audit"><i>🛡️</i><span>سجل إدارة DOU</span></button>
+  <button class="nav" data-view="couriers"><i>👤</i><span>كل السائقين</span><span class="ct" id="ctCouriers">0</span></button>
   <div class="group">الشركة</div>
   <button class="nav" data-view="staff"><i>👥</i><span>الفريق والصلاحيات</span></button>
   <button class="nav" data-view="settings"><i>⚙</i><span>إعدادات النظام</span></button>
@@ -165,7 +160,7 @@ input:focus,select:focus{border-color:var(--orange)}
       <button class="iconBtn" style="position:relative" onclick="toggleNotifs(event)">🔔<span class="dot" id="notifBadge">4</span>
         <div class="notifPanel" id="notifPanel"><div id="notifList"></div></div>
       </button>
-      <button class="btn primary small" onclick="go('merchants')">+ متجر جديد</button>
+      <button class="btn primary small" onclick="go('companies')">إدارة الشركات</button>
     </div>
   </header>
   <div class="content">
@@ -173,14 +168,14 @@ input:focus,select:focus{border-color:var(--orange)}
     <!-- ===== DASHBOARD ===== -->
     <section id="view-dashboard">
       <div class="welcome">
-        <div><h1>لوحة قيادة DOU 🚀</h1><p>نظرة شاملة على المنصة كاملة — كل الدول، كل المتاجر، كل العمليات.</p></div>
+        <div><h1>لوحة قيادة DOU 🚀</h1><p>الشركات المشتركة، السائقون، المستخدمون والاشتراكات في مكان واحد.</p></div>
         <div class="quickBtns"><button class="btn ghost" onclick="exportReport('تقرير شامل للمنصة')">⬇ تصدير</button></div>
       </div>
       <div class="kpis">
         <div class="kpi"><div class="top"><i style="background:var(--orange-soft)">💰</i>إجمالي الإيراد</div><b id="kRevenue">–</b><span class="trend up">▲ 18.4%</span></div>
-        <div class="kpi"><div class="top"><i style="background:var(--blue-soft)">📦</i>الطلبات الكلية</div><b id="kOrders">–</b><span class="trend up">▲ 12.1%</span></div>
-        <div class="kpi"><div class="top"><i style="background:var(--green-soft)">🏪</i>متاجر نشطة</div><b id="kMerchants">–</b><span class="trend up">▲ 6 متاجر جديدة</span></div>
-        <div class="kpi"><div class="top"><i style="background:var(--amber-soft)">🛵</i>مناديب</div><b id="kCouriers">–</b><span class="trend up">▲ 3.2%</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--blue-soft)">👥</i>مستخدمو الشركات</div><b id="kOrders">–</b><span class="trend up">حسابات الإدارة</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--green-soft)">🏢</i>شركات نشطة</div><b id="kMerchants">–</b><span class="trend up">اشتراكات DOU</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--amber-soft)">🛵</i>السائقون</div><b id="kCouriers">–</b><span class="trend up">كل الشركات</span></div>
         <div class="kpi"><div class="top"><i style="background:var(--red-soft)">🌍</i>دول نشطة</div><b>2</b><span class="trend up">▲ مصر + السعودية</span></div>
       </div>
       <div class="grid2">
@@ -257,23 +252,30 @@ input:focus,select:focus{border-color:var(--orange)}
     <!-- ===== COMPANIES ===== -->
     <section id="view-companies" style="display:none">
       <div class="welcome">
-        <div><h1>شركات التشغيل والشحن</h1><p>كل شركات التشغيل والشحن الخارجية — فعّل، عطّل، أضف، احذف.</p></div>
-        <div class="quickBtns"><button class="btn primary" onclick="toggleCompanyAdd()">+ شركة جديدة</button></div>
+        <div><h1>الشركات المشتركة</h1><p>الباقات، عدد السائقين والمستخدمين وحالة اشتراك كل شركة.</p></div>
+        <div class="quickBtns"><button class="btn primary" onclick="toggleCompanyAdd()">+ إضافة شركة لوجستية</button></div>
       </div>
       <div class="card" id="companyAddBox" style="display:none;margin-bottom:16px">
-        <h3>شركة جديدة</h3>
+        <h3>إنشاء حساب شركة لوجستية</h3>
         <div class="form-row">
           <input id="ncName" placeholder="اسم الشركة">
-          <input id="ncCode" placeholder="الكود (مثال: DHL)" style="max-width:140px">
+          <input id="ncOwner" placeholder="اسم مالك الحساب">
+          <input id="ncPhone" placeholder="جوال دخول المالك">
+          <input id="ncPassword" type="text" placeholder="كلمة مرور مؤقتة (8 أحرف)">
           <select id="ncCountry"><option value="SA">🇸🇦 السعودية</option><option value="EG">🇪🇬 مصر</option></select>
+          <select id="ncPlan"></select>
+          <input id="ncTrial" type="number" value="14" placeholder="أيام التجربة">
         </div>
         <button class="btn primary" onclick="addCompany()">حفظ الشركة</button><span id="companyAddMsg" class="msg"></span>
       </div>
       <div class="card" style="padding:6px 18px 12px">
-        <table><thead><tr><th>الشركة</th><th>الكود</th><th>الدولة</th><th>الحالة</th><th>إجراء</th></tr></thead>
+        <table><thead><tr><th>الشركة</th><th>الباقة</th><th>السائقون</th><th>آخر استخدام</th><th>الاشتراك</th><th>إجراء</th></tr></thead>
         <tbody id="companiesBody"></tbody></table>
       </div>
+      <div class="card mt" id="companyDetail" style="display:none"></div>
     </section>
+    <section id="view-plans" style="display:none"><div class="welcome"><div><h1>الباقات والأسعار</h1><p>أسعار الاشتراك وحدود السائقين الفعلية.</p></div></div><div class="card"><div class="form-row"><input id="plCode" placeholder="الكود STARTER"><input id="plName" placeholder="اسم الباقة"><input id="plPrice" type="number" placeholder="السعر الشهري"><input id="plLimit" type="number" placeholder="حد السائقين"><select id="plActive"><option value="true">نشطة ومتاحة للبيع</option><option value="false">موقوفة</option></select><button class="btn primary" onclick="savePlan()">حفظ الباقة</button></div><table><thead><tr><th>الباقة</th><th>الكود</th><th>السعر</th><th>حد السائقين</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody id="plansBody"></tbody></table></div></section>
+    <section id="view-audit" style="display:none"><div class="welcome"><div><h1>سجل إدارة DOU</h1><p>الدعم والتعديلات الحساسة على حسابات العملاء.</p></div></div><div class="card"><table><thead><tr><th>الوقت</th><th>المسؤول</th><th>الشركة</th><th>العملية</th></tr></thead><tbody id="auditBody"></tbody></table></div></section>
 
     <!-- ===== COURIERS ===== -->
     <section id="view-couriers" style="display:none">
@@ -421,12 +423,7 @@ input:focus,select:focus{border-color:var(--orange)}
 const API = "";
 let allMerchants = [], allCouriers = [], allCompanies = [], allChannels = [], allStaff = [], allOrders = [], allGeo = [];
 let commTarget = null;
-const NOTIFS = [
-  {ic:"🏪", c:"#e9f0fe", t:"متجر جديد طلب الانضمام: قهوة الديار", s:"قبل 5 دقائق"},
-  {ic:"💰", c:"#e7f6ee", t:"إيراد اليوم تجاوز 20 ألف ر.س", s:"قبل ساعة"},
-  {ic:"⚠️", c:"#fdf3e3", t:"تأخير SLA في الطلب #1199", s:"قبل 2 ساعة"},
-  {ic:"🌍", c:"#ffefe6", t:"مطلوب اعتماد: منطقة جديدة في مصر", s:"قبل 3 ساعات"}
-];
+let NOTIFS = [];
 const WEEK = ["السبت","الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة"];
 const WEEK_VALS = [48,62,55,78,70,86,94];
 
@@ -453,20 +450,23 @@ function barChart(elId, vals, color){
     <div class="col"><span class="v">${v}</span><i style="height:${Math.round(v/max*100)}%;background:${color||"linear-gradient(180deg,#ff8a55,var(--orange))"}"></i><small>${WEEK[i]}</small></div>`).join("");
  }
 
-function logout(){
-  localStorage.removeItem("dou_token_admin"); localStorage.removeItem("dou_token"); sessionStorage.removeItem("dou_admin_key"); location.reload();
+async function logout(){
+  const old=ADMIN_TOKEN;try{if(old)await fetch('/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+old}})}catch(_e){}
+  localStorage.removeItem("dou_token_admin"); localStorage.removeItem("dou_token"); localStorage.removeItem("dou_role"); sessionStorage.removeItem("dou_admin_key"); location.reload();
 }
 
 function go(v){
   document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
-  const views = ["dashboard","merchants","channels","companies","couriers","geo","orders","pricing","staff","settings"];
+  const views = ["dashboard","merchants","channels","companies","plans","audit","couriers","geo","orders","pricing","staff","settings"];
   views.forEach(x=>document.getElementById("view-"+x).style.display = x===v?"block":"none");
-  const names = {dashboard:"لوحة القيادة",merchants:"كل المتاجر",channels:"القنوات",companies:"شركات التشغيل",couriers:"المناديب",geo:"الدول والمناطق",orders:"الطلبات",pricing:"العمولات والأسعار",staff:"الفريق والصلاحيات",settings:"إعدادات النظام"};
+  const names = {dashboard:"لوحة القيادة",merchants:"كل المتاجر",channels:"القنوات",companies:"شركات التشغيل",plans:"الباقات والأسعار",audit:"سجل إدارة DOU",couriers:"المناديب",geo:"الدول والمناطق",orders:"الطلبات",pricing:"العمولات والأسعار",staff:"الفريق والصلاحيات",settings:"إعدادات النظام"};
   document.getElementById("crumb").textContent = names[v];
   if(v==="dashboard") loadDashboard();
   if(v==="merchants") loadMerchants();
   if(v==="channels") loadChannels();
   if(v==="companies") loadCompanies();
+  if(v==="plans") loadPlans();
+  if(v==="audit") loadAudit();
   if(v==="couriers") loadCouriers();
   if(v==="geo") loadGeo();
   if(v==="orders") loadOrders();
@@ -511,29 +511,23 @@ function closeModal(id){ document.getElementById(id).classList.remove("open"); }
 
 /* ===== DASHBOARD ===== */
 async function loadDashboard(){
-  const [merchants, couriers, orders, channels] = await Promise.all([
-    api("/admin/merchants"), api("/admin/couriers"), api("/orders"), api("/admin/channels")
-  ]);
-  allMerchants = merchants; allCouriers = couriers; allOrders = orders; allChannels = channels;
-  document.getElementById("kRevenue").textContent = orders.reduce((s,o)=>s+o.total,0).toLocaleString()+" ر.س";
-  document.getElementById("kOrders").textContent = orders.length;
-  document.getElementById("kMerchants").textContent = merchants.filter(m=>m.is_active!==false).length;
+  const [tenants, couriers,alerts] = await Promise.all([api("/admin/tenants"), api("/admin/couriers"),api("/admin/subscription-alerts")]);
+  NOTIFS=alerts.map(x=>({ic:"⚠️",c:x.status==="SUSPENDED"?"#fee2e2":"#fdf3e3",t:x.company+" — "+x.status,s:x.days_left===null?"بدون تاريخ استحقاق":x.days_left+" يوم متبقٍ"}));document.getElementById("notifBadge").textContent=NOTIFS.length;document.getElementById("notifBadge").style.display=NOTIFS.length?"block":"none";
+  allCompanies = tenants; allCouriers = couriers;
+  document.getElementById("kRevenue").textContent = tenants.reduce((s,t)=>s+(t.monthly_fee||0),0).toLocaleString()+" ر.س";
+  document.getElementById("kOrders").textContent = tenants.reduce((s,t)=>s+(t.users_count||0),0);
+  document.getElementById("kMerchants").textContent = tenants.filter(t=>t.subscription_status!=="SUSPENDED").length;
   document.getElementById("kCouriers").textContent = couriers.length;
-  document.getElementById("ctMerchants").textContent = merchants.length;
-  document.getElementById("ctChannels").textContent = channels.length;
-  document.getElementById("ctCompanies").textContent = allCompanies.length;
+  document.getElementById("ctCompanies").textContent = tenants.length;
   document.getElementById("ctCouriers").textContent = couriers.length;
   barChart("weekChart", WEEK_VALS);
-  document.getElementById("channelShare").innerHTML = channels.filter(c=>c.is_active).map(c=>`
-    <div class="chartRow"><span class="lbl">${c.icon} ${c.name}</span><div class="bar"><i style="width:${c.orders_share}%;background:${c.type==="OWN"?"var(--orange)":"var(--blue)"}"></i></div><span class="val">${c.orders_share}%</span></div>`).join("");
-  document.getElementById("recentMerchants").innerHTML = merchants.slice(-4).reverse().map((m,i)=>
-    `<div class="row"><span class="statusDot" style="width:8px;height:8px;border-radius:50%;background:${m.is_active!==false?"var(--green)":"var(--red)"}"></span>
-    <div><b>${m.name}</b><small>${m.city} · ${countryTag(m.country)}</small></div></div>`).join("");
-  const sa = merchants.filter(m=>m.country==="SA").length, eg = merchants.filter(m=>m.country==="EG").length;
+  document.getElementById("channelShare").innerHTML = tenants.slice(0,5).map(t=>`<div class="chartRow"><span class="lbl">🏢 ${t.name}</span><div class="bar"><i style="width:${Math.min(100,t.couriers_count*5)}%;background:var(--orange)"></i></div><span class="val">${t.couriers_count} سائق</span></div>`).join("");
+  document.getElementById("recentMerchants").innerHTML = tenants.slice(0,4).map(t=>`<div class="row"><span class="statusDot" style="width:8px;height:8px;border-radius:50%;background:${t.subscription_status!=="SUSPENDED"?"var(--green)":"var(--red)"}"></span><div><b>${t.name}</b><small>${t.plan} · ${t.couriers_count} سائق</small></div></div>`).join("");
+  const sa = tenants.filter(t=>t.country==="SA").length, eg = tenants.filter(t=>t.country==="EG").length;
   const total = sa+eg||1;
   document.getElementById("countrySplit").innerHTML = `
-    <div class="chartRow"><span class="lbl">🇸🇦 السعودية</span><div class="bar"><i style="width:${Math.round(sa/total*100)}%;background:var(--orange)"></i></div><span class="val">${sa} متجر</span></div>
-    <div class="chartRow"><span class="lbl">🇪🇬 مصر</span><div class="bar"><i style="width:${Math.round(eg/total*100)}%;background:var(--blue)"></i></div><span class="val">${eg} متجر</span></div>`;
+    <div class="chartRow"><span class="lbl">🇸🇦 السعودية</span><div class="bar"><i style="width:${Math.round(sa/total*100)}%;background:var(--orange)"></i></div><span class="val">${sa} شركة</span></div>
+    <div class="chartRow"><span class="lbl">🇪🇬 مصر</span><div class="bar"><i style="width:${Math.round(eg/total*100)}%;background:var(--blue)"></i></div><span class="val">${eg} شركة</span></div>`;
 }
 
 /* ===== MERCHANTS ===== */
@@ -553,6 +547,7 @@ function applyMerchantFilter(){
       <td>${m.category||"—"}</td>
       <td>${m.is_active!==false?'<span class="tag green">نشط</span>':'<span class="tag red">موقوف</span>'}</td>
       <td style="white-space:nowrap">
+        <select class="btn ghost small" onchange="setCompanyPlan(${c.id},this.value)"><option>${c.plan}</option><option>STARTER</option><option>GROWTH</option><option>BUSINESS</option><option>ENTERPRISE</option></select>
         <button class="btn ghost small" onclick="toggleMerchant(${m.id})">${m.is_active!==false?"إيقاف":"تفعيل"}</button>
         <button class="btn red small" onclick="deleteMerchant(${m.id})">حذف</button>
       </td>
@@ -628,36 +623,56 @@ async function saveCommission(){
 
 /* ===== COMPANIES ===== */
 async function loadCompanies(){
-  allCompanies = await api("/admin/companies");
+  allCompanies = await api("/admin/tenants");
   document.getElementById("ctCompanies").textContent = allCompanies.length;
   document.getElementById("companiesBody").innerHTML = allCompanies.map(c=>`
     <tr>
-      <td><div style="display:flex;align-items:center;gap:10px"><b>🚚 ${c.name}</b></div></td>
-      <td><span class="tag gray" style="direction:ltr">${c.code}</span></td>
-      <td>${countryTag(c.country)}</td>
-      <td>${c.is_active?'<span class="tag green">نشطة</span>':'<span class="tag red">موقوفة</span>'}</td>
+      <td><div style="display:flex;align-items:center;gap:10px"><b>🏢 ${c.name}</b></div><small>${countryTag(c.country)}</small></td>
+      <td><span class="tag blue">${c.plan}</span><small>${c.monthly_fee||0} ر.س · حد ${c.max_couriers||'∞'}</small></td><td>${c.couriers_count}</td><td><small>${c.last_activity_at?new Date(c.last_activity_at).toLocaleString('ar-SA'):'لم يدخل'}</small></td>
+      <td>${c.subscription_status!=="SUSPENDED"?'<span class="tag green">'+c.subscription_status+'</span>':'<span class="tag red">موقوفة</span>'}</td>
       <td style="white-space:nowrap">
-        <button class="btn ghost small" onclick="toggleCompany(${c.id})">${c.is_active?"إيقاف":"تفعيل"}</button>
-        <button class="btn red small" onclick="deleteCompany(${c.id})">حذف</button>
+        <button class="btn dark small" onclick="openCompany(${c.id})">فتح وإدارة</button>
+        <button class="btn primary small" onclick="supportLogin(${c.id})">دخول دعم آمن</button>
       </td>
     </tr>`).join("");
 }
 function toggleCompanyAdd(){ document.getElementById("companyAddBox").style.display = document.getElementById("companyAddBox").style.display==="none"?"block":"none"; }
 async function addCompany(){
   try{
-    await api("/admin/companies",{method:"POST",body:JSON.stringify({
-      name:document.getElementById("ncName").value, code:document.getElementById("ncCode").value,
-      country:document.getElementById("ncCountry").value})});
-    document.getElementById("companyAddMsg").textContent="✅ تمت إضافة الشركة";
+    await api("/admin/tenants",{method:"POST",body:JSON.stringify({name:document.getElementById("ncName").value,owner_name:document.getElementById("ncOwner").value,owner_phone:document.getElementById("ncPhone").value,password:document.getElementById("ncPassword").value,country:document.getElementById("ncCountry").value,plan:document.getElementById("ncPlan").value,trial_days:+document.getElementById("ncTrial").value||14})});
+    document.getElementById("companyAddMsg").textContent="✅ تم إنشاء الشركة وحساب دخول المالك";
     document.getElementById("companyAddMsg").style.color="var(--green)";
-    loadCompanies();
+    loadCompanies();document.getElementById("companyAddBox").style.display="none";
   }catch(e){ document.getElementById("companyAddMsg").textContent="❌ "+e.message; }
 }
+async function openCompany(id){
+  const c=await api("/admin/tenants/"+id),d=document.getElementById("companyDetail");
+  d.style.display="block";d.innerHTML=`<div class="ph" style="display:flex;justify-content:space-between;align-items:center"><div><h3>🏢 إدارة ${c.name}</h3><small>تعديل بيانات العميل والاشتراك وتسجيل كل دفعة بإيصال</small></div><button class="btn ghost small" onclick="document.getElementById('companyDetail').style.display='none'">إغلاق</button></div>
+  <div class="form-row"><input id="ecName" value="${c.name||''}" placeholder="اسم الشركة"><input id="ecPhone" value="${c.contact_phone||''}" placeholder="جوال التواصل"><input id="ecEmail" type="email" value="${c.contact_email||''}" placeholder="البريد"><select id="ecPlan">${(window.DOU_PLANS||[]).map(p=>`<option value="${p.code}" ${p.code===c.plan?'selected':''}>${p.name}</option>`).join('')}</select></div>
+  <div class="form-row"><input id="ecFee" type="number" value="${c.monthly_fee||0}" placeholder="السعر المتفق عليه"><input id="ecBilling" type="number" min="1" max="28" value="${c.billing_day||1}" placeholder="يوم الفوترة"><input id="ecDue" type="date" value="${c.due_date?c.due_date.slice(0,10):''}"><select id="ecStatus"><option value="ACTIVE" ${c.subscription_status==='ACTIVE'?'selected':''}>نشط</option><option value="OVERDUE" ${c.subscription_status==='OVERDUE'?'selected':''}>متأخر</option><option value="SUSPENDED" ${c.subscription_status==='SUSPENDED'?'selected':''}>موقوف</option></select><button class="btn primary" onclick="saveCompany(${id})">حفظ البيانات</button></div>
+  <div class="panel mt" style="background:var(--soft)"><h3>💵 تسجيل دفعة اشتراك</h3><div class="form-row"><input id="payAmount" type="number" value="${c.monthly_fee||0}" placeholder="المبلغ"><select id="payMethod"><option value="CASH">كاش</option><option value="BANK_TRANSFER">تحويل بنكي</option><option value="CARD">بطاقة</option><option value="OTHER">أخرى</option></select><input id="payDate" type="date" value="${new Date().toISOString().slice(0,10)}"><input id="payMonths" type="number" min="1" value="1" placeholder="عدد الشهور"><input id="payRef" placeholder="مرجع التحويل (اختياري)"><input id="payNotes" placeholder="ملاحظات"><button class="btn primary" onclick="recordPayment(${id})">تسجيل وإصدار إيصال</button></div><div id="payMsg" class="msg"></div></div>
+  <div class="grid2 mt"><div><div style="display:flex;justify-content:space-between;align-items:center"><h3>سجل المدفوعات</h3><button class="btn ghost small" onclick="exportPayments(${id})">تنزيل CSV</button></div><table><thead><tr><th>الإيصال</th><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>الفترة</th></tr></thead><tbody>${c.payments.map(p=>`<tr><td><b>${p.receipt_number}</b></td><td>${new Date(p.paid_at).toLocaleDateString('ar-SA')}</td><td>${p.amount} ر.س</td><td>${paymentLabel(p.payment_method)}</td><td>${p.period_months} شهر</td></tr>`).join('')||'<tr><td colspan="5">لا توجد دفعات مسجلة</td></tr>'}</tbody></table></div><div><h3>حسابات الشركة (${c.users.length})</h3>${c.users.map(u=>`<div class="opt"><div><b>${u.name}</b><small>${u.phone} · ${u.role}</small></div>${u.active?'<span class="tag green">نشط</span>':'<span class="tag red">موقوف</span>'}</div>`).join('')}<div class="opt"><div><b>السائقون</b></div><b>${c.couriers_count}</b></div></div></div>`;
+  d.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function paymentLabel(x){return ({CASH:'كاش',BANK_TRANSFER:'تحويل بنكي',CARD:'بطاقة',OTHER:'أخرى'})[x]||x}
+async function exportPayments(id){const c=await api('/admin/tenants/'+id),rows=[['رقم الإيصال','التاريخ','المبلغ','طريقة الدفع','عدد الشهور','المرجع','الملاحظات'],...c.payments.map(p=>[p.receipt_number,p.paid_at,p.amount,paymentLabel(p.payment_method),p.period_months,p.reference||'',p.notes||''])];const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='DOU-'+c.name+'-payments.csv';a.click();URL.revokeObjectURL(a.href)}
+async function saveCompany(id){await api('/admin/tenants/'+id,{method:'PATCH',body:JSON.stringify({name:document.getElementById('ecName').value,contact_phone:document.getElementById('ecPhone').value,contact_email:document.getElementById('ecEmail').value,plan:document.getElementById('ecPlan').value,monthly_fee:+document.getElementById('ecFee').value,billing_day:+document.getElementById('ecBilling').value,due_date:document.getElementById('ecDue').value,subscription_status:document.getElementById('ecStatus').value})});await loadCompanies();await openCompany(id)}
+async function recordPayment(id){try{const r=await api('/admin/tenants/'+id+'/payments',{method:'POST',body:JSON.stringify({amount:+document.getElementById('payAmount').value,payment_method:document.getElementById('payMethod').value,paid_at:document.getElementById('payDate').value,period_months:+document.getElementById('payMonths').value,reference:document.getElementById('payRef').value,notes:document.getElementById('payNotes').value})});alert('تم تسجيل الدفعة بنجاح\nرقم الإيصال: '+r.receipt_number);await loadCompanies();await openCompany(id)}catch(e){document.getElementById('payMsg').textContent='❌ '+e.message}}
 async function toggleCompany(id){
   const c = allCompanies.find(x=>x.id===id);
-  await api("/admin/companies/"+id,{method:"PATCH",body:JSON.stringify({active: !c.is_active})});
+  await api("/admin/tenants/"+id,{method:"PATCH",body:JSON.stringify({subscription_status:c.subscription_status==="SUSPENDED"?"ACTIVE":"SUSPENDED"})});
   loadCompanies();
 }
+async function setCompanyPlan(id,plan){await api("/admin/tenants/"+id,{method:"PATCH",body:JSON.stringify({plan})});loadCompanies()}
+async function supportLogin(id){
+  if(!confirm("فتح جلسة دعم آمنة لمدة 30 دقيقة؟ سيتم تسجيل العملية."))return;
+  const r=await api("/admin/tenants/"+id+"/support-login",{method:"POST"});
+  localStorage.setItem("dou_token_fleet",r.access_token);localStorage.setItem("dou_role",r.role);window.open("/static/fleet.html","_blank");loadAudit();
+}
+async function loadPlans(){const rows=await api("/admin/plans");window.DOU_PLANS=rows;document.getElementById('ncPlan').innerHTML=rows.filter(p=>p.is_active).map(p=>`<option value="${p.code}">${p.name} — ${p.monthly_price} ر.س</option>`).join('');document.getElementById("plansBody").innerHTML=rows.map(p=>`<tr><td>${p.name}</td><td>${p.code}</td><td>${p.monthly_price} ر.س</td><td>${p.max_couriers||'غير محدود'}</td><td>${p.is_active?'<span class="tag green">نشطة</span>':'<span class="tag red">موقوفة</span>'}</td><td><button class="btn ghost small" onclick="editPlan('${p.code}')">تعديل</button></td></tr>`).join("")}
+function editPlan(code){const p=(window.DOU_PLANS||[]).find(x=>x.code===code);if(!p)return;document.getElementById('plCode').value=p.code;document.getElementById('plName').value=p.name;document.getElementById('plPrice').value=p.monthly_price;document.getElementById('plLimit').value=p.max_couriers;document.getElementById('plActive').value=String(p.is_active);window.scrollTo({top:0,behavior:'smooth'})}
+async function savePlan(){try{await api("/admin/plans",{method:"POST",body:JSON.stringify({code:document.getElementById("plCode").value,name:document.getElementById("plName").value,monthly_price:+document.getElementById("plPrice").value,max_couriers:+document.getElementById("plLimit").value,is_active:document.getElementById('plActive').value==='true'})});alert('تم حفظ الباقة والسعر');loadPlans()}catch(e){alert('تعذر الحفظ: '+e.message)}}
+async function loadAudit(){const rows=await api("/admin/audit-logs");document.getElementById("auditBody").innerHTML=rows.map(x=>`<tr><td>${x.created_at?new Date(x.created_at).toLocaleString('ar-SA'):'—'}</td><td>${x.actor}</td><td>${x.tenant}</td><td>${x.action}</td></tr>`).join("")||'<tr><td colspan="4">لا عمليات بعد</td></tr>'}
 async function deleteCompany(id){
   if(!confirm("حذف الشركة؟")) return;
   await api("/admin/companies/"+id,{method:"DELETE"});
@@ -875,8 +890,8 @@ function gateView(){
         <p style="color:#8b94a3;font-size:12px;margin:8px 0 0">لوحة تحكم المنصة — مخصصة لمالك DOU فقط</p>
       </div>
       <div style="background:#fff;border-radius:18px;padding:20px;max-width:340px;margin:0 auto;width:100%">
-        <label style="font-size:11px;color:#6b7a90;display:block;margin-bottom:6px">اسم المستخدم</label>
-        <input id="gateUser" type="text" dir="ltr" placeholder="Sameh"
+        <label style="font-size:11px;color:#6b7a90;display:block;margin-bottom:6px">رقم موبايل حساب الأدمن</label>
+        <input id="gateUser" type="tel" dir="ltr" placeholder="9665xxxxxxxx"
           style="width:100%;padding:13px;border:1px solid #e6eaf2;border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:12px">
         <label style="font-size:11px;color:#6b7a90;display:block;margin-bottom:6px">كلمة المرور</label>
         <input id="gatePass" type="password" dir="ltr" placeholder="••••••••"
@@ -891,11 +906,13 @@ async function gateLogin(){
   const btn = document.getElementById("gateBtn");
   btn.disabled = true; btn.textContent = "جاري التحقق...";
   try{
-    const res = await fetch(API+"/admin/gate",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({username:document.getElementById("gateUser").value.trim(), password:document.getElementById("gatePass").value})});
+    const res = await fetch(API+"/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({phone:document.getElementById("gateUser").value.trim(), password:document.getElementById("gatePass").value})});
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || "بيانات غير صحيحة");
-    sessionStorage.setItem("dou_admin_key", data.key);
+    if(data.role!=="DOU_ADMIN" && data.role!=="DOU_OPS") throw new Error("الحساب ليس حساب إدارة DOU");
+    localStorage.setItem("dou_token_admin", data.access_token);
+    localStorage.setItem("dou_role", data.role);
     location.reload();
   }catch(e){
     btn.disabled = false; btn.textContent = "دخول اللوحة";

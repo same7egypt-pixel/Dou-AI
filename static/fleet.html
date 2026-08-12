@@ -80,6 +80,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 .chartRow .bar{flex:1;height:16px;background:#f1f3f6;border-radius:8px;overflow:hidden}
 .chartRow .bar i{display:block;height:100%;border-radius:8px}
 .chartRow .val{width:60px;font-size:11px;font-weight:600;text-align:left}
+.target-red td{background:#fff1f1;color:#9f1d1d}.target-green td{background:#effcf4;color:#166534}
 .modal{position:fixed;inset:0;background:rgba(18,26,44,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
 .modal.open{display:flex}
 .modalBox{background:#fff;border-radius:18px;padding:24px;max-width:520px;width:100%;max-height:88vh;overflow:auto}
@@ -100,29 +101,25 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 <body>
 <div class="layout"><aside class="side" id="side">
   <div class="logo"><i>↗</i><b>DOU</b><small>FLEET PARTNERS</small></div>
-  <div class="group">عمليات الأسطول</div>
+  <div class="group">إدارة السائقين</div>
   <button class="nav active" data-view="overview"><i>▦</i><span>نظرة عامة</span></button>
-  <button class="nav" data-view="dispatch"><i>🎯</i><span>الإرسال والتحكم</span></button>
-  <button class="nav" data-view="couriers"><i>◉</i><span>المناديب</span></button>
-  <button class="nav" data-view="orders"><i>📦</i><span>الطلبات</span></button>
+  <button class="nav" data-view="couriers" data-permission="drivers"><i>◉</i><span>السائقون</span></button>
+  <button class="nav" data-view="supervision" data-permission="supervision"><i>🧑‍💼</i><span>إدارة فريقي</span></button>
   <div class="group">التشغيل</div>
-  <button class="nav" data-view="shifts"><i>◷</i><span>الورديات والحضور</span></button>
-  <button class="nav" data-view="attendance"><i>⏱</i><span>تتبع الحضور</span></button>
+  <button class="nav" data-view="shifts" data-permission="attendance"><i>◷</i><span>الورديات والحضور</span></button>
+  <button class="nav" data-view="attendance" data-permission="attendance"><i>⏱</i><span>سجل الحضور</span></button>
   <div class="group">المالية والأداء</div>
-  <button class="nav" data-view="performance"><i>◒</i><span>أداء المناديب</span></button>
-  <button class="nav" data-view="payouts"><i>₪</i><span>الرواتب والحوافز</span></button>
-  <button class="nav" data-view="channels"><i>🔀</i><span>القنوات والتكاليف</span></button>
-  <button class="nav" data-view="compliance"><i>!</i><span>الامتثال والحالات</span></button>
+  <button class="nav" data-view="performance" data-permission="performance"><i>◒</i><span>أداء السائقين</span></button>
+  <button class="nav" data-view="payouts" data-permission="payroll"><i>₪</i><span>الرواتب والحوافز</span></button>
+  <button class="nav" data-view="compliance" data-permission="hr"><i>!</i><span>المستندات والامتثال</span></button>
   <div class="group">الإدارة</div>
-  <button class="nav" data-view="hr"><i>🧑‍💼</i><span>الموارد البشرية</span></button>
-  <button class="nav" data-view="tickets"><i>🎫</i><span>التذاكر</span></button>
-  <button class="nav" data-view="companies" id="navCompanies"><i>🏢</i><span>شركات التشغيل</span></button>
+  <button class="nav" data-view="hr" data-permission="hr"><i>🧑‍💼</i><span>الموارد البشرية</span></button>
+  <button class="nav" data-view="reports" data-permission="reports"><i>📊</i><span>مركز التقارير</span></button>
+  <button class="nav" data-view="tickets" data-permission="tickets"><i>🎫</i><span>طلبات ودعم السائقين</span></button>
+  <button class="nav" data-view="users" data-permission="users"><i>🔐</i><span>المستخدمون والصلاحيات</span></button>
   <div class="group">الاشتراك</div>
-  <button class="nav" data-view="billing"><i>💳</i><span>الاشتراك والفواتير</span></button>
-  <div class="group">الإعدادات</div>
-  <button class="nav" data-view="rules"><i>⚙</i><span>قواعد النظام</span></button>
-  <button class="nav" data-view="shipping"><i>🚚</i><span>شركات الشحن</span></button>
-  <div class="user"><div class="photo">✓</div><div><b id="roleName">فريق DOU</b><small id="roleDesc">مشرف العمليات</small></div><button class="btn ghost small" onclick="logout()" style="margin-top:8px;width:100%">🚪 خروج</button></div>
+  <button class="nav" data-view="billing" data-permission="billing"><i>💳</i><span>الاشتراك والفواتير</span></button>
+  <div class="user"><div class="photo">✓</div><div><b id="roleName">فريق DOU</b><small id="roleDesc">مشرف العمليات</small></div><button class="btn ghost small" onclick="changeFleetPassword()" style="margin-top:8px;width:100%">🔐 كلمة المرور</button><button class="btn ghost small" onclick="logout()" style="margin-top:8px;width:100%">🚪 خروج</button></div>
 </aside>
 <div class="overlay" id="overlay" onclick="toggleSide()"></div>
 <main class="main" id="main">
@@ -145,23 +142,25 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         </div>
       </div>
       <div class="cards">
-        <div class="metric"><b id="mCouriers">–</b><span>مناديب</span></div>
-        <div class="metric"><b id="mOnline">–</b><span>متصل الآن</span></div>
-        <div class="metric"><b id="mOrders">–</b><span>طلبات</span></div>
-        <div class="metric"><b id="mActive">–</b><span>طلبات حية</span></div>
-        <div class="metric alert"><b id="mUnassigned">–</b><span>بدون إسناد</span></div>
+        <div class="metric"><b id="mCouriers">–</b><span>إجمالي السائقين</span></div>
+        <div class="metric"><b id="mOnline">–</b><span>وردية شغالة</span></div>
+        <div class="metric"><b id="mOrders">–</b><span>موظفون نشطون</span></div>
+        <div class="metric"><b id="mActive">–</b><span>في إجازة</span></div>
+        <div class="metric alert"><b id="mUnassigned">–</b><span>مستندات تحتاج انتباه</span></div>
+        <div class="metric" style="border-color:#ef4444"><b id="mDocsExpired">–</b><span>🔴 مستندات منتهية</span></div><div class="metric" style="border-color:#f97316"><b id="mDocs30">–</b><span>🟠 خلال 30 يوم</span></div><div class="metric" style="border-color:#eab308"><b id="mDocs60">–</b><span>🟡 خلال 60 يوم</span></div>
+        <div class="metric"><b id="mPresent">–</b><span>حضور اليوم</span></div><div class="metric alert"><b id="mAbsent">–</b><span>غياب اليوم</span></div><div class="metric"><b id="mTodayOrders">–</b><span>طلبات اليوم</span></div><div class="metric"><b id="mMonthOrders">–</b><span>طلبات الشهر</span></div><div class="metric alert"><b id="mPendingLeaves">–</b><span>إجازات تنتظر الموافقة</span></div>
       </div>
       <div class="cards">
-        <div class="metric"><b id="mRevenue">–</b><span>إيراد الفترة (ر.س)</span></div>
-        <div class="metric trend"><b id="mUtil">–</b><span>استغلال الأسطول</span></div>
-        <div class="metric trend"><b id="mOntime">–</b><span>التسليم في الموعد</span></div>
+        <div class="metric"><b id="mRevenue">–</b><span>الراتب التقديري (ر.س)</span></div>
+        <div class="metric trend"><b id="mUtil">–</b><span>متوسط الالتزام</span></div>
+        <div class="metric trend"><b id="mOntime">–</b><span>متوسط الأداء</span></div>
       </div>
       <div class="pool" style="margin-bottom:16px">
-        <div class="p"><b id="poolCompany">–</b><span>مناديب شركات متاحين</span></div>
-        <div class="p"><b id="poolFreelance">–</b><span>فريلانسر متاحين</span></div>
-        <div class="p"><b id="poolShipping">–</b><span>شركات شحن مفعّلة</span></div>
+        <div class="p"><b id="poolCompany">–</b><span>سائقو الشركة</span></div>
+        <div class="p"><b id="poolFreelance">–</b><span>سائقون مستقلون</span></div>
+        <div class="p"><b id="poolShipping">–</b><span>ورديات نشطة</span></div>
       </div>
-      <div class="cards" style="grid-template-columns:1fr 1fr">
+      <div class="cards" style="grid-template-columns:1fr 1fr;display:none">
         <div class="card">
           <h3>التوصيلات — 7 أيام</h3>
           <div class="bars">
@@ -182,7 +181,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
           <div class="chartRow"><span class="lbl">غير نشط</span><div class="bar"><i style="width:9%;background:var(--red)"></i></div><span class="val">9%</span></div>
         </div>
       </div>
-      <div class="card"><h3>إرسال حي — آخر الطلبات</h3>
+      <div class="card" style="display:none"><h3>إرسال حي — آخر الطلبات</h3>
         <table><thead><tr><th>#</th><th>الحالة</th><th>التوصيل</th><th>المسافة</th><th>مندوب</th></tr></thead>
         <tbody id="recentOrders"><tr><td colspan="5" style="color:var(--muted)">لا طلبات</td></tr></tbody></table>
       </div>
@@ -214,20 +213,29 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
     <section id="view-couriers" style="display:none">
       <div class="header"><div><div class="kicker">إدارة المناديب</div><h1>المناديب</h1></div>
-        <button class="btn blue" onclick="toggleAddCourier()">+ إضافة مندوب</button></div>
+        <button class="btn blue" data-company-only onclick="toggleAddCourier()">+ إضافة مندوب</button></div>
       <div class="card" id="addCourierBox" style="display:none">
         <div class="form-row"><input id="cName" placeholder="الاسم"><input id="cPhone" placeholder="الجوال 05xxxxxxxx"></div>
         <div class="form-row"><select id="cType" style="font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:10px">
           <option value="COMPANY">مناديب شركة</option><option value="FREELANCER">فريلانسر</option></select>
           <input id="cCountry" placeholder="SA / EG" value="SA"></div>
+        <div class="form-row"><select id="cSupervisor" class="fInput" required><option value="">اختر المشرف المسؤول *</option></select>
+          <select id="cProject" class="fInput"><option value="">بدون مشروع حاليًا (اختياري)</option></select></div>
+        <div class="form-row"><select id="cVehicleType" class="fInput">
+          <option value="">نوع المركبة (اختياري)</option><option value="سيارة">سيارة</option><option value="دباب">دباب</option></select></div>
+        <div class="form-row"><select id="cNationality" class="fInput" onchange="toggleNationalityOther()">
+          <option value="">اختر الجنسية</option><option>باكستان</option><option>الهند</option><option>مصر</option><option>بنجلاديش</option><option>إندونيسيا</option><option>نيبال</option><option>نيجيريا</option><option>السودان</option><option>اليمن</option><option>أخرى</option></select>
+          <input id="cNationalityOther" style="display:none" placeholder="اكتب الجنسية"></div>
+        <div class="form-row"><input id="cIqamaNumber" placeholder="رقم الإقامة / الهوية"><input id="cEmergencyName" placeholder="اسم شخص للطوارئ"><input id="cEmergencyPhone" placeholder="جوال الطوارئ"></div>
         <div class="form-row"><input id="cSalary" type="number" placeholder="الراتب الثابت الشهري" value="3000">
           <input id="cRate" type="number" step="0.5" placeholder="أجر كل توصيلة" value="7">
           <input id="cBonus" type="number" placeholder="بونص شهري" value="300"></div>
-        <div class="form-row"><input id="cIban" placeholder="IBAN (اختياري)"></div>
+        <div class="form-row"><input id="cIban" placeholder="IBAN (اختياري)">
+          <input id="cPassword" type="password" minlength="8" placeholder="كلمة مرور أولية (8 أحرف على الأقل)"></div>
         <button class="btn" onclick="addCourier()">حفظ المندوب</button>
         <span id="courierMsg" class="msg"></span>
       </div>
-      <div class="card"><table><thead><tr><th>الاسم</th><th>النوع</th><th>الحالة</th><th>الأسطول</th><th>الراتب</th><th>معدل القبول</th><th>نقاط</th><th>التحقق</th><th>إجراء</th></tr></thead>
+      <div class="card"><table><thead><tr><th>الاسم</th><th>الجنسية</th><th>الحالة</th><th>المشروع / المشرف</th><th>طلبات اليوم</th><th>طلبات الشهر</th><th>الراتب</th><th>التحقق</th><th>إجراء</th></tr></thead>
         <tbody id="couriersBody"></tbody></table></div>
     </section>
 
@@ -263,6 +271,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       </div>
       <div class="card"><table><thead><tr><th>المندوب</th><th>الحضور</th><th>الانصراف</th><th>ساعات</th><th>الموقع (من → إلى)</th><th>الحالة</th></tr></thead>
         <tbody id="attendanceBody"></tbody></table></div>
+      <div class="card"><div class="header"><h3>تقرير الحضور الشهري</h3><input id="attendanceMonth" type="month" onchange="loadMonthlyAttendance()"></div><table><thead><tr><th>المندوب</th><th>أيام الحضور</th><th>مرات التأخير</th><th>ساعات العمل</th><th>الحالة</th></tr></thead><tbody id="monthlyAttendanceBody"></tbody></table></div>
     </section>
 
     <section id="view-performance" style="display:none">
@@ -282,6 +291,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <div style="font-size:30px;font-weight:800" id="payTotal">–</div>
         <div style="font-size:11px;color:#88a0c4">لكل المناديب · حسب العقود</div>
       </div>
+      <div class="card" style="border-color:#f5b942;background:#fff9e8"><b>تنبيه:</b> جميع مبالغ الرواتب والحوافز تقديرية لأغراض الإدارة والمتابعة فقط، وليست مسيرًا محاسبيًا رسميًا أو خدمة تحويل أموال.</div>
       <div class="card"><h3>الرواتب والحوافز — حسب عقود المناديب</h3>
         <table><thead><tr><th>المندوب</th><th>النوع</th><th>الحالة</th><th>ثابت</th><th>أجر/توصيلة</th><th>توصيلات</th><th>أرباح التوصيلات</th><th>البونص</th><th>الإجمالي</th><th>IBAN</th></tr></thead>
         <tbody id="payBody"></tbody></table></div>
@@ -347,8 +357,9 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
           <button class="btn small" onclick="openSupModal()">+ مشرف</button></div>
         <table><thead><tr><th>المشرف</th><th>الجوال</th><th>عدد المناديب</th><th>الحالة</th><th>إجراءات</th></tr></thead>
           <tbody id="supBody"></tbody></table>
-        <p style="font-size:11px;color:var(--muted);margin-top:10px">💡 مشرف يدخل عبر <b>/static/supervisor.html</b> — يرى مناديبه وكل بياناتهم.</p>
+        <p style="font-size:11px;color:var(--muted);margin-top:10px">💡 المشرف يدخل من نفس لوحة الشركة، ويشاهد مناديبه فقط حسب صلاحياته.</p>
       </div>
+      <div class="card"><h3>طلبات ضم السائقين للمشرفين</h3><div id="assignmentRequestsAdmin"></div></div>
       <div class="card"><h3>المشاريع / المنصات</h3>
         <div class="opt"><div><b>إضافة منصة أو مشروع</b><small>مثال: هنقرستيشن، جاهز، مرسول</small></div>
           <button class="btn small" onclick="addProject()">+ منصة</button></div>
@@ -363,6 +374,9 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="card"><h3>طلبات الإجازة (موافقة من مستويين)</h3>
         <div id="hrLeaves"></div>
       </div>
+      <div class="card"><h3>طلبات السائقين التشغيلية</h3><div id="employeeRequestsBody"></div></div>
+      <div class="card"><h3>📎 المستندات المرفوعة للمراجعة</h3><div id="uploadedDocumentsBody"></div></div>
+      <div class="card"><h3>الخصومات والسلف والمخالفات</h3><div class="form-row"><select id="adjCourier"></select><select id="adjKind"><option value="ABSENCE">خصم غياب</option><option value="LATE">خصم تأخير</option><option value="ADVANCE">سلفة</option><option value="DEDUCTION">خصم إداري</option><option value="VIOLATION">مخالفة مخصومة</option><option value="OVERTIME">ساعات إضافية</option></select><input id="adjAmount" type="number" placeholder="المبلغ"><input id="adjNote" placeholder="السبب"><button class="btn" onclick="saveAdjustment()">إضافة</button></div><div id="adjustmentsBody"></div></div>
       <div class="card"><h3>🏆 لوحة المتصدرين (أوردرات الشهر + الأرباح المقدرة)</h3>
         <table><thead><tr><th>#</th><th>المندوب</th><th>أوردرات الشهر</th><th>أجر التوصيلة</th><th>البونص</th><th>الأرباح المقدرة</th><th>التقييم</th></tr></thead>
           <tbody id="lbBody"></tbody></table>
@@ -402,6 +416,75 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="header"><div><div class="kicker">مركز الدعم</div><h1>التذاكر</h1></div>
         <select class="ruleNum" id="ticketFilter" onchange="renderTickets()"><option>الكل</option><option>الانتظار (Queue)</option><option>محلولة</option><option>التجار</option><option>المناديب</option></select></div>
       <div id="ticketsBody"></div>
+    </section>
+
+    <section id="view-users" style="display:none">
+      <div class="header"><div><div class="kicker">حسابات فريق الشركة</div><h1>المستخدمون والصلاحيات</h1></div></div>
+      <div class="card">
+        <h3>إضافة مستخدم</h3>
+        <div class="form-row">
+          <input id="teamName" placeholder="الاسم">
+          <input id="teamPhone" dir="ltr" placeholder="رقم الدخول">
+          <input id="teamPassword" type="password" dir="ltr" placeholder="كلمة مرور 8 أحرف">
+          <select id="teamRole">
+            <option value="COMPANY_ADMIN">مدير نظام</option>
+            <option value="OPERATIONS">مدير تشغيل</option>
+            <option value="HR">موارد بشرية</option>
+            <option value="ACCOUNTANT">محاسب</option>
+            <option value="VIEWER">مشاهدة فقط</option>
+            <option value="PROJECT_MANAGER">مدير مشروع</option>
+          </select>
+        </div>
+        <div class="form-row"><select id="teamProjects" multiple class="fInput" title="مشاريع مدير المشروع"></select></div>
+        <div class="form-row" id="teamPermissions"><label><input type="checkbox" value="drivers"> السائقون</label><label><input type="checkbox" value="attendance"> الحضور</label><label><input type="checkbox" value="hr"> تعديل المستندات</label><label><input type="checkbox" value="payroll"> الرواتب</label><label><input type="checkbox" value="reports"> التقارير</label><label><input type="checkbox" value="export"> التصدير</label><label><input type="checkbox" value="users"> المستخدمون</label></div>
+        <button class="btn blue" onclick="addTeamUser()">+ إضافة المستخدم</button>
+        <span id="teamMsg" class="msg"></span>
+      </div>
+      <div class="card"><table><thead><tr><th>المستخدم</th><th>رقم الدخول</th><th>الصلاحية</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody id="teamUsersBody"></tbody></table></div>
+    </section>
+
+    <section id="view-reports" style="display:none">
+      <div class="header"><div><div class="kicker">تقارير الشركة المفلترة</div><h1>مركز التقارير</h1></div>
+        <button class="btn blue" onclick="downloadReport()">⬇ تنزيل لبرنامج Excel</button></div>
+      <div class="card">
+        <div class="form-row">
+          <select id="reportType" onchange="setupReportFilters();loadReport()">
+            <option value="daily">إنجاز السائقين اليومي والتارجت</option>
+            <option value="documents">المستندات ومواعيد الانتهاء</option>
+            <option value="bonus">التارجت والبونص والرواتب</option>
+          </select>
+          <select id="reportDocStatus" onchange="loadReport()">
+            <option value="ALL">كل حالات المستندات</option>
+            <option value="EXPIRED">منتهية</option>
+            <option value="SOON">تنتهي خلال 30 يوم</option>
+            <option value="OK">سليمة</option>
+          </select>
+          <select id="reportProject" onchange="loadReport()" style="display:none"><option value="">كل المشاريع</option></select>
+        </div>
+        <div class="form-row" id="dailyReportFilters">
+          <input id="reportDate" type="date" onchange="loadReport()">
+          <select id="reportNationality" onchange="loadReport()"><option value="">كل الجنسيات</option></select>
+          <select id="reportZone" onchange="loadReport()"><option value="">كل المدن والمناطق</option></select>
+          <select id="reportSupervisor" onchange="loadReport()"><option value="">كل المشرفين</option></select>
+          <input id="reportCourierName" placeholder="بحث باسم المندوب" oninput="loadReport()">
+          <select id="reportLogStatus" onchange="loadReport()"><option value="">سجل ولم يسجل</option><option value="LOGGED">سجل الأوردرات</option><option value="NOT_LOGGED">لم يسجل</option></select>
+          <select id="reportTargetStatus" onchange="loadReport()"><option value="">كل حالات التارجت</option><option value="PENDING">لم يكمل التارجت</option><option value="OVER">وصل أو تخطى التارجت</option><option value="NO_TARGET">بدون تارجت</option></select>
+          <select id="reportAttendance" onchange="loadReport()"><option value="">كل حالات الحضور</option><option value="PRESENT">حاضر</option><option value="ABSENT">لم يسجل حضور</option><option value="LEAVE">إجازة</option></select>
+          <select id="reportEmployment" onchange="loadReport()"><option value="">كل حالات الموظف</option><option value="ACTIVE">نشط</option><option value="SUSPENDED">موقوف</option><option value="TERMINATED">منتهي</option></select>
+        </div>
+      </div>
+      <div class="cards" id="reportSummary"></div>
+      <div class="card" style="overflow:auto"><table><thead id="reportHead"></thead><tbody id="reportBody"></tbody></table></div>
+    </section>
+
+    <section id="view-supervision" style="display:none">
+      <div class="header"><div><div class="kicker">صلاحيات المشرف — مناديبي فقط</div><h1>إدارة فريقي</h1></div></div>
+      <div class="card"><h3>طلب ضم مندوب</h3><div class="form-row"><select id="svCandidate"></select><input id="svAssignNote" placeholder="سبب الطلب (اختياري)"><button class="btn blue" onclick="requestFleetAssignment()">إرسال للأدمن</button></div><div id="svAssignments"></div></div>
+      <div class="card"><h3>طلبات الإجازة</h3><div id="svLeaves"></div></div>
+      <div class="card"><h3>ملاحظة وتقييم لمندوب</h3><div class="form-row"><select id="svCourier"></select><input id="svNote" placeholder="ملاحظة الأداء"><select id="svRating"><option value="5">5 ممتاز</option><option value="4">4 جيد جدًا</option><option value="3">3 جيد</option><option value="2">2 ضعيف</option><option value="1">1 سيئ</option></select><button class="btn" onclick="saveSupervisorReview()">حفظ</button></div><span id="svMsg" class="msg"></span></div>
+      <div class="card"><h3>رسالة لمناديبي</h3><div class="form-row"><input id="svBroadcast" placeholder="اكتب الرسالة"><button class="btn" onclick="sendSupervisorBroadcast()">إرسال للفريق</button></div></div>
+      <div class="card"><h3>ملخص الأداء الأسبوعي</h3><div id="svWeekly"></div></div>
+      <div class="card"><h3>ترتيب السائقين والتنبيهات</h3><div id="svLeaderboard"></div><div id="svViolations"></div></div>
     </section>
 
     <section id="view-companies" style="display:none">
@@ -492,7 +575,26 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
           <option value="ACTIVE">موظف نشط</option><option value="SUSPENDED">موقوف</option><option value="TERMINATED">منتهي</option></select>
         <input id="cmIban" placeholder="IBAN">
       </div>
+      <h3 style="margin-top:16px">المستندات والمركبة</h3>
+      <div class="form-row">
+        <div><label class="fLabel">انتهاء الإقامة</label><input class="fInput" id="cmIqama" type="date"></div>
+        <div><label class="fLabel">انتهاء رخصة القيادة</label><input class="fInput" id="cmLicense" type="date"></div>
+        <div><label class="fLabel">انتهاء رخصة المركبة</label><input class="fInput" id="cmVehicleLicense" type="date"></div>
+      </div>
+      <div class="form-row">
+        <select id="cmVehicleType"><option value="">بدون نوع مركبة (اختياري)</option><option value="سيارة">سيارة</option><option value="دباب">دباب</option></select>
+        <input id="cmVehiclePlate" placeholder="رقم اللوحة">
+        <input id="cmZone" placeholder="منطقة العمل">
+      </div>
+      <div class="form-row">
+        <select id="cmProject"><option value="">بدون مشروع (اختياري)</option></select>
+        <input id="cmPlatformId" placeholder="رقم السائق في المشروع">
+      </div>
+      <div class="form-row"><input id="cmIqamaNumber" placeholder="رقم الإقامة / الهوية"><input id="cmEmergencyName" placeholder="اسم شخص للطوارئ"><input id="cmEmergencyPhone" placeholder="جوال الطوارئ"></div>
+      <div class="form-row"><input id="cmPassportNumber" placeholder="رقم جواز السفر"><div><label class="fLabel">انتهاء الجواز</label><input class="fInput" id="cmPassportExpiry" type="date"></div><div><label class="fLabel">انتهاء التأمين</label><input class="fInput" id="cmInsuranceExpiry" type="date"></div></div>
+      <div class="form-row"><div><label class="fLabel">انتهاء الفحص الدوري</label><input class="fInput" id="cmInspectionExpiry" type="date"></div><div><label class="fLabel">انتهاء تصريح العمل</label><input class="fInput" id="cmWorkPermitExpiry" type="date"></div></div>
       <button class="btn blue" onclick="saveCourierProfile()">💾 حفظ</button>
+      <button class="btn ghost" data-company-only onclick="transferCourierProject()">↔ نقل إلى مشروع آخر</button>
       <span id="cmMsg" class="msg"></span>
     </div>
     <div style="display:flex;gap:8px;margin-top:4px">
@@ -529,7 +631,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     <h3>🧑‍💼 مشرف جديد</h3>
     <label class="fLabel">اسم المشرف</label><input id="supName" class="fInput" placeholder="أحمد المحمد">
     <label class="fLabel">رقم الجوال</label><input id="supPhone" class="fInput" dir="ltr" placeholder="9665XXXXXXXX">
-    <label class="fLabel">كلمة مرور أولية</label><input id="supPass" class="fInput" dir="ltr" value="dou123456">
+    <label class="fLabel">كلمة مرور أولية (8 أحرف على الأقل)</label><input id="supPass" class="fInput" type="password" dir="ltr" minlength="8" placeholder="اختر كلمة مرور قوية">
     <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveSup()">إنشاء الحساب</button><button class="btn ghost" onclick="closeSup()">إلغاء</button></div>
     <div id="supMsg" class="msg"></div>
   </div>
@@ -542,9 +644,10 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
        <option value="project">كل مندوبي المشروع (خطة واحدة)</option>
        <option value="courier">مندوب محدد على هذا المشروع</option></select>
      <div id="bnCourierWrap"><label class="fLabel">المندوب</label><select id="bnCourier" class="fInput"></select></div>
-     <label class="fLabel">التارجت الشهري (أوردر)</label><input id="bnTarget" type="number" class="fInput" placeholder="460">
-     <label class="fLabel">المكافأة عند بلوغ التارجت (ر.س)</label><input id="bnBonus" type="number" class="fInput" placeholder="2000">
-     <label class="fLabel">سعر الطلب الزائد فوق التارجت (ر.س)</label><input id="bnOver" type="number" class="fInput" placeholder="5">
+     <label class="fLabel">التارجت الشهري (طلب)</label><input id="bnTarget" type="number" min="1" class="fInput" placeholder="460" oninput="previewBonus()">
+     <label class="fLabel">البونص عند تحقيق التارجت (ر.س)</label><input id="bnBonus" type="number" min="0" step="0.01" class="fInput" placeholder="2000" oninput="previewBonus()">
+     <label class="fLabel">قيمة كل طلب فوق التارجت (ر.س)</label><input id="bnOver" type="number" min="0" step="0.01" class="fInput" placeholder="5" oninput="previewBonus()">
+     <div id="bnPreview" style="background:var(--blue2);color:var(--ink);border-radius:10px;padding:11px;margin-top:12px;font-size:12px;line-height:1.9">أدخل الأرقام لعرض مثال الحساب.</div>
      <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveBonus()">حفظ الخطة</button><button class="btn ghost" onclick="closeBonusModal()">إلغاء</button></div>
      <div id="bnMsg" class="msg"></div>
    </div>
@@ -584,8 +687,8 @@ async function api(path, opts={}){
   const headers = {"Content-Type":"application/json"};
   if(TOKEN) headers["Authorization"] = "Bearer "+TOKEN;
   const r = await fetch(API+path, Object.assign({headers}, opts));
-  if(r.status===401){ logout(); throw new Error("انتهت الجلسة — سجّل دخولك مجدداً"); }
-  if(!r.ok) throw new Error((await r.text())||r.status);
+  if(r.status===401 && path!=="/auth/login"){ logout(); throw new Error("انتهت الجلسة — سجّل دخولك مجدداً"); }
+  if(!r.ok){let message="تعذر تنفيذ الطلب";try{const data=await r.json();message=data.detail||message}catch(_e){}if(path==="/auth/login"&&r.status===401)message="رقم الجوال أو كلمة المرور غير صحيحة";throw new Error(message);}
   return r.json();
 }
 
@@ -603,11 +706,10 @@ function loginView(){
         <input id="loginPhone" type="tel" dir="ltr" placeholder="966581112233" value="966581112233"
           style="width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:12px">
         <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">كلمة المرور</label>
-        <input id="loginPass" type="password" dir="ltr" placeholder="••••••••" value="dou123456"
+        <input id="loginPass" type="password" dir="ltr" placeholder="••••••••"
           style="width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:16px">
-        <button class="btn" id="loginBtn" onclick="doLogin()" style="width:100%;padding:13px;font-size:13px">دخول الشركة</button>
-        <p style="font-size:10px;color:var(--muted);margin:10px 0 0;text-align:center">تجرّب: 966581112233 / dou123456</p>
-        <p style="font-size:11px;margin:14px 0 0;text-align:center"><a href="/static/signup.html" style="color:#ff7a42;text-decoration:none;font-weight:600">شركة جديدة؟ سجّل حسابك ←</a></p>
+        <button class="btn" id="loginBtn" onclick="doLogin()" style="width:100%;padding:13px;font-size:13px">دخول الشركة أو المشرف</button>
+        <p style="font-size:11px;margin:14px 0 0;text-align:center;color:#ff7a42;font-weight:600">الحسابات الجديدة يفعّلها فريق DOU</p>
       </div>
     </div>`;
 }
@@ -620,7 +722,8 @@ async function doLogin(){
       phone: document.getElementById("loginPhone").value.trim(),
       password: document.getElementById("loginPass").value
     })});
-    if(res.role!=="COMPANY" && res.role!=="DOU_OPS" && res.role!=="DOU_ADMIN"){
+    const fleetRoles=["COMPANY","COMPANY_ADMIN","OPERATIONS","HR","ACCOUNTANT","VIEWER","PROJECT_MANAGER","SUPERVISOR","DOU_OPS","DOU_ADMIN"];
+    if(!fleetRoles.includes(res.role)){
       throw new Error("هذا الحساب ليس حساب شركة لوجستية");
     }
     TOKEN = res.access_token;
@@ -629,14 +732,17 @@ async function doLogin(){
   }catch(e){ btn.disabled=false; btn.textContent="دخول الشركة"; alert("❌ "+e.message); }
 }
 
-function logout(){
-  TOKEN = null; localStorage.removeItem("dou_token_fleet"); localStorage.removeItem("dou_token"); META = null; location.reload();
+async function logout(){
+  const old=TOKEN;TOKEN=null;try{if(old)await fetch('/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+old}})}catch(_e){}
+  localStorage.removeItem("dou_token_fleet"); localStorage.removeItem("dou_token"); localStorage.removeItem("dou_role"); META = null; location.reload();
 }
+async function changeFleetPassword(){const current=prompt("كلمة المرور الحالية:");if(current===null)return;const next=prompt("كلمة المرور الجديدة (8 أحرف على الأقل):");if(!next)return;try{await api("/auth/change-password",{method:"POST",body:JSON.stringify({current_password:current,new_password:next})});alert("تم التغيير، سجل الدخول مرة أخرى");logout()}catch(e){alert(e.message)}}
 
 async function init(){
   if(!TOKEN){ loginView(); return; }
   const storedRole=localStorage.getItem("dou_role");
-  if(storedRole && storedRole!=="COMPANY" && storedRole!=="DOU_OPS" && storedRole!=="DOU_ADMIN"){
+  const fleetRoles=["COMPANY","COMPANY_ADMIN","OPERATIONS","HR","ACCOUNTANT","VIEWER","PROJECT_MANAGER","SUPERVISOR","DOU_OPS","DOU_ADMIN"];
+  if(storedRole && !fleetRoles.includes(storedRole)){
     localStorage.removeItem("dou_token_fleet"); TOKEN=null; loginView(); return;
   }
   try{
@@ -645,10 +751,16 @@ async function init(){
     const tenant = META.tenant ? META.tenant.name : "";
     document.getElementById("roleName").textContent = name;
     document.getElementById("roleDesc").textContent = tenant || "حساب الشركة";
-    if(META.role!=="DOU_OPS" && META.role!=="DOU_ADMIN"){
-      document.getElementById("navCompanies").style.display = "none";
-      const el = document.getElementById("view-companies"); if(el) el.style.display="none";
+    if(META.role==="SUPERVISOR"){
+      document.getElementById("roleDesc").textContent="مشرف — "+tenant;
+      document.querySelectorAll("[data-company-only]").forEach(x=>x.style.display="none");
+      document.querySelector(".rolebar button").textContent="حساب مشرف";
     }
+    const permissions=META.permissions||[];
+    document.querySelectorAll("[data-permission]").forEach(el=>{
+      const allowed=permissions.includes("*")||permissions.includes(el.dataset.permission);
+      if(!allowed) el.style.display="none";
+    });
     go("overview");
   }catch(e){ logout(); }
 }
@@ -661,12 +773,13 @@ function escapeHtml(s){ return String(s||"").replace(/[&<>"]/g, c=>({"&":"&amp;"
 
 function go(v){
   document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
-  const views = ["overview","dispatch","couriers","orders","shifts","attendance","performance","payouts","channels","compliance","tickets","companies","rules","shipping","billing","hr"];
+  const views = ["overview","dispatch","couriers","supervision","orders","shifts","attendance","performance","payouts","channels","compliance","tickets","companies","rules","shipping","billing","hr","users","reports"];
   views.forEach(x=>{ const el=document.getElementById("view-"+x); if(el) el.style.display = x===v?"block":"none"; });
-  const names = {overview:"نظرة عامة",dispatch:"الإرسال والتحكم",couriers:"المناديب",orders:"الطلبات",shifts:"الورديات",attendance:"تتبع الحضور",performance:"أداء المناديب",payouts:"الرواتب",channels:"القنوات",compliance:"الامتثال",tickets:"التذاكر",companies:"شركات التشغيل",rules:"قواعد النظام",shipping:"شركات الشحن",billing:"الاشتراك",hr:"الموارد البشرية"};
+  const names = {overview:"نظرة عامة",couriers:"السائقون",supervision:"إدارة فريقي",shifts:"الورديات",attendance:"سجل الحضور",performance:"أداء السائقين",payouts:"الرواتب",compliance:"المستندات والامتثال",tickets:"طلبات السائقين",billing:"الاشتراك",hr:"الموارد البشرية",users:"المستخدمون والصلاحيات",reports:"مركز التقارير"};
   document.getElementById("crumb").textContent = names[v];
   if(v==="overview") loadOverview();
   if(v==="couriers") loadCouriers();
+  if(v==="supervision") loadSupervision();
   if(v==="orders") loadOrders();
   if(v==="shifts") loadShifts();
   if(v==="companies") loadCompanies();
@@ -679,8 +792,42 @@ function go(v){
   if(v==="payouts"||v==="overview") renderContracts();
   if(v==="dispatch"){ loadDispatch(); loadOverride(); }
   if(v==="hr") loadHR();
+  if(v==="users") loadTeamUsers();
+  if(v==="reports") initReports();
 }
 document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
+
+const TEAM_ROLE_NAMES={COMPANY:"مالك الشركة",COMPANY_ADMIN:"مدير نظام",OPERATIONS:"مدير تشغيل",HR:"موارد بشرية",ACCOUNTANT:"محاسب",VIEWER:"مشاهدة فقط",PROJECT_MANAGER:"مدير مشروع"};
+async function loadTeamUsers(){
+  try{
+    const [rows,projects]=await Promise.all([api("/fleet/users"),api("/hr/projects")]);document.getElementById("teamProjects").innerHTML=projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+    document.getElementById("teamUsersBody").innerHTML=rows.map(u=>`<tr>
+      <td><b>${escapeHtml(u.name)}</b>${u.is_owner?'<br><small>الحساب الرئيسي</small>':''}</td>
+      <td dir="ltr">${escapeHtml(u.phone)}</td><td>${TEAM_ROLE_NAMES[u.role]||u.role}</td>
+      <td>${u.is_active?'<span class="tag green">نشط</span>':'<span class="tag red">موقوف</span>'}</td>
+      <td>${u.is_owner?'—':`<button class="btn small ghost" onclick="toggleTeamUser(${u.id},${!u.is_active})">${u.is_active?'إيقاف':'تفعيل'}</button>`}</td>
+    </tr>`).join("")||'<tr><td colspan="5">لا يوجد مستخدمون بعد</td></tr>';
+  }catch(e){ document.getElementById("teamUsersBody").innerHTML='<tr><td colspan="5">تعذّر تحميل المستخدمين</td></tr>'; }
+}
+async function addTeamUser(){
+  const msg=document.getElementById("teamMsg");
+  try{
+    await api("/fleet/users",{method:"POST",body:JSON.stringify({
+      name:document.getElementById("teamName").value.trim(),
+      phone:document.getElementById("teamPhone").value.trim(),
+      password:document.getElementById("teamPassword").value,
+      role:document.getElementById("teamRole").value
+      ,permissions:[...document.querySelectorAll('#teamPermissions input:checked')].map(x=>x.value),project_ids:[...document.getElementById("teamProjects").selectedOptions].map(x=>+x.value)
+    })});
+    msg.textContent="✅ تم إنشاء المستخدم";
+    ["teamName","teamPhone","teamPassword"].forEach(id=>document.getElementById(id).value="");
+    loadTeamUsers();
+  }catch(e){ msg.textContent="⚠️ "+e.message; }
+}
+async function toggleTeamUser(id,is_active){
+  try{ await api("/fleet/users/"+id,{method:"PATCH",body:JSON.stringify({is_active})}); loadTeamUsers(); }
+  catch(e){ alert(e.message); }
+}
 
 function toggleSide(){
   const side=document.getElementById("side"), overlay=document.getElementById("overlay"), main=document.getElementById("main");
@@ -703,14 +850,14 @@ async function loadCouriers(){
   try{
     const couriers = await api("/fleet/couriers");
     document.getElementById("couriersBody").innerHTML = couriers.map(c=>`
-      <tr><td>${c.name}</td><td><span class="tag gray">${c.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
+      <tr><td>${c.name}</td><td>${c.nationality||"—"}</td>
       <td>${c.is_online?'<span class="tag green">متصل</span>':'<span class="tag gray">غير متصل</span>'}</td>
-      <td><span class="tag blue">${c.fleet||"—"}</span></td>
-      <td>${(c.base_salary||0).toLocaleString()} ر.س</td><td>${c.acceptance_rate}%</td><td>${c.score}</td>
+      <td><span class="tag blue">${c.project||"—"}</span><br><small>${c.supervisor||"بدون مشرف"}</small></td>
+      <td><b>${c.today_orders||0}</b></td><td><b>${c.month_orders||0}</b></td><td>${(c.base_salary||0).toLocaleString()} ر.س</td>
       <td>${c.documents_valid?'<span class="tag green">موثّق</span>':'<span class="tag red">منتهي</span>'}</td>
       <td style="display:flex;gap:6px">
         <button class="btn blue small" onclick="openCourier(${c.id})">👤 ملف</button>
-        <button class="btn ${c.employment_status==="ACTIVE"?"red":"green"} small" onclick="setCourierStatus(${c.id},'${c.employment_status==="ACTIVE"?"SUSPENDED":"ACTIVE"}')">${c.employment_status==="ACTIVE"?"إيقاف":"تفعيل"}</button>
+        ${META&&META.role!=="SUPERVISOR"?`<button class="btn ${c.employment_status==="ACTIVE"?"red":"green"} small" onclick="setCourierStatus(${c.id},'${c.employment_status==="ACTIVE"?"SUSPENDED":"ACTIVE"}')">${c.employment_status==="ACTIVE"?"إيقاف":"تفعيل"}</button>`:""}
       </td></tr>`).join("") || '<tr><td colspan="9" style="color:var(--muted)">لا مناديب</td></tr>';
   }catch(e){ /* الصفرة تعرض بياناتها الثابتة */ }
 }
@@ -749,16 +896,18 @@ function loadAll(){
 function renderOverview(ov){
   if(!ov) return;
   document.getElementById("mCouriers").textContent = ov.couriers_total;
-  document.getElementById("mOnline").textContent = ov.couriers_online;
-  document.getElementById("mOrders").textContent = ov.orders_total;
-  document.getElementById("mActive").textContent = ov.orders_active;
-  document.getElementById("mUnassigned").textContent = ov.orders_unassigned;
-  document.getElementById("mRevenue").textContent = "ر.س "+ov.revenue_total.toLocaleString();
+  document.getElementById("mOnline").textContent = ov.shifts_running;
+  document.getElementById("mOrders").textContent = ov.active_employees;
+  document.getElementById("mActive").textContent = ov.on_leave;
+  document.getElementById("mUnassigned").textContent = ov.documents_attention;
+  document.getElementById("mDocsExpired").textContent=ov.documents_expired;document.getElementById("mDocs30").textContent=ov.documents_30;document.getElementById("mDocs60").textContent=ov.documents_60;
+  document.getElementById("mPresent").textContent=ov.present_today;document.getElementById("mAbsent").textContent=ov.absent_today;document.getElementById("mTodayOrders").textContent=ov.orders_today;document.getElementById("mMonthOrders").textContent=ov.orders_month;document.getElementById("mPendingLeaves").textContent=ov.pending_leaves;
+  document.getElementById("mRevenue").textContent = "ر.س "+(ov.payroll_total||0).toLocaleString();
   document.getElementById("mUtil").textContent = ov.avg_acceptance+"%";
   document.getElementById("mOntime").textContent = ov.on_time_rate+"%";
   document.getElementById("poolCompany").textContent = ov.company_couriers;
   document.getElementById("poolFreelance").textContent = ov.freelance_couriers;
-  document.getElementById("poolShipping").textContent = "2";
+  document.getElementById("poolShipping").textContent = ov.shifts_active;
   document.getElementById("recentOrders").innerHTML = "";
 }
 
@@ -772,7 +921,19 @@ function renderOrders(){
   });
 }
 
-function toggleAddCourier(){ document.getElementById("addCourierBox").style.display = document.getElementById("addCourierBox").style.display==="none"?"block":"none"; }
+async function toggleAddCourier(){
+  const box=document.getElementById("addCourierBox"), opening=box.style.display==="none";
+  box.style.display=opening?"block":"none";
+  if(!opening)return;
+  try{
+    const [supers,contracts]=await Promise.all([api("/hr/supervisors"),api("/hr/contracts")]);
+    document.getElementById("cSupervisor").innerHTML='<option value="">اختر المشرف المسؤول *</option>'+supers.filter(s=>s.is_active).map(s=>`<option value="${s.id}">${s.name}</option>`).join("");
+    document.getElementById("cProject").innerHTML='<option value="">بدون مشروع حاليًا (اختياري)</option>'+contracts.rows.filter(c=>c.status!=="EXPIRED").map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+  }catch(e){ document.getElementById("courierMsg").textContent="تعذر تحميل المشرفين أو المشاريع: "+e.message; }
+}
+function toggleNationalityOther(){
+  document.getElementById("cNationalityOther").style.display=document.getElementById("cNationality").value==="أخرى"?"block":"none";
+}
 async function addCourier(){
   const msg = document.getElementById("courierMsg");
   msg.textContent = "⏳ جاري الإضافة...";
@@ -785,7 +946,14 @@ async function addCourier(){
       base_salary:+document.getElementById("cSalary").value||0,
       per_delivery_rate:+document.getElementById("cRate").value||0,
       bonus_target:+document.getElementById("cBonus").value||0,
-      bank_iban:document.getElementById("cIban").value||null
+      bank_iban:document.getElementById("cIban").value||null,
+      password:document.getElementById("cPassword").value,
+      supervisor_id:document.getElementById("cSupervisor").value||null,
+      contract_id:document.getElementById("cProject").value||null,
+      vehicle_type:document.getElementById("cVehicleType").value||null,
+      nationality:document.getElementById("cNationality").value||null,
+      nationality_other:document.getElementById("cNationalityOther").value||null
+      ,iqama_number:document.getElementById("cIqamaNumber").value||null,emergency_name:document.getElementById("cEmergencyName").value||null,emergency_phone:document.getElementById("cEmergencyPhone").value||null
     })});
     msg.style.color="var(--green)";
     msg.innerHTML = "✅ أُضيف المندوب — <b>دخول التطبيق:</b> "+r.login_phone+" / "+r.password+" <small>(أرسله للمندوب)</small>";
@@ -794,13 +962,15 @@ async function addCourier(){
 }
 
 let CM_ID = null;
+let CM_PROJECT_ID = null;
 async function openCourier(id){
   CM_ID = id;
-  const c = await api("/fleet/couriers/"+id);
+  const [c,projects] = await Promise.all([api("/fleet/couriers/"+id),api("/hr/projects")]);
+  CM_PROJECT_ID=c.primary_project_id||null;
   document.getElementById("cmTitle").textContent = "👤 "+c.name+" — ملف الموظف";
   document.getElementById("cmCards").innerHTML = `
-    <div class="metric"><b>${c.deliveries_done}</b><span>توصيلات</span></div>
-    <div class="metric"><b>${c.hours_worked} س</b><span>ساعات العمل</span></div>
+    <div class="metric"><b>${c.today_orders||0}</b><span>طلبات اليوم المسجلة</span></div>
+    <div class="metric"><b>${c.month_orders||0}</b><span>طلبات الشهر</span></div>
     <div class="metric"><b>${c.estimated_monthly.toLocaleString()}</b><span>الراتب الشهري</span></div>`;
   document.getElementById("cmInfo").innerHTML = `
     <div class="lineItem"><span>الحالة</span><b>${c.employment_status==="ACTIVE"?"موظف نشط":c.employment_status==="SUSPENDED"?"موقوف":"منتهي"}</b></div>
@@ -814,12 +984,24 @@ async function openCourier(id){
     <div class="lineItem"><span>المستندات</span><b>${c.documents_valid?'<span class="tag green">سارية</span>':'<span class="tag red">منتهية</span>'}</b></div>
     <div class="lineItem"><span>تاريخ التعيين</span><b>${c.hired_at?c.hired_at.slice(0,10):"—"}</b></div>
     <div class="lineItem"><span>IBAN</span><b dir="ltr">${c.bank_iban||"—"}</b></div>
-    <div class="lineItem"><span>الهاتف</span><b dir="ltr">${c.phone}</b></div>`;
+    <div class="lineItem"><span>الهاتف</span><b dir="ltr">${c.phone}</b></div>
+    <div class="lineItem"><span>الجنسية</span><b>${c.nationality||"—"}</b></div>`;
   document.getElementById("cmSalary").value = c.base_salary||0;
   document.getElementById("cmRate").value = c.per_delivery_rate||0;
   document.getElementById("cmBonus").value = c.bonus_target||0;
   document.getElementById("cmStatus").value = c.employment_status||"ACTIVE";
   document.getElementById("cmIban").value = c.bank_iban||"";
+  document.getElementById("cmIqama").value = c.iqama_expiry||"";
+  document.getElementById("cmLicense").value = c.license_expiry||"";
+  document.getElementById("cmVehicleLicense").value = c.vehicle_license_expiry||"";
+  document.getElementById("cmVehicleType").value = ["سيارة","دباب"].includes(c.vehicle_type)?c.vehicle_type:"";
+  document.getElementById("cmVehiclePlate").value = c.vehicle_plate||"";
+  document.getElementById("cmZone").value = c.zone||"";
+  document.getElementById("cmProject").innerHTML='<option value="">بدون مشروع (اختياري)</option>'+projects.filter(p=>p.is_active).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  document.getElementById("cmProject").value=c.primary_project_id||"";
+  document.getElementById("cmProject").disabled=META.role==="SUPERVISOR";
+  document.getElementById("cmPlatformId").value = c.platform_courier_id||"";
+  document.getElementById("cmIqamaNumber").value=c.iqama_number||"";document.getElementById("cmEmergencyName").value=c.emergency_name||"";document.getElementById("cmEmergencyPhone").value=c.emergency_phone||"";document.getElementById("cmPassportNumber").value=c.passport_number||"";document.getElementById("cmPassportExpiry").value=c.passport_expiry||"";document.getElementById("cmInsuranceExpiry").value=c.insurance_expiry||"";document.getElementById("cmInspectionExpiry").value=c.inspection_expiry||"";document.getElementById("cmWorkPermitExpiry").value=c.work_permit_expiry||"";
   document.getElementById("cmMsg").textContent = "";
   document.getElementById("courierModal").classList.add("open");
 }
@@ -827,17 +1009,31 @@ function closeCourier(){ document.getElementById("courierModal").classList.remov
 async function saveCourierProfile(){
   const msg = document.getElementById("cmMsg");
   try{
-    await api("/fleet/couriers/"+CM_ID,{method:"PATCH",body:JSON.stringify({
+    if(META.role!=="SUPERVISOR") await api("/fleet/couriers/"+CM_ID,{method:"PATCH",body:JSON.stringify({
       base_salary:+document.getElementById("cmSalary").value||0,
       per_delivery_rate:+document.getElementById("cmRate").value||0,
       bonus_target:+document.getElementById("cmBonus").value||0,
       employment_status:document.getElementById("cmStatus").value,
       bank_iban:document.getElementById("cmIban").value||null
     })});
+    if(META.role==="SUPERVISOR"||(META.permissions||[]).includes("hr")||(META.permissions||[]).includes("*")){
+      await api("/hr/couriers/"+CM_ID,{method:"PATCH",body:JSON.stringify({
+        iqama_expiry:document.getElementById("cmIqama").value||null,
+        license_expiry:document.getElementById("cmLicense").value||null,
+        vehicle_license_expiry:document.getElementById("cmVehicleLicense").value||null,
+        vehicle_type:document.getElementById("cmVehicleType").value||null,
+        vehicle_plate:document.getElementById("cmVehiclePlate").value||null,
+        zone:document.getElementById("cmZone").value||null,
+        primary_project_id:META.role==="SUPERVISOR"?CM_PROJECT_ID:(document.getElementById("cmProject").value||null),
+        platform_courier_id:document.getElementById("cmPlatformId").value||null
+        ,iqama_number:document.getElementById("cmIqamaNumber").value||null,emergency_name:document.getElementById("cmEmergencyName").value||null,emergency_phone:document.getElementById("cmEmergencyPhone").value||null,passport_number:document.getElementById("cmPassportNumber").value||null,passport_expiry:document.getElementById("cmPassportExpiry").value||null,insurance_expiry:document.getElementById("cmInsuranceExpiry").value||null,inspection_expiry:document.getElementById("cmInspectionExpiry").value||null,work_permit_expiry:document.getElementById("cmWorkPermitExpiry").value||null
+      })});
+    }
     msg.style.color="var(--green)"; msg.textContent="✅ حُفظت التغييرات";
     closeCourier(); loadAll();
   }catch(e){ msg.style.color="var(--red)"; msg.textContent="❌ "+e.message; }
 }
+async function transferCourierProject(){const projects=await api("/hr/projects");const list=projects.map(p=>p.id+" — "+p.name).join("\n");const id=prompt("اكتب رقم المشروع الجديد:\n"+list);if(!id)return;const note=prompt("سبب النقل (اختياري):")||"";await api("/hr/couriers/"+CM_ID+"/transfer-project",{method:"POST",body:JSON.stringify({project_id:+id,note})});alert("تم نقل السائق مع حفظ السجل");closeCourier();loadAll()}
 async function setCourierStatus(id, status){
   try{
     await api("/fleet/couriers/"+id,{method:"PATCH",body:JSON.stringify({employment_status:status})});
@@ -1016,16 +1212,82 @@ async function loadAttendance(){
 }
 
 async function loadCompliance(){
-  const c = await api("/analytics/compliance");
-  document.getElementById("compMetrics").innerHTML = `
-    <div class="metric"><b>${c.documents_attention}</b><span>مستندات تحتاج انتباه</span></div>
-    <div class="metric"><b>${c.attendance_exceptions}</b><span>استثناءات حضور</span></div>
-    <div class="metric"><b>${c.delivery_investigations}</b><span>تحقيقات توصيل</span></div>
-    <div class="metric"><b>${c.couriers_checked_in}</b><span>سجّلوا الحضور</span></div>`;
-  document.getElementById("compDetail").innerHTML =
-    `• <b>${c.documents_attention}</b> مندوباً مستنداتهم تحتاج تجديد أو انتهت<br>` +
-    `• <b>${c.attendance_exceptions}</b> حالة تأخير/غياب هذا الأسبوع<br>` +
-    `• <b>${c.delivery_investigations}</b> حالة توصيل تتطلب مراجعة تشغيلية`;
+  try{
+    const c = await api("/hr/violations");
+    document.getElementById("compMetrics").innerHTML = `
+      <div class="metric alert"><b>${c.counts.documents_expired}</b><span>مستندات منتهية</span></div>
+      <div class="metric"><b>${c.counts.documents_soon}</b><span>تنتهي خلال 30 يوم</span></div>
+      <div class="metric"><b>${c.counts.suspended}</b><span>سائقون موقوفون</span></div>
+      <div class="metric"><b>${c.counts.on_leave}</b><span>في إجازة</span></div>`;
+    document.getElementById("compDetail").innerHTML = c.rows.map(r=>`
+      <div class="opt"><div><b>${escapeHtml(r.name)}</b><small>${escapeHtml(r.details.join(" · ")||"يحتاج مراجعة")}</small></div>
+      <button class="btn blue small" onclick="openCourier(${r.id})">فتح ملف السائق وتعديل المستندات</button></div>`).join("")
+      || "✅ لا توجد مستندات منتهية أو قريبة خلال 30 يوم";
+  }catch(e){ document.getElementById("compDetail").textContent="تعذّر تحميل المستندات"; }
+}
+
+let REPORT_ROWS=[];
+async function initReports(){
+  const permissions=META.permissions||[];
+  const type=document.getElementById("reportType");
+  [...type.options].forEach(o=>{
+    if(o.value==="documents"&&!permissions.includes("hr")&&!permissions.includes("*")) o.remove();
+    if(o.value==="bonus"&&!permissions.includes("payroll")&&!permissions.includes("*")) o.remove();
+  });
+  if(!document.getElementById("reportProject").dataset.loaded){
+    try{
+      const [projects,couriers,supervisors]=await Promise.all([api("/hr/projects"),api("/fleet/couriers"),META.role==="SUPERVISOR"?Promise.resolve([]):api("/hr/supervisors")]);
+      document.getElementById("reportProject").innerHTML='<option value="">كل المشاريع</option>'+projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+      const unique=x=>[...new Set(x.filter(Boolean))].sort();
+      document.getElementById("reportNationality").innerHTML='<option value="">كل الجنسيات</option>'+unique(couriers.map(c=>c.nationality)).map(x=>`<option>${escapeHtml(x)}</option>`).join("");
+      document.getElementById("reportZone").innerHTML='<option value="">كل المدن والمناطق</option>'+unique(couriers.map(c=>c.zone)).map(x=>`<option>${escapeHtml(x)}</option>`).join("");
+      document.getElementById("reportSupervisor").innerHTML='<option value="">كل المشرفين</option>'+supervisors.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+      document.getElementById("reportProject").dataset.loaded="1";
+    }catch(e){}
+  }
+  if(!document.getElementById("reportDate").value) document.getElementById("reportDate").value=new Date().toISOString().slice(0,10);
+  setupReportFilters(); loadReport();
+}
+function setupReportFilters(){
+  const type=document.getElementById("reportType").value, daily=type==="daily", bonus=type==="bonus";
+  document.getElementById("reportDocStatus").style.display=type==="documents"?"block":"none";
+  document.getElementById("reportProject").style.display=(bonus||daily)?"block":"none";
+  document.getElementById("dailyReportFilters").style.display=daily?"flex":"none";
+}
+function reportQuery(){
+  const type=document.getElementById("reportType").value;
+  if(type==="daily"){
+    const p=new URLSearchParams();
+    const fields={report_date:"reportDate",project_id:"reportProject",nationality:"reportNationality",zone:"reportZone",supervisor_id:"reportSupervisor",courier_name:"reportCourierName",log_status:"reportLogStatus",target_status:"reportTargetStatus",attendance_status:"reportAttendance",employment_status:"reportEmployment"};
+    Object.entries(fields).forEach(([k,id])=>{const v=document.getElementById(id).value;if(v)p.set(k,v)});
+    return p.toString();
+  }
+  const p=new URLSearchParams({report_type:type});
+  if(type==="documents") p.set("doc_status",document.getElementById("reportDocStatus").value);
+  else if(document.getElementById("reportProject").value) p.set("project_id",document.getElementById("reportProject").value);
+  return p.toString();
+}
+async function loadReport(){
+  try{
+    const type=document.getElementById("reportType").value;
+    const response=await api((type==="daily"?"/hr/daily-report?":"/fleet/reports?")+reportQuery());
+    REPORT_ROWS=type==="daily"?response.rows:response;
+    const keys=REPORT_ROWS.length?Object.keys(REPORT_ROWS[0]):[];
+    document.getElementById("reportHead").innerHTML=keys.length?'<tr>'+keys.map(k=>`<th>${k}</th>`).join("")+'</tr>':'';
+    const visibleKeys=keys.filter(k=>!k.startsWith("_"));
+    document.getElementById("reportHead").innerHTML=visibleKeys.length?'<tr>'+visibleKeys.map(k=>`<th>${k}</th>`).join("")+'</tr>':'';
+    document.getElementById("reportBody").innerHTML=REPORT_ROWS.map(r=>`<tr class="${r._target_state==="OVER"?"target-green":r._target_state==="PENDING"?"target-red":""}">`+visibleKeys.map(k=>`<td>${escapeHtml(r[k])}</td>`).join("")+'</tr>').join("")||'<tr><td>لا توجد نتائج مطابقة للفلاتر</td></tr>';
+    const totalBonus=type==="bonus"?REPORT_ROWS.reduce((s,r)=>s+(Number(r["البونص المستحق"])||0),0):0;
+    document.getElementById("reportSummary").innerHTML=type==="daily"?`<div class="metric"><b>${response.summary.couriers}</b><span>السائقون</span></div><div class="metric trend"><b>${response.summary.logged}</b><span>سجلوا</span></div><div class="metric alert"><b>${response.summary.not_logged}</b><span>لم يسجلوا</span></div><div class="metric"><b>${response.summary.orders}</b><span>إجمالي الطلبات</span></div><div class="metric"><b>${response.summary.average}</b><span>المتوسط</span></div><div class="metric trend"><b>${escapeHtml(response.summary.top)}</b><span>الأعلى اليوم</span></div>`:`<div class="metric"><b>${REPORT_ROWS.length}</b><span>عدد النتائج</span></div>`+(type==="bonus"?`<div class="metric trend"><b>${totalBonus.toLocaleString()} ر.س</b><span>إجمالي البونص</span></div>`:'');
+  }catch(e){ document.getElementById("reportBody").innerHTML='<tr><td>تعذّر تحميل التقرير</td></tr>'; }
+}
+async function downloadReport(){
+  const daily=document.getElementById("reportType").value==="daily";
+  const r=await fetch((daily?"/hr/daily-report/export?":"/fleet/reports/export?")+reportQuery(),{headers:{Authorization:"Bearer "+TOKEN}});
+  if(!r.ok){alert("تعذّر تنزيل التقرير");return;}
+  const blob=await r.blob(); const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=(daily?"تقرير-إنجاز-السائقين-اليومي":document.getElementById("reportType").value==="documents"?"تقرير-المستندات":"تقرير-التارجت-والبونص")+".csv";
+  a.click(); URL.revokeObjectURL(a.href);
 }
 
 async function loadTickets(){
@@ -1199,6 +1461,29 @@ async function payInvoice(){
     loadBilling();
   }catch(e){ msg.style.color="var(--red)"; msg.textContent="❌ "+e.message; }
 }
+async function loadSupervision(){
+  try{
+    const isSup=META.role==="SUPERVISOR";
+    const [couriers,candidates,requests,leaves,weekly,leaderboard,violations]=await Promise.all([api("/hr/couriers"),isSup?api("/hr/assignment-candidates"):Promise.resolve([]),api("/hr/assignment-requests"),api("/hr/leaves"),api("/hr/weekly"),api("/hr/leaderboard"),api("/hr/violations")]);
+    const opts=couriers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    document.getElementById("svCourier").innerHTML=opts;
+    document.getElementById("svCandidate").innerHTML='<option value="">اختر مندوبًا</option>'+candidates.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}${c.supervisor?' — حاليًا: '+escapeHtml(c.supervisor):''}</option>`).join("");
+    document.getElementById("svCandidate").closest(".card").style.display=isSup?"block":"none";
+    document.getElementById("svAssignments").innerHTML=requests.map(r=>`<div class="opt"><div><b>${escapeHtml(r.courier)}</b><small>${r.status} · ${escapeHtml(r.note||'بدون ملاحظة')}</small></div></div>`).join("")||'<p>لا توجد طلبات</p>';
+    document.getElementById("svLeaves").innerHTML=leaves.map(l=>`<div class="opt"><div><b>${escapeHtml(l.courier)} — ${l.from_date} إلى ${l.to_date}</b><small>${escapeHtml(l.reason||'بدون سبب')} · ${l.status}</small></div>${l.status==="PENDING"?`<div><button class="btn green small" onclick="decideSupervisorLeave(${l.id},'approve')">موافقة</button> <button class="btn red small" onclick="decideSupervisorLeave(${l.id},'reject')">رفض</button></div>`:''}</div>`).join("")||'<p>لا توجد طلبات إجازة</p>';
+    document.getElementById("svWeekly").innerHTML=`<div class="lineItem"><span>إجمالي الطلبات</span><b>${(weekly.couriers||[]).reduce((s,c)=>s+(c.week_orders||0),0)}</b></div><div class="lineItem"><span>عدد السائقين</span><b>${couriers.length}</b></div>`;
+    document.getElementById("svLeaderboard").innerHTML=(leaderboard.rows||[]).slice(0,10).map(r=>`<div class="lineItem"><span>${r.rank}. ${escapeHtml(r.name)}</span><b>${r.month_orders} طلب</b></div>`).join("")||'<p>لا توجد بيانات أداء</p>';
+    document.getElementById("svViolations").innerHTML=(violations.rows||[]).slice(0,10).map(r=>`<div class="opt"><div><b>${escapeHtml(r.name)}</b><small>${escapeHtml((r.details||[]).join(' · ')||'يحتاج مراجعة')}</small></div></div>`).join("")||'<p>لا توجد تنبيهات</p>';
+  }catch(e){document.getElementById("svAssignments").textContent="تعذر تحميل بيانات الفريق"}
+}
+async function requestFleetAssignment(){await api("/hr/assignment-requests",{method:"POST",body:JSON.stringify({courier_id:+document.getElementById("svCandidate").value,note:document.getElementById("svAssignNote").value})});loadSupervision()}
+async function decideSupervisorLeave(id,action){await api("/hr/leaves/"+id+"/decide",{method:"POST",body:JSON.stringify({action})});loadSupervision()}
+async function saveSupervisorReview(){
+  const id=document.getElementById("svCourier").value,note=document.getElementById("svNote").value,score=+document.getElementById("svRating").value;
+  if(note)await api("/hr/couriers/"+id+"/note",{method:"POST",body:JSON.stringify({note})});
+  await api("/hr/couriers/"+id+"/rating",{method:"POST",body:JSON.stringify({score,comment:note})});document.getElementById("svMsg").textContent="✅ تم حفظ الملاحظة والتقييم";
+}
+async function sendSupervisorBroadcast(){await api("/hr/broadcast",{method:"POST",body:JSON.stringify({message:document.getElementById("svBroadcast").value})});alert("تم إرسال الرسالة لمناديبك")}
 
 async function loadHR(){
   try{
@@ -1207,6 +1492,12 @@ async function loadHR(){
     const projects = await api("/hr/projects");
     const bonus = await api("/hr/bonus");
     const leaves = await api("/hr/leaves");
+    const assignments = await api("/hr/assignment-requests");
+    const employeeRequests=await api("/hr/employee-requests");const adjustments=await api("/hr/adjustments");const allCouriers=await api("/hr/couriers");const uploadedDocs=await api("/hr/documents");
+    document.getElementById("adjCourier").innerHTML=allCouriers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    document.getElementById("employeeRequestsBody").innerHTML=employeeRequests.map(r=>`<div class="opt"><div><b>${escapeHtml(r.courier)} — ${r.request_type}</b><small>${escapeHtml(r.title||'')} · ${escapeHtml(r.details||'')} · ${r.status}</small></div>${["PENDING","SUPERVISOR_APPROVED"].includes(r.status)?`<div><button class="btn green small" onclick="decideEmployeeRequest(${r.id},'approve')">موافقة</button> <button class="btn red small" onclick="decideEmployeeRequest(${r.id},'reject')">رفض</button></div>`:''}</div>`).join("")||'<p>لا طلبات</p>';
+    document.getElementById("adjustmentsBody").innerHTML=adjustments.map(x=>`<div class="lineItem"><span>${escapeHtml(x.courier)} · ${x.kind} · ${escapeHtml(x.note||'')}</span><b>${x.amount} ر.س</b></div>`).join("")||'<p>لا خصومات أو سلف</p>';
+    document.getElementById("uploadedDocumentsBody").innerHTML=uploadedDocs.map(x=>`<div class="opt"><div><b>${escapeHtml(x.courier)} — ${escapeHtml(x.filename)}</b><small>${x.document_type} · ${x.status}</small></div><div><button class="btn ghost small" onclick="viewUploadedDocument(${x.id})">عرض</button>${x.status==='PENDING'&&META.role!=='SUPERVISOR'?` <button class="btn green small" onclick="decideUploadedDocument(${x.id},'approve')">اعتماد</button> <button class="btn red small" onclick="decideUploadedDocument(${x.id},'reject')">رفض</button>`:''}</div></div>`).join('')||'<p>لا مستندات مرفوعة للمراجعة</p>';
     document.getElementById("hrTotal").textContent = dash.couriers_total;
     document.getElementById("hrSupCount").textContent = sups.length;
     document.getElementById("hrOrders").textContent = sups.reduce((s,x)=>s+x.couriers_count,0);
@@ -1219,9 +1510,12 @@ async function loadHR(){
     document.getElementById("projectsBody").innerHTML = projects.map(p=>`
       <div class="opt"><div><b>${p.name}</b><small>${p.is_active?'نشطة':'موقوفة'}</small></div></div>`).join("")
       || '<p style="color:var(--muted)">لا مشاريع — أضف منصة (هنقرستيشن/جاهز...)</p>';
+    document.getElementById("assignmentRequestsAdmin").innerHTML=assignments.filter(r=>r.status==="PENDING").map(r=>`
+      <div class="opt"><div><b>${escapeHtml(r.supervisor)} يطلب ضم ${escapeHtml(r.courier)}</b><small>${escapeHtml(r.note||'بدون ملاحظة')}</small></div>
+      <div><button class="btn green small" onclick="decideAssignment(${r.id},'approve')">موافقة</button> <button class="btn red small" onclick="decideAssignment(${r.id},'reject')">رفض</button></div></div>`).join("")||'<p style="color:var(--muted)">لا توجد طلبات معلقة</p>';
     document.getElementById("bonusBody").innerHTML = bonus.map(b=>`
       <tr><td><b>${b.courier}</b>${b.is_project_plan?'<span class="tag blue" style="margin-right:6px">كل المشروع</span>':''}</td><td>${b.project}</td><td>${b.target_orders}</td>
-      <td>${b.bonus_amount} ر.س</td><td>${b.over_target_rate} ر.س</td>
+      <td><b>${b.bonus_amount} ر.س</b><br><small>يُصرف عند ${b.target_orders} طلب</small></td><td>${b.over_target_rate} ر.س / طلب زائد</td>
       <td><button class="btn ghost small" onclick="delBonus(${b.id})">حذف</button></td></tr>`).join("")
       || '<tr><td colspan="6" style="color:var(--muted)">لا خطط بونص بعد</td></tr>';
     const stMap = {PENDING:'<span class="tag amber">بانتظار المشرف</span>',SUPERVISOR_APPROVED:'<span class="tag blue">وافق المشرف — بانتظارك</span>',APPROVED:'<span class="tag green">موافق نهائياً</span>',REJECTED:'<span class="tag red">مرفوضة</span>'};
@@ -1246,7 +1540,9 @@ async function loadLB(){
       <td>${r.avg_rating!=null?r.avg_rating.toFixed(1):'—'}</td></tr>`).join("")
       || '<tr><td colspan="7" style="color:var(--muted)">لا بيانات بعد — المندوبون يسجلون أوردراتهم يومياً</td></tr>';
   }catch(e){}
+  loadMonthlyAttendance();
 }
+async function loadMonthlyAttendance(){const el=document.getElementById("attendanceMonth");if(!el.value)el.value=new Date().toISOString().slice(0,7);try{const d=await api("/fleet/attendance/monthly?month="+el.value);document.getElementById("monthlyAttendanceBody").innerHTML=d.rows.map(r=>`<tr><td>${r["المندوب"]}</td><td>${r["أيام الحضور"]}</td><td>${r["مرات التأخير"]}</td><td>${r["ساعات العمل"]}</td><td>${r["الحالة"]}</td></tr>`).join("")||'<tr><td colspan="5">لا بيانات</td></tr>'}catch(e){}}
 async function loadPayroll(){
   try{
     const p = await api("/hr/payroll");
@@ -1325,6 +1621,14 @@ async function decideHrLeave(id,action){
   await api("/hr/leaves/"+id+"/decide",{method:"POST",body:JSON.stringify({action,comment:c||""})});
   loadHR();
 }
+async function decideAssignment(id,action){
+  await api("/hr/assignment-requests/"+id+"/decide",{method:"POST",body:JSON.stringify({action})});
+  loadHR();
+}
+async function decideEmployeeRequest(id,action){await api("/hr/employee-requests/"+id+"/decide",{method:"POST",body:JSON.stringify({action})});loadHR()}
+async function viewUploadedDocument(id){const x=await api('/hr/documents/'+id+'/content'),w=window.open('','_blank');if(!w)return alert('اسمح بالنوافذ المنبثقة');if(x.mime_type==='application/pdf')w.location.href=x.file_data;else w.document.write(`<title>${x.filename}</title><img src="${x.file_data}" style="max-width:100%;height:auto;display:block;margin:auto">`)}
+async function decideUploadedDocument(id,action){const note=prompt('ملاحظة المراجعة (اختياري):','')||'';await api('/hr/documents/'+id+'/decide',{method:'POST',body:JSON.stringify({action,note})});loadHR()}
+async function saveAdjustment(){await api("/hr/adjustments",{method:"POST",body:JSON.stringify({courier_id:+document.getElementById("adjCourier").value,kind:document.getElementById("adjKind").value,amount:+document.getElementById("adjAmount").value,note:document.getElementById("adjNote").value})});loadHR()}
 async function delBonus(id){ if(!confirm("حذف خطة البونص نهائياً؟"))return; await api("/hr/bonus/"+id,{method:"DELETE"}); loadHR(); }
 function openSupModal(){ document.getElementById("supMsg").textContent=""; document.getElementById("supModal").classList.add("open"); }
 function closeSup(){ document.getElementById("supModal").classList.remove("open"); }
@@ -1336,7 +1640,7 @@ async function saveSup(){
       password:document.getElementById("supPass").value
     })});
     document.getElementById("supMsg").style.color="var(--green)";
-    document.getElementById("supMsg").innerHTML="✅ حُفظ. دخول المشرف: <b dir='ltr'>"+r.login_phone+"</b> / "+r.password+" عبر /static/supervisor.html";
+    document.getElementById("supMsg").innerHTML="✅ حُفظ. دخول المشرف: <b dir='ltr'>"+r.login_phone+"</b> / "+r.password+" من نفس لوحة الشركة";
     setTimeout(()=>{closeSup();loadHR();},1800);
   }catch(e){ document.getElementById("supMsg").style.color="var(--red)"; document.getElementById("supMsg").textContent="❌ "+e.message; }
 }
@@ -1344,12 +1648,21 @@ function bnScope(){
   const show=document.getElementById("bnScope").value==="courier";
   document.getElementById("bnCourierWrap").style.display=show?"block":"none";
 }
+function previewBonus(){
+  const target=parseInt(document.getElementById("bnTarget").value||0);
+  const amount=parseFloat(document.getElementById("bnBonus").value||0);
+  const rate=parseFloat(document.getElementById("bnOver").value||0);
+  const el=document.getElementById("bnPreview");
+  if(!target){el.textContent="أدخل التارجت الشهري لعرض مثال الحساب.";return;}
+  const example=target+40;
+  el.innerHTML=`أقل من <b>${target}</b> طلب: البونص <b>0 ر.س</b><br>عند <b>${target}</b> طلب: <b>${amount} ر.س</b><br>عند <b>${example}</b> طلب: ${amount} + (40 × ${rate}) = <b>${amount+40*rate} ر.س</b>`;
+}
 async function openBonusModal(){
   const [couriers,projects]=await Promise.all([api("/fleet/couriers"),api("/hr/projects")]);
   document.getElementById("bnCourier").innerHTML=couriers.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
   document.getElementById("bnProject").innerHTML=projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
   document.getElementById("bnMsg").textContent=""; document.getElementById("bonusModal").classList.add("open");
-  bnScope();
+  bnScope(); previewBonus();
 }
 function closeBonusModal(){ document.getElementById("bonusModal").classList.remove("open"); }
 async function saveBonus(){

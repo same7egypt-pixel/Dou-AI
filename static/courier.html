@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DOU | تطبيق المندوب</title>
-<meta name="description" content="حضور، مهام وأرباح مندوبي التوصيل">
+<title>DOU | تطبيق السائق</title>
+<meta name="description" content="الحضور والإنتاجية والمستندات والمستحقات للسائق">
 <meta name="theme-color" content="#11161d">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -97,7 +97,7 @@
 
   <div class="tabs">
     <button class="active" onclick="go('home')">🏠 الرئيسية</button>
-    <button onclick="go('earnings')">💰 الأرباح</button>
+    <button onclick="go('earnings')">💰 مستحقاتي</button>
     <button onclick="go('dlog')">📆 سجلي اليومي</button>
     <button onclick="go('profile')">👤 حسابي</button>
     <button onclick="go('notifs')">🔔 تنبيهات</button>
@@ -114,12 +114,12 @@
       </div>
 
       <div class="earn">
-        <div class="e"><b id="doneCount">0</b><span>توصيلات مكتملة</span></div>
-        <div class="e"><b id="acceptRate">100%</b><span>معدل القبول</span></div>
+        <div class="e"><b id="doneCount">0</b><span>إنتاجية الشهر</span></div>
+        <div class="e"><b id="acceptRate">100%</b><span>نسبة الالتزام</span></div>
         <div class="e"><b id="score">5.0</b><span>نقاط الأداء</span></div>
       </div>
 
-      <div class="card">
+      <div class="card" style="display:none">
         <h3>🎯 المهام الحالية</h3>
         <div id="tasks"><p style="color:var(--muted);font-size:12px">لا مهام حالياً</p></div>
       </div>
@@ -127,7 +127,7 @@
       <div class="card">
         <h3>حالة التوفر</h3>
         <div class="toggle">
-          <div><b style="font-size:13px">متاح للطلبات</b><div style="font-size:11px;color:var(--muted)">فعّل لتستقبل مهام توصيل</div></div>
+          <div><b style="font-size:13px">حالة العمل</b><div style="font-size:11px;color:var(--muted)">فعّل عند بدء العمل اليوم</div></div>
           <div id="switch" class="switch" onclick="toggleOnline()"></div>
         </div>
         <p style="font-size:10px;color:var(--muted);margin:8px 0 0">⚠️ سيتم إيقافك تلقائياً إذا: لم تسجّل حضورك، أو انتهت ورديتك.</p>
@@ -140,7 +140,7 @@
         <button class="btn ghost" id="checkoutBtn" onclick="checkOut()" disabled>تسجيل خروج (إنهاء الوردية)</button>
       </div>
 
-      <div class="card">
+      <div class="card" style="display:none">
         <h3>📍 التنقل الحالي</h3>
         <div class="mapPh">🗺 خريطة GPS — تحسين المسار تلقائياً
           <span class="pin" style="right:30%;top:36%">🛵</span>
@@ -156,18 +156,18 @@
     <!-- الأرباح -->
     <div class="view" id="view-earnings">
       <div class="payout">
-        <div class="p"><b id="todayEarn">0</b><span>أرباح اليوم</span></div>
-        <div class="p"><b id="weekEarn">0</b><span>هذا الأسبوع</span></div>
+        <div class="p"><b id="todayEarn">0</b><span>مستحق اليوم</span></div>
+        <div class="p"><b id="weekEarn">0</b><span>مستحق الأسبوع</span></div>
         <div class="p"><b id="incentiveEarn">0</b><span>الحوافز</span></div>
       </div>
 
       <div class="card">
-        <h3>أرباح اليوم — لكل طلب</h3>
+        <h3>مستحقات الإنتاجية اليوم</h3>
         <div id="earningList"></div>
       </div>
 
       <div class="card">
-        <h3>🧮 تفاصيل حسابي (Payout)</h3>
+        <h3>🧮 تفاصيل مستحقاتي</h3>
         <div class="lineItem"><span>الحساب البنكي</span><b dir="ltr" id="profIban">—</b></div>
         <div class="lineItem"><span>التحويل الدوري</span><b>كل أسبوعين</b></div>
         <div class="lineItem"><span>الحالة</span><b style="color:var(--green)">مفعّل ✓</b></div>
@@ -199,12 +199,14 @@
         <h3>📄 المستندات والمواعيد</h3>
         <div id="profDocs"><div class="docRow"><div><b>جارِ التحميل...</b></div></div></div>
         <button class="btn ghost small" style="margin-top:10px" onclick="uploadDoc()">📎 رفع مستند</button>
+        <div id="myUploadedDocs" style="margin-top:10px"></div>
       </div>
 
       <div class="card">
         <h3>التوفر والحضور</h3>
         <div class="lineItem"><span>الحالة</span><b id="profOnline">غير متصل</b></div>
         <div class="lineItem"><span>ساعات العمل اليوم</span><b>0 ساعة</b></div>
+        <button class="btn ghost" style="margin-top:10px" onclick="changeMyPassword()">🔐 تغيير كلمة المرور</button>
         <button class="btn danger" style="margin-top:10px" onclick="logout()">🚪 تسجيل الخروج</button>
         <button class="btn danger" style="margin-top:8px" onclick="raiseSupport()">🛟 رفع تذكرة (دعم)</button>
       </div>
@@ -234,6 +236,11 @@
       </div>
 
       <div class="card">
+        <h3>🎯 التارجت والبونص الشهري</h3>
+        <div id="bonusProgress"><p style="color:var(--muted);font-size:12px">جارِ حساب التارجت...</p></div>
+      </div>
+
+      <div class="card">
         <h3>🌴 طلب إجازة</h3>
         <div class="row" style="margin-bottom:8px"><span>من</span><b><input type="date" id="lvFrom" style="width:100%"></b></div>
         <div class="row" style="margin-bottom:8px"><span>إلى</span><b><input type="date" id="lvTo" style="width:100%"></b></div>
@@ -247,6 +254,7 @@
         <h3>📆 هذا الشهر</h3>
         <div id="dlMonth"></div>
       </div>
+      <div class="card"><h3>طلبات الموظف</h3><select id="erType" style="width:100%;margin-bottom:8px"><option value="ADVANCE">طلب سلفة</option><option value="SHIFT_CHANGE">تغيير وردية</option><option value="PROJECT_TRANSFER">نقل مشروع</option><option value="MAINTENANCE">صيانة مركبة</option><option value="INCIDENT">بلاغ حادث</option></select><select id="erProject" style="width:100%;margin-bottom:8px"><option value="">المشروع المطلوب عند طلب النقل</option></select><input id="erTitle" style="width:100%;margin-bottom:8px" placeholder="عنوان الطلب"><textarea id="erDetails" style="width:100%;margin-bottom:8px" placeholder="التفاصيل"></textarea><input id="erAmount" type="number" style="width:100%;margin-bottom:8px" placeholder="المبلغ إن وجد"><button class="btn" style="width:100%" onclick="sendEmployeeRequest()">إرسال الطلب</button><div id="erMsg" class="msg"></div></div>
 
       <div class="card">
         <h3>🗓 الشهور السابقة</h3>
@@ -267,8 +275,8 @@ async function api(path, opts={}){
   const headers = {"Content-Type":"application/json"};
   if(TOKEN) headers["Authorization"] = "Bearer "+TOKEN;
   const r = await fetch(API+path, Object.assign({headers}, opts));
-  if(r.status===401){ logout(); throw new Error("انتهت الجلسة — سجّل دخولك مجدداً"); }
-  if(!r.ok) throw new Error((await r.text())||r.status);
+  if(r.status===401 && path!=="/auth/login"){ logout(); throw new Error("انتهت الجلسة — سجّل دخولك مجدداً"); }
+  if(!r.ok){let message="تعذر تنفيذ الطلب";try{const data=await r.json();message=data.detail||message}catch(_e){}if(path==="/auth/login"&&r.status===401)message="رقم الجوال أو كلمة المرور غير صحيحة";throw new Error(message);}
   return r.json();
 }
 
@@ -278,17 +286,16 @@ function loginView(){
     <div style="display:flex;flex-direction:column;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(160deg,#141a24,#1f2a3a)">
       <div style="text-align:center;margin-bottom:22px">
         <div class="logo" style="color:#fff;font-size:28px">D<i></i>ou <span style="font-size:11px;color:#ff7a42;letter-spacing:1px">COURIER</span></div>
-        <p style="color:#8b94a3;font-size:12px;margin:8px 0 0">سجّل دخولك لاستقبال المهام والورديات</p>
+        <p style="color:#8b94a3;font-size:12px;margin:8px 0 0">سجّل دخولك لمتابعة ورديتك ومستنداتك ومستحقاتك</p>
       </div>
       <div style="background:#fff;border-radius:18px;padding:20px">
         <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">رقم الجوال (بمفتاح الدولة)</label>
         <input id="loginPhone" type="tel" dir="ltr" placeholder="966551112233" value="966551112233"
           style="width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:12px">
         <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">كلمة المرور</label>
-        <input id="loginPass" type="password" dir="ltr" placeholder="••••••••" value="dou123456"
+        <input id="loginPass" type="password" dir="ltr" placeholder="••••••••"
           style="width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:16px">
         <button class="btn primary" id="loginBtn" onclick="doLogin()">دخول</button>
-        <p style="font-size:10px;color:var(--muted);margin:10px 0 0;text-align:center">تجرّب الدخول: 966551112233 / dou123456</p>
         <div id="installBar" style="display:none;margin-top:12px;text-align:center">
           <button class="btn ghost" id="installBtn" onclick="installApp()">📲 ثبّت التطبيق على جوالك</button>
         </div>
@@ -331,9 +338,15 @@ async function doLogin(){
   }catch(e){ btn.disabled=false; btn.textContent="دخول"; alert("❌ "+e.message); }
 }
 
-function logout(){
-  TOKEN = null; localStorage.removeItem("dou_token_courier"); localStorage.removeItem("dou_token"); COURIER = null; loginView();
+async function logout(){
+  const old=TOKEN;TOKEN=null;try{if(old)await fetch('/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+old}})}catch(_e){}
+  localStorage.removeItem("dou_token_courier"); localStorage.removeItem("dou_token"); localStorage.removeItem("dou_role"); COURIER = null; loginView();
 }
+async function changeMyPassword(){
+  const current=prompt("كلمة المرور الحالية:");if(current===null)return;const next=prompt("كلمة المرور الجديدة (8 أحرف على الأقل):");if(!next)return;
+  await api("/auth/change-password",{method:"POST",body:JSON.stringify({current_password:current,new_password:next})});alert("✅ تم التغيير. سجل الدخول بكلمة المرور الجديدة");logout();
+}
+async function sendEmployeeRequest(){try{await api("/hr/employee-requests",{method:"POST",body:JSON.stringify({request_type:document.getElementById("erType").value,title:document.getElementById("erTitle").value,details:document.getElementById("erDetails").value,amount:+document.getElementById("erAmount").value||null,project_id:+document.getElementById("erProject").value||null})});document.getElementById("erMsg").textContent="✅ تم إرسال الطلب للإدارة"}catch(e){document.getElementById("erMsg").textContent="❌ "+e.message}}
 
 async function init(){
   if(!TOKEN){ loginView(); return; }
@@ -345,7 +358,7 @@ async function init(){
     COURIER = await api("/couriers/me");
     document.querySelectorAll(".tabs").forEach(t=>t.style.display="flex");
     fillProfile();
-    await Promise.all([loadProfile(), loadTasks(), loadHRWarnings()]);
+    await Promise.all([loadProfile(), loadTasks(), loadHRWarnings(),loadMyDocuments()]);
   }catch(e){
     logout();
   }
@@ -367,10 +380,10 @@ function fillProfile(){
 }
 
 const NOTIFS = [
-  {ic:"📦", c:"#eaf1ff", t:"عرض طلب جديد — 12 ر.س", s:"قبل دقيقتين"},
+  {ic:"📆", c:"#eaf1ff", t:"سجّل إنتاجيتك اليومية قبل نهاية الوردية", s:"اليوم"},
   {ic:"🔔", c:"#fff2eb", t:"تذكير: ورديتك تبدأ 16:00 اليوم", s:"قبل 30 دقيقة"},
-  {ic:"⚠️", c:"#fff0f1", t:"مخالفة محتملة: تأخرت في طلب سابق", s:"أمس"},
-  {ic:"💰", c:"#eaf8f0", t:"تم إيداع أرباح الأسبوع الماضي", s:"الأحد"}
+  {ic:"⚠️", c:"#fff0f1", t:"راجع موعد انتهاء مستنداتك", s:"أمس"},
+  {ic:"💰", c:"#eaf8f0", t:"تم تحديث مستحقات الأسبوع الماضي", s:"الأحد"}
 ];
 
 async function loadTasks(){
@@ -495,13 +508,11 @@ async function editProfile(){
 }
 
 async function uploadDoc(){
-  const ans = confirm("وضعت المستند (رخصة/هوية) ليستعرضها فريق الشركة؟");
-  if(!ans) return;
-  try{
-    await api("/couriers/me", {method:"PATCH", body:JSON.stringify({documents_valid:true})});
-    alert("✅ أُرسل المستند للمراجعة — حالته: سارية/قيد المراجعة");
-  }catch(e){ alert("❌ "+e.message); }
+  const labels={IQAMA:"الإقامة",DRIVING_LICENSE:"رخصة القيادة",VEHICLE_LICENSE:"رخصة المركبة",PASSPORT:"جواز السفر",INSURANCE:"التأمين",WORK_PERMIT:"تصريح العمل"};
+  const typ=prompt("اكتب كود نوع المستند:\n"+Object.entries(labels).map(x=>x[0]+" — "+x[1]).join("\n"),"IQAMA");if(!labels[typ])return alert("نوع المستند غير صحيح");
+  const input=document.createElement("input");input.type="file";input.accept="image/jpeg,image/png,application/pdf";input.onchange=()=>{const f=input.files[0];if(!f)return;if(f.size>1024*1024)return alert("حجم الملف يجب ألا يزيد عن 1 ميجابايت");const reader=new FileReader();reader.onload=async()=>{try{await api("/hr/me/documents",{method:"POST",body:JSON.stringify({document_type:typ,filename:f.name,mime_type:f.type,file_data:reader.result})});alert("✅ تم رفع المستند وحالته: بانتظار مراجعة الشركة");loadMyDocuments()}catch(e){alert("❌ "+e.message)}};reader.readAsDataURL(f)};input.click();
 }
+async function loadMyDocuments(){try{const rows=await api('/hr/me/documents'),box=document.getElementById('myUploadedDocs');if(box)box.innerHTML=rows.map(x=>`<div class="lineItem"><span>${x.filename}</span><b>${x.status==='APPROVED'?'✅ معتمد':x.status==='REJECTED'?'❌ مرفوض':'⏳ قيد المراجعة'}</b></div>`).join('')||'<small>لم ترفع مستندات بعد</small>'}catch(e){}}
 
 async function raiseSupport(){
   const subject = prompt("موضوع التذكرة:", "مشكلة في احتساب الأرباح");
@@ -527,8 +538,6 @@ async function checkIn(){
     document.getElementById("checkoutBtn").disabled = false;
     document.getElementById("statusText").textContent = "متصل";
     alert(loc.lat?`✅ تم تسجيل الحضور مع موقعك (${loc.lat}, ${loc.lng}) — ظهر للشركة`:"✅ تم تسجيل الحضور — لكن الموقع غير متاح (فعّل GPS)");
-    await api("/hr/me/shift/start",{method:"POST"});
-    await api("/couriers/"+COURIER.id+"/online",{method:"POST"});
     loadProfile();
   }catch(e){ alert("❌ "+e.message); }
 }
@@ -544,7 +553,6 @@ async function checkOut(){
     document.getElementById("checkinBtn").disabled = false;
     document.getElementById("checkoutBtn").disabled = true;
     alert(loc.lat?`✅ تم تسجيل الخروج مع موقعك (${loc.lat}, ${loc.lng}) — ظهر للشركة`:"✅ تم تسجيل الخروج — لكن الموقع غير متاح (فعّل GPS)");
-    await api("/hr/me/shift/stop",{method:"POST"});
   }catch(e){ alert("❌ "+e.message); }
 }
 
@@ -556,10 +564,20 @@ async function loadDailyLog(){
     document.getElementById("dlogMonthTotal").textContent = data.month_orders+" أوردر هذا الشهر";
     document.getElementById("dlogToday").textContent = "اليوم: "+data.today_orders+" أوردر";
     document.getElementById("dlogBonus").textContent = "بونص الشهر: "+data.bonus_earned+" ر.س";
+    document.getElementById("bonusProgress").innerHTML = (data.bonus_details||[]).map(b=>{
+      const pct=Math.min(100,Math.round((b.orders/(b.target||1))*100));
+      const status=b.achieved?`حقق التارجت · ${b.over_orders} طلب زائد`:`متبقي ${b.remaining_orders} طلب`;
+      return `<div style="margin-bottom:14px"><div class="lineItem"><span><b>${b.project}</b></span><b>${b.orders} / ${b.target}</b></div>
+        <div style="height:8px;background:#edf0f4;border-radius:8px;overflow:hidden;margin:8px 0"><i style="display:block;height:100%;width:${pct}%;background:${b.achieved?'var(--green)':'var(--orange)'}"></i></div>
+        <div class="row"><span>${status}</span><b style="color:var(--green)">${b.earned} ر.س</b></div>
+        <small style="color:var(--muted)">${b.target_bonus} ر.س عند التارجت + ${b.over_target_rate} ر.س لكل طلب زائد</small></div>`;
+    }).join("")||'<p style="color:var(--muted);font-size:12px">لم تحدد الشركة خطة بونص لك بعد</p>';
     const projSel = document.getElementById("dlProject");
     if(!projSel.dataset.loaded){
       const projects = await api("/hr/projects");
-      projSel.innerHTML = projects.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join("") || '<option value="">—</option>';
+      const current=projects.filter(p=>p.is_current);
+      projSel.innerHTML = current.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join("") || '<option value="">لا يوجد مشروع مسند لك</option>';
+      document.getElementById("erProject").innerHTML='<option value="">المشروع المطلوب عند طلب النقل</option>'+projects.filter(p=>!p.is_current&&p.is_active).map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join('');
       projSel.dataset.loaded = "1";
     }
     document.getElementById("dlMonth").innerHTML = data.days.length
@@ -612,7 +630,7 @@ async function loadLeaveStatus(){
 }
 
 function go(v){
-  const map = {home:"الرئيسية",earnings:"الأرباح",dlog:"سجلي اليومي",profile:"حسابي",notifs:"تنبيهات"};
+  const map = {home:"الرئيسية",earnings:"مستحقاتي",dlog:"سجلي اليومي",profile:"حسابي",notifs:"تنبيهات"};
   ["home","earnings","dlog","profile","notifs"].forEach(x=>document.getElementById("view-"+x).classList.toggle("active",x===v));
   document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active", b.textContent.includes(map[v])));
   if(v==="notifs") renderNotifs();
@@ -635,9 +653,13 @@ async function loadHRWarnings(){
       docEl.innerHTML = b("الإقامة", hr.doc_days_left.iqama, hr.iqama_expiry) + b("رخصة القيادة", hr.doc_days_left.license, hr.license_expiry) + b("رخصة المركبة", hr.doc_days_left.vehicle, hr.vehicle_license_expiry)
         + `<div class="lineItem"><span>منصّة العمل</span><b>${hr.platform||'—'} ${hr.platform_courier_id?'('+hr.platform_courier_id+')':''}</b></div>
            <div class="lineItem"><span>مشرفي</span><b>${hr.supervisor_name||'—'}</b></div>
-           <div class="lineItem"><span>تقييمي</span><b>${hr.avg_rating||'—'} ${hr.bonus&&hr.bonus.total?'· بونص '+hr.bonus.total+' ر.س':''}</b></div>
-           <div class="lineItem"><span>أوردرات اليوم</span><b>${hr.today_orders||0}</b></div>
-           <div class="lineItem"><span>أرباح اليوم (تقديري)</span><b class="earn">${hr.daily_earnings||0} ر.س</b></div>`;
+           <div class="lineItem"><span>ورديتي المعتمدة</span><b>${hr.shift_preference||'غير محددة'}</b></div>
+           <div class="lineItem"><span>تقييمي</span><b>${hr.avg_rating||'—'}</b></div>
+           <div class="lineItem"><span>طلبات الشهر</span><b>${hr.month_orders||0}</b></div>
+           <div class="lineItem"><span>الراتب الأساسي</span><b>${hr.base_salary||0} ر.س</b></div>
+           <div class="lineItem"><span>أجر الطلبات هذا الشهر</span><b>${hr.orders_earnings||0} ر.س</b></div>
+           <div class="lineItem"><span>البونص المستحق</span><b>${hr.bonus&&hr.bonus.total||0} ر.س</b></div>
+           <div class="lineItem"><span>إجمالي مستحق الشهر (تقديري)</span><b class="earn">${hr.monthly_estimated||0} ر.س</b></div>`;
     }
     const alerts = [];
     (hr.notes||[]).slice(0,2).forEach(n=>alerts.push({ic:"📝",c:"#fff2eb",t:"ملاحظة من "+n.author_name+": "+n.note,s:"ملاحظة أداء"}));

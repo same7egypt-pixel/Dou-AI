@@ -13,7 +13,6 @@ from ..schemas.dou import CompanyRegisterIn, CompanyRegisterOut, LoginIn, TokenO
 
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 7
-DEFAULT_PASSWORD = "dou123456"
 TRIAL_DAYS = 14
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -39,23 +38,9 @@ def create_token(user: User) -> str:
 
 @router.post("/register", response_model=TokenOut)
 def register(payload: LoginIn, db: Session = Depends(get_db)):
-    role = UserRole(payload.role) if payload.role else UserRole.CUSTOMER
-    exists = db.query(User).filter(
-        User.phone == payload.phone, User.role == role
-    ).first()
-    if exists:
-        raise HTTPException(400, "Phone already registered for this role")
-    user = User(
-        phone=payload.phone,
-        name=payload.name,
-        password_hash=hash_password(payload.password),
-        role=role,
-        country=payload.country,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return TokenOut(access_token=create_token(user), role=user.role.value)
+    # حسابات الشركة والسائقين ينشئها مسؤول الشركة من داخل لوحته فقط.
+    # إبقاء اختيار الدور هنا كان يسمح لأي زائر بطلب صلاحيات إدارية.
+    raise HTTPException(403, "Public user registration is disabled")
 
 
 @router.post("/company-register", response_model=CompanyRegisterOut)
@@ -67,6 +52,8 @@ def company_register(payload: CompanyRegisterIn, db: Session = Depends(get_db)):
     name = payload.name.strip()
     if not name:
         raise HTTPException(400, "Company name is required")
+    if len(payload.password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
 
     now = datetime.utcnow()
     tenant = Tenant(
@@ -85,7 +72,7 @@ def company_register(payload: CompanyRegisterIn, db: Session = Depends(get_db)):
     user = User(
         phone=payload.phone,
         name=f"إدارة {name}",
-        password_hash=hash_password(DEFAULT_PASSWORD),
+        password_hash=hash_password(payload.password),
         role=UserRole.COMPANY,
         country=country,
         tenant_id=tenant.id,
@@ -103,7 +90,6 @@ def company_register(payload: CompanyRegisterIn, db: Session = Depends(get_db)):
         company_name=tenant.name,
         fleet_id=fleet.id,
         login_phone=user.phone,
-        password=DEFAULT_PASSWORD,
         plan=tenant.plan,
         due_date=tenant.due_date,
     )
@@ -116,6 +102,11 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
         raise HTTPException(401, "Invalid phone or password")
     if not user.is_active:
         raise HTTPException(403, "Account disabled")
+    user.last_login_at = datetime.utcnow()
+    if user.tenant_id:
+        tenant = db.get(Tenant, user.tenant_id)
+        if tenant: tenant.last_activity_at = datetime.utcnow()
+    db.commit()
     return TokenOut(access_token=create_token(user), role=user.role.value)
 
 
@@ -123,7 +114,7 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
 def logout_all(admin_key: str, db: Session = Depends(get_db)):
     """يبطل جميع الجلسات الحالية في النظام دفعة واحدة (يرفع token_version للجميع)."""
     from ..config import ADMIN_KEY
-    if admin_key != ADMIN_KEY:
+    if not ADMIN_KEY or admin_key != ADMIN_KEY:
         raise HTTPException(403, "Invalid admin key")
     db.execute(text("UPDATE users SET token_version = COALESCE(token_version, 0) + 1"))
     db.commit()
@@ -145,6 +136,28 @@ def get_current_user(
     if int(payload.get("ver", 0)) != (user.token_version or 0):
         raise credentials_exc
     return user
+
+
+@router.post("/logout")
+def logout_current(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """يبطل كل التوكنات الحالية للحساب عند تسجيل الخروج."""
+    user.token_version = (user.token_version or 0) + 1
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/change-password")
+def change_password(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    current = str(payload.get("current_password") or "")
+    new = str(payload.get("new_password") or "")
+    if not pwd_context.verify(current, user.password_hash):
+        raise HTTPException(400, "كلمة المرور الحالية غير صحيحة")
+    if len(new) < 8:
+        raise HTTPException(400, "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل")
+    user.password_hash = hash_password(new)
+    user.token_version = (user.token_version or 0) + 1
+    db.commit()
+    return {"ok": True, "message": "تم تغيير كلمة المرور، سجل الدخول مرة أخرى"}
 
 
 def require_role(*roles: UserRole):

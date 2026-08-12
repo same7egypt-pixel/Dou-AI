@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DOU Platform</title>
+<title>DOU — إدارة السائقين للشركات اللوجستية</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -29,17 +29,16 @@
 </style>
 </head>
 <body>
-<div class="lang"><a class="on" href="/">عربي</a><a href="/static/index-en.html">EN</a></div>
+<div class="lang"><a class="on" href="/">عربي</a></div>
 <div class="logo">D<i></i>ou</div>
-<div class="sub">منصة توصيل ولوجستيات — السعودية ومصر · <span class="api" id="status">…</span></div>
+<div class="sub">نظام إدارة السائقين للشركات اللوجستية · <span class="api" id="status">…</span></div>
 <div class="grid">
-  <a class="app" href="/static/fleet.html"><div class="icon">🚛</div><b>لوحة الشركة اللوجستية</b><p>لوحة Fleet Partners: المناديب، الحضور والخرائط، الرواتب والاشتراك — لكل شركة تسجّل مناديبها وتتابعها</p></a>
-  <a class="app" href="/static/courier.html"><div class="icon">🛵</div><b>تطبيق المندوب</b><p>الحضور بالموقع، المهام، الأرباح، السجل اليومي وطلبات الإجازة — يُثبَّت على جوال المندوب كتطبيق</p></a>
-  <a class="app" href="/static/supervisor.html"><div class="icon">🧑‍💼</div><b>لوحة المشرف</b><p>متابعة مناديب مجموعته فقط: المستندات ومواعيدها، السجل اليومي، الإجازات، التقييم والبث</p></a>
+  <a class="app" href="/static/fleet.html"><div class="icon">🚛</div><b>لوحة الشركة اللوجستية</b><p>السائقون، الحضور، المستندات، المشاريع، الرواتب، الإجازات والمستخدمون في مكان واحد</p></a>
+  <a class="app" href="/static/courier.html"><div class="icon">🛵</div><b>تطبيق السائق</b><p>الحضور والوردية، الإنتاجية، المستندات، المستحقات، الإجازات ورسائل الشركة</p></a>
   <a class="app locked" href="/static/admin.html"><div class="icon">🛡️</div><b>لوحة التحكم DOU</b><p>إدارة المنصة: الشركات، الاشتراكات، والفواتير — مخصصة لمالك DOU</p></a>
 </div>
-<a class="signup" href="/static/signup.html">شركة لوجستية جديدة؟ سجّل حسابك هنا ←</a>
-<div class="foot">DOU Platform · المنظومة قيد التطوير — للاستفسار تواصل مع فريق DOU</div>
+<span class="signup">تفعيل الشركات الجديدة يتم عن طريق إدارة DOU</span>
+<div class="foot">DOU · إدارة أسهل للسائقين والموارد البشرية والتشغيل</div>
 <script>
 fetch("/health").then(r=>r.json()).then(d=>document.getElementById("status").textContent="✓ الخادم متصل").catch(()=>document.getElementById("status").textContent="✗ الخادم غير متصل");
 </script>

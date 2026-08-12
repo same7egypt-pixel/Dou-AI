@@ -18,6 +18,7 @@ class TokenOut(BaseModel):
 class CompanyRegisterIn(BaseModel):
     name: str
     phone: str
+    password: str
     country: Optional[str] = "SA"
 
 
@@ -28,7 +29,6 @@ class CompanyRegisterOut(BaseModel):
     company_name: str
     fleet_id: int
     login_phone: str
-    password: str
     plan: str
     due_date: Optional[object] = None
 

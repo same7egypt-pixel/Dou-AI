@@ -41,6 +41,8 @@ input:focus,select:focus{border-color:#ff5a13}
     <input id="compName" type="text" placeholder="e.g. Al Amanah Logistics" required>
     <label>Mobile number (with country code)</label>
     <input id="compPhone" type="tel" dir="ltr" placeholder="9665xxxxxxxx" required>
+    <label>Password (at least 8 characters)</label>
+    <input id="compPassword" type="password" dir="ltr" minlength="8" placeholder="Choose a strong password" required>
     <label>Country</label>
     <select id="compCountry">
       <option value="SA">Saudi Arabia 🇸🇦</option>
@@ -74,13 +76,14 @@ form.addEventListener("submit", async function(e){
   msg.className = "msg"; msg.innerHTML = "";
   try {
     const phone = await normalizePhone(document.getElementById("compPhone").value);
-    const res = await fetch("/auth/company-register", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:document.getElementById("compName").value.trim(), phone, country:document.getElementById("compCountry").value})});
+    const password = document.getElementById("compPassword").value;
+    const res = await fetch("/auth/company-register", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:document.getElementById("compName").value.trim(), phone, password, country:document.getElementById("compCountry").value})});
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || "Something went wrong");
     const due = data.due_date ? new Date(data.due_date).toLocaleDateString("en-GB") : "";
     form.style.display = "none";
     msg.className = "msg ok";
-    msg.innerHTML = "✅ Account created! <b>"+data.company_name+"</b><br>Sign-in: <b dir='ltr'>"+data.login_phone+"</b> <button class='copy' onclick=\"copyVal('"+data.login_phone+"')\">Copy</button><br>Password: <b dir='ltr'>"+data.password+"</b> <button class='copy' onclick=\"copyVal('"+data.password+"')\">Copy</button><br>Plan: 14-day free trial"+(due? " — ends "+due : "")+"<br><b>Save these now, then sign in with them:</b>";
+    msg.innerHTML = "✅ Account created! <b>"+data.company_name+"</b><br>Sign-in: <b dir='ltr'>"+data.login_phone+"</b> <button class='copy' onclick=\"copyVal('"+data.login_phone+"')\">Copy</button><br>Plan: 14-day free trial"+(due? " — ends "+due : "")+"<br><b>You can now sign in with the password you chose.</b>";
     const nb = document.getElementById("nextBtn");
     nb.style.display = "block";
     nb.href = "/static/fleet-en.html";

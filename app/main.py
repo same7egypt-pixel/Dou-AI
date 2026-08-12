@@ -6,6 +6,7 @@ from .database import Base, engine
 from .routers import merchants, couriers, orders, auth, shifts, shipping, analytics, geo, admin, fleet, billing, hr
 from .models import entities  # noqa: F401 — يسجّل الجداول على Base
 from .migrations import run_migrations
+from .config import ENABLE_LEGACY_DELIVERY, CORS_ORIGINS
 
 Base.metadata.create_all(bind=engine)
 run_migrations(engine)
@@ -14,24 +15,28 @@ app = FastAPI(title="DOU Platform API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(auth.router)
-app.include_router(merchants.router)
 app.include_router(couriers.router)
-app.include_router(orders.router)
 app.include_router(shifts.router)
-app.include_router(shipping.router)
-app.include_router(analytics.router)
-app.include_router(geo.router)
 app.include_router(admin.router)
 app.include_router(admin.gate_router)
 app.include_router(fleet.router)
 app.include_router(billing.router)
 app.include_router(hr.router)
+
+# المنتج الحالي مخصص لإدارة سائقي الشركات. مسارات التجارة والطلبات والشحن
+# القديمة لا تُنشر إلا عند تفعيلها صراحة لأغراض التوافق أو العرض التجريبي.
+if ENABLE_LEGACY_DELIVERY:
+    app.include_router(merchants.router)
+    app.include_router(orders.router)
+    app.include_router(shipping.router)
+    app.include_router(analytics.router)
+    app.include_router(geo.router)
 
 import os
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
