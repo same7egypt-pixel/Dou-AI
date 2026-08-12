@@ -165,6 +165,24 @@ def update_supervisor(sid: int, payload: dict, user: User = Depends(get_current_
     return {"ok": True}
 
 
+@router.delete("/supervisors/{sid}")
+def delete_supervisor(sid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Admin only")
+    sup = db.get(User, sid)
+    if not sup or sup.role != UserRole.SUPERVISOR:
+        raise HTTPException(404, "Supervisor not found")
+    if sup.tenant_id != user.tenant_id and user.role != UserRole.DOU_ADMIN:
+        raise HTTPException(403, "Not your supervisor")
+    linked = db.query(Courier).filter(Courier.supervisor_id == sid).count()
+    if linked:
+        raise HTTPException(400, f"Cannot delete: {linked} courier(s) assigned")
+    db.delete(sup)
+    db.commit()
+    _log(db, user, f"حذف مشرف {sup.name}", "supervisor", sid)
+    return {"ok": True}
+
+
 # ===================== الأدمن/المشرف: مشاريع =====================
 
 @router.get("/projects")
@@ -270,6 +288,19 @@ def update_bonus(bid: int, payload: dict, user: User = Depends(get_current_user)
         if k in payload and payload[k] is not None:
             setattr(p, k, payload[k])
     db.commit()
+    return {"ok": True}
+
+
+@router.delete("/bonus/{bid}")
+def delete_bonus(bid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Admin only")
+    p = db.get(BonusPlan, bid)
+    if not p:
+        raise HTTPException(404, "Bonus plan not found")
+    db.delete(p)
+    db.commit()
+    _log(db, user, f"حذف خطة بونص #{bid}", "bonus", bid)
     return {"ok": True}
 
 

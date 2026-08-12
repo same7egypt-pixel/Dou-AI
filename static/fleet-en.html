@@ -1290,7 +1290,7 @@ async function decideHrLeave(id,action){
   if(action==="reject"&&cm===null)return;
   await api("/hr/leaves/"+id+"/decide",{method:"POST",body:JSON.stringify({action,comment:cm||""})}); loadHR();
 }
-async function delBonus(id){ if(!confirm("Delete bonus plan?"))return; await api("/hr/bonus/"+id,{method:"PATCH",body:JSON.stringify({target_orders:0,bonus_amount:0,over_target_rate:0})}); loadHR(); }
+async function delBonus(id){ if(!confirm("Delete bonus plan permanently?"))return; await api("/hr/bonus/"+id,{method:"DELETE"}); loadHR(); }
 function openSupModal(){ document.getElementById("supMsg").textContent=""; document.getElementById("supModal").classList.add("open"); }
 function closeSup(){ document.getElementById("supModal").classList.remove("open"); }
 async function saveSup(){
