@@ -258,7 +258,7 @@
 
 <script>
 const API = "";
-let TOKEN = localStorage.getItem("dou_token");
+let TOKEN = localStorage.getItem("dou_token_courier")||localStorage.getItem("dou_token");
 let COURIER = null;
 let online = false;
 let checkedIn = false;
@@ -326,17 +326,21 @@ async function doLogin(){
       password: document.getElementById("loginPass").value
     })});
     TOKEN = res.access_token;
-    localStorage.setItem("dou_token", TOKEN);
+    localStorage.setItem("dou_token_courier", TOKEN); localStorage.setItem("dou_role", res.role);
     location.reload();
   }catch(e){ btn.disabled=false; btn.textContent="دخول"; alert("❌ "+e.message); }
 }
 
 function logout(){
-  TOKEN = null; localStorage.removeItem("dou_token"); COURIER = null; loginView();
+  TOKEN = null; localStorage.removeItem("dou_token_courier"); localStorage.removeItem("dou_token"); COURIER = null; loginView();
 }
 
 async function init(){
   if(!TOKEN){ loginView(); return; }
+  const storedRole=localStorage.getItem("dou_role");
+  if(storedRole && storedRole!=="COURIER"){
+    localStorage.removeItem("dou_token_courier"); TOKEN=null; loginView(); return;
+  }
   try{
     COURIER = await api("/couriers/me");
     document.querySelectorAll(".tabs").forEach(t=>t.style.display="flex");
@@ -655,6 +659,7 @@ document.querySelectorAll(".tabs").forEach(t=>t.style.display="none");
 document.getElementById("view-home").classList.remove("active");
 renderNotifs();
 init();
+setInterval(()=>{ fetch("/health").catch(()=>{}); }, 10*60*1000);
 setInterval(()=>{ if(TOKEN&&COURIER) loadTasks(); }, 8000);
 setInterval(()=>{ updateShiftClock(); }, 30000);
 </script>

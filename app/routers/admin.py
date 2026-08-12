@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..config import ADMIN_KEY
-from ..models.entities import Channel, Courier, Merchant, Staff, CourierType, Country
+from ..models.entities import Channel, Courier, Merchant, Staff, CourierType, Country, User, UserRole
+from .auth import get_current_user, hash_password
 
 
 async def require_admin(x_admin_key: str = Header(default="", alias="X-Admin-Key")):
@@ -333,3 +334,39 @@ def delete_staff(sid: int, db: Session = Depends(get_db)):
     db.delete(s)
     db.commit()
     return {"ok": True}
+
+
+ROLE_NAMES = {
+    "CUSTOMER": "عميل", "MERCHANT": "تاجر", "COURIER": "مندوب",
+    "COMPANY": "شركة لوجستية", "SUPERVISOR": "مشرف",
+    "DOU_OPS": "فريق العمليات", "DOU_ADMIN": "مدير المنصة",
+}
+
+
+@router.get("/users")
+def list_users(db: Session = Depends(get_db)):
+    rows = db.query(User).order_by(User.id).all()
+    linked_courier = {c.user_id for c in db.query(Courier).all() if c.user_id}
+    return [
+        {"id": u.id, "name": u.name, "phone": u.phone, "role": u.role,
+         "role_ar": ROLE_NAMES.get(u.role, u.role), "is_active": u.is_active,
+         "tenant_id": u.tenant_id, "has_courier": u.id in linked_courier}
+        for u in rows
+    ]
+
+
+@router.patch("/users/{uid}")
+def patch_user(uid: int, payload: dict, db: Session = Depends(get_db)):
+    u = db.get(User, uid)
+    if not u:
+        raise HTTPException(404, "User not found")
+    role = payload.get("role")
+    if role is not None:
+        r = role.upper()
+        if r not in UserRole.__members__:
+            raise HTTPException(400, f"دور غير صالح: {role}")
+        u.role = r
+    if payload.get("is_active") is not None:
+        u.is_active = bool(payload["is_active"])
+    db.commit()
+    return {"ok": True, "id": u.id, "role": u.role, "is_active": u.is_active}

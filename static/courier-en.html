@@ -248,7 +248,7 @@
 <script>
 const COURIER_ID = 1;
 const API = "";
-let TOKEN = localStorage.getItem("dou_token");
+let TOKEN = localStorage.getItem("dou_token_courier")||localStorage.getItem("dou_token");
 let online = false;
 let checkedIn = false;
 
@@ -256,7 +256,7 @@ async function api(path, opts={}){
   const headers = {"Content-Type":"application/json"};
   if(TOKEN) headers["Authorization"] = "Bearer "+TOKEN;
   const r = await fetch(API+path, Object.assign({headers},opts));
-  if(r.status===401){ TOKEN=null; localStorage.removeItem("dou_token"); }
+  if(r.status===401){ TOKEN=null; localStorage.removeItem("dou_token_courier"); }
   if(!r.ok) throw new Error((await r.text())||r.status);
   return r.json();
 }
@@ -265,12 +265,13 @@ async function silentLogin(){
   try{
     const res = await api("/auth/login", {method:"POST", body:JSON.stringify({phone:"966551112233", password:"dou123456"})});
     TOKEN = res.access_token;
-    localStorage.setItem("dou_token", TOKEN);
+    localStorage.setItem("dou_token_courier", TOKEN); localStorage.setItem("dou_role", res.role);
  }catch(e){ console.warn("auto-login failed", e); }
  }
  function logout(){
-   TOKEN = null; localStorage.removeItem("dou_token"); location.reload();
+   TOKEN = null; localStorage.removeItem("dou_token_courier"); localStorage.removeItem("dou_token"); location.reload();
  }
+setInterval(()=>{ fetch("/health").catch(()=>{}); }, 10*60*1000);
 
 const NOTIFS = [
   {ic:"📦", c:"#eaf1ff", t:"New order offer #1204 — 12 SAR", s:"2 minutes ago"},

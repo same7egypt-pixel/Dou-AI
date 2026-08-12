@@ -368,6 +368,11 @@ input:focus,select:focus{border-color:var(--orange)}
         <table><thead><tr><th>العضو</th><th>البريد</th><th>الدور</th><th>الصلاحية</th><th>الحالة</th><th>إجراء</th></tr></thead>
         <tbody id="staffBody"></tbody></table>
       </div>
+      <div class="card" style="padding:6px 18px 12px;margin-top:16px">
+        <h3>حسابات المنصة (المستخدمون الفعليون)</h3>
+        <table><thead><tr><th>العضو</th><th>الجوال</th><th>الدور</th><th>الحالة</th><th>إجراء</th></tr></thead>
+        <tbody id="usersBody"></tbody></table>
+      </div>
     </section>
 
     <!-- ===== SETTINGS ===== -->
@@ -430,7 +435,7 @@ const ADMIN_KEY = sessionStorage.getItem("dou_admin_key") || "";
 async function api(path, opts={}){
   const headers = {"Content-Type":"application/json", "X-Admin-Key": ADMIN_KEY};
   const r = await fetch(API+path, Object.assign({headers}, opts));
-  if(r.status===401){ localStorage.removeItem("dou_token"); sessionStorage.removeItem("dou_admin_key"); location.reload(); throw new Error("انتهت الجلسة"); }
+  if(r.status===401){ localStorage.removeItem("dou_token_admin"); localStorage.removeItem("dou_token"); sessionStorage.removeItem("dou_admin_key"); location.reload(); throw new Error("انتهت الجلسة"); }
   if(!r.ok) throw new Error((await r.text())||r.status);
   return r.json();
 }
@@ -444,7 +449,7 @@ function barChart(elId, vals, color){
  }
 
 function logout(){
-  localStorage.removeItem("dou_token"); sessionStorage.removeItem("dou_admin_key"); location.reload();
+  localStorage.removeItem("dou_token_admin"); localStorage.removeItem("dou_token"); sessionStorage.removeItem("dou_admin_key"); location.reload();
 }
 
 function go(v){
@@ -461,7 +466,7 @@ function go(v){
   if(v==="geo") loadGeo();
   if(v==="orders") loadOrders();
   if(v==="pricing") renderCommissionRows();
-  if(v==="staff") loadStaff();
+  if(v==="staff"){ loadStaff(); loadUsers(); }
 }
 
 function toggleSide(){
@@ -813,6 +818,34 @@ async function deleteStaff(id){
   loadStaff();
 }
 
+const USER_ROLES=["CUSTOMER","MERCHANT","COURIER","COMPANY","SUPERVISOR","DOU_OPS","DOU_ADMIN"];
+async function loadUsers(){
+  try{
+    const rows = await api("/admin/users");
+    document.getElementById("usersBody").innerHTML = rows.map(u=>`
+      <tr>
+        <td><b>${u.name||"—"}</b></td>
+        <td style="direction:ltr">${u.phone}</td>
+        <td><span class="tag ${u.role==="DOU_ADMIN"?"orange":u.role==="COMPANY"||u.role==="SUPERVISOR"?"blue":"gray"}">${u.role_ar}</span></td>
+        <td>${u.is_active?'<span class="tag green">نشط</span>':'<span class="tag red">موقوف</span>'}</td>
+        <td style="white-space:nowrap">
+          <select class="btn ghost small" onchange="setUserRole(${u.id},this.value)" style="padding:4px 6px">
+            ${USER_ROLES.map(r=>`<option value="${r}" ${r===u.role?"selected":""}>${r}</option>`).join("")}
+          </select>
+          <button class="btn ${u.is_active?"red":"green"} small" onclick="toggleUser(${u.id},${u.is_active})">${u.is_active?"إيقاف":"تفعيل"}</button>
+        </td>
+      </tr>`).join("") || '<tr><td colspan="5" style="color:var(--muted)">لا حسابات</td></tr>';
+  }catch(e){ document.getElementById("usersBody").innerHTML = `<tr><td colspan="5" style="color:var(--muted)">❌ ${e.message}</td></tr>`; }
+}
+async function setUserRole(id,role){
+  try{ await api("/admin/users/"+id,{method:"PATCH",body:JSON.stringify({role})}); loadUsers(); }
+  catch(e){ alert("❌ "+e.message); }
+}
+async function toggleUser(id,currentActive){
+  try{ await api("/admin/users/"+id,{method:"PATCH",body:JSON.stringify({is_active:!currentActive})}); loadUsers(); }
+  catch(e){ alert("❌ "+e.message); }
+}
+
 if(ADMIN_KEY){ go("dashboard"); }
 
 if(!ADMIN_KEY){
@@ -858,6 +891,7 @@ async function gateLogin(){
   }
 }
 document.getElementById("gatePass").addEventListener("keydown", e=>{ if(e.key==="Enter") gateLogin(); });
+setInterval(()=>{ fetch("/health").catch(()=>{}); }, 10*60*1000);
 </script>
 </body>
 </html>

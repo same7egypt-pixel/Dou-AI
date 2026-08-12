@@ -576,7 +576,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
 <script>
 const API = "";
-let TOKEN = localStorage.getItem("dou_token");
+let TOKEN = localStorage.getItem("dou_token_fleet")||localStorage.getItem("dou_token");
 let META = null;
 let role = "company";
 
@@ -624,17 +624,21 @@ async function doLogin(){
       throw new Error("هذا الحساب ليس حساب شركة لوجستية");
     }
     TOKEN = res.access_token;
-    localStorage.setItem("dou_token", TOKEN);
+    localStorage.setItem("dou_token_fleet", TOKEN); localStorage.setItem("dou_role", res.role);
     location.reload();
   }catch(e){ btn.disabled=false; btn.textContent="دخول الشركة"; alert("❌ "+e.message); }
 }
 
 function logout(){
-  TOKEN = null; localStorage.removeItem("dou_token"); META = null; location.reload();
+  TOKEN = null; localStorage.removeItem("dou_token_fleet"); localStorage.removeItem("dou_token"); META = null; location.reload();
 }
 
 async function init(){
   if(!TOKEN){ loginView(); return; }
+  const storedRole=localStorage.getItem("dou_role");
+  if(storedRole && storedRole!=="COMPANY" && storedRole!=="DOU_OPS" && storedRole!=="DOU_ADMIN"){
+    localStorage.removeItem("dou_token_fleet"); TOKEN=null; loginView(); return;
+  }
   try{
     META = await api("/fleet/me");
     const name = META.name || "شركة لوجستية";
@@ -661,7 +665,11 @@ function go(v){
   views.forEach(x=>{ const el=document.getElementById("view-"+x); if(el) el.style.display = x===v?"block":"none"; });
   const names = {overview:"نظرة عامة",dispatch:"الإرسال والتحكم",couriers:"المناديب",orders:"الطلبات",shifts:"الورديات",attendance:"تتبع الحضور",performance:"أداء المناديب",payouts:"الرواتب",channels:"القنوات",compliance:"الامتثال",tickets:"التذاكر",companies:"شركات التشغيل",rules:"قواعد النظام",shipping:"شركات الشحن",billing:"الاشتراك",hr:"الموارد البشرية"};
   document.getElementById("crumb").textContent = names[v];
-  loadAll();
+  if(v==="overview") loadOverview();
+  if(v==="couriers") loadCouriers();
+  if(v==="orders") loadOrders();
+  if(v==="shifts") loadShifts();
+  if(v==="companies") loadCompanies();
   if(v==="performance") loadPerformance();
   if(v==="payouts") loadPayouts();
   if(v==="compliance") loadCompliance();
@@ -685,14 +693,15 @@ function toggleSide(){
   }
 }
 
-async function loadAll(){
-  if(!TOKEN) return;
+async function loadOverview(){
   try{
-    const [ov, couriers, orders, shifts, companies] = await Promise.all([
-      api("/fleet/overview"), api("/fleet/couriers"), api("/fleet/orders"),
-      api("/fleet/shifts"), api("/shipping/companies")
-    ]);
+    const ov = await api("/fleet/overview");
     renderOverview(ov);
+  }catch(e){}
+}
+async function loadCouriers(){
+  try{
+    const couriers = await api("/fleet/couriers");
     document.getElementById("couriersBody").innerHTML = couriers.map(c=>`
       <tr><td>${c.name}</td><td><span class="tag gray">${c.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
       <td>${c.is_online?'<span class="tag green">متصل</span>':'<span class="tag gray">غير متصل</span>'}</td>
@@ -703,22 +712,38 @@ async function loadAll(){
         <button class="btn blue small" onclick="openCourier(${c.id})">👤 ملف</button>
         <button class="btn ${c.employment_status==="ACTIVE"?"red":"green"} small" onclick="setCourierStatus(${c.id},'${c.employment_status==="ACTIVE"?"SUSPENDED":"ACTIVE"}')">${c.employment_status==="ACTIVE"?"إيقاف":"تفعيل"}</button>
       </td></tr>`).join("") || '<tr><td colspan="9" style="color:var(--muted)">لا مناديب</td></tr>';
-
+  }catch(e){ /* الصفرة تعرض بياناتها الثابتة */ }
+}
+async function loadOrders(){
+  try{
+    const orders = await api("/fleet/orders");
     document.getElementById("ordersBody").innerHTML = orders.map(o=>`
       <tr><td>${o.id}</td><td>${o.customer_name||"—"}</td><td>${o.merchant_name||"—"}</td><td>${tag(o.status)}</td>
       <td><span class="tag gray">${o.delivery_method||"—"}</span></td>
       <td><span class="tag gray">${o.courier_name||"بدون مندوب"}</span></td><td>${o.distance_km?o.distance_km.toFixed(1):"–"}</td>
       <td>${o.total||0} ر.س</td></tr>`).join("") || '<tr><td colspan="8" style="color:var(--muted)">لا طلبات</td></tr>';
-
+  }catch(e){}
+}
+async function loadShifts(){
+  try{
+    const shifts = await api("/fleet/shifts");
     document.getElementById("shiftsBody").innerHTML = shifts.map(s=>`
       <tr><td>${s.name}</td><td>${s.zone||"—"}</td><td>${s.start_time}-${s.end_time}</td>
       <td>${s.required_couriers}</td><td><span class="tag blue">${s.fleet||"—"}</span></td>
       <td><span class="tag gray">${s.status||"SCHEDULED"}</span></td></tr>`).join("") || '<tr><td colspan="6" style="color:var(--muted)">لا ورديات</td></tr>';
-
+  }catch(e){}
+}
+async function loadCompanies(){
+  try{
+    const companies = await api("/shipping/companies");
     document.getElementById("companiesBody2").innerHTML = companies.map(c=>`
       <tr><td>${c.name}</td><td>${c.code}</td><td>${c.country}</td>
       <td>${c.is_active?'<span class="tag green">مفعّلة</span>':'<span class="tag gray">غير مفعّلة</span>'}</td></tr>`).join("") || '<tr><td colspan="4" style="color:var(--muted)">لا شركات</td></tr>';
-  }catch(e){ /* الصفرة تعرض بياناتها الثابتة */ }
+  }catch(e){}
+}
+function loadAll(){
+  if(!TOKEN) return;
+  Promise.allSettled([loadOverview(), loadCouriers(), loadOrders(), loadShifts(), loadCompanies()]);
 }
 
 function renderOverview(ov){
@@ -1356,6 +1381,7 @@ async function hrExport(){
 }
 
 init();
+setInterval(()=>{ fetch("/health").catch(()=>{}); }, 10*60*1000);
 </script>
 </body>
 </html>
