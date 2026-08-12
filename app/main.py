@@ -7,9 +7,41 @@ from .routers import merchants, couriers, orders, auth, shifts, shipping, analyt
 from .models import entities  # noqa: F401 — يسجّل الجداول على Base
 from .migrations import run_migrations
 from .config import ENABLE_LEGACY_DELIVERY, CORS_ORIGINS
+from .database import SessionLocal
+from .models.entities import Country, User, UserRole
+from .routers.auth import hash_password
+import os
 
 Base.metadata.create_all(bind=engine)
 run_migrations(engine)
+
+
+def bootstrap_admin_from_environment():
+    """تهيئة مؤقتة وآمنة لمالك DOU، ثم تُحذف المتغيرات من Render."""
+    phone = os.getenv("BOOTSTRAP_ADMIN_PHONE", "").strip()
+    password = os.getenv("BOOTSTRAP_ADMIN_PASSWORD", "")
+    reset = os.getenv("BOOTSTRAP_ADMIN_RESET", "false").lower() == "true"
+    if not phone or len(password) < 8:
+        return
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.phone == phone).first()
+        if not user:
+            user = User(phone=phone, name="مالك منصة DOU", password_hash=hash_password(password),
+                        role=UserRole.DOU_ADMIN, country=Country.SA, is_active=True)
+            db.add(user)
+        elif reset:
+            user.password_hash = hash_password(password)
+            user.role = UserRole.DOU_ADMIN
+            user.is_active = True
+            user.token_version = (user.token_version or 0) + 1
+        db.commit()
+        print("✅ DOU admin bootstrap completed; remove BOOTSTRAP_ADMIN_* variables now")
+    finally:
+        db.close()
+
+
+bootstrap_admin_from_environment()
 
 app = FastAPI(title="DOU Platform API", version="0.2.0")
 
@@ -38,7 +70,6 @@ if ENABLE_LEGACY_DELIVERY:
     app.include_router(analytics.router)
     app.include_router(geo.router)
 
-import os
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 
