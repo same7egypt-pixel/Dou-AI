@@ -1,16 +1,44 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from typing import Optional
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..config import ADMIN_KEY
 from ..models.entities import Channel, Courier, Merchant, Staff, CourierType, Country
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+
+async def require_admin(x_admin_key: str = Header(default="", alias="X-Admin-Key")):
+    """بوابة لوحة التحكم: تتحقق من المفتاح الإداري في الـ header."""
+    if x_admin_key != ADMIN_KEY:
+        raise HTTPException(401, "Access denied")
+    return True
+
+
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+    dependencies=[Depends(require_admin)],
+)
+
+gate_router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 class NameOnly(BaseModel):
     name: str
+
+
+class GateIn(BaseModel):
+    username: str
+    password: str
+
+
+@gate_router.post("/gate")
+def admin_gate(payload: GateIn):
+    """بوابة لوحة التحكم: تتأكد من بيانات صاحب المنصة وتعطي مفتاح الجلسة."""
+    if payload.username == "Sameh" and payload.password == ADMIN_KEY:
+        return {"ok": True, "key": ADMIN_KEY}
+    raise HTTPException(401, "بيانات دخول غير صحيحة")
 
 
 # ---------- Merchants ----------

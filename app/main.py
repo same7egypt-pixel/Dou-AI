@@ -29,6 +29,7 @@ app.include_router(shipping.router)
 app.include_router(analytics.router)
 app.include_router(geo.router)
 app.include_router(admin.router)
+app.include_router(admin.gate_router)
 app.include_router(fleet.router)
 app.include_router(billing.router)
 

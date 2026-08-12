@@ -425,8 +425,12 @@ const NOTIFS = [
 const WEEK = ["السبت","الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة"];
 const WEEK_VALS = [48,62,55,78,70,86,94];
 
+const ADMIN_KEY = sessionStorage.getItem("dou_admin_key") || "";
+
 async function api(path, opts={}){
-  const r = await fetch(API+path, Object.assign({headers:{"Content-Type":"application/json"}},opts));
+  const headers = {"Content-Type":"application/json", "X-Admin-Key": ADMIN_KEY};
+  const r = await fetch(API+path, Object.assign({headers}, opts));
+  if(r.status===401){ localStorage.removeItem("dou_token"); sessionStorage.removeItem("dou_admin_key"); location.reload(); throw new Error("انتهت الجلسة"); }
   if(!r.ok) throw new Error((await r.text())||r.status);
   return r.json();
 }
@@ -455,7 +459,6 @@ function go(v){
   if(v==="pricing") renderCommissionRows();
   if(v==="staff") loadStaff();
 }
-document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
 
 function toggleSide(){
   const side=document.getElementById("side"), overlay=document.getElementById("overlay"), main=document.getElementById("main");
@@ -791,7 +794,51 @@ async function deleteStaff(id){
   loadStaff();
 }
 
-go("dashboard");
+if(ADMIN_KEY){ go("dashboard"); }
+
+if(!ADMIN_KEY){
+  gateView();
+}else{
+  document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
+}
+
+function gateView(){
+  document.querySelector(".layout").style.display = "none";
+  document.body.innerHTML = `
+    <div style="display:flex;flex-direction:column;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(160deg,#0e1526,#121c31)">
+      <div style="text-align:center;margin-bottom:22px">
+        <div style="font:800 26px Alexandria;letter-spacing:-1px;color:#fff;direction:ltr">DOU <span style="font-size:11px;color:#ff7a42;letter-spacing:2px">CONTROL PANEL</span></div>
+        <p style="color:#8b94a3;font-size:12px;margin:8px 0 0">لوحة تحكم المنصة — مخصصة لمالك DOU فقط</p>
+      </div>
+      <div style="background:#fff;border-radius:18px;padding:20px;max-width:340px;margin:0 auto;width:100%">
+        <label style="font-size:11px;color:#6b7a90;display:block;margin-bottom:6px">اسم المستخدم</label>
+        <input id="gateUser" type="text" dir="ltr" placeholder="Sameh"
+          style="width:100%;padding:13px;border:1px solid #e6eaf2;border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:12px">
+        <label style="font-size:11px;color:#6b7a90;display:block;margin-bottom:6px">كلمة المرور</label>
+        <input id="gatePass" type="password" dir="ltr" placeholder="••••••••"
+          style="width:100%;padding:13px;border:1px solid #e6eaf2;border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:16px">
+        <button id="gateBtn" onclick="gateLogin()" style="width:100%;padding:13px;border:0;border-radius:11px;background:#ff5a13;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer">دخول اللوحة</button>
+        <p id="gateMsg" style="font-size:11px;color:var(--red);margin:10px 0 0;text-align:center"></p>
+      </div>
+    </div>`;
+}
+
+async function gateLogin(){
+  const btn = document.getElementById("gateBtn");
+  btn.disabled = true; btn.textContent = "جاري التحقق...";
+  try{
+    const res = await fetch(API+"/admin/gate",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({username:document.getElementById("gateUser").value.trim(), password:document.getElementById("gatePass").value})});
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || "بيانات غير صحيحة");
+    sessionStorage.setItem("dou_admin_key", data.key);
+    location.reload();
+  }catch(e){
+    btn.disabled = false; btn.textContent = "دخول اللوحة";
+    document.getElementById("gateMsg").textContent = "❌ " + e.message;
+  }
+}
+document.getElementById("gatePass").addEventListener("keydown", e=>{ if(e.key==="Enter") gateLogin(); });
 </script>
 </body>
 </html>

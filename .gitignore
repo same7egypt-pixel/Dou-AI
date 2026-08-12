@@ -6,3 +6,4 @@ dou.db
 *.log
 venv/
 test_*.db
+_private/

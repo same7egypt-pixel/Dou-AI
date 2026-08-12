@@ -5,6 +5,7 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dou.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
+ADMIN_KEY = os.getenv("ADMIN_KEY", "HiSameh789")
 
 # Dispatch thresholds
 LOCAL_RADIUS_KM = float(os.getenv("SMALL_ORDER_LOCAL_RADIUS_KM", "5"))
