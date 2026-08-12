@@ -87,6 +87,8 @@ app.mount("/static", NoCacheHtml(directory=STATIC_DIR), name="static")
 
 @app.get("/")
 def index(request: Request):
+    if (request.url.hostname or "") == "admin.dou.delivery":
+        return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
@@ -100,12 +102,6 @@ def fleet_app():
 @app.get("/driver/")
 def driver_app():
     return FileResponse(os.path.join(STATIC_DIR, "courier.html"))
-
-
-@app.get("/admin")
-@app.get("/admin/")
-def dou_admin():
-    return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
 
 
 @app.get("/health")
