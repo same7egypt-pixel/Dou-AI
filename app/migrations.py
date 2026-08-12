@@ -65,3 +65,12 @@ def run_migrations(engine):
             if not has:
                 conn.execute(text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'SUPERVISOR'"))
                 print("   ➕ migration: userrole enum + SUPERVISOR")
+        # توسيع عمود action في audit_logs إلى TEXT حتى يسع رسائل السجل الطويلة
+        if engine.dialect.name == "postgresql":
+            t = conn.execute(text(
+                "SELECT data_type FROM information_schema.columns "
+                "WHERE table_name='audit_logs' AND column_name='action'"
+            )).scalar()
+            if t and t != "text":
+                conn.execute(text("ALTER TABLE audit_logs ALTER COLUMN action TYPE TEXT"))
+                print("   ➕ migration: audit_logs.action -> TEXT")
