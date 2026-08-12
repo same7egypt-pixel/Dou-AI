@@ -346,11 +346,10 @@ ROLE_NAMES = {
 @router.get("/users")
 def list_users(db: Session = Depends(get_db)):
     rows = db.query(User).order_by(User.id).all()
-    linked_courier = {c.user_id for c in db.query(Courier).all() if c.user_id}
     return [
         {"id": u.id, "name": u.name, "phone": u.phone, "role": u.role,
          "role_ar": ROLE_NAMES.get(u.role, u.role), "is_active": u.is_active,
-         "tenant_id": u.tenant_id, "has_courier": u.id in linked_courier}
+         "tenant_id": u.tenant_id}
         for u in rows
     ]
 
