@@ -58,18 +58,25 @@ def _courier_json(c: Courier, db: Session, month: str = None):
         DailyLog.courier_id == c.id, DailyLog.log_date >= start, DailyLog.log_date < end
     ).all()
     month_orders = sum(l.orders_count or 0 for l in logs)
-    plans = db.query(BonusPlan).filter(BonusPlan.courier_id == c.id).all()
+    plans = db.query(BonusPlan).filter(
+        (BonusPlan.courier_id == c.id) | (BonusPlan.courier_id.is_(None))
+    ).all()
     bonus = {"total": 0.0, "details": []}
-    for p in plans:
+    # خطط المندوب الخاصة تتفوق على العامة لنفس المشروع
+    covered = set()
+    for p in sorted(plans, key=lambda x: 1 if x.courier_id is None else 0):
         po = sum(l.orders_count or 0 for l in logs if l.project_id == p.project_id)
         pj = db.get(Project, p.project_id)
         b = 0.0
         if p.target_orders and po >= p.target_orders:
             b = p.bonus_amount + (po - p.target_orders) * p.over_target_rate
+        if p.project_id in covered:
+            continue
+        covered.add(p.project_id)
         bonus["total"] += b
         bonus["details"].append({
             "project": pj.name if pj else "—", "target": p.target_orders, "orders": po,
-            "earned": round(b, 2),
+            "earned": round(b, 2), "scope": "courier" if p.courier_id else "project",
         })
     ratings = db.query(CourierRating).filter(CourierRating.courier_id == c.id).all()
     avg_rating = round(sum(r.score for r in ratings) / len(ratings), 1) if ratings else None
@@ -193,11 +200,12 @@ def list_bonus(user: User = Depends(get_current_user), db: Session = Depends(get
         q = q.filter(BonusPlan.tenant_id == user.tenant_id)
     out = []
     for p in q.all():
-        c = db.get(Courier, p.courier_id)
+        c = db.get(Courier, p.courier_id) if p.courier_id else None
         pj = db.get(Project, p.project_id)
         out.append({
-            "id": p.id, "courier_id": p.courier_id, "courier": c.name if c else "—",
+            "id": p.id, "courier_id": p.courier_id, "courier": c.name if c else "كل مندوبي المشروع",
             "project_id": p.project_id, "project": pj.name if pj else "—",
+            "is_project_plan": p.courier_id is None,
             "target_orders": p.target_orders, "bonus_amount": p.bonus_amount,
             "over_target_rate": p.over_target_rate,
         })
@@ -208,13 +216,26 @@ def list_bonus(user: User = Depends(get_current_user), db: Session = Depends(get
 def create_bonus(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Admin only")
-    cid = payload.get("courier_id")
     pid = payload.get("project_id")
-    if not cid or not pid:
-        raise HTTPException(400, "courier_id and project_id required")
-    c = db.get(Courier, cid)
-    if not c or c.tenant_id != user.tenant_id:
-        raise HTTPException(404, "Courier not found in your fleet")
+    if not pid:
+        raise HTTPException(400, "project_id required")
+    pj = db.get(Project, pid)
+    if not pj or pj.tenant_id != user.tenant_id:
+        raise HTTPException(404, "Project not found in your fleet")
+    cid = payload.get("courier_id")
+    if cid:
+        c = db.get(Courier, cid)
+        if not c or c.tenant_id != user.tenant_id:
+            raise HTTPException(404, "Courier not found in your fleet")
+        # خطة مندوب محدد: فريد لكل (مندوب, مشروع)
+        dup = db.query(BonusPlan).filter(BonusPlan.courier_id == cid, BonusPlan.project_id == pid).first()
+        if dup:
+            raise HTTPException(400, "هناك خطة بونص لهذا المندوب على هذا المشروع")
+    else:
+        # خطة مشروع عامة: واحدة لكل (مشروع)
+        dup = db.query(BonusPlan).filter(BonusPlan.courier_id.is_(None), BonusPlan.project_id == pid).first()
+        if dup:
+            raise HTTPException(400, "هناك خطة بونص عامة لهذا المشروع")
     p = BonusPlan(
         tenant_id=user.tenant_id, courier_id=cid, project_id=pid,
         target_orders=int(payload.get("target_orders") or 0),
@@ -224,7 +245,7 @@ def create_bonus(payload: dict, user: User = Depends(get_current_user), db: Sess
     db.add(p)
     db.commit()
     db.refresh(p)
-    _log(db, user, f"خطة بونص للمندوب {c.name}", "bonus", p.id)
+    _log(db, user, f"خطة بونص للمشروع {pj.name}" if not cid else f"خطة بونص للمندوب {c.name}", "bonus", p.id)
     return {"ok": True, "id": p.id}
 
 
@@ -553,9 +574,15 @@ def my_logs(user: User = Depends(get_current_user), db: Session = Depends(get_db
     projects = {p.id: p.name for p in db.query(Project).all()}
     month_orders = sum(l.orders_count or 0 for l in cur_logs)
     today_orders = sum(l.orders_count or 0 for l in cur_logs if l.log_date == today)
-    plans = db.query(BonusPlan).filter(BonusPlan.courier_id == c.id).all()
+    plans = db.query(BonusPlan).filter(
+        (BonusPlan.courier_id == c.id) | (BonusPlan.courier_id.is_(None))
+    ).all()
     bonus = 0.0
-    for p in plans:
+    covered = set()
+    for p in sorted(plans, key=lambda x: 1 if x.courier_id is None else 0):
+        if p.project_id in covered:
+            continue
+        covered.add(p.project_id)
         po = sum(l.orders_count or 0 for l in cur_logs if l.project_id == p.project_id)
         if p.target_orders and po >= p.target_orders:
             bonus += p.bonus_amount + (po - p.target_orders) * p.over_target_rate

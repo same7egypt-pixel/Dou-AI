@@ -531,8 +531,11 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 <div class="modal" id="bonusModal">
   <div class="modalBox">
     <h3>🎯 Bonus Plan — target + reward + over-target pay</h3>
-    <label class="fLabel">Courier</label><select id="bnCourier" class="fInput"></select>
-    <label class="fLabel">Platform/Project</label><select id="bnProject" class="fInput"></select>
+    <label class="fLabel">Platform/Project</label><select id="bnProject" class="fInput" onchange="bnScope()"></select>
+    <label class="fLabel">Scope</label><select id="bnScope" class="fInput" onchange="bnScope()">
+      <option value="project">All couriers of this project (one plan)</option>
+      <option value="courier">A specific courier on this project</option></select>
+    <div id="bnCourierWrap"><label class="fLabel">Courier</label><select id="bnCourier" class="fInput"></select></div>
     <label class="fLabel">Monthly target (orders)</label><input id="bnTarget" type="number" class="fInput" placeholder="460">
     <label class="fLabel">Reward at target (SAR)</label><input id="bnBonus" type="number" class="fInput" placeholder="2000">
     <label class="fLabel">Per extra order over target (SAR)</label><input id="bnOver" type="number" class="fInput" placeholder="5">
@@ -1187,7 +1190,7 @@ async function loadHR(){
       <div class="opt"><div><b>${p.name}</b><small>${p.is_active?'Active':'Disabled'}</small></div></div>`).join("")
       || '<p style="color:var(--muted)">No projects — add a platform (HungerStation/Jahez...)</p>';
     document.getElementById("bonusBody").innerHTML = bonus.map(b=>`
-      <tr><td><b>${b.courier}</b></td><td>${b.project}</td><td>${b.target_orders}</td>
+      <tr><td><b>${b.courier}</b>${b.is_project_plan?'<span class="tag blue" style="margin-right:6px">All couriers</span>':''}</td><td>${b.project}</td><td>${b.target_orders}</td>
       <td>${b.bonus_amount} SAR</td><td>${b.over_target_rate} SAR</td>
       <td><button class="btn ghost small" onclick="delBonus(${b.id})">Delete</button></td></tr>`).join("")
       || '<tr><td colspan="6" style="color:var(--muted)">No bonus plans yet</td></tr>';
@@ -1302,24 +1305,30 @@ async function saveSup(){
     setTimeout(()=>{closeSup();loadHR();},1800);
   }catch(e){ document.getElementById("supMsg").style.color="var(--red)"; document.getElementById("supMsg").textContent="❌ "+e.message; }
 }
+function bnScope(){
+  const show=document.getElementById("bnScope").value==="courier";
+  document.getElementById("bnCourierWrap").style.display=show?"block":"none";
+}
 async function openBonusModal(){
   const [couriers,projects]=await Promise.all([api("/fleet/couriers"),api("/hr/projects")]);
   document.getElementById("bnCourier").innerHTML=couriers.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
   document.getElementById("bnProject").innerHTML=projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
   document.getElementById("bnMsg").textContent=""; document.getElementById("bonusModal").classList.add("open");
+  bnScope();
 }
 function closeBonusModal(){ document.getElementById("bonusModal").classList.remove("open"); }
 async function saveBonus(){
   try{
-    await api("/hr/bonus",{method:"POST",body:JSON.stringify({
-      courier_id:parseInt(document.getElementById("bnCourier").value),
+    const body={
       project_id:parseInt(document.getElementById("bnProject").value),
       target_orders:parseInt(document.getElementById("bnTarget").value||0),
       bonus_amount:parseFloat(document.getElementById("bnBonus").value||0),
       over_target_rate:parseFloat(document.getElementById("bnOver").value||0)
-    })});
+    };
+    if(document.getElementById("bnScope").value==="courier") body.courier_id=parseInt(document.getElementById("bnCourier").value);
+    await api("/hr/bonus",{method:"POST",body:JSON.stringify(body)});
     document.getElementById("bnMsg").style.color="var(--green)";
-    document.getElementById("bnMsg").textContent="✅ Bonus plan saved — calculated automatically from daily logs";
+    document.getElementById("bnMsg").textContent="✅ Bonus plan saved — calculated automatically from daily logs for each courier";
     setTimeout(()=>{closeBonusModal();loadHR();},900);
   }catch(e){ document.getElementById("bnMsg").style.color="var(--red)"; document.getElementById("bnMsg").textContent="❌ "+e.message; }
 }

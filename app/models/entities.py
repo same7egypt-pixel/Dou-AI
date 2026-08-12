@@ -454,13 +454,13 @@ class DailyLog(Base):
 
 
 class BonusPlan(Base):
-    """خطة بونص للمندوب على مشروع معين: تارجت + مكافأة + سعر الطلب الزائد."""
+    """خطة بونص لمشروع (تُطبق على كل مندوبيه) أو لمندوب محدد.
+    courier_id = None → خطة عامة على مستوى المشروع."""
     __tablename__ = "bonus_plans"
-    __table_args__ = (UniqueConstraint("courier_id", "project_id", name="uq_bonus_courier_project"),)
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"))
-    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
     target_orders = Column(Integer, default=0)        # 460
     bonus_amount = Column(Float, default=0.0)         # 2000 ر.س

@@ -535,16 +535,19 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
   </div>
 </div>
 <div class="modal" id="bonusModal">
-  <div class="modalBox">
-    <h3>🎯 خطة بونص — تارجت + مكافأة + طلب زائد</h3>
-    <label class="fLabel">المندوب</label><select id="bnCourier" class="fInput"></select>
-    <label class="fLabel">المنصة/المشروع</label><select id="bnProject" class="fInput"></select>
-    <label class="fLabel">التارجت الشهري (أوردر)</label><input id="bnTarget" type="number" class="fInput" placeholder="460">
-    <label class="fLabel">المكافأة عند بلوغ التارجت (ر.س)</label><input id="bnBonus" type="number" class="fInput" placeholder="2000">
-    <label class="fLabel">سعر الطلب الزائد فوق التارجت (ر.س)</label><input id="bnOver" type="number" class="fInput" placeholder="5">
-    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveBonus()">حفظ الخطة</button><button class="btn ghost" onclick="closeBonusModal()">إلغاء</button></div>
-    <div id="bnMsg" class="msg"></div>
-  </div>
+<div class="modalBox">
+     <h3>🎯 خطة بونص — تارجت + مكافأة + طلب زائد</h3>
+     <label class="fLabel">المنصة/المشروع</label><select id="bnProject" class="fInput" onchange="bnScope()"></select>
+     <label class="fLabel">الاختيار</label><select id="bnScope" class="fInput" onchange="bnScope()">
+       <option value="project">كل مندوبي المشروع (خطة واحدة)</option>
+       <option value="courier">مندوب محدد على هذا المشروع</option></select>
+     <div id="bnCourierWrap"><label class="fLabel">المندوب</label><select id="bnCourier" class="fInput"></select></div>
+     <label class="fLabel">التارجت الشهري (أوردر)</label><input id="bnTarget" type="number" class="fInput" placeholder="460">
+     <label class="fLabel">المكافأة عند بلوغ التارجت (ر.س)</label><input id="bnBonus" type="number" class="fInput" placeholder="2000">
+     <label class="fLabel">سعر الطلب الزائد فوق التارجت (ر.س)</label><input id="bnOver" type="number" class="fInput" placeholder="5">
+     <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveBonus()">حفظ الخطة</button><button class="btn ghost" onclick="closeBonusModal()">إلغاء</button></div>
+     <div id="bnMsg" class="msg"></div>
+   </div>
 </div>
 <div class="modal" id="hrCModal">
   <div class="modalBox">
@@ -1192,7 +1195,7 @@ async function loadHR(){
       <div class="opt"><div><b>${p.name}</b><small>${p.is_active?'نشطة':'موقوفة'}</small></div></div>`).join("")
       || '<p style="color:var(--muted)">لا مشاريع — أضف منصة (هنقرستيشن/جاهز...)</p>';
     document.getElementById("bonusBody").innerHTML = bonus.map(b=>`
-      <tr><td><b>${b.courier}</b></td><td>${b.project}</td><td>${b.target_orders}</td>
+      <tr><td><b>${b.courier}</b>${b.is_project_plan?'<span class="tag blue" style="margin-right:6px">كل المشروع</span>':''}</td><td>${b.project}</td><td>${b.target_orders}</td>
       <td>${b.bonus_amount} ر.س</td><td>${b.over_target_rate} ر.س</td>
       <td><button class="btn ghost small" onclick="delBonus(${b.id})">حذف</button></td></tr>`).join("")
       || '<tr><td colspan="6" style="color:var(--muted)">لا خطط بونص بعد</td></tr>';
@@ -1312,24 +1315,30 @@ async function saveSup(){
     setTimeout(()=>{closeSup();loadHR();},1800);
   }catch(e){ document.getElementById("supMsg").style.color="var(--red)"; document.getElementById("supMsg").textContent="❌ "+e.message; }
 }
+function bnScope(){
+  const show=document.getElementById("bnScope").value==="courier";
+  document.getElementById("bnCourierWrap").style.display=show?"block":"none";
+}
 async function openBonusModal(){
   const [couriers,projects]=await Promise.all([api("/fleet/couriers"),api("/hr/projects")]);
   document.getElementById("bnCourier").innerHTML=couriers.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
   document.getElementById("bnProject").innerHTML=projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
   document.getElementById("bnMsg").textContent=""; document.getElementById("bonusModal").classList.add("open");
+  bnScope();
 }
 function closeBonusModal(){ document.getElementById("bonusModal").classList.remove("open"); }
 async function saveBonus(){
   try{
-    await api("/hr/bonus",{method:"POST",body:JSON.stringify({
-      courier_id:parseInt(document.getElementById("bnCourier").value),
+    const body={
       project_id:parseInt(document.getElementById("bnProject").value),
       target_orders:parseInt(document.getElementById("bnTarget").value||0),
       bonus_amount:parseFloat(document.getElementById("bnBonus").value||0),
       over_target_rate:parseFloat(document.getElementById("bnOver").value||0)
-    })});
+    };
+    if(document.getElementById("bnScope").value==="courier") body.courier_id=parseInt(document.getElementById("bnCourier").value);
+    await api("/hr/bonus",{method:"POST",body:JSON.stringify(body)});
     document.getElementById("bnMsg").style.color="var(--green)";
-    document.getElementById("bnMsg").textContent="✅ حُفظت خطة البونص — تُحسب تلقائياً من السجل اليومي";
+    document.getElementById("bnMsg").textContent="✅ حُفظت خطة البونص — تُحسب تلقائياً من السجل اليومي لكل مندوب";
     setTimeout(()=>{closeBonusModal();loadHR();},900);
   }catch(e){ document.getElementById("bnMsg").style.color="var(--red)"; document.getElementById("bnMsg").textContent="❌ "+e.message; }
 }

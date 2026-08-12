@@ -77,3 +77,18 @@ def run_migrations(engine):
             if t and t != "text":
                 conn.execute(text("ALTER TABLE audit_logs ALTER COLUMN action TYPE TEXT"))
                 print("   ➕ migration: audit_logs.action -> TEXT")
+        # خطط البونص على مستوى المشروع: courier_id اختياري (NULL = خطة مشروع عامة)
+        if engine.dialect.name == "postgresql":
+            nn = conn.execute(text(
+                "SELECT is_nullable FROM information_schema.columns "
+                "WHERE table_name='bonus_plans' AND column_name='courier_id'"
+            )).scalar()
+            if nn == "NO":
+                conn.execute(text("ALTER TABLE bonus_plans ALTER COLUMN courier_id DROP NOT NULL"))
+                print("   ➕ migration: bonus_plans.courier_id nullable")
+            # فهرس فريد: خطة مشروع عامة واحدة لكل (tenant, project) — بدلاً من القيد القديم
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_bonus_project "
+                "ON bonus_plans (tenant_id, project_id) WHERE courier_id IS NULL"
+            ))
+            print("   ➕ migration: uq_bonus_project index")
