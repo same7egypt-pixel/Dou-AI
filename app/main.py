@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from .database import Base, engine
 from .routers import merchants, couriers, orders, auth, shifts, shipping, analytics, geo, admin, fleet, billing, hr
@@ -100,6 +100,14 @@ def index(request: Request):
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "dou-api"}
+
+
+@app.get("/download/driver-apk")
+def download_driver_apk():
+    return RedirectResponse(
+        "https://github.com/same7egypt-pixel/dou-server/releases/download/driver-latest/DOU-Driver.apk",
+        status_code=302,
+    )
 
 
 ERROR_PAGE = """<!DOCTYPE html>
