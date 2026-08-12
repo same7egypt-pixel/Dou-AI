@@ -1292,7 +1292,7 @@ async function toggleSup(id,active){
   loadHR();
 }
 async function decideHrLeave(id,action){
-  const c=prompt(action==="approve"?"ملاحظة (اختياري):","ملاحظة الرفض:");
+  const c=prompt(action==="approve"?"ملاحظة (اختياري):":"ملاحظة الرفض:");
   if(action==="reject"&&c===null)return;
   await api("/hr/leaves/"+id+"/decide",{method:"POST",body:JSON.stringify({action,comment:c||""})});
   loadHR();

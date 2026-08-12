@@ -1283,7 +1283,7 @@ async function loadViolations(){
 }
 async function toggleSup(id,active){ await api("/hr/supervisors/"+id,{method:"PATCH",body:JSON.stringify({is_active:!active})}); loadHR(); }
 async function decideHrLeave(id,action){
-  const cm=prompt(action==="approve"?"Note (optional):","Rejection note:");
+  const cm=prompt(action==="approve"?"Note (optional):":"Rejection note:");
   if(action==="reject"&&cm===null)return;
   await api("/hr/leaves/"+id+"/decide",{method:"POST",body:JSON.stringify({action,comment:cm||""})}); loadHR();
 }

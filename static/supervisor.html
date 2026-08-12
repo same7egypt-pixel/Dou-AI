@@ -204,8 +204,11 @@ async function doLogin(){
   const btn=document.getElementById("lbtn");btn.disabled=true;btn.textContent="جاري الدخول...";
   try{
     const res=await api("/auth/login",{method:"POST",body:JSON.stringify({phone:document.getElementById("lp").value.trim(),password:document.getElementById("lpass").value})});
-    if(res.role!=="SUPERVISOR"&&res.role!=="COMPANY"&&res.role!=="DOU_ADMIN") throw new Error("هذا الحساب ليس حساب مشرف");
-    TOKEN=res.access_token;localStorage.setItem("dou_token",TOKEN);location.reload();
+    TOKEN=res.access_token;localStorage.setItem("dou_token",TOKEN);
+    if(res.role==="COMPANY"){location.href="/static/fleet.html";return;}
+    if(res.role==="DOU_ADMIN"||res.role==="DOU_OPS"){location.href="/static/admin.html";return;}
+    if(res.role!=="SUPERVISOR") throw new Error("هذا الحساب ليس حساب مشرف");
+    location.reload();
   }catch(e){btn.disabled=false;btn.textContent="دخول";document.getElementById("lmsg").textContent="❌ "+e.message;}
 }
 
@@ -351,7 +354,7 @@ async function loadLeaves(){
   }catch(e){document.getElementById("leavesBody").textContent="تعذّر التحميل: "+e.message;}
 }
 async function decideLeave(id,action){
-  const c=prompt(action==="approve"?"ملاحظة (اختياري):","ملاحظة الرفض:");
+  const c=prompt(action==="approve"?"ملاحظة (اختياري):":"ملاحظة الرفض:");
   if(action==="reject"&&c===null)return;
   try{await api("/hr/leaves/"+id+"/decide",{method:"POST",body:JSON.stringify({action,comment:c||""})});loadLeaves();}
   catch(e){alert(e.message);}
@@ -441,9 +444,11 @@ async function init(){
   if(!TOKEN){loginView();return;}
   try{
     const m=await api("/hr/me/profile");
+    if(m.role==="COMPANY"){location.href="/static/fleet.html";return;}
+    if(m.role==="DOU_ADMIN"||m.role==="DOU_OPS"){location.href="/static/admin.html";return;}
     document.getElementById("spName").textContent=m.name;
     document.getElementById("spPhoto").textContent=(m.name||"م")[0]||"م";
-    document.getElementById("spRole").textContent=(m.role==="COMPANY"?"أدمن الشركة — رؤية كل الفرق":m.role==="SUPERVISOR"?"مشرف — مجموعتي فقط":"مدير منصة");
+    document.getElementById("spRole").textContent="مشرف — مجموعتي فقط";
   }catch(e){}
   go("team");
 }
