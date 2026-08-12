@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from .database import Base, engine
-from .routers import merchants, couriers, orders, auth, shifts, shipping, analytics, geo, admin, fleet, billing
+from .routers import merchants, couriers, orders, auth, shifts, shipping, analytics, geo, admin, fleet, billing, hr
 from .models import entities  # noqa: F401 — يسجّل الجداول على Base
 from .migrations import run_migrations
 
@@ -31,6 +31,7 @@ app.include_router(admin.router)
 app.include_router(admin.gate_router)
 app.include_router(fleet.router)
 app.include_router(billing.router)
+app.include_router(hr.router)
 
 import os
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")

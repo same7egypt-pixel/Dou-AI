@@ -114,6 +114,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
   <button class="nav" data-view="channels"><i>🔀</i><span>القنوات والتكاليف</span></button>
   <button class="nav" data-view="compliance"><i>!</i><span>الامتثال والحالات</span></button>
   <div class="group">الإدارة</div>
+  <button class="nav" data-view="hr"><i>🧑‍💼</i><span>الموارد البشرية</span></button>
   <button class="nav" data-view="tickets"><i>🎫</i><span>التذاكر</span></button>
   <button class="nav" data-view="companies" id="navCompanies"><i>🏢</i><span>شركات التشغيل</span></button>
   <div class="group">الاشتراك</div>
@@ -332,6 +333,41 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       </div>
     </section>
 
+    <section id="view-hr" style="display:none">
+      <div class="header"><div><div class="kicker">الموارد البشرية — مشرفون ومناديب ومستندات</div><h1>الموارد البشرية</h1></div>
+        <button class="btn ghost" onclick="hrExport()">⬇ تقرير HR</button></div>
+      <div class="cards">
+        <div class="metric"><b id="hrTotal">–</b><span>مناديب</span></div>
+        <div class="metric"><b id="hrSupCount">–</b><span>مشرفون</span></div>
+        <div class="metric trend"><b id="hrOrders">–</b><span>أوردرات الشهر</span></div>
+        <div class="metric alert"><b id="hrRisk">–</b><span>مستندات حرجة</span></div>
+      </div>
+      <div class="card"><h3>المشرفون</h3>
+        <div class="opt"><div><b>إضافة مشرف جديد</b><small>حساب دخول يرى مناديب مجموعته فقط</small></div>
+          <button class="btn small" onclick="openSupModal()">+ مشرف</button></div>
+        <table><thead><tr><th>المشرف</th><th>الجوال</th><th>عدد المناديب</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <tbody id="supBody"></tbody></table>
+        <p style="font-size:11px;color:var(--muted);margin-top:10px">💡 مشرف يدخل عبر <b>/static/supervisor.html</b> — يرى مناديبه وكل بياناتهم.</p>
+      </div>
+      <div class="card"><h3>المشاريع / المنصات</h3>
+        <div class="opt"><div><b>إضافة منصة أو مشروع</b><small>مثال: هنقرستيشن، جاهز، مرسول</small></div>
+          <button class="btn small" onclick="addProject()">+ منصة</button></div>
+        <div id="projectsBody"></div>
+      </div>
+      <div class="card"><h3>خطط البونص — تارجت شهري + مكافأة + سعر الطلب الزائد</h3>
+        <div class="opt"><div><b>إنشاء خطة بونص</b><small>مثال: 460 طلب → 2000 ر.س + 5 ر.س لكل طلب زائد</small></div>
+          <button class="btn small" onclick="openBonusModal()">+ خطة بونص</button></div>
+        <table><thead><tr><th>المندوب</th><th>المنصة</th><th>التارجت</th><th>المكافأة</th><th>الطلب الزائد</th><th>إجراءات</th></tr></thead>
+          <tbody id="bonusBody"></tbody></table>
+      </div>
+      <div class="card"><h3>طلبات الإجازة (موافقة من مستويين)</h3>
+        <div id="hrLeaves"></div>
+      </div>
+      <div class="card"><h3>تعديلات HR (Audit Log)</h3>
+        <div id="hrAudit" style="font-size:12px;color:var(--muted)"></div>
+      </div>
+    </section>
+
     <section id="view-tickets" style="display:none">
       <div class="header"><div><div class="kicker">مركز الدعم</div><h1>التذاكر</h1></div>
         <select class="ruleNum" id="ticketFilter" onchange="renderTickets()"><option>الكل</option><option>الانتظار (Queue)</option><option>محلولة</option><option>التجار</option><option>المناديب</option></select></div>
@@ -458,6 +494,28 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 </div>
 
 <!-- Modal: إعادة تعيين مندوب -->
+<div class="modal" id="supModal">
+  <div class="modalBox">
+    <h3>🧑‍💼 مشرف جديد</h3>
+    <label class="fLabel">اسم المشرف</label><input id="supName" class="fInput" placeholder="أحمد المحمد">
+    <label class="fLabel">رقم الجوال</label><input id="supPhone" class="fInput" dir="ltr" placeholder="9665XXXXXXXX">
+    <label class="fLabel">كلمة مرور أولية</label><input id="supPass" class="fInput" dir="ltr" value="dou123456">
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveSup()">إنشاء الحساب</button><button class="btn ghost" onclick="closeSup()">إلغاء</button></div>
+    <div id="supMsg" class="msg"></div>
+  </div>
+</div>
+<div class="modal" id="bonusModal">
+  <div class="modalBox">
+    <h3>🎯 خطة بونص — تارجت + مكافأة + طلب زائد</h3>
+    <label class="fLabel">المندوب</label><select id="bnCourier" class="fInput"></select>
+    <label class="fLabel">المنصة/المشروع</label><select id="bnProject" class="fInput"></select>
+    <label class="fLabel">التارجت الشهري (أوردر)</label><input id="bnTarget" type="number" class="fInput" placeholder="460">
+    <label class="fLabel">المكافأة عند بلوغ التارجت (ر.س)</label><input id="bnBonus" type="number" class="fInput" placeholder="2000">
+    <label class="fLabel">سعر الطلب الزائد فوق التارجت (ر.س)</label><input id="bnOver" type="number" class="fInput" placeholder="5">
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveBonus()">حفظ الخطة</button><button class="btn ghost" onclick="closeBonusModal()">إلغاء</button></div>
+    <div id="bnMsg" class="msg"></div>
+  </div>
+</div>
 <div class="modal" id="reassignModal">
   <div class="modalBox">
     <h3>🔄 إعادة تعيين الطلب</h3>
@@ -552,9 +610,9 @@ function escapeHtml(s){ return String(s||"").replace(/[&<>"]/g, c=>({"&":"&amp;"
 
 function go(v){
   document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
-  const views = ["overview","dispatch","couriers","orders","shifts","attendance","performance","payouts","channels","compliance","tickets","companies","rules","shipping","billing"];
+  const views = ["overview","dispatch","couriers","orders","shifts","attendance","performance","payouts","channels","compliance","tickets","companies","rules","shipping","billing","hr"];
   views.forEach(x=>{ const el=document.getElementById("view-"+x); if(el) el.style.display = x===v?"block":"none"; });
-  const names = {overview:"نظرة عامة",dispatch:"الإرسال والتحكم",couriers:"المناديب",orders:"الطلبات",shifts:"الورديات",attendance:"تتبع الحضور",performance:"أداء المناديب",payouts:"الرواتب",channels:"القنوات",compliance:"الامتثال",tickets:"التذاكر",companies:"شركات التشغيل",rules:"قواعد النظام",shipping:"شركات الشحن",billing:"الاشتراك"};
+  const names = {overview:"نظرة عامة",dispatch:"الإرسال والتحكم",couriers:"المناديب",orders:"الطلبات",shifts:"الورديات",attendance:"تتبع الحضور",performance:"أداء المناديب",payouts:"الرواتب",channels:"القنوات",compliance:"الامتثال",tickets:"التذاكر",companies:"شركات التشغيل",rules:"قواعد النظام",shipping:"شركات الشحن",billing:"الاشتراك",hr:"الموارد البشرية"};
   document.getElementById("crumb").textContent = names[v];
   loadAll();
   if(v==="performance") loadPerformance();
@@ -565,6 +623,7 @@ function go(v){
   if(v==="billing") loadBilling();
   if(v==="payouts"||v==="overview") renderContracts();
   if(v==="dispatch"){ loadDispatch(); loadOverride(); }
+  if(v==="hr") loadHR();
 }
 document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
 
@@ -1058,7 +1117,7 @@ async function loadBilling(){
     document.getElementById("billingMsg").textContent = "";
   }catch(e){ document.getElementById("invoiceCard").style.display="none"; }
 }
-async function payInvoice(){
+async init();
   const msg = document.getElementById("billingMsg");
   msg.textContent = "⏳ جاري معالجة الدفع..."; msg.style.color = "var(--muted)";
   try{
@@ -1067,6 +1126,100 @@ async function payInvoice(){
     msg.textContent = "✅ تم سداد الفاتورة — اشتراكك مفعّل حتى " + r.due_date;
     loadBilling();
   }catch(e){ msg.style.color="var(--red)"; msg.textContent="❌ "+e.message; }
+}
+
+async function loadHR(){
+  try{
+    const dash = await api("/hr/dashboard");
+    const sups = await api("/hr/supervisors");
+    const projects = await api("/hr/projects");
+    const bonus = await api("/hr/bonus");
+    const leaves = await api("/hr/leaves");
+    document.getElementById("hrTotal").textContent = dash.couriers_total;
+    document.getElementById("hrSupCount").textContent = sups.length;
+    document.getElementById("hrOrders").textContent = sups.reduce((s,x)=>s+x.couriers_count,0);
+    document.getElementById("hrRisk").textContent = dash.risk.length;
+    document.getElementById("supBody").innerHTML = sups.map(s=>`
+      <tr><td><b>${s.name}</b></td><td dir="ltr">${s.phone}</td><td>${s.couriers_count}</td>
+      <td>${s.is_active?'<span class="tag green">نشط</span>':'<span class="tag gray">موقوف</span>'}</td>
+      <td><button class="btn ghost small" onclick="toggleSup(${s.id},${s.is_active})">${s.is_active?'إيقاف':'تفعيل'}</button></td></tr>`).join("")
+      || '<tr><td colspan="5" style="color:var(--muted)">لا مشرفين بعد — أضف أول مشرف</td></tr>';
+    document.getElementById("projectsBody").innerHTML = projects.map(p=>`
+      <div class="opt"><div><b>${p.name}</b><small>${p.is_active?'نشطة':'موقوفة'}</small></div></div>`).join("")
+      || '<p style="color:var(--muted)">لا مشاريع — أضف منصة (هنقرستيشن/جاهز...)</p>';
+    document.getElementById("bonusBody").innerHTML = bonus.map(b=>`
+      <tr><td><b>${b.courier}</b></td><td>${b.project}</td><td>${b.target_orders}</td>
+      <td>${b.bonus_amount} ر.س</td><td>${b.over_target_rate} ر.س</td>
+      <td><button class="btn ghost small" onclick="delBonus(${b.id})">حذف</button></td></tr>`).join("")
+      || '<tr><td colspan="6" style="color:var(--muted)">لا خطط بونص بعد</td></tr>';
+    const stMap = {PENDING:'<span class="tag amber">بانتظار المشرف</span>',SUPERVISOR_APPROVED:'<span class="tag blue">وافق المشرف — بانتظارك</span>',APPROVED:'<span class="tag green">موافق نهائياً</span>',REJECTED:'<span class="tag red">مرفوضة</span>'};
+    document.getElementById("hrLeaves").innerHTML = leaves.map(l=>`
+      <div class="opt"><div><b>${l.courier} — ${l.from_date} ← ${l.to_date} ${stMap[l.status]||l.status}</b>
+        <small>السبب: ${l.reason}${l.supervisor_comment?' · ملاحظة المشرف: '+l.supervisor_comment:''}${l.admin_comment?' · ملاحظتك: '+l.admin_comment:''}</small></div>
+        <div style="display:flex;gap:6px">${l.status==="SUPERVISOR_APPROVED"||l.status==="PENDING"?
+          `<button class="btn green small" onclick="decideHrLeave(${l.id},'approve')">✔ وافق نهائياً</button>
+           <button class="btn red small" onclick="decideHrLeave(${l.id},'reject')">✖ أرفض</button>`:''}</div></div>`).join("")
+      || '<p style="color:var(--muted)">لا طلبات إجازة حالياً</p>';
+    document.getElementById("hrAudit").innerHTML = '';
+  }catch(e){}
+}
+async function toggleSup(id,active){
+  await api("/hr/supervisors/"+id,{method:"PATCH",body:JSON.stringify({is_active:!active})});
+  loadHR();
+}
+async function decideHrLeave(id,action){
+  const c=prompt(action==="approve"?"ملاحظة (اختياري):","ملاحظة الرفض:");
+  if(action==="reject"&&c===null)return;
+  await api("/hr/leaves/"+id+"/decide",{method:"POST",body:JSON.stringify({action,comment:c||""})});
+  loadHR();
+}
+async function delBonus(id){ if(!confirm("حذف خطة البونص؟"))return; await api("/hr/bonus/"+id,{method:"PATCH",body:JSON.stringify({target_orders:0,bonus_amount:0,over_target_rate:0})}); loadHR(); }
+function openSupModal(){ document.getElementById("supMsg").textContent=""; document.getElementById("supModal").classList.add("open"); }
+function closeSup(){ document.getElementById("supModal").classList.remove("open"); }
+async function saveSup(){
+  try{
+    const r=await api("/hr/supervisors",{method:"POST",body:JSON.stringify({
+      name:document.getElementById("supName").value.trim(),
+      phone:document.getElementById("supPhone").value.trim(),
+      password:document.getElementById("supPass").value
+    })});
+    document.getElementById("supMsg").style.color="var(--green)";
+    document.getElementById("supMsg").innerHTML="✅ حُفظ. دخول المشرف: <b dir='ltr'>"+r.login_phone+"</b> / "+r.password+" عبر /static/supervisor.html";
+    setTimeout(()=>{closeSup();loadHR();},1800);
+  }catch(e){ document.getElementById("supMsg").style.color="var(--red)"; document.getElementById("supMsg").textContent="❌ "+e.message; }
+}
+async function openBonusModal(){
+  const [couriers,projects]=await Promise.all([api("/fleet/couriers"),api("/hr/projects")]);
+  document.getElementById("bnCourier").innerHTML=couriers.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+  document.getElementById("bnProject").innerHTML=projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
+  document.getElementById("bnMsg").textContent=""; document.getElementById("bonusModal").classList.add("open");
+}
+function closeBonusModal(){ document.getElementById("bonusModal").classList.remove("open"); }
+async function saveBonus(){
+  try{
+    await api("/hr/bonus",{method:"POST",body:JSON.stringify({
+      courier_id:parseInt(document.getElementById("bnCourier").value),
+      project_id:parseInt(document.getElementById("bnProject").value),
+      target_orders:parseInt(document.getElementById("bnTarget").value||0),
+      bonus_amount:parseFloat(document.getElementById("bnBonus").value||0),
+      over_target_rate:parseFloat(document.getElementById("bnOver").value||0)
+    })});
+    document.getElementById("bnMsg").style.color="var(--green)";
+    document.getElementById("bnMsg").textContent="✅ حُفظت خطة البونص — تُحسب تلقائياً من السجل اليومي";
+    setTimeout(()=>{closeBonusModal();loadHR();},900);
+  }catch(e){ document.getElementById("bnMsg").style.color="var(--red)"; document.getElementById("bnMsg").textContent="❌ "+e.message; }
+}
+async function addProject(){
+  const n=prompt("اسم المنصة/المشروع (مثال: هنقرستيشن):");
+  if(!n)return;
+  try{await api("/hr/projects",{method:"POST",body:JSON.stringify({name:n})});loadHR();}
+  catch(e){alert(e.message);}
+}
+async function hrExport(){
+  const r=await fetch(API+"/hr/export",{headers:{Authorization:"Bearer "+TOKEN}});
+  if(!r.ok){alert("تعذّر التصدير");return;}
+  const blob=await r.blob();
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="hr_report.csv";a.click();
 }
 
 init();

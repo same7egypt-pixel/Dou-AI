@@ -34,6 +34,8 @@ def rank_couriers(db: Session, order: Order) -> list[Courier]:
         Courier.is_available.is_(True),
         Courier.documents_valid.is_(True),
         Courier.shift_active.is_(True),
+        Courier.is_on_leave.is_(False),            # لا إرسال لمن في إجازة
+        Courier.employment_status.is_(None) | Courier.employment_status.isnot("SUSPENDED"),
         Courier.current_load < 3,          # حمل حالي ضمن الحد
         Courier.acceptance_rate >= 85.0,
     )

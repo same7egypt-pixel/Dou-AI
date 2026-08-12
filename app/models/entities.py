@@ -1,7 +1,7 @@
 import enum
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy import (
-    Column, Integer, String, Float, Boolean, Text, DateTime, ForeignKey,
+    Column, Integer, String, Float, Boolean, Text, DateTime, Date, ForeignKey,
     Enum, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
@@ -18,6 +18,7 @@ class UserRole(str, enum.Enum):
     MERCHANT = "MERCHANT"
     COURIER = "COURIER"
     COMPANY = "COMPANY"        # مسؤول شركة لوجستية
+    SUPERVISOR = "SUPERVISOR"  # مشرف على مجموعة مناديب داخل الشركة
     DOU_OPS = "DOU_OPS"        # فريق Dou الداخلي
     DOU_ADMIN = "DOU_ADMIN"    # مدير المنصة
 
@@ -132,10 +133,23 @@ class Courier(Base):
     employment_status = Column(String(20), default="ACTIVE")  # ACTIVE / SUSPENDED / TERMINATED
     hired_at = Column(DateTime, default=datetime.utcnow)      # تاريخ التعيين
     bank_iban = Column(String(34))                   # IBAN لتحويل الراتب
+    supervisor_id = Column(Integer, ForeignKey("users.id"))  # المشرف المسؤول عن المندوب
+    platform = Column(String(60))                    # المنصة/المشروع الرئيسي (هنقرستيشن/جاهز/...)
+    platform_courier_id = Column(String(60))         # كود/ID المندوب داخل المنصة الخارجية
+    iqama_expiry = Column(Date)                      # موعد انتهاء الإقامة
+    license_expiry = Column(Date)                    # موعد انتهاء رخصة القيادة
+    vehicle_license_expiry = Column(Date)            # موعد انتهاء رخصة المركبة (بايك/سيارة)
+    vehicle_type = Column(String(60))                # نوع المركبة (بايك/سيارة/سكوتر)
+    vehicle_plate = Column(String(40))               # رقم المركبة
+    zone = Column(String(120))                       # منطقة/أحياء عمل المندوب
+    photo_url = Column(String(300))                  # صورة المندوب
+    is_on_leave = Column(Boolean, default=False)     # في إجازة اليوم
+    shift_started_at = Column(DateTime)              # بداية الوردية الحية
     created_at = Column(DateTime, default=datetime.utcnow)
 
     tenant = relationship("Tenant", back_populates="couriers")
     fleet = relationship("Fleet", back_populates="couriers")
+    supervisor = relationship("User", foreign_keys=[supervisor_id])
 
 
 class Merchant(Base):
@@ -355,6 +369,7 @@ class Contract(Base):
     base_salary = Column(Float, default=0.0)
     per_delivery_rate = Column(Float, default=6.0)
     status = Column(String(20), default="ACTIVE")          # ACTIVE / EXPIRED
+    end_date = Column(DateTime)                            # تاريخ انتهاء العقد
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -408,3 +423,120 @@ class Staff(Base):
     access = Column(String(20), default="limited")   # full / finance / limited
     region = Column(String(60))
     status = Column(String(20), default="active")
+
+
+class Project(Base):
+    """مشروع/منصة/عميل خارجي — المندوب يسجل فيه أوردراته اليومية."""
+    __tablename__ = "projects"
+    __table_args__ = (UniqueConstraint("tenant_id", "name", name="uq_project_tenant_name"),)
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    name = Column(String(120), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class DailyLog(Base):
+    """سجل يومي للمندوب: تاريخ + مشروع + عدد أوردرات."""
+    __tablename__ = "daily_logs"
+    __table_args__ = (UniqueConstraint("courier_id", "log_date", "project_id", name="uq_daily_courier_date_project"),)
+
+    id = Column(Integer, primary_key=True)
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"))
+    project_id = Column(Integer, ForeignKey("projects.id"))
+    log_date = Column(Date, nullable=False)
+    orders_count = Column(Integer, default=0)
+    notes = Column(String(300))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class BonusPlan(Base):
+    """خطة بونص للمندوب على مشروع معين: تارجت + مكافأة + سعر الطلب الزائد."""
+    __tablename__ = "bonus_plans"
+    __table_args__ = (UniqueConstraint("courier_id", "project_id", name="uq_bonus_courier_project"),)
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"))
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    target_orders = Column(Integer, default=0)        # 460
+    bonus_amount = Column(Float, default=0.0)         # 2000 ر.س
+    over_target_rate = Column(Float, default=0.0)     # 5 ر.س/طلب زائد
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class LeaveRequest(Base):
+    """طلب إجازة من مندوب — موافقة المشرف ثم الأدمن."""
+    __tablename__ = "leave_requests"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"))
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
+    from_date = Column(Date, nullable=False)
+    to_date = Column(Date, nullable=False)
+    reason = Column(String(300))
+    status = Column(String(20), default="PENDING")   # PENDING / SUPERVISOR_APPROVED / APPROVED / REJECTED
+    supervisor_id = Column(Integer, ForeignKey("users.id"))    # المشرف الذي راجع
+    admin_id = Column(Integer, ForeignKey("users.id"))         # الأدمن الذي وافق أخيراً
+    supervisor_comment = Column(String(300))
+    admin_comment = Column(String(300))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AuditLog(Base):
+    """سجل تعديلات: مين غيّر إيه وإمتى."""
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"))
+    actor_id = Column(Integer, ForeignKey("users.id"))
+    actor_name = Column(String(120))
+    actor_role = Column(String(30))
+    action = Column(String(160))                      # "حدّث إقامة محمد"
+    entity = Column(String(40))                       # courier / leave / doc
+    entity_id = Column(Integer)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class BroadcastMessage(Base):
+    """رسالة فورية من الأدمن/المشرف لمناديب مجموعة."""
+    __tablename__ = "broadcast_messages"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"))
+    sender_id = Column(Integer, ForeignKey("users.id"))
+    sender_name = Column(String(120))
+    sender_role = Column(String(30))
+    courier_id = Column(Integer, ForeignKey("couriers.id"))  # None = لكل المناديب
+    message = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PerformanceNote(Base):
+    """ملاحظة أداء نصية من المشرف على مندوب."""
+    __tablename__ = "performance_notes"
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"))
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
+    author_id = Column(Integer, ForeignKey("users.id"))
+    author_name = Column(String(120))
+    note = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CourierRating(Base):
+    """تقييم شهري (1-5) للمندوب من مشرفه."""
+    __tablename__ = "courier_ratings"
+    __table_args__ = (UniqueConstraint("courier_id", "month", name="uq_rating_courier_month"),)
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"))
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
+    author_id = Column(Integer, ForeignKey("users.id"))
+    month = Column(String(7), nullable=False)         # "2026-08"
+    score = Column(Float, default=0)                  # 1-5
+    comment = Column(String(300))
+    created_at = Column(DateTime, default=datetime.utcnow)

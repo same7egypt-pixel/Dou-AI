@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DOU — Supervisor Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--nav:#11161d;--nav2:#1b2330;--ink:#172033;--muted:#728096;--line:#e7ebf1;--soft:#f7f9fc;--blue:#246bfd;--blue2:#eaf1ff;--green:#16a46b;--green2:#e8f8f1;--amber:#f59e0b;--amber2:#fef4e2;--red:#ef5d67;--red2:#fdebeb}
+*{box-sizing:border-box}body{margin:0;background:var(--soft);font-family:Alexandria,sans-serif;color:var(--ink);font-size:14px}
+.layout{display:flex;min-height:100vh}
+.side{width:242px;background:var(--nav);color:#fff;padding:24px 13px;position:fixed;top:0;right:0;bottom:0;display:flex;flex-direction:column;overflow:auto;z-index:40}
+.main{margin-right:242px;width:calc(100% - 242px)}
+@media(max-width:860px){.side{transform:translateX(110%)}.side.open{transform:translateX(0)}.main{margin-right:0;width:100%}}
+.logo{font:800 21px "Alexandria";letter-spacing:-1px;padding:0 11px 26px;display:flex;align-items:center;gap:9px}
+.logo i{font-style:normal;width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,#ff8a55,#ff5a13)}
+.logo small{margin-right:auto;color:#88a0c4;font:500 9px "Alexandria";letter-spacing:1.4px}
+.group{font-size:10px;letter-spacing:1px;color:#7e91b3;padding:12px 12px 6px}
+.nav{width:100%;background:none;border:0;color:#b5c2d8;text-align:right;padding:10px 12px;border-radius:9px;margin:2px 0;display:flex;gap:11px;align-items:center;font-size:13px;cursor:pointer;font-family:inherit}
+.nav:hover,.nav.active{background:#213251;color:#fff}.nav i{font-style:normal;width:18px;text-align:center;font-size:15px}
+.user{margin-top:auto;background:var(--nav2);padding:11px;border-radius:12px}
+.photo{width:30px;height:30px;background:linear-gradient(135deg,#ff8a55,#ff5a13);border-radius:50%;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700}
+.user b{font-size:11px;display:block}.user small{font-size:10px;color:#99a9c6}
+.top{height:70px;background:#fff;border-bottom:1px solid var(--line);padding:0 34px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20}
+.breadcrumb{font-size:12px;color:var(--muted)}.breadcrumb b{color:var(--ink)}
+.topActions{display:flex;gap:10px;align-items:center}
+.content{padding:26px 34px}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.header h1{margin:0;font-size:21px}.kicker{font-size:11px;color:var(--blue);font-weight:600}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:18px}
+.metric{background:#fff;border-radius:14px;padding:16px;box-shadow:0 10px 25px rgba(26,42,72,.05)}
+.metric b{display:block;font-size:22px}.metric span{color:var(--muted);font-size:11px}
+.metric.alert b{color:var(--red)}.metric.trend b{color:var(--green)}
+.card{background:#fff;border-radius:16px;padding:18px;box-shadow:0 10px 25px rgba(26,42,72,.05);margin-bottom:16px}
+.card h3{margin:0 0 12px;font-size:15px}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;color:var(--muted);text-align:right;padding:8px;border-bottom:2px solid var(--line)}
+td{padding:10px 8px;border-bottom:1px solid var(--line);font-size:12px}
+.tag{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600}
+.tag.green{background:var(--green2);color:var(--green)}.tag.blue{background:var(--blue2);color:var(--blue)}
+.tag.amber{background:var(--amber2);color:#d97706}.tag.red{background:var(--red2);color:var(--red)}.tag.gray{background:#f1f3f6;color:var(--muted)}
+button{font-family:inherit;border:0;border-radius:10px;padding:10px 16px;font-size:12px;font-weight:600;cursor:pointer}
+.btn{background:var(--nav);color:#fff}.btn.blue{background:var(--blue)}.btn.ghost{background:#f1f3f6;color:var(--ink)}
+.btn.amber{background:var(--amber2);color:#d97706}.btn.red{background:var(--red2);color:var(--red)}
+.btn.green{background:var(--green2);color:var(--green)}.btn.small{padding:7px 11px;font-size:11px}
+input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;width:100%}
+.form-row{display:flex;gap:8px;margin-bottom:10px}
+.form-row input,.form-row select{flex:1}
+.msg{font-size:12px;margin-top:8px}
+.modal{position:fixed;inset:0;background:rgba(18,26,44,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal.open{display:flex}
+.modalBox{background:#fff;border-radius:18px;padding:24px;max-width:560px;width:100%;max-height:88vh;overflow:auto}
+.modalBox h3{margin:0 0 14px;font-size:16px}
+.fLabel{display:block;font-size:11px;color:var(--muted);margin:10px 0 4px}
+.fInput{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;font-family:inherit;font-size:13px;margin-bottom:2px}
+.courier{display:flex;align-items:center;gap:10px}
+.avatar{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#ff8a55,#ff5a13);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px;flex-shrink:0}
+.avatar img{width:100%;height:100%;border-radius:12px;object-fit:cover}
+.progress{height:7px;background:#f1f3f6;border-radius:6px;overflow:hidden;min-width:90px}
+.progress i{display:block;height:100%;border-radius:6px;background:var(--green)}
+.riskPill{display:inline-block;padding:3px 8px;border-radius:8px;font-size:10px;margin:1px;font-weight:600}
+.riskPill.red{background:var(--red2);color:var(--red)}.riskPill.amber{background:var(--amber2);color:#d97706}
+.opt{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);gap:10px}
+.opt:last-child{border-bottom:0}
+.opt b{font-size:13px;display:block}.opt small{font-size:11px;color:var(--muted)}
+.ticket{display:flex;justify-content:space-between;align-items:flex-start;padding:13px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;gap:12px}
+.ticket b{font-size:13px;display:block}.ticket small{font-size:11px;color:var(--muted)}
+.chartRow{display:flex;gap:10px;margin-bottom:6px;align-items:center}
+.chartRow .lbl{width:120px;font-size:11px;color:var(--muted)}
+.chartRow .bar{flex:1;height:16px;background:#f1f3f6;border-radius:8px;overflow:hidden}
+.chartRow .bar i{display:block;height:100%;border-radius:8px}
+.chartRow .val{width:60px;font-size:11px;font-weight:600;text-align:left}
+
+html[dir=ltr] .side{right:auto;left:0}
+html[dir=ltr] .main{margin-right:0;margin-left:242px}
+</style>
+</head>
+<body>
+<div class="layout"><aside class="side" id="side">
+  <div class="logo"><i>↗</i><b>DOU</b><small>SUPERVISOR HR</small></div>
+  <div class="group">My Team</div>
+  <button class="nav active" data-view="team"><i>◉</i><span>My Couriers</span></button>
+  <button class="nav" data-view="logs"><i>📆</i><span>Orders Log</span></button>
+  <div class="group">Management</div>
+  <button class="nav" data-view="leaves"><i>🌴</i><span>Leave Requests</span></button>
+  <button class="nav" data-view="notes"><i>📝</i><span>Notes & Ratings</span></button>
+  <div class="group">Communication</div>
+  <button class="nav" data-view="broadcast"><i>📢</i><span>Broadcast to Team</span></button>
+  <button class="nav" data-view="weekly"><i>📊</i><span>Weekly Report</span></button>
+  <div class="user"><div class="photo" id="spPhoto">م</div><b id="spName">Supervisor</b><small id="spRole">Supervisor Panel — HR</small></div>
+</aside>
+<div class="main">
+  <div class="top"><div class="breadcrumb">DOU / <b id="crumb">My Couriers</b></div>
+    <div class="topActions"><button class="btn ghost" onclick="exportReport()">⬇ Export CSV</button>
+      <button class="btn ghost" onclick="logout()">Logout</button></div></div>
+  <div class="content">
+
+    <section id="view-team">
+      <div class="header"><div><div class="kicker">My Team — أرى My Couriers فقط</div><h1>My Couriers</h1></div></div>
+      <div class="cards">
+        <div class="metric"><b id="tTotal">–</b><span>Couriers</span></div>
+        <div class="metric trend"><b id="tOrders">–</b><span>Month Orders</span></div>
+        <div class="metric"><b id="tOnline">–</b><span>Online now</span></div>
+        <div class="metric alert"><b id="tRisk">–</b><span>Docs expiring soon</span></div>
+      </div>
+      <div class="card"><h3>Team Table</h3>
+        <table><thead><tr><th>Courier</th><th>Platform / ID</th><th>Documents</th><th>Vehicle</th><th>Month Orders</th><th>Bonus</th><th>Rating</th><th>Actions</th></tr></thead>
+          <tbody id="teamBody"></tbody></table>
+      </div>
+    </section>
+
+    <section id="view-logs" style="display:none">
+      <div class="header"><div><div class="kicker">Orders Log اليومي لكل مندوب</div><h1>Orders Log</h1></div>
+        <select id="logCourier" onchange="loadCourierLogs()" style="width:auto;min-width:180px"></select></div>
+      <div class="card" id="logBody"></div>
+    </section>
+
+    <section id="view-leaves" style="display:none">
+      <div class="header"><div><div class="kicker">موافقة من مستويين — Supervisor ثم أدمن</div><h1>Leave Requests</h1></div></div>
+      <div class="card"><div id="leavesBody"></div></div>
+    </section>
+
+    <section id="view-notes" style="display:none">
+      <div class="header"><div><div class="kicker">Monthly 1-5 rating + performance note</div><h1>Notes & Ratings</h1></div></div>
+      <div class="card"><table><thead><tr><th>Courier</th><th>Rating</th><th>Comment</th><th>Add note</th></tr></thead><tbody id="notesBody"></tbody></table></div>
+    </section>
+
+    <section id="view-broadcast" style="display:none">
+      <div class="header"><div><div class="kicker">رسالة فورية تظهر في تطبيق Courier</div><h1>بث Broadcast to Team</h1></div></div>
+      <div class="card">
+        <textarea id="bcMsg" class="fInput" rows="3" placeholder="e.g. No trips to the sea today, tomorrow shift starts 8 AM..."></textarea>
+        <div style="margin-top:10px"><button class="btn" onclick="sendBroadcast()">📢 Broadcast to all my couriers</button><span class="msg" id="bcMsgOut"></span></div>
+      </div>
+    </section>
+
+    <section id="view-weekly" style="display:none">
+      <div class="header"><div><div class="kicker">Weekly performance summary</div><h1>Weekly Report</h1></div>
+        <button class="btn ghost" onclick="exportReport()">⬇ تصدير التقرير</button></div>
+      <div class="card" id="weeklyBody"></div>
+    </section>
+
+  </div>
+</div></div>
+
+<div class="modal" id="docModal"><div class="modalBox">
+  <h3 id="docTitle">تعديل Docs Courier</h3>
+  <label class="fLabel">Platform/Project (HungerStation, Jahez...)</label><input id="dPlatform" class="fInput" placeholder="هنقرستيشن">
+  <label class="fLabel">كود/ID Courier داخل المنصة</label><input id="dPlatformId" class="fInput" placeholder="HG-4421">
+  <label class="fLabel">Iqama expiry</label><input id="dIqama" type="date" class="fInput">
+  <label class="fLabel">License expiry</label><input id="dLicense" type="date" class="fInput">
+  <label class="fLabel">نهاية رخصة Vehicle</label><input id="dVehicle" type="date" class="fInput">
+  <label class="fLabel">نوع Vehicle + رقمها</label>
+  <div class="form-row"><input id="dVType" placeholder="Car/Bike"><input id="dVPlate" placeholder="Plate number"></div>
+  <label class="fLabel">Work zone</label><input id="dZone" class="fInput" placeholder="شمال الرياض">
+  <div style="display:flex;gap:8px;margin-top:16px">
+    <button class="btn" onclick="saveDocs()">Save changes</button>
+    <button class="btn ghost" onclick="closeDoc()">Cancel</button></div>
+  <div class="msg" id="docMsg"></div>
+</div></div>
+
+<script>
+const API="";
+let TOKEN=localStorage.getItem("dou_token");
+let COURIERS=[];
+
+async function api(path,opts={}){
+  const headers={"Content-Type":"application/json"};
+  if(TOKEN) headers["Authorization"]="Bearer "+TOKEN;
+  const r=await fetch(API+path,Object.assign({headers},opts));
+  if(r.status===401){logout();throw new Error("انتهت الجلسة");}
+  if(!r.ok) throw new Error((await r.text())||r.status);
+  return r.json();
+}
+function logout(){localStorage.removeItem("dou_token");location.reload();}
+
+function loginView(){
+  document.body.innerHTML=`
+    <div style="display:flex;flex-direction:column;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(160deg,#11161d,#1b2330)">
+      <div style="text-align:center;margin-bottom:22px">
+        <div style="font:800 26px Alexandria;letter-spacing:-1px;color:#fff">DOU <span style="font-size:11px;color:#ff7a42;letter-spacing:2px">SUPERVISOR</span></div>
+        <p style="color:#8b94a3;font-size:12px;margin:8px 0 0">Login الSupervisor — لإدارة Couriers مجموعتك</p></div>
+      <div style="background:#fff;border-radius:18px;padding:20px;max-width:400px;margin:0 auto;width:100%">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">Phone</label>
+        <input id="lp" type="tel" dir="ltr" placeholder="9665778899" style="width:100%;padding:13px;border:1px solid #e7ebf1;border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:12px">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">Password</label>
+        <input id="lpass" type="password" dir="ltr" placeholder="••••••••" style="width:100%;padding:13px;border:1px solid #e7ebf1;border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:16px">
+        <button class="btn" id="lbtn" onclick="doLogin()" style="width:100%;padding:13px;font-size:13px">Login</button>
+        <div class="msg" id="lmsg"></div>
+      </div></div>`;
+}
+async function doLogin(){
+  const btn=document.getElementById("lbtn");btn.disabled=true;btn.textContent="جاري الLogin...";
+  try{
+    const res=await api("/auth/login",{method:"POST",body:JSON.stringify({phone:document.getElementById("lp").value.trim(),password:document.getElementById("lpass").value})});
+    if(res.role!=="SUPERVISOR"&&res.role!=="COMPANY"&&res.role!=="DOU_ADMIN") throw new Error("هذا الحساب ليس حساب Supervisor");
+    TOKEN=res.access_token;localStorage.setItem("dou_token",TOKEN);location.reload();
+  }catch(e){btn.disabled=false;btn.textContent="Login";document.getElementById("lmsg").textContent="❌ "+e.message;}
+}
+
+function docBadge(days){
+  if(days===null||days===undefined) return '<span class="tag gray">—</span>';
+  if(days<0) return '<span class="tag red">منتهية '+(-days)+' يوم</span>';
+  if(days<=7) return '<span class="tag amber">'+days+' يوم متبقي</span>';
+  return '<span class="tag green">'+days+' يوم</span>';
+}
+function riskPills(c){
+  return (c.risks||[]).map(r=>'<span class="riskPill '+(/منتهية/.test(r)?'red':'amber')+'">'+r+'</span>').join("")||'<span class="tag green">سليم</span>';
+}
+
+function go(v){
+  document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
+  const views=["team","logs","leaves","notes","broadcast","weekly"];
+  views.forEach(x=>{const el=document.getElementById("view-"+x);if(el)el.style.display=x===v?"block":"none";});
+  const names={team:"My Couriers",logs:"Orders Log",leaves:"Leave Requests",notes:"Notes & Ratings",broadcast:"Broadcast to Team",weekly:"Weekly Report"};
+  document.getElementById("crumb").textContent=names[v];
+  if(v==="team") loadTeam();
+  if(v==="logs") loadLogSelect();
+  if(v==="leaves") loadLeaves();
+  if(v==="notes") loadNotes();
+  if(v==="weekly") loadWeekly();
+}
+document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
+
+async function loadTeam(){
+  try{
+    COURIERS=await api("/hr/couriers");
+    const total=COURIERS.length;
+    const orders=COURIERS.reduce((s,c)=>s+c.month_orders,0);
+    const online=COURIERS.filter(c=>c.is_online).length;
+    const risk=COURIERS.filter(c=>(c.risks||[]).length).length;
+    document.getElementById("tTotal").textContent=total;
+    document.getElementById("tOrders").textContent=orders;
+    document.getElementById("tOnline").textContent=online;
+    document.getElementById("tRisk").textContent=risk;
+    const rows=COURIERS.map(c=>{
+      const r=((c.avg_rating||0)).toFixed(1);
+      const bonus=c.bonus&&c.bonus.details.length?c.bonus.details.map(d=>`${d.project}: ${d.orders}/${d.target} → ${d.earned} ر.س`).join("<br>"):"—";
+      return `<tr>
+        <td><div class="courier"><div class="avatar">${c.photo_url?'<img src="'+c.photo_url+'">':c.name[0]}</div>
+          <div><b>${c.name}</b><br><small>${c.phone}${c.is_online?'<span class="tag green" style="margin-right:6px">Online</span>':'<span class="tag gray" style="margin-right:6px">غير Online</span>'}</small></div></div></td>
+        <td>${c.platform||'—'}<br><small class="tag blue">${c.platform_courier_id||''}</small></td>
+        <td>Iqama ${docBadge(c.doc_days_left.iqama)}<br>License ${docBadge(c.doc_days_left.license)}<br>Vehicle ${docBadge(c.doc_days_left.vehicle)}</td>
+        <td>${c.vehicle_type||'—'}<br><small>${c.vehicle_plate||''}</small></td>
+        <td><b>${c.month_orders}</b></td>
+        <td><small>${bonus}</small></td>
+        <td><span class="tag ${c.avg_rating>=4.5?'green':c.avg_rating>=3.5?'amber':'gray'}">${r||'—'}</span></td>
+        <td style="display:flex;gap:5px;flex-wrap:wrap">
+          <button class="btn blue small" onclick="openDocs(${c.id})">📄 Docs</button>
+          <button class="btn ghost small" onclick="viewLogs(${c.id})">📆 Log</button>
+          <button class="btn amber small" onclick="rateCourier(${c.id})">⭐ Rate</button>
+          <button class="btn red small" onclick="toggleLeave(${c.id})">🌴 ${c.is_on_leave?'Cancel إجازة':'Leave today'}</button></td></tr>`;
+    }).join("");
+    document.getElementById("teamBody").innerHTML=rows||'<tr><td colspan="8" style="color:var(--muted)">لا Couriers في مجموعتك بعد</td></tr>';
+  }catch(e){document.getElementById("teamBody").innerHTML='<tr><td colspan="8">Failed to load: '+e.message+'</td></tr>';}
+}
+
+let editId=null;
+function openDocs(id){
+  editId=id;
+  const c=COURIERS.find(x=>x.id===id);
+  document.getElementById("docTitle").textContent="Docs — "+c.name;
+  document.getElementById("dPlatform").value=c.platform||"";
+  document.getElementById("dPlatformId").value=c.platform_courier_id||"";
+  document.getElementById("dIqama").value=c.iqama_expiry||"";
+  document.getElementById("dLicense").value=c.license_expiry||"";
+  document.getElementById("dVehicle").value=c.vehicle_license_expiry||"";
+  document.getElementById("dVType").value=c.vehicle_type||"";
+  document.getElementById("dVPlate").value=c.vehicle_plate||"";
+  document.getElementById("dZone").value=c.zone||"";
+  document.getElementById("docMsg").textContent="";
+  document.getElementById("docModal").classList.add("open");
+}
+function closeDoc(){document.getElementById("docModal").classList.remove("open");}
+async function saveDocs(){
+  try{
+    await api("/hr/couriers/"+editId,{method:"PATCH",body:JSON.stringify({
+      platform:document.getElementById("dPlatform").value.trim()||null,
+      platform_courier_id:document.getElementById("dPlatformId").value.trim()||null,
+      iqama_expiry:document.getElementById("dIqama").value||null,
+      license_expiry:document.getElementById("dLicense").value||null,
+      vehicle_license_expiry:document.getElementById("dVehicle").value||null,
+      vehicle_type:document.getElementById("dVType").value.trim()||null,
+      vehicle_plate:document.getElementById("dVPlate").value.trim()||null,
+      zone:document.getElementById("dZone").value.trim()||null,
+    })});
+    document.getElementById("docMsg").style.color="var(--green)";
+    document.getElementById("docMsg").textContent="✅ حُفظت Documents (سُجّل التعديل في Audit Log)";
+    setTimeout(()=>{closeDoc();loadTeam();},900);
+  }catch(e){document.getElementById("docMsg").style.color="var(--red)";document.getElementById("docMsg").textContent="❌ "+e.message;}
+}
+
+async function toggleLeave(id){
+  const c=COURIERS.find(x=>x.id===id);
+  if(!confirm((c.is_on_leave?"Cancel إجازة":"تعليم مندوب في Leave today")+" — "+c.name+"؟"))return;
+  try{await api("/hr/couriers/"+id,{method:"PATCH",body:JSON.stringify({is_on_leave:!c.is_on_leave})});loadTeam();}
+  catch(e){alert(e.message);}
+}
+
+async function loadLogSelect(){
+  try{
+    const rows=COURIERS.length?COURIERS:await api("/hr/couriers");
+    const sel=document.getElementById("logCourier");
+    sel.innerHTML=rows.map(c=>'<option value="'+c.id+'">'+c.name+'</option>').join("");
+    loadCourierLogs();
+  }catch(e){}
+}
+async function loadCourierLogs(){
+  const cid=document.getElementById("logCourier").value;
+  if(!cid)return;
+  const logs=await api("/hr/couriers/"+cid+"/logs");
+  const byMonth={};
+  logs.forEach(l=>{const m=l.date.slice(0,7);(byMonth[m]=byMonth[m]||[]).push(l);});
+  const months=Object.keys(byMonth).sort().reverse();
+  document.getElementById("logBody").innerHTML=months.map(m=>`
+    <h3>${m} — ${byMonth[m].reduce((s,l)=>s+l.orders,0)} orders</h3>
+    <table><thead><tr><th>Date</th><th>Project</th><th>الordersات</th><th>Notes</th></tr></thead>
+    <tbody>${byMonth[m].map(l=>`<tr><td>${l.date}</td><td>${l.project||'—'}</td><td><b>${l.orders}</b></td><td>${l.notes||''}</td></tr>`).join("")}</tbody></table>`).join("")
+    ||'<p style="color:var(--muted)">لا Logات بعد — Courier يLog يومياً من تطبيقه</p>';
+}
+function viewLogs(id){
+  const sel=document.getElementById("logCourier");
+  if(sel){sel.value=id;loadCourierLogs();}
+  go("logs");
+}
+
+async function loadLeaves(){
+  try{
+    const leaves=await api("/hr/leaves");
+    document.getElementById("leavesBody").innerHTML=leaves.map(l=>{
+      const st=l.status;
+      const badge=st==="APPROVED"?'<span class="tag green">Approved</span>':st==="REJECTED"?'<span class="tag red">Rejected</span>':st==="SUPERVISOR_APPROVED"?'<span class="tag blue">Awaiting admin</span>':'<span class="tag amber">Awaiting my review</span>';
+      return `<div class="ticket"><div style="flex:1">
+        <b>${l.courier} — ${l.from_date} ← ${l.to_date} ${badge}</b>
+        <small>Reason: ${l.reason||'إجازة'}${l.supervisor_comment?' · ملاحظة الSupervisor: '+l.supervisor_comment:''}${l.admin_comment?' · Admin note: '+l.admin_comment:''}</small></div>
+        <div style="display:flex;gap:6px">${st==="PENDING"?`<button class="btn green small" onclick="decideLeave(${l.id},'approve')">✔ Approve</button><button class="btn red small" onclick="decideLeave(${l.id},'reject')">✖ Reject</button>`:''}</div></div>`;
+    }).join("")||'<p style="color:var(--muted)">No leave requests yet</p>';
+  }catch(e){document.getElementById("leavesBody").textContent="Failed to load: "+e.message;}
+}
+async function decideLeave(id,action){
+  const c=prompt(action==="approve"?"Note (optional):","Rejection note:");
+  if(action==="reject"&&c===null)return;
+  try{await api("/hr/leaves/"+id+"/decide",{method:"POST",body:JSON.stringify({action,comment:c||""})});loadLeaves();}
+  catch(e){alert(e.message);}
+}
+
+async function loadNotes(){
+  try{
+    const rows=COURIERS.length?COURIERS:await api("/hr/couriers");
+    document.getElementById("notesBody").innerHTML=rows.map(c=>`
+      <tr><td><b>${c.name}</b><br><small>Avg ${c.avg_rating||'—'}</small></td>
+      <td><input type="number" min="1" max="5" step="0.1" value="${c.avg_rating||''}" id="rt${c.id}" style="width:80px"></td>
+      <td><input id="rc${c.id}" placeholder="Month comment (optional)" style="width:100%"></td>
+      <td><button class="btn small" onclick="saveRating(${c.id})">حفظ Rating</button>
+          <button class="btn ghost small" onclick="addNote(${c.id})">+ Note</button></td></tr>`).join("");
+  }catch(e){}
+}
+async function saveRating(id){
+  try{await api("/hr/couriers/"+id+"/rating",{method:"POST",body:JSON.stringify({score:document.getElementById("rt"+id).value,comment:document.getElementById("rc"+id).value})});alert("✅ حُفظ Rate الشهر");loadNotes();}
+  catch(e){alert(e.message);}
+}
+async function addNote(id){
+  const c=COURIERS.find(x=>x.id===id);
+  const n=prompt("Performance note on "+c.name+":");if(!n)return;
+  try{await api("/hr/couriers/"+id+"/note",{method:"POST",body:JSON.stringify({note:n})});alert("✅ Note added");}
+  catch(e){alert(e.message);}
+}
+
+async function sendBroadcast(){
+  const m=document.getElementById("bcMsg").value.trim();
+  if(!m){alert("Write the message first");return;}
+  try{
+    const r=await api("/hr/broadcast",{method:"POST",body:JSON.stringify({message:m})});
+    document.getElementById("bcMsgOut").style.color="var(--green)";
+    document.getElementById("bcMsgOut").textContent="✅ Sent to "+r.sent_to+" couriers (shown in their apps instantly)";
+    document.getElementById("bcMsg").value="";
+  }catch(e){document.getElementById("bcMsgOut").style.color="var(--red)";document.getElementById("bcMsgOut").textContent="❌ "+e.message;}
+}
+
+async function loadWeekly(){
+  try{
+    const w=await api("/hr/weekly");
+    const max=Math.max(1,...w.couriers.map(c=>c.week_orders));
+    document.getElementById("weeklyBody").innerHTML=`
+      <p style="color:var(--muted);font-size:12px">Week from ${w.week_start} until today ${w.today}</p>
+      ${w.couriers.map(c=>`<div class="chartRow"><span class="lbl">${c.name}</span>
+        <div class="bar"><i style="width:${Math.round(c.week_orders/max*100)}%;background:var(--blue)"></i></div>
+        <span class="val">${c.week_orders} orders</span></div>`).join("")}
+      ${w.couriers.length?`<h3>Week total: ${w.couriers.reduce((s,c)=>s+c.week_orders,0)} orders</h3>`:''}`;
+  }catch(e){document.getElementById("weeklyBody").textContent="Failed to load: "+e.message;}
+}
+
+async function exportReport(){
+  const r=await fetch(API+"/hr/export",{headers:{Authorization:"Bearer "+TOKEN}});
+  if(!r.ok){alert("Export failed");return;}
+  const blob=await r.blob();
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="hr_report.csv";a.click();
+}
+
+async function init(){
+  if(!TOKEN){loginView();return;}
+  try{
+    const m=await api("/fleet/me");
+    document.getElementById("spName").textContent=m.name;
+    document.getElementById("spPhoto").textContent=m.name[0]||"م";
+    document.getElementById("spRole").textContent=(m.role==="COMPANY"?"Company admin — sees all teams":m.role==="SUPERVISOR"?"Supervisor — مجموعتي فقط":"Platform admin");
+  }catch(e){}
+  go("team");
+}
+init();
+</script>
+</body>
+</html>

@@ -98,6 +98,7 @@
   <div class="tabs">
     <button class="active" onclick="go('home')">🏠 الرئيسية</button>
     <button onclick="go('earnings')">💰 الأرباح</button>
+    <button onclick="go('dlog')">📆 سجلي اليومي</button>
     <button onclick="go('profile')">👤 حسابي</button>
     <button onclick="go('notifs')">🔔 تنبيهات</button>
   </div>
@@ -195,10 +196,8 @@
       </div>
 
       <div class="card">
-        <h3>📄 المستندات</h3>
-        <div class="docRow"><div><b>الرخصة / الهوية</b><small> · تنتهي 2027-03-15</small></div><span class="tag green">سارية</span></div>
-        <div class="docRow"><div><b>تأمين المركبة</b><small> · تنتهي 2026-09-01</small></div><span class="tag green">سارية</span></div>
-        <div class="docRow"><div><b>سجل المخالفات المرورية</b><small> · آخر تحديث 2026-07</small></div><span class="tag gray">محدث</span></div>
+        <h3>📄 المستندات والمواعيد</h3>
+        <div id="profDocs"><div class="docRow"><div><b>جارِ التحميل...</b></div></div></div>
         <button class="btn ghost small" style="margin-top:10px" onclick="uploadDoc()">📎 رفع مستند</button>
       </div>
 
@@ -214,6 +213,45 @@
     <!-- التنبيهات -->
     <div class="view" id="view-notifs">
       <div class="card" id="notifList"></div>
+    </div>
+
+    <!-- سجلي اليومي -->
+    <div class="view" id="view-dlog">
+      <div class="shiftBanner" id="shiftBanner2">
+        <small>سجلي اليومي — يتجمع شهرياً ويشوفه مشرفي</small>
+        <b id="dlogMonthTotal">—</b>
+        <div class="row"><span id="dlogToday">اليوم: —</span><span id="dlogBonus">بونص الشهر: —</span></div>
+      </div>
+
+      <div class="card">
+        <h3>📝 تسجيل اليوم</h3>
+        <div class="row" style="margin-bottom:8px"><span>تاريخ اليوم</span><b><input type="date" id="dlDate" style="width:auto"></b></div>
+        <div class="row" style="margin-bottom:8px"><span>المشروع/المنصة</span><b><select id="dlProject" style="width:100%"></select></b></div>
+        <div class="row" style="margin-bottom:8px"><span>عدد الأوردرات</span><b><input type="number" id="dlCount" min="0" style="width:100%" placeholder="مثال: 25"></b></div>
+        <div class="row" style="margin-bottom:10px"><span>ملاحظة (اختياري)</span><b><input id="dlNote" style="width:100%" placeholder="مثال: شفت مسائي"></b></div>
+        <button class="btn green" style="width:100%" onclick="saveDailyLog()">💾 حفظ سجل اليوم</button>
+        <div class="msg" id="dlMsg"></div>
+      </div>
+
+      <div class="card">
+        <h3>🌴 طلب إجازة</h3>
+        <div class="row" style="margin-bottom:8px"><span>من</span><b><input type="date" id="lvFrom" style="width:100%"></b></div>
+        <div class="row" style="margin-bottom:8px"><span>إلى</span><b><input type="date" id="lvTo" style="width:100%"></b></div>
+        <div class="row" style="margin-bottom:8px"><span>السبب</span><b><input id="lvReason" style="width:100%" placeholder="سفر / ظرف عائلي..."></b></div>
+        <button class="btn" style="width:100%" onclick="requestLeave()">📨 إرسال طلب الإجازة</button>
+        <div class="msg" id="lvMsg"></div>
+        <div id="leaveStatus" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <h3>📆 هذا الشهر</h3>
+        <div id="dlMonth"></div>
+      </div>
+
+      <div class="card">
+        <h3>🗓 الشهور السابقة</h3>
+        <div id="dlPrev"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -303,7 +341,7 @@ async function init(){
     COURIER = await api("/couriers/me");
     document.querySelectorAll(".tabs").forEach(t=>t.style.display="flex");
     fillProfile();
-    await Promise.all([loadProfile(), loadTasks()]);
+    await Promise.all([loadProfile(), loadTasks(), loadHRWarnings()]);
   }catch(e){
     logout();
   }
@@ -485,6 +523,7 @@ async function checkIn(){
     document.getElementById("checkoutBtn").disabled = false;
     document.getElementById("statusText").textContent = "متصل";
     alert(loc.lat?`✅ تم تسجيل الحضور مع موقعك (${loc.lat}, ${loc.lng}) — ظهر للشركة`:"✅ تم تسجيل الحضور — لكن الموقع غير متاح (فعّل GPS)");
+    await api("/hr/me/shift/start",{method:"POST"});
     await api("/couriers/"+COURIER.id+"/online",{method:"POST"});
     loadProfile();
   }catch(e){ alert("❌ "+e.message); }
@@ -501,21 +540,111 @@ async function checkOut(){
     document.getElementById("checkinBtn").disabled = false;
     document.getElementById("checkoutBtn").disabled = true;
     alert(loc.lat?`✅ تم تسجيل الخروج مع موقعك (${loc.lat}, ${loc.lng}) — ظهر للشركة`:"✅ تم تسجيل الخروج — لكن الموقع غير متاح (فعّل GPS)");
+    await api("/hr/me/shift/stop",{method:"POST"});
   }catch(e){ alert("❌ "+e.message); }
 }
 
+async function loadDailyLog(){
+  try{
+    const el = document.getElementById("dlDate");
+    if(!el.value) el.value = new Date().toISOString().slice(0,10);
+    const data = await api("/hr/me/logs");
+    document.getElementById("dlogMonthTotal").textContent = data.month_orders+" أوردر هذا الشهر";
+    document.getElementById("dlogToday").textContent = "اليوم: "+data.today_orders+" أوردر";
+    document.getElementById("dlogBonus").textContent = "بونص الشهر: "+data.bonus_earned+" ر.س";
+    const projSel = document.getElementById("dlProject");
+    if(!projSel.dataset.loaded){
+      const projects = await api("/hr/projects");
+      projSel.innerHTML = projects.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join("") || '<option value="">—</option>';
+      projSel.dataset.loaded = "1";
+    }
+    document.getElementById("dlMonth").innerHTML = data.days.length
+      ? '<table><thead><tr><th>التاريخ</th><th>المشروع</th><th>الأوردرات</th><th>ملاحظات</th></tr></thead><tbody>'
+        + data.days.map(d=>`<tr><td>${d.date}</td><td>${d.project||"—"}</td><td><b>${d.orders}</b></td><td>${d.notes||""}</td></tr>`).join("")+"</tbody></table>"
+      : '<p style="color:var(--muted);font-size:12px">لم تسجّل أي يوم هذا الشهر بعد</p>';
+    document.getElementById("dlPrev").innerHTML = data.previous_months.map(m=>`
+      <div class="lineItem"><span>${m.month} — ${m.total} أوردر</span>
+        <b>${m.days.length?"<small>آخر: "+m.days.slice(-1)[0].date+" ("+m.days.slice(-1)[0].orders+")</small>":"لا سجلات"}</b></div>`).join("");
+    loadLeaveStatus();
+  }catch(e){}
+}
+
+async function saveDailyLog(){
+  try{
+    await api("/hr/me/log",{method:"POST",body:JSON.stringify({
+      log_date: document.getElementById("dlDate").value,
+      project_id: parseInt(document.getElementById("dlProject").value),
+      orders_count: parseInt(document.getElementById("dlCount").value||0),
+      notes: document.getElementById("dlNote").value
+    })});
+    const msg = document.getElementById("dlMsg");
+    msg.style.color="var(--green)"; msg.textContent="✅ حُفظ سجل اليوم";
+    setTimeout(()=>{msg.textContent="";loadDailyLog();},1200);
+  }catch(e){ const m=document.getElementById("dlMsg"); m.style.color="var(--red)"; m.textContent="❌ "+e.message; }
+}
+
+async function requestLeave(){
+  try{
+    const r = await api("/hr/me/leave",{method:"POST",body:JSON.stringify({
+      from_date: document.getElementById("lvFrom").value,
+      to_date: document.getElementById("lvTo").value,
+      reason: document.getElementById("lvReason").value
+    })});
+    const m = document.getElementById("lvMsg");
+    m.style.color="var(--green)";
+    m.textContent="✅ أُرسل طلب الإجازة #"+r.id+" — بانتظار موافقة المشرف ثم الأدمن";
+    loadLeaveStatus();
+  }catch(e){ const m=document.getElementById("lvMsg"); m.style.color="var(--red)"; m.textContent="❌ "+e.message; }
+}
+
+async function loadLeaveStatus(){
+  try{
+    const leaves = await api("/hr/me/leaves");
+    const map = {PENDING:'<span class="tag" style="background:#fef4e2;color:#d97706">بانتظار المشرف</span>',SUPERVISOR_APPROVED:'<span class="tag" style="background:#eaf1ff;color:#246bfd">وافق عليها المشرف — بانتظار الأدمن</span>',APPROVED:'<span class="tag" style="background:#e8f8f1;color:#16a46b">✔ موافق عليها نهائياً</span>',REJECTED:'<span class="tag" style="background:#fdebeb;color:#ef5d67">مرفوضة</span>'};
+    document.getElementById("leaveStatus").innerHTML = leaves.length
+      ? leaves.slice(0,3).map(l=>`<div class="lineItem"><span>${l.from_date} ← ${l.to_date} ${map[l.status]||l.status}</span></div>`).join("")
+      : '<p style="color:var(--muted);font-size:12px">لا طلبات إجازة سابقة</p>';
+  }catch(e){}
+}
+
 function go(v){
-  const map = {home:"الرئيسية",earnings:"الأرباح",profile:"حسابي",notifs:"تنبيهات"};
-  ["home","earnings","profile","notifs"].forEach(x=>document.getElementById("view-"+x).classList.toggle("active",x===v));
+  const map = {home:"الرئيسية",earnings:"الأرباح",dlog:"سجلي اليومي",profile:"حسابي",notifs:"تنبيهات"};
+  ["home","earnings","dlog","profile","notifs"].forEach(x=>document.getElementById("view-"+x).classList.toggle("active",x===v));
   document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active", b.textContent.includes(map[v])));
   if(v==="notifs") renderNotifs();
+  if(v==="dlog") loadDailyLog();
 }
 function tag(s){ s=String(s); return `<span class="tag ${/DELIVER/i.test(s)?"green":/ACCEPT/i.test(s)?"blue":/OFFER/i.test(s)?"orange":"gray"}">${s.replace(/_/g," ")}</span>`; }
 function toggleNotifPanel(e){ e.stopPropagation(); }
 document.addEventListener("click",()=>{});
 
+async function loadHRWarnings(){
+  try{
+    const hr = await api("/hr/me/hr");
+    const warns = (hr.risks||[]).filter(r=>/منتهية|قرب/.test(r));
+    const docEl = document.getElementById("profDocs");
+    if(docEl){
+      const b = (name, days, date) => {
+        const cls = (days===null||days===undefined)?"gray":(days<0?"red":(days<=7?"amber":"green"));
+        return `<div class="docRow"><div><b>${name}</b><small> · تنتهي ${date||'—'}</small></div><span class="tag ${cls}">${(days===null||days===undefined)?'غير محددة':(days<0?'منتهية':days+' يوم')}</span></div>`;
+      };
+      docEl.innerHTML = b("الإقامة", hr.doc_days_left.iqama, hr.iqama_expiry) + b("رخصة القيادة", hr.doc_days_left.license, hr.license_expiry) + b("رخصة المركبة", hr.doc_days_left.vehicle, hr.vehicle_license_expiry)
+        + `<div class="lineItem"><span>منصّة العمل</span><b>${hr.platform||'—'} ${hr.platform_courier_id?'('+hr.platform_courier_id+')':''}</b></div>
+           <div class="lineItem"><span>مشرفي</span><b>${hr.supervisor_name||'—'}</b></div>
+           <div class="lineItem"><span>تقييمي</span><b>${hr.avg_rating||'—'} ${hr.bonus&&hr.bonus.total?'· بونص '+hr.bonus.total+' ر.س':''}</b></div>`;
+    }
+    const alerts = [];
+    (hr.notes||[]).slice(0,2).forEach(n=>alerts.push({ic:"📝",c:"#fff2eb",t:"ملاحظة من "+n.author_name+": "+n.note,s:"ملاحظة أداء"}));
+    const msgs = await api("/hr/me/messages");
+    msgs.slice(0,3).forEach(m=>alerts.push({ic:"📢",c:"#eaf1ff",t:m.message,s:"رسالة من "+m.sender_name}));
+    warns.forEach(w=>alerts.push({ic:"⚠️",c:"#fff0f1",t:"تنبيه مستند: "+w,s:"مهم"}));
+    if(alerts.length) window.__hrAlerts = alerts;
+  }catch(e){}
+}
 function renderNotifs(){
-  document.getElementById("notifList").innerHTML = NOTIFS.map(n=>`
+  const extra = window.__hrAlerts||[];
+  const list = [...extra, ...NOTIFS];
+  document.getElementById("notifList").innerHTML = list.map(n=>`
     <div class="notifItem"><div class="ic" style="background:${n.c}">${n.ic}</div>
       <div><b>${n.t}</b><small>${n.s}</small></div></div>`).join("");
 }

@@ -11,6 +11,21 @@ MIGRATIONS = {
         "employment_status": "VARCHAR(20) DEFAULT 'ACTIVE'",
         "hired_at": "TIMESTAMP",
         "bank_iban": "VARCHAR(34)",
+        "supervisor_id": "INTEGER",
+        "platform": "VARCHAR(60)",
+        "platform_courier_id": "VARCHAR(60)",
+        "iqama_expiry": "DATE",
+        "license_expiry": "DATE",
+        "vehicle_license_expiry": "DATE",
+        "vehicle_type": "VARCHAR(60)",
+        "vehicle_plate": "VARCHAR(40)",
+        "zone": "VARCHAR(120)",
+        "photo_url": "VARCHAR(300)",
+        "is_on_leave": "BOOLEAN DEFAULT FALSE",
+        "shift_started_at": "TIMESTAMP",
+    },
+    "contracts": {
+        "end_date": "TIMESTAMP",
     },
     "attendances": {
         "check_out_lat": "FLOAT",
@@ -41,3 +56,12 @@ def run_migrations(engine):
                 if col not in existing:
                     conn.execute(text(f'ALTER TABLE {table} ADD COLUMN {col} {ddl}'))
                     print(f"   ➕ migration: {table}.{col}")
+        # توسيع enum userrole بقيمة SUPERVISOR إن لم تكن موجودة (PostgreSQL)
+        if engine.dialect.name == "postgresql":
+            has = conn.execute(text(
+                "SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid "
+                "WHERE t.typname='userrole' AND e.enumlabel='SUPERVISOR'"
+            )).first()
+            if not has:
+                conn.execute(text("ALTER TYPE userrole ADD VALUE IF NOT EXISTS 'SUPERVISOR'"))
+                print("   ➕ migration: userrole enum + SUPERVISOR")
