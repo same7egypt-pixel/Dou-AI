@@ -26,6 +26,7 @@
 .foot{margin-top:32px;color:#5b6575;font-size:11px}
 .signup{margin-top:16px;color:#ff8a5c;font-size:12px;text-decoration:none}
 .signup:hover{color:#ffb28f}
+.contact{display:flex;gap:14px;margin-top:9px;direction:ltr;flex-wrap:wrap;justify-content:center}.contact a{color:#c7d0dd;font-size:12px;text-decoration:none}.contact a:hover{color:#ff8a5c}
 .api{color:#5be0a3}
 </style>
 </head>
@@ -39,6 +40,7 @@
   <a class="app locked" href="/static/admin.html"><div class="icon">🛡️</div><b>لوحة التحكم DOU</b><p>إدارة المنصة: الشركات، الاشتراكات، والفواتير — مخصصة لمالك DOU</p></a>
 </div>
 <span class="signup">تفعيل الشركات الجديدة يتم عن طريق إدارة DOU</span>
+<div class="contact"><a href="mailto:info@dou.delivery">info@dou.delivery</a><a href="tel:+966556338075">0556338075</a></div>
 <div class="foot">DOU · إدارة أسهل للسائقين والموارد البشرية والتشغيل</div>
 <script>
 fetch("/health").then(r=>r.json()).then(d=>document.getElementById("status").textContent="✓ الخادم متصل").catch(()=>document.getElementById("status").textContent="✗ الخادم غير متصل");
