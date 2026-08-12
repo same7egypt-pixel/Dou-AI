@@ -9,11 +9,30 @@ from ..models.entities import Channel, Courier, Merchant, Staff, CourierType, Co
 from .auth import get_current_user, hash_password
 
 
-async def require_admin(x_admin_key: str = Header(default="", alias="X-Admin-Key")):
-    """بوابة لوحة التحكم: تتحقق من المفتاح الإداري في الـ header."""
-    if x_admin_key != ADMIN_KEY:
-        raise HTTPException(401, "Access denied")
-    return True
+async def require_admin(x_admin_key: str = Header(default="", alias="X-Admin-Key"),
+                        authorization: str = Header(default=""),
+                        db: Session = Depends(get_db)):
+    """بوابة لوحة التحكم: تقبل المفتاح الإداري (X-Admin-Key) أو توكن JWT لدور أدمن."""
+    if x_admin_key and x_admin_key == ADMIN_KEY:
+        return True
+    if authorization and authorization.startswith("Bearer "):
+        from .auth import SECRET_KEY, ALGORITHM
+        import jwt as pyjwt
+        from jwt import JWTError
+        token = authorization[7:]
+        try:
+            payload = pyjwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        except JWTError:
+            raise HTTPException(401, "Access denied")
+        if payload.get("role") not in ("DOU_ADMIN", "DOU_OPS"):
+            raise HTTPException(403, "Not an admin account")
+        user = db.get(User, int(payload["sub"]))
+        if not user or not user.is_active:
+            raise HTTPException(401, "Access denied")
+        if int(payload.get("ver", 0)) != (user.token_version or 0):
+            raise HTTPException(401, "Access denied")
+        return True
+    raise HTTPException(401, "Access denied")
 
 
 router = APIRouter(
