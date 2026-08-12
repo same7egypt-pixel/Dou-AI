@@ -25,6 +25,14 @@ input:focus,select:focus{border-color:#ff5a13}
 .back{margin-top:20px;color:#8b94a3;font-size:12px;text-decoration:none}
 .back:hover{color:#fff}
 .hint{color:#5b6575;font-size:11px;margin-top:10px;line-height:1.8}
+.copy{display:inline-block;background:#11161d;border:1px solid #273245;color:#fff;padding:3px 10px;border-radius:8px;font-size:11px;margin:2px;cursor:pointer;font-family:inherit}
+.copy:hover{border-color:#ff5a13}
+.nextbtn{display:none;width:100%;padding:13px;margin-top:16px;background:#fff;color:#11161d;border:0;border-radius:10px;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;text-align:center;text-decoration:none}
+.nextbtn:hover{background:#ff5a13;color:#fff}
+.copy{display:inline-block;background:#11161d;border:1px solid #273245;color:#fff;padding:3px 10px;border-radius:8px;font-size:11px;margin:2px;cursor:pointer;font-family:inherit}
+.copy:hover{border-color:#ff5a13}
+.nextbtn{display:none;width:100%;padding:13px;margin-top:16px;background:#fff;color:#11161d;border:0;border-radius:10px;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;text-align:center;text-decoration:none}
+.nextbtn:hover{background:#ff5a13;color:#fff}
 </style>
 </head>
 <body>
@@ -44,11 +52,16 @@ input:focus,select:focus{border-color:#ff5a13}
     </select>
     <button class="btn" id="regBtn" type="submit">إنشاء الحساب والدخول</button>
   </form>
+  <a class="nextbtn" id="nextBtn" href="/static/fleet.html">اذهب لصفحة الدخول وسجّل بنفسك →</a>
   <div class="msg" id="regMsg"></div>
   <div class="hint">تسجّل الشركة كيانات لعملائنا؟ بيانات الدخول تُنسخ هنا وتنقلها إلى العميل، أو يغيّر كلمة المرور لاحقاً</div>
 </div>
 <a class="back" href="/static/fleet.html">← العودة لصفحة دخول الشركات</a>
 <script>
+async function copyVal(v){
+  try{ await navigator.clipboard.writeText(v); }catch(e){}
+  const c = event.target; c.textContent = "✓"; setTimeout(()=>c.textContent="نسخ", 1200);
+}
 async function normalizePhone(p){
   let ph = p.trim().replace(/\D/g,"");
   if(/^0\d{9}$/.test(ph)) ph = ph.replace(/^0/,"");          // 010xxxx -> 10xxxx
@@ -69,10 +82,13 @@ form.addEventListener("submit", async function(e){
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || "حدث خطأ");
     const due = data.due_date ? new Date(data.due_date).toLocaleDateString("ar-EG") : "";
+    form.style.display = "none";
     msg.className = "msg ok";
-    msg.innerHTML = "✅ تم إنشاء الحساب! <b>"+data.company_name+"</b><br>رقم الدخول: <b dir='ltr'>"+data.login_phone+"</b><br>كلمة المرور: <b dir='ltr'>"+data.password+"</b><br>الخطة: تجربة مجانية"+ (due?" — تنتهي "+due:"") +"<br><b>يجري فتح لوحة الشركة…</b>";
-    localStorage.setItem("dou_token", data.access_token);
-    setTimeout(function(){ location.href = "/static/fleet.html"; }, 1800);
+    msg.innerHTML = "✅ تم إنشاء الحساب! <b>"+data.company_name+"</b><br>رقم الدخول: <b dir='ltr'>"+data.login_phone+"</b> <button class='copy' onclick=\"copyVal('"+data.login_phone+"')\">نسخ</button><br>كلمة المرور: <b dir='ltr'>"+data.password+"</b> <button class='copy' onclick=\"copyVal('"+data.password+"')\">نسخ</button><br>الخطة: تجربة مجانية"+(due?" — تنتهي "+due:"")+"<br><b>احفظها الآن، ثم سجّل دخولك بها:</b>";
+    const nb = document.getElementById("nextBtn");
+    nb.style.display = "block";
+    nb.href = "/static/fleet.html";
+    btn.disabled = false; btn.textContent = "إنشاء الحساب والدخول";
   } catch(err){
     msg.className = "msg err";
     msg.innerHTML = "⚠️ "+err.message;
