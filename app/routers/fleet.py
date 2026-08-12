@@ -129,13 +129,19 @@ def add_courier(payload: dict, user: User = Depends(get_current_user), db: Sessi
     ctype = CourierType(payload.get("courier_type") or "COMPANY")
     tenant_id = user.tenant_id
     fleet = db.query(Fleet).filter(Fleet.tenant_id == tenant_id).first() if tenant_id else None
+    try:
+        base_salary = float(payload.get("base_salary") or 0)
+        per_delivery_rate = float(payload.get("per_delivery_rate") or 0)
+        bonus_target = float(payload.get("bonus_target") or 0)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "قيم رقمية غير صالحة")
     courier = Courier(
         tenant_id=tenant_id, fleet_id=fleet.id if fleet else None,
         name=name, phone=phone, courier_type=ctype, country=country,
         lat=payload.get("lat"), lng=payload.get("lng"),
-        base_salary=float(payload.get("base_salary") or 0),
-        per_delivery_rate=float(payload.get("per_delivery_rate") or 0),
-        bonus_target=float(payload.get("bonus_target") or 0),
+        base_salary=base_salary,
+        per_delivery_rate=per_delivery_rate,
+        bonus_target=bonus_target,
         bank_iban=payload.get("bank_iban"),
     )
     db.add(courier)
@@ -298,12 +304,16 @@ def fleet_create_shift(payload: dict, user: User = Depends(get_current_user), db
     if not name:
         raise HTTPException(400, "Shift name is required")
     fleet = db.query(Fleet).filter(Fleet.tenant_id == user.tenant_id).first() if user.tenant_id else None
+    try:
+        required_couriers = int(payload.get("required_couriers") or 0)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "required_couriers يجب أن يكون رقماً")
     shift = Shift(
         tenant_id=user.tenant_id, fleet_id=fleet.id if fleet else None,
         name=name, zone=payload.get("zone") or "",
         start_time=payload.get("start_time") or "09:00",
         end_time=payload.get("end_time") or "17:00",
-        required_couriers=int(payload.get("required_couriers") or 0),
+        required_couriers=required_couriers,
     )
     db.add(shift)
     db.commit()
@@ -390,15 +400,22 @@ def fleet_create_contract(payload: dict, user: User = Depends(get_current_user),
         raise HTTPException(400, "Contract name is required")
     tenant_id = _scope(user, db)
     fleet = db.query(Fleet).filter(Fleet.tenant_id == user.tenant_id).first() if user.tenant_id else None
+    try:
+        duration_months = int(payload.get("duration_months") or 12)
+        couriers_count = int(payload.get("couriers_count") or 0)
+        base_salary = float(payload.get("base_salary") or 0)
+        per_delivery_rate = float(payload.get("per_delivery_rate") or 6)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "قيم رقمية غير صالحة في العقد")
     contract = Contract(
         tenant_id=user.tenant_id if user.tenant_id else (tenant_id if tenant_id is not None else None),
         fleet_id=fleet.id if fleet else payload.get("fleet_id"),
         name=name,
         contract_type=payload.get("contract_type") or "FIXED",
-        duration_months=int(payload.get("duration_months") or 12),
-        couriers_count=int(payload.get("couriers_count") or 0),
-        base_salary=float(payload.get("base_salary") or 0),
-        per_delivery_rate=float(payload.get("per_delivery_rate") or 6),
+        duration_months=duration_months,
+        couriers_count=couriers_count,
+        base_salary=base_salary,
+        per_delivery_rate=per_delivery_rate,
         status=payload.get("status") or "ACTIVE",
     )
     db.add(contract)

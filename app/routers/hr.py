@@ -240,11 +240,17 @@ def create_bonus(payload: dict, user: User = Depends(get_current_user), db: Sess
         dup = db.query(BonusPlan).filter(BonusPlan.courier_id.is_(None), BonusPlan.project_id == pid).first()
         if dup:
             raise HTTPException(400, "هناك خطة بونص عامة لهذا المشروع")
+    try:
+        target_orders = int(payload.get("target_orders") or 0)
+        bonus_amount = float(payload.get("bonus_amount") or 0)
+        over_target_rate = float(payload.get("over_target_rate") or 0)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "قيم رقمية غير صالحة في خطة البونص")
     p = BonusPlan(
         tenant_id=user.tenant_id, courier_id=cid, project_id=pid,
-        target_orders=int(payload.get("target_orders") or 0),
-        bonus_amount=float(payload.get("bonus_amount") or 0),
-        over_target_rate=float(payload.get("over_target_rate") or 0),
+        target_orders=target_orders,
+        bonus_amount=bonus_amount,
+        over_target_rate=over_target_rate,
     )
     db.add(p)
     db.commit()
@@ -367,7 +373,15 @@ def hr_update_courier(cid: int, payload: dict, user: User = Depends(get_current_
     for k, v in payload.items():
         if k in allowed and v is not None:
             if k in ("iqama_expiry", "license_expiry", "vehicle_license_expiry"):
-                v = date.fromisoformat(v)
+                try:
+                    v = date.fromisoformat(v)
+                except (ValueError, TypeError):
+                    raise HTTPException(400, f"{k} غير صالح — استخدم YYYY-MM-DD")
+            if k in ("base_salary", "per_delivery_rate"):
+                try:
+                    v = float(v)
+                except (ValueError, TypeError):
+                    raise HTTPException(400, f"{k} يجب أن يكون رقماً")
             if k == "employment_status" and v == "SUSPENDED":
                 c.is_on_leave = False
             setattr(c, k, v)
@@ -407,7 +421,12 @@ def rate_courier(cid: int, payload: dict, user: User = Depends(get_current_user)
     if user.role not in (COMPANY_ROLES + (UserRole.SUPERVISOR,)):
         raise HTTPException(403, "Not allowed")
     month = payload.get("month") or date.today().strftime("%Y-%m")
-    score = float(payload.get("score") or 0)
+    try:
+        score = float(payload.get("score") or 0)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "score يجب أن يكون رقماً")
+    if score < 1 or score > 5:
+        raise HTTPException(400, "score بين 1 و 5")
     r = db.query(CourierRating).filter(CourierRating.courier_id == cid, CourierRating.month == month).first()
     if r:
         r.score = score
@@ -545,8 +564,20 @@ def _my_courier(user: User, db: Session) -> Courier:
 @router.post("/me/log")
 def add_daily_log(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     c = _my_courier(user, db)
-    log_date = date.fromisoformat(payload.get("log_date") or date.today().isoformat())
-    orders = int(payload.get("orders_count") or 0)
+    dc = payload.get("log_date")
+    try:
+        log_date = date.fromisoformat(dc) if dc else date.today()
+    except ValueError:
+        raise HTTPException(400, "log_date غير صالح — استخدم YYYY-MM-DD")
+    order_raw = payload.get("orders_count", payload.get("orders"))
+    if order_raw is None or str(order_raw).strip() == "":
+        raise HTTPException(400, "orders_count مطلوب")
+    try:
+        orders = int(order_raw)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "orders_count يجب أن يكون رقماً")
+    if orders < 0:
+        raise HTTPException(400, "orders_count لا يمكن أن يكون سالباً")
     project_id = payload.get("project_id")
     if project_id is None:
         raise HTTPException(400, "project_id required")
@@ -617,8 +648,11 @@ def my_logs(user: User = Depends(get_current_user), db: Session = Depends(get_db
 @router.post("/me/leave")
 def request_leave(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     c = _my_courier(user, db)
-    from_date = date.fromisoformat(payload.get("from_date"))
-    to_date = date.fromisoformat(payload.get("to_date"))
+    try:
+        from_date = date.fromisoformat(payload.get("from_date"))
+        to_date = date.fromisoformat(payload.get("to_date"))
+    except (ValueError, TypeError):
+        raise HTTPException(400, "التاريخ غير صالح — استخدم YYYY-MM-DD")
     if to_date < from_date:
         raise HTTPException(400, "to_date before from_date")
     reason = (payload.get("reason") or "").strip() or "إجازة"
@@ -780,14 +814,27 @@ def create_contract(payload: dict, user: User = Depends(get_current_user), db: S
     if not name:
         raise HTTPException(400, "Contract name required")
     end = payload.get("end_date")
-    end_dt = date.fromisoformat(end) if end else (date.today() + timedelta(days=365))
+    if end:
+        try:
+            end_dt = date.fromisoformat(end)
+        except (ValueError, TypeError):
+            raise HTTPException(400, "end_date غير صالح — استخدم YYYY-MM-DD")
+    else:
+        end_dt = date.today() + timedelta(days=365)
+    try:
+        duration_months = int(payload.get("duration_months") or 12)
+        couriers_count = int(payload.get("couriers_count") or 0)
+        base_salary = float(payload.get("base_salary") or 0)
+        per_delivery_rate = float(payload.get("per_delivery_rate") or 6)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "قيم رقمية غير صالحة في العقد")
     ct = Contract(
         tenant_id=user.tenant_id, name=name,
         contract_type=payload.get("contract_type", "FIXED"),
-        duration_months=int(payload.get("duration_months") or 12),
-        couriers_count=int(payload.get("couriers_count") or 0),
-        base_salary=float(payload.get("base_salary") or 0),
-        per_delivery_rate=float(payload.get("per_delivery_rate") or 6),
+        duration_months=duration_months,
+        couriers_count=couriers_count,
+        base_salary=base_salary,
+        per_delivery_rate=per_delivery_rate,
         status="ACTIVE", end_date=end_dt,
     )
     db.add(ct); db.commit(); db.refresh(ct)
@@ -803,7 +850,10 @@ def renew_contract(cid: int, payload: dict, user: User = Depends(get_current_use
     ct = db.get(Contract, cid)
     if not ct:
         raise HTTPException(404, "Contract not found")
-    months = int(payload.get("months") or 12)
+    try:
+        months = int(payload.get("months") or 12)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "months يجب أن يكون رقماً")
     base = ct.end_date or datetime.utcnow()
     if (base < datetime.utcnow()):
         base = datetime.utcnow()
