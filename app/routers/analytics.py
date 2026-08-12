@@ -5,10 +5,17 @@ from sqlalchemy import func
 from ..database import get_db
 from ..models.entities import (
     Attendance, Courier, CourierTask, CourierTaskStatus, CourierType,
-    Merchant, Order, OrderStatus,
+    Merchant, Order, OrderStatus, User, UserRole,
 )
+from .auth import get_current_user
 
-router = APIRouter(tags=["analytics"])
+BUSINESS_ROLES = (UserRole.COMPANY, UserRole.DOU_OPS, UserRole.DOU_ADMIN)
+
+def _business_only(user: User = Depends(get_current_user)):
+    if user.role not in BUSINESS_ROLES:
+        raise HTTPException(403, "Insufficient permissions")
+
+router = APIRouter(tags=["analytics"], dependencies=[Depends(_business_only)])
 
 
 @router.get("/analytics/overview")

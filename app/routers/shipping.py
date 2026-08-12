@@ -3,12 +3,19 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.entities import (
-    Merchant, Order, ShippingCompany, ShippingLabel,
+    Merchant, Order, ShippingCompany, ShippingLabel, User, UserRole,
 )
 from ..schemas.dou import ShipmentIn
 from ..services.shipping import ShipmentRequest, gateway
+from .auth import get_current_user
 
-router = APIRouter(prefix="/shipping", tags=["shipping"])
+BUSINESS_ROLES = (UserRole.COMPANY, UserRole.DOU_OPS, UserRole.DOU_ADMIN)
+
+def _business_only(user: User = Depends(get_current_user)):
+    if user.role not in BUSINESS_ROLES:
+        raise HTTPException(403, "Insufficient permissions")
+
+router = APIRouter(prefix="/shipping", tags=["shipping"], dependencies=[Depends(_business_only)])
 
 
 @router.get("/companies")

@@ -4,9 +4,16 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models.entities import GeoCity, GeoCountry, GeoDistrict
+from ..models.entities import GeoCity, GeoCountry, GeoDistrict, User, UserRole
+from .auth import get_current_user
 
-router = APIRouter(prefix="/geo", tags=["geo"])
+ADMIN_ROLES = (UserRole.DOU_OPS, UserRole.DOU_ADMIN)
+
+def _admin_only(user: User = Depends(get_current_user)):
+    if user.role not in ADMIN_ROLES:
+        raise HTTPException(403, "Insufficient permissions")
+
+router = APIRouter(prefix="/geo", tags=["geo"], dependencies=[Depends(_admin_only)])
 
 
 def country_out(c: GeoCountry) -> dict:

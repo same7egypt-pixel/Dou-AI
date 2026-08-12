@@ -2,10 +2,17 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models.entities import Merchant, Product
+from ..models.entities import Merchant, Product, User, UserRole
 from ..schemas.dou import MerchantCreate, MerchantOut, ProductCreate, ProductOut, PatchIn
+from .auth import get_current_user
 
-router = APIRouter(prefix="/merchants", tags=["merchants"])
+BUSINESS_ROLES = (UserRole.COMPANY, UserRole.DOU_OPS, UserRole.DOU_ADMIN)
+
+def _business_only(user: User = Depends(get_current_user)):
+    if user.role not in BUSINESS_ROLES:
+        raise HTTPException(403, "Insufficient permissions")
+
+router = APIRouter(prefix="/merchants", tags=["merchants"], dependencies=[Depends(_business_only)])
 
 
 @router.post("", response_model=MerchantOut)

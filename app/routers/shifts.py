@@ -3,10 +3,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models.entities import Attendance, Courier, Shift
+from ..models.entities import Attendance, Courier, Shift, User
 from ..schemas.dou import AttendanceIn, ShiftCreate
+from .auth import get_current_user
 
-router = APIRouter(prefix="/shifts", tags=["shifts"])
+def _any_user(user: User = Depends(get_current_user)):
+    return user
+
+router = APIRouter(prefix="/shifts", tags=["shifts"], dependencies=[Depends(_any_user)])
 
 
 @router.post("")
