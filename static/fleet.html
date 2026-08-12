@@ -191,17 +191,14 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="header"><div><div class="kicker">إشراف وتحكم</div><h1>الإرسال والتحكم</h1></div>
         <button class="btn ghost" onclick="sendTestOrder()">🧪 طلب اختباري</button></div>
       <div class="cards">
-        <div class="metric alert"><b>7</b><span>طلبات بدون مندوب</span></div>
-        <div class="metric"><b>3</b><span>متأخرة عن SLA</span></div>
-        <div class="metric"><b>12</b><span>قيد الإرسال (Broadcast)</span></div>
-        <div class="metric"><b>0</b><span>تصعيد خارجي نشط</span></div>
+        <div class="metric alert"><b id="dUnassigned">–</b><span>طلبات بدون مندوب</span></div>
+        <div class="metric"><b id="dOverdue">–</b><span>متأخرة عن SLA</span></div>
+        <div class="metric"><b id="dBroadcast">–</b><span>قيد الإرسال (Broadcast)</span></div>
+        <div class="metric"><b id="dEscalated">–</b><span>تصعيد خارجي نشط</span></div>
       </div>
       <div class="card">
         <h3>خط أنابيب الطلبات</h3>
-        <div class="chartRow"><span class="lbl">بدون إسناد</span><div class="bar"><i style="width:14%;background:var(--red)"></i></div><span class="val">7</span></div>
-        <div class="chartRow"><span class="lbl">في انتظار قبول</span><div class="bar"><i style="width:22%;background:var(--amber)"></i></div><span class="val">11</span></div>
-        <div class="chartRow"><span class="lbl">قيد التنفيذ</span><div class="bar"><i style="width:42%;background:var(--blue)"></i></div><span class="val">21</span></div>
-        <div class="chartRow"><span class="lbl">مكتملة</span><div class="bar"><i style="width:22%;background:var(--green)"></i></div><span class="val">11</span></div>
+        <div id="dPipeline"></div>
       </div>
       <div class="card">
         <h3>تحكم يدوي (Manual Override)</h3>
@@ -210,12 +207,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       </div>
       <div class="card">
         <h3>معالجة الاستثناءات</h3>
-        <div class="opt"><div><b>لا مندوب متاح — طلب #1195</b><small>تجاوز زمن الانتظار · يمكن التصعيد لمندوب خارجي</small></div>
-          <button class="btn amber small" onclick="escalateOrder(1195)">تصعيد خارجي</button></div>
-        <div class="opt"><div><b>خرق SLA — طلب #1189</b><small>بقيت 4 دقائق على الموعد المتفق عليه</small></div>
-          <button class="btn blue small" onclick="openReassign(1189)">إعادة تعيين</button></div>
-        <div class="opt"><div><b>رفض متكرر — طلب #1184</b><small>رفضه مندوبان · تشغيل Broadcast للأقرب</small></div>
-          <button class="btn small" onclick="broadcastOrder(1184)">Broadcast</button></div>
+        <div id="exceptionsBody"></div>
       </div>
     </section>
 
@@ -572,7 +564,7 @@ function go(v){
   if(v==="attendance") loadAttendance();
   if(v==="billing") loadBilling();
   if(v==="payouts"||v==="overview") renderContracts();
-  if(v==="dispatch") loadOverride();
+  if(v==="dispatch"){ loadDispatch(); loadOverride(); }
 }
 document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
 
@@ -737,6 +729,46 @@ async function addCompany(){
     country:document.getElementById("coCountry").value})});
     document.getElementById("companyMsg").textContent="✅ أُضيفت الشركة"; loadAll();
   }catch(e){ document.getElementById("companyMsg").textContent="❌ "+e.message; }
+}
+
+async function loadDispatch(){
+  try{
+    const orders = await api("/fleet/orders");
+    if(!orders) return;
+    const now = Date.now();
+    const count = s => orders.filter(o=>String(o.status).toUpperCase()===s).length;
+    const unassigned = orders.filter(o=>!o.courier_id && !/CANCEL|FAIL|DELIVER|COMPLETE/i.test(o.status)).length;
+    const overdue = orders.filter(o=>o.created_at && /ACCEPT|ASSIGN|PICK|TRANSIT|PLACED|READY|PREPAR/i.test(o.status)
+      && (now - new Date(o.created_at).getTime() > 30*60*1000)).length;
+    const broadcast = orders.filter(o=>!o.courier_id && /PLACED|READY|PREPAR|ASSIGN/i.test(o.status)).length;
+    document.getElementById("dUnassigned").textContent = unassigned;
+    document.getElementById("dOverdue").textContent = overdue;
+    document.getElementById("dBroadcast").textContent = broadcast;
+    document.getElementById("dEscalated").textContent = count("TIMEOUT") || 0;
+    const pipe = document.getElementById("dPipeline");
+    const groups = [
+      ["بدون إسناد", orders.filter(o=>!o.courier_id && !/CANCEL|FAIL|DELIVER|COMPLETE/i.test(o.status)).length, "var(--red)"],
+      ["في انتظار قبول", orders.filter(o=>/ACCEPT|ASSIGN/i.test(o.status)).length, "var(--amber)"],
+      ["قيد التنفيذ", orders.filter(o=>/PICK|TRANSIT/i.test(o.status)).length, "var(--blue)"],
+      ["مكتملة", orders.filter(o=>/DELIVER|COMPLETE/i.test(o.status)).length, "var(--green)"],
+    ];
+    const max = Math.max(1, ...groups.map(g=>g[1]));
+    pipe.innerHTML = groups.map(g=>`
+      <div class="chartRow"><span class="lbl">${g[0]}</span>
+        <div class="bar"><i style="width:${Math.round(g[1]/max*100)}%;background:${g[2]}"></i></div>
+        <span class="val">${g[1]}</span></div>`).join("");
+    const exc = document.getElementById("exceptionsBody");
+    if(!exc) return;
+    const need = orders.filter(o=>!o.courier_id && !/CANCEL|FAIL|DELIVER|COMPLETE/i.test(o.status)).slice(0,5);
+    exc.innerHTML = need.length ? need.map(o=>`
+      <div class="opt"><div><b>لا مندوب متاح — طلب #${o.id}</b><small>${o.merchant_name||o.customer_name||""} · ${o.delivery_method||""} · انتظار إسناد</small></div>
+        <button class="btn amber small" onclick="escalateOrder(${o.id})">تصعيد خارجي</button>
+        <button class="btn blue small" onclick="openReassign(${o.id})">إعادة تعيين</button>
+        <button class="btn small" onclick="broadcastOrder(${o.id})">Broadcast</button></div>`).join("")
+      : '<div class="opt"><div><b style="color:var(--green)">✓ لا توجد استثناءات</b><small>كل الطلبات بإسناد أو مكتملة</small></div></div>';
+  }catch(e){
+    const el=document.getElementById("dUnassigned"); if(el) el.textContent="—";
+  }
 }
 
 async function loadOverride(){
