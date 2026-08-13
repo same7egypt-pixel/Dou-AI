@@ -9,7 +9,8 @@ from app.models.entities import BonusPlan, ContractBranch, Courier, DailyLog, Pr
 from app.routers.auth import company_register, get_current_user, login, logout_current
 from app.routers.fleet import _report_rows, add_courier, fleet_couriers, fleet_reports_export
 from app.routers.hr import (contract_structure, create_bonus, create_contract, create_supervisor,
-                            daily_report, daily_report_export, list_bonus, transfer_project)
+                            daily_report, daily_report_export, decide_leave, list_bonus, list_leaves,
+                            request_leave, transfer_project)
 from app.routers.shifts import check_in, check_out
 from app.schemas.dou import AttendanceIn, CompanyRegisterIn, LoginIn
 
@@ -107,11 +108,18 @@ sup1_login = login(LoginIn(phone=sup1.phone, password="SupervisorA9!"), db)
 sup1_user = get_current_user(sup1_login.access_token, db)
 visible = fleet_couriers(sup1_user, db)
 assert [x["id"] for x in visible] == [c1.id]
+supervisor_day = daily_report(date_from=today, date_to=today, user=sup1_user, db=db)
+assert [(r["المندوب"], r["طلبات الفترة"]) for r in supervisor_day["rows"]] == [(c1.name, 17)]
+leave_result = request_leave({"from_date": today.isoformat(), "to_date": (today + timedelta(days=2)).isoformat(),
+                              "reason": "اختبار ظهور الطلب للمشرف"}, driver_user, db)
+assert [x["id"] for x in list_leaves(sup1_user, db)] == [leave_result["id"]]
 # فرع العقد هو المصدر الأساسي حتى لو ظل حقل المشرف القديم غير متزامن.
 c2.supervisor_id = sup1.id
 db.commit()
 sup2_scope_login = login(LoginIn(phone=sup2.phone, password="SupervisorB9!"), db)
 sup2_scope_user = get_current_user(sup2_scope_login.access_token, db)
+assert list_leaves(sup2_scope_user, db) == []
+assert decide_leave(leave_result["id"], {"action": "approve"}, sup1_user, db)["status"] == "SUPERVISOR_APPROVED"
 assert {x["id"] for x in fleet_couriers(sup2_scope_user, db)} == {c2.id}
 assert {x["id"] for x in fleet_couriers(sup1_user, db)} == {c1.id}
 c2.supervisor_id = sup2.id

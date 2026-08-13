@@ -712,8 +712,12 @@ def decide_leave(lid: int, payload: dict, user: User = Depends(get_current_user)
     if not leave:
         raise HTTPException(404, "Leave not found")
     action = payload.get("action")  # approve / reject
+    if action not in ("approve", "reject"):
+        raise HTTPException(400, "Action must be approve or reject")
     comment = payload.get("comment") or ""
     if user.role == UserRole.SUPERVISOR:
+        if not _tenant_couriers(db, user).filter(Courier.id == leave.courier_id).first():
+            raise HTTPException(404, "Leave request not found in your team")
         if leave.status != "PENDING":
             raise HTTPException(400, "Already reviewed by supervisor")
         leave.status = "SUPERVISOR_APPROVED" if action == "approve" else "REJECTED"
