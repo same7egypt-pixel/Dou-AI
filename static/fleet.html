@@ -505,7 +505,8 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="card"><h3>طلبات الإجازة</h3><div id="svLeaves"></div></div>
       <div class="card"><h3>ملاحظة وتقييم لمندوب</h3><div class="form-row"><select id="svCourier"></select><input id="svNote" placeholder="ملاحظة الأداء"><select id="svRating"><option value="5">5 ممتاز</option><option value="4">4 جيد جدًا</option><option value="3">3 جيد</option><option value="2">2 ضعيف</option><option value="1">1 سيئ</option></select><button class="btn" onclick="saveSupervisorReview()">حفظ</button></div><span id="svMsg" class="msg"></span></div>
       <div class="card"><h3>رسالة لمناديبي</h3><div class="form-row"><input id="svBroadcast" placeholder="اكتب الرسالة"><button class="btn" onclick="sendSupervisorBroadcast()">إرسال للفريق</button></div></div>
-      <div class="card"><h3>ملخص الأداء الأسبوعي</h3><div id="svWeekly"></div></div>
+      <div class="card"><h3>سجل اليوم وطلبات المناديب</h3><div id="svDaily"></div></div>
+      <div class="card"><h3>ملخص الأداء الأسبوعي والبونص</h3><div id="svWeekly"></div></div>
       <div class="card"><h3>ترتيب السائقين والتنبيهات</h3><div id="svLeaderboard"></div><div id="svViolations"></div></div>
     </section>
 
@@ -1439,14 +1440,16 @@ async function payInvoice(){
 async function loadSupervision(){
   try{
     const isSup=META.role==="SUPERVISOR";
-    const [couriers,candidates,requests,leaves,weekly,leaderboard,violations]=await Promise.all([api("/hr/couriers"),isSup?api("/hr/assignment-candidates"):Promise.resolve([]),api("/hr/assignment-requests"),api("/hr/leaves"),api("/hr/weekly"),api("/hr/leaderboard"),api("/hr/violations")]);
+    const today=new Date().toISOString().slice(0,10);
+    const [couriers,candidates,requests,leaves,weekly,leaderboard,violations,daily]=await Promise.all([api("/hr/couriers"),isSup?api("/hr/assignment-candidates"):Promise.resolve([]),api("/hr/assignment-requests"),api("/hr/leaves"),api("/hr/weekly"),api("/hr/leaderboard"),api("/hr/violations"),api("/hr/daily-report?report_date="+today)]);
     const opts=couriers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
     document.getElementById("svCourier").innerHTML=opts;
     document.getElementById("svCandidate").innerHTML='<option value="">اختر مندوبًا</option>'+candidates.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}${c.supervisor?' — حاليًا: '+escapeHtml(c.supervisor):''}</option>`).join("");
     document.getElementById("svCandidate").closest(".card").style.display=isSup?"block":"none";
     document.getElementById("svAssignments").innerHTML=requests.map(r=>`<div class="opt"><div><b>${escapeHtml(r.courier)}</b><small>${r.status} · ${escapeHtml(r.note||'بدون ملاحظة')}</small></div></div>`).join("")||'<p>لا توجد طلبات</p>';
     document.getElementById("svLeaves").innerHTML=leaves.map(l=>`<div class="opt"><div><b>${escapeHtml(l.courier)} — ${l.from_date} إلى ${l.to_date}</b><small>${escapeHtml(l.reason||'بدون سبب')} · ${l.status}</small></div>${l.status==="PENDING"?`<div><button class="btn green small" onclick="decideSupervisorLeave(${l.id},'approve')">موافقة</button> <button class="btn red small" onclick="decideSupervisorLeave(${l.id},'reject')">رفض</button></div>`:''}</div>`).join("")||'<p>لا توجد طلبات إجازة</p>';
-    document.getElementById("svWeekly").innerHTML=`<div class="lineItem"><span>إجمالي الطلبات</span><b>${(weekly.couriers||[]).reduce((s,c)=>s+(c.week_orders||0),0)}</b></div><div class="lineItem"><span>عدد السائقين</span><b>${couriers.length}</b></div>`;
+    document.getElementById("svDaily").innerHTML=(daily.rows||[]).map(r=>`<div class="opt"><div><b>${escapeHtml(r['المندوب'])}</b><small>${escapeHtml(r['المشروع'])} · ${escapeHtml(r['حالة الحضور'])} · ${r['حالة التارجت']}</small></div><div style="text-align:left"><b>${r['طلبات الفترة']} طلب</b><small>بونص ${r['البونص المستحق']} ر.س</small></div></div>`).join("")||'<p>لا توجد سجلات لمناديب فريقك اليوم</p>';
+    document.getElementById("svWeekly").innerHTML=`<div class="lineItem"><span>إجمالي طلبات الأسبوع</span><b>${(weekly.couriers||[]).reduce((s,c)=>s+(c.week_orders||0),0)}</b></div><div class="lineItem"><span>عدد السائقين</span><b>${couriers.length}</b></div>`+(weekly.couriers||[]).map(c=>{const row=couriers.find(x=>x.id===c.id),bonus=row&&row.bonus?row.bonus.total:0;return `<div class="opt"><div><b>${escapeHtml(c.name)}</b><small>طلبات الشهر: ${row?row.month_orders:0}</small></div><div><b>${c.week_orders} طلب</b><small>بونص مستحق: ${bonus} ر.س</small></div></div>`}).join("");
     document.getElementById("svLeaderboard").innerHTML=(leaderboard.rows||[]).slice(0,10).map(r=>`<div class="lineItem"><span>${r.rank}. ${escapeHtml(r.name)}</span><b>${r.month_orders} طلب</b></div>`).join("")||'<p>لا توجد بيانات أداء</p>';
     document.getElementById("svViolations").innerHTML=(violations.rows||[]).slice(0,10).map(r=>`<div class="opt"><div><b>${escapeHtml(r.name)}</b><small>${escapeHtml((r.details||[]).join(' · ')||'يحتاج مراجعة')}</small></div></div>`).join("")||'<p>لا توجد تنبيهات</p>';
   }catch(e){document.getElementById("svAssignments").textContent="تعذر تحميل بيانات الفريق"}
