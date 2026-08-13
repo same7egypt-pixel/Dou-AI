@@ -264,7 +264,7 @@ def _courier_json(c: Courier, db: Session, month: str = None):
 
 @router.get("/supervisors")
 def list_supervisors(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role not in COMPANY_ROLES:
+    if user.role not in COMPANY_ROLES + (UserRole.SUPERVISOR, UserRole.PROJECT_MANAGER):
         raise HTTPException(403, "Admin only")
     q = db.query(User).filter(User.role == UserRole.SUPERVISOR)
     if user.tenant_id is not None:

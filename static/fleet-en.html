@@ -277,9 +277,10 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     <section id="view-performance" style="display:none">
       <div class="header"><div><div class="kicker">Operations Quality</div><h1>Courier Performance</h1></div>
         <button class="btn ghost" onclick="loadPerformance()">↻ Refresh</button></div>
+      <div class="filters"><input id="perfFrom" type="date" onchange="loadPerformance()"><input id="perfTo" type="date" onchange="loadPerformance()"><select id="perfProject" onchange="loadPerformance()"><option value="">All Projects</option></select><select id="perfSupervisor" onchange="loadPerformance()"><option value="">All Supervisors</option></select></div>
       <div class="cards" id="perfMetrics"></div>
       <div class="card"><h3>Performance Scorecard</h3>
-        <table><thead><tr><th>Courier</th><th>Type</th><th>Deliveries</th><th>Acceptance</th><th>On-time</th><th>Completion</th><th>Score</th><th>Status</th></tr></thead>
+        <table><thead><tr><th>Courier</th><th>Project / Supervisor</th><th>Offered</th><th>Acceptance</th><th>On-time</th><th>Completion</th><th>Score</th><th>Details</th></tr></thead>
         <tbody id="perfBody"></tbody></table></div>
     </section>
 
@@ -981,21 +982,9 @@ async function updateFleetCompany(sel){
   alert("✅ Company assignment updated: "+v);
 }
 
-async function loadPerformance(){
-  try{
-    const rows = await api("/fleet/couriers");
-    document.getElementById("perfMetrics").innerHTML = `
-      <div class="metric"><b>${rows.length}</b><span>Couriers</span></div>
-      <div class="metric"><b>${rows.filter(c=>c.is_online).length}</b><span>Online Now</span></div>
-      <div class="metric"><b>${rows.length?Math.round(rows.reduce((s,c)=>s+c.acceptance_rate,0)/rows.length):0}%</b><span>Avg Acceptance</span></div>
-      <div class="metric"><b>${rows.length?Math.round(rows.reduce((s,c)=>s+c.score,0)/rows.length*10)/10:0}</b><span>Avg Score</span></div>`;
-    document.getElementById("perfBody").innerHTML = rows.map(r=>`
-      <tr><td>${r.name}</td><td><span class="tag gray">${r.courier_type==="COMPANY"?"Company":"Freelancer"}</span></td>
-      <td>${r.current_load}</td><td>${r.acceptance_rate}%</td><td>${r.on_time_rate}%</td><td>${r.completion_rate}%</td>
-      <td><b style="color:${r.score>=4.7?"var(--green)":"var(--amber)"}">${r.score}</b></td>
-      <td>${r.is_online?'<span class="tag green">Online</span>':'<span class="tag gray">Offline</span>'}</td></tr>`).join("") || '<tr><td colspan="8" style="color:var(--muted)">No couriers</td></tr>';
-  }catch(e){}
-}
+let PERFORMANCE_ROWS=[];function perfValue(v,suffix="%"){return v==null?'<span class="tag gray">Insufficient data</span>':`<b>${v}${suffix}</b>`}
+async function loadPerformance(){try{const from=document.getElementById("perfFrom"),to=document.getElementById("perfTo");if(!to.value)to.value=localDateValue();if(!from.value)from.value=to.value.slice(0,8)+"01";if(!document.getElementById("perfProject").dataset.ready){const [projects,sups]=await Promise.all([api("/hr/projects"),api("/hr/supervisors")]);document.getElementById("perfProject").innerHTML='<option value="">All Projects</option>'+projects.map(x=>`<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("");document.getElementById("perfSupervisor").innerHTML='<option value="">All Supervisors</option>'+sups.map(x=>`<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("");document.getElementById("perfProject").dataset.ready="1"}const q=new URLSearchParams({start_date:from.value,end_date:to.value});if(perfProject.value)q.set("project_id",perfProject.value);if(perfSupervisor.value)q.set("supervisor_id",perfSupervisor.value);const d=await api("/fleet/performance?"+q);PERFORMANCE_ROWS=d.rows;document.getElementById("perfMetrics").innerHTML=`<div class="metric"><b>${d.summary.couriers}</b><span>Couriers</span></div><div class="metric"><b>${d.summary.online}</b><span>Online Now</span></div><div class="metric"><b>${d.summary.avg_acceptance==null?"—":d.summary.avg_acceptance+"%"}</b><span>Average Acceptance</span></div><div class="metric"><b>${d.summary.avg_score==null?"—":d.summary.avg_score}</b><span>Average Score / 10</span></div>`;document.getElementById("perfBody").innerHTML=d.rows.map(r=>`<tr><td><b>${escapeHtml(r.name)}</b></td><td>${escapeHtml(r.project)}<br><small>${escapeHtml(r.supervisor)}</small></td><td>${r.offered}</td><td>${perfValue(r.acceptance)}</td><td>${perfValue(r.punctuality)}</td><td>${perfValue(r.completion)}</td><td>${perfValue(r.score," / 10")}</td><td><button class="btn ghost small" onclick="showPerformanceDetails(${r.id})">Data source</button></td></tr>`).join("")||'<tr><td colspan="8">No results</td></tr>'}catch(e){alert(e.message)}}
+function showPerformanceDetails(id){const r=PERFORMANCE_ROWS.find(x=>x.id===id);if(!r)return;alert(`${r.name}\n\nAcceptance: ${r.accepted} accepted ÷ ${r.offered} offered = ${r.acceptance??"Insufficient data"}${r.acceptance==null?"":"%"}\nOn-time: ${r.on_time} on time ÷ ${r.delivered} deliveries = ${r.punctuality??"Insufficient data"}${r.punctuality==null?"":"%"}\nCompletion: ${r.delivered} completed ÷ ${r.accepted} accepted = ${r.completion??"Insufficient data"}${r.completion==null?"":"%"}\nScore: 30% acceptance + 30% on-time + 30% completion + 10% rating (${r.rating}/5).`)}
 
 async function loadPayouts(){
   try{

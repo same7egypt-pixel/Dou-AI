@@ -728,6 +728,37 @@ def fleet_attendance(attendance_date: date = None, user: User = Depends(get_curr
     return rows
 
 
+@router.get("/performance")
+def fleet_performance(start_date: date = None, end_date: date = None, project_id: int = None,
+                      supervisor_id: int = None, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in TENANT_ROLES: raise HTTPException(403,"Not a fleet account")
+    _require_permission(user,"performance")
+    end_day=end_date or date.today(); start_day=start_date or end_day.replace(day=1)
+    if start_day>end_day: raise HTTPException(400,"start_date must be before end_date")
+    start=datetime.combine(start_day,datetime.min.time()); end=datetime.combine(end_day+timedelta(days=1),datetime.min.time())
+    tenant_id=_scope(user,db); ids=_courier_ids(db,tenant_id,user.id if user.role==UserRole.SUPERVISOR else None)
+    q=db.query(Courier).filter(Courier.id.in_(ids)) if ids else db.query(Courier).filter(False)
+    if project_id: q=q.filter(Courier.primary_project_id==project_id)
+    if supervisor_id: q=q.filter(Courier.supervisor_id==supervisor_id)
+    rows=[]
+    for c in q.order_by(Courier.name).all():
+        tasks=db.query(CourierTask).filter(CourierTask.courier_id==c.id,CourierTask.offered_at>=start,CourierTask.offered_at<end).all()
+        offered=len(tasks); accepted=sum(bool(t.accepted_at) for t in tasks)
+        delivered=[t for t in tasks if t.status==CourierTaskStatus.DELIVERED or t.delivered_at]
+        on_time=[t for t in delivered if t.accepted_at and t.delivered_at and (t.delivered_at-t.accepted_at).total_seconds()<=3600]
+        acceptance=round(accepted/offered*100,1) if offered else None
+        completion=round(len(delivered)/accepted*100,1) if accepted else None
+        punctuality=round(len(on_time)/len(delivered)*100,1) if delivered else None
+        rating=max(0,min(5,float(c.score or 0))); available=[x for x in (acceptance,completion,punctuality) if x is not None]
+        score=round(((acceptance or 0)*.3+(completion or 0)*.3+(punctuality or 0)*.3+(rating/5*100)*.1)/10,1) if available else None
+        project=db.get(Project,c.primary_project_id) if c.primary_project_id else None; supervisor=db.get(User,c.supervisor_id) if c.supervisor_id else None
+        rows.append({"id":c.id,"name":c.name,"courier_type":c.courier_type.value,"project_id":c.primary_project_id,"project":project.name if project else "—","supervisor_id":c.supervisor_id,"supervisor":supervisor.name if supervisor else "—","online":c.is_online,"offered":offered,"accepted":accepted,"delivered":len(delivered),"on_time":len(on_time),"acceptance":acceptance,"completion":completion,"punctuality":punctuality,"rating":rating,"score":score})
+    scores=[r["score"] for r in rows if r["score"] is not None]; accepts=[r["acceptance"] for r in rows if r["acceptance"] is not None]
+    projects=db.query(Project).filter(Project.tenant_id==tenant_id).order_by(Project.name).all()
+    supervisors=db.query(User).filter(User.tenant_id==tenant_id,User.role==UserRole.SUPERVISOR).order_by(User.name).all()
+    return {"period":{"from":start_day.isoformat(),"to":end_day.isoformat()},"rows":rows,"summary":{"couriers":len(rows),"online":sum(r["online"] for r in rows),"avg_acceptance":round(sum(accepts)/len(accepts),1) if accepts else None,"avg_score":round(sum(scores)/len(scores),1) if scores else None},"filters":{"projects":[{"id":p.id,"name":p.name} for p in projects],"supervisors":[{"id":s.id,"name":s.name} for s in supervisors]}}
+
+
 @router.get("/attendance/monthly")
 def monthly_attendance(month: str = None, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in TENANT_ROLES: raise HTTPException(403,"Not allowed")
