@@ -6,7 +6,7 @@
 <title>DOU | Super Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="/static/i18n.js?v=20260813qc2" defer></script>
+<script src="/static/i18n.js?v=20260813qc3" defer></script>
 <style>
 :root{--bg:#f4f6fb;--card:#fff;--line:#e6eaf2;--ink:#0f1b2d;--muted:#6b7a90;--soft:#f6f8fc;--nav:#0e1526;--nav2:#121c31;--orange:#ff5a13;--orange-soft:#ffefe6;--green:#16a34a;--green-soft:#e7f6ee;--red:#ef4444;--red-soft:#fdecec;--blue:#2563eb;--blue-soft:#e9f0fe;--amber:#f59e0b;--amber-soft:#fdf3e3;--radius:14px;--shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.05)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Alexandria,sans-serif;color:var(--ink);font-size:13.5px;-webkit-font-smoothing:antialiased}
@@ -145,6 +145,7 @@ input:focus,select:focus{border-color:var(--orange)}
   <div class="group">الإدارة</div>
   <button class="nav active" data-view="dashboard"><i>📊</i><span>لوحة القيادة</span></button>
   <button class="nav" data-view="companies"><i>🏢</i><span>الشركات المشتركة</span><span class="ct" id="ctCompanies">0</span></button>
+  <button class="nav" data-view="finance"><i>💰</i><span>التحصيل والإيرادات</span></button>
   <button class="nav" data-view="plans"><i>💳</i><span>الباقات والأسعار</span></button>
   <button class="nav" data-view="audit"><i>🛡️</i><span>سجل إدارة DOU</span></button>
   <button class="nav" data-view="couriers"><i>👤</i><span>كل السائقين</span><span class="ct" id="ctCouriers">0</span></button>
@@ -174,32 +175,43 @@ input:focus,select:focus{border-color:var(--orange)}
         <div class="quickBtns"><button class="btn ghost" onclick="exportReport('تقرير شامل للمنصة')">⬇ تصدير</button></div>
       </div>
       <div class="kpis">
-        <div class="kpi"><div class="top"><i style="background:var(--orange-soft)">💰</i>إجمالي الإيراد</div><b id="kRevenue">–</b><span class="trend up">▲ 18.4%</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--orange-soft)">💰</i>المحصل هذا الشهر</div><b id="kRevenue">–</b><span class="trend up">من الإيصالات الفعلية</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--red-soft)">⚠️</i>شركات متأخرة</div><b id="kOverdue">–</b><span class="trend">تحتاج متابعة</span></div>
         <div class="kpi"><div class="top"><i style="background:var(--blue-soft)">👥</i>مستخدمو الشركات</div><b id="kOrders">–</b><span class="trend up">حسابات الإدارة</span></div>
         <div class="kpi"><div class="top"><i style="background:var(--green-soft)">🏢</i>شركات نشطة</div><b id="kMerchants">–</b><span class="trend up">اشتراكات DOU</span></div>
         <div class="kpi"><div class="top"><i style="background:var(--amber-soft)">🛵</i>السائقون</div><b id="kCouriers">–</b><span class="trend up">كل الشركات</span></div>
-        <div class="kpi"><div class="top"><i style="background:var(--red-soft)">🌍</i>دول نشطة</div><b>2</b><span class="trend up">▲ مصر + السعودية</span></div>
+        <div class="kpi"><div class="top"><i style="background:var(--red-soft)">🧾</i>شركات دفعت هذا الشهر</div><b id="kPaidCompanies">–</b><span class="trend up">إيصال مسجل</span></div>
       </div>
       <div class="grid2">
         <div class="panel">
-          <div class="ph"><h3>الطلبات عبر الأسبوع</h3><small>كل القنوات</small></div>
-          <div class="barChart" id="weekChart"></div>
+          <div class="ph"><h3>ملخص التحصيل الفعلي</h3><a onclick="go('finance')">فتح المركز المالي</a></div>
+          <div id="financeSnapshot"></div>
         </div>
         <div class="panel">
-          <div class="ph"><h3>القنوات حسب الحصة</h3><small>نسبة الطلبات</small></div>
-          <div id="channelShare"></div>
+          <div class="ph"><h3>حالة الشركات</h3><small>الاشتراكات والمتأخرات</small></div>
+          <div id="companyStatusSnapshot"></div>
         </div>
       </div>
       <div class="grid2">
         <div class="panel">
-          <div class="ph"><h3>أحدث المتاجر</h3><a onclick="go('merchants')">كل المتاجر</a></div>
+          <div class="ph"><h3>أحدث الشركات</h3><a onclick="go('companies')">كل الشركات</a></div>
           <div class="rowList" id="recentMerchants"></div>
         </div>
         <div class="panel">
-          <div class="ph"><h3>توزيع حسب الدولة</h3><small>المتاجر والطلبات</small></div>
+          <div class="ph"><h3>توزيع حسب الدولة</h3><small>الشركات حسب الدولة</small></div>
           <div id="countrySplit"></div>
         </div>
       </div>
+    </section>
+
+    <!-- ===== FINANCE ===== -->
+    <section id="view-finance" style="display:none">
+      <div class="welcome"><div><h1>التحصيل والإيرادات</h1><p>الإيراد الفعلي من الإيصالات، حالة دفع كل شركة، والمتأخرات التقديرية حسب العقد الشهري.</p></div><div class="quickBtns"><button class="btn ghost" onclick="exportFinanceCsv()">⬇ تنزيل Excel/CSV</button></div></div>
+      <div class="filterbar"><label>شهر التقرير <input id="financeMonth" type="month" onchange="loadFinance()"></label><select id="financeStatus" onchange="renderFinanceRows()"><option value="">كل حالات التحصيل</option><option value="PAID_THIS_MONTH">دفع هذا الشهر</option><option value="NOT_PAID_THIS_MONTH">لم يدفع هذا الشهر</option><option value="OVERDUE">عليه متأخرات</option><option value="COVERED">مغطى وغير متأخر</option></select><input id="financeSearch" placeholder="بحث باسم الشركة" oninput="renderFinanceRows()"></div>
+      <div class="kpis"><div class="kpi"><div class="top">💰 المحصل الفعلي</div><b id="finActual">—</b><span>من الإيصالات</span></div><div class="kpi"><div class="top">📄 المتوقع الشهري</div><b id="finExpected">—</b><span>حسب أسعار الشركات</span></div><div class="kpi"><div class="top">⚠️ المتأخرات التقديرية</div><b id="finOutstanding">—</b><span>الرسوم × الشهور المتأخرة</span></div><div class="kpi"><div class="top">✅ شركات دفعت</div><b id="finPaid">—</b><span id="finPaidHint">خلال الشهر</span></div><div class="kpi"><div class="top">🔴 شركات متأخرة</div><b id="finOverdue">—</b><span>حسب تاريخ الاستحقاق</span></div></div>
+      <div class="card"><table><thead><tr><th>الشركة</th><th>الاشتراك الشهري</th><th>دفع خلال الشهر</th><th>آخر دفع</th><th>الاستحقاق القادم</th><th>شهور متأخرة</th><th>المستحق التقديري</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody id="financeBody"></tbody></table></div>
+      <div class="card mt"><h3>آخر الإيصالات خلال الشهر</h3><table><thead><tr><th>الإيصال</th><th>الشركة</th><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>الفترة</th><th>سجله</th></tr></thead><tbody id="recentPaymentsBody"></tbody></table></div>
+      <p style="color:var(--muted);font-size:11px">المتأخرات هنا أداة متابعة إدارية مبنية على السعر الشهري وتاريخ الاستحقاق، وليست قيودًا محاسبية أو إقرارًا ضريبيًا.</p>
     </section>
 
     <!-- ===== MERCHANTS ===== -->
@@ -273,7 +285,7 @@ input:focus,select:focus{border-color:var(--orange)}
         <button class="btn primary" onclick="addCompany()">حفظ الشركة</button><span id="companyAddMsg" class="msg"></span>
       </div>
       <div class="card" style="padding:6px 18px 12px">
-        <table><thead><tr><th>الشركة</th><th>الباقة</th><th>السائقون</th><th>آخر استخدام</th><th>الاشتراك</th><th>إجراء</th></tr></thead>
+        <table><thead><tr><th>الشركة</th><th>الباقة</th><th>السائقون</th><th>تحصيل الشهر</th><th>الاستحقاق</th><th>متأخرات</th><th>آخر استخدام</th><th>الاشتراك</th><th>إجراء</th></tr></thead>
         <tbody id="companiesBody"></tbody></table>
       </div>
       <div class="card mt" id="companyDetail" style="display:none"></div>
@@ -383,31 +395,27 @@ input:focus,select:focus{border-color:var(--orange)}
 
     <!-- ===== SETTINGS ===== -->
     <section id="view-settings" style="display:none">
-      <div class="welcome"><div><h1>إعدادات النظام</h1><p>القواعد العامة لتشغيل المنصة.</p></div></div>
+      <div class="welcome"><div><h1>إعدادات النظام</h1><p>حالة تشغيل حقيقية للمنصة والسياسات الحساسة. إعدادات الاستضافة والنسخ الاحتياطي تُدار خارج DOU.</p></div></div>
       <div class="grid2">
         <div class="panel">
-          <div class="ph"><h3>قواعد الإرسال</h3></div>
-          <div class="opt"><div><b>أولوية الإسناد</b><small>ترتيب اختيار المندوب</small></div><input value="Dedicated → On-demand → Freelancer" style="width:220px"></div>
-          <div class="opt"><div><b>إعادة المحاولة</b><small>قبل التصعيد</small></div><input type="number" value="3" style="width:80px"></div>
-          <div class="opt"><div><b>تصعيد لمندوب خارجي</b></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="ph"><h3>صحة النظام</h3><small>قراءة مباشرة من الخادم</small></div>
+          <div class="opt"><div><b>واجهة API</b></div><span id="sysApi" class="tag gray">جارِ الفحص</span></div>
+          <div class="opt"><div><b>قاعدة البيانات</b></div><span id="sysDatabase" class="tag gray">جارِ الفحص</span></div>
         </div>
         <div class="panel">
-          <div class="ph"><h3>قواعد الأداء</h3></div>
-          <div class="opt"><div><b>عتبة القبول</b></div><span class="tag blue">85%</span></div>
-          <div class="opt"><div><b>حد التأخير</b></div><span class="tag blue">3 / أسبوع</span></div>
-          <div class="opt"><div><b>أهلية الحوافز</b></div><span class="tag blue">95%</span></div>
+          <div class="ph"><h3>سياسات الأمان والاشتراك</h3></div>
+          <div class="opt"><div><b>إنشاء الشركات</b><small>من إدارة DOU فقط</small></div><span id="sysSignup" class="tag gray">—</span></div>
+          <div class="opt"><div><b>تسجيل مدفوعات الاشتراك</b><small>بإيصال من إدارة DOU فقط</small></div><span id="sysPayments" class="tag green">محمي</span></div>
         </div>
         <div class="panel">
-          <div class="ph"><h3>الإعدادات العامة</h3></div>
-          <div class="opt"><div><b>السماح بالتسجيل الذاتي للتجار</b><small>انضمام متاجر جديدة تلقائياً</small></div><div class="switch" onclick="this.classList.toggle('on')"></div></div>
-          <div class="opt"><div><b>تفعيل دفع إلكتروني (MADA / شبكة)</b></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
-          <div class="opt"><div><b>الوضع التجريبي</b></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="ph"><h3>نطاق المنتج</h3></div>
+          <div class="opt"><div><b>وحدات إدارة السائقين</b></div><span class="tag green">مفعلة</span></div>
+          <div class="opt"><div><b>وحدات التوصيل القديمة</b><small>غير مطلوبة للمنتج الحالي</small></div><span id="sysLegacy" class="tag gray">—</span></div>
         </div>
         <div class="panel">
-          <div class="ph"><h3>صحة النظام</h3></div>
-          <div class="opt"><div><b>حالة الخادم</b></div><span class="tag green">✓ يعمل</span></div>
-          <div class="opt"><div><b>آخر نسخة احتياطية</b></div><span class="tag blue">قبل 12 دقيقة</span></div>
-          <div class="opt"><div><b>الموقتات المجدولة</b></div><span class="tag green">كلها تعمل</span></div>
+          <div class="ph"><h3>النسخ الاحتياطي والاستضافة</h3></div>
+          <div class="opt"><div><b>النسخ الاحتياطي</b><small>يُدار من مزود قاعدة البيانات وليس من هذه اللوحة</small></div><span class="tag amber">خارجي</span></div>
+          <div class="opt"><div><b>الاستضافة</b><small>Render وإعدادات البيئة</small></div><span class="tag blue">خارجي</span></div>
         </div>
       </div>
     </section>
@@ -425,7 +433,7 @@ input:focus,select:focus{border-color:var(--orange)}
 
 <script>
 const API = "";
-let allMerchants = [], allCouriers = [], allCompanies = [], allChannels = [], allStaff = [], allOrders = [], allGeo = [];
+let allMerchants = [], allCouriers = [], allCompanies = [], allChannels = [], allStaff = [], allOrders = [], allGeo = [], financeData = null;
 let commTarget = null;
 let NOTIFS = [];
 const WEEK = ["السبت","الأحد","الاثنين","الثلاثاء","الأربعاء","الخميس","الجمعة"];
@@ -437,12 +445,12 @@ const AUTH = ADMIN_KEY ? {"X-Admin-Key": ADMIN_KEY} : (ADMIN_TOKEN ? {"Authoriza
 
 async function api(path, opts={}){
   const headers = {"Content-Type":"application/json", ...AUTH};
-  const r = await fetch(API+path, Object.assign({headers}, opts));
+  let r;try{r=await fetch(API+path,Object.assign({headers},opts))}catch(_e){throw new Error("تعذر الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة")}
   if(r.status===401){
     localStorage.removeItem("dou_token_admin"); localStorage.removeItem("dou_token"); sessionStorage.removeItem("dou_admin_key");
     throw new Error("انتهت الجلسة");
   }
-  if(!r.ok) throw new Error((await r.text())||r.status);
+  if(!r.ok){let message="تعذر تنفيذ الطلب";try{const data=await r.json();message=data.detail||message}catch(_e){}throw new Error(message)}
   return r.json();
 }
 function tag(s){ s=String(s); return `<span class="tag ${/DELIVER|COMPLETE|نشط|active|متاح/i.test(s)?"green":/ASSIGN|ACCEPT|READY|IN_TRANSIT|بانتظار/i.test(s)?"blue":/CANCEL|FAIL|محظور|موقوف|inactive/i.test(s)?"red":"gray"}">${s}</span>`; }
@@ -467,14 +475,15 @@ async function changeAdminPassword(){
 
 function go(v){
   document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
-  const views = ["dashboard","merchants","channels","companies","plans","audit","couriers","geo","orders","pricing","staff","settings"];
+  const views = ["dashboard","merchants","channels","companies","finance","plans","audit","couriers","geo","orders","pricing","staff","settings"];
   views.forEach(x=>document.getElementById("view-"+x).style.display = x===v?"block":"none");
-  const names = {dashboard:"لوحة القيادة",merchants:"كل المتاجر",channels:"القنوات",companies:"شركات التشغيل",plans:"الباقات والأسعار",audit:"سجل إدارة DOU",couriers:"المناديب",geo:"الدول والمناطق",orders:"الطلبات",pricing:"العمولات والأسعار",staff:"الفريق والصلاحيات",settings:"إعدادات النظام"};
+  const names = {dashboard:"لوحة القيادة",merchants:"كل المتاجر",channels:"القنوات",companies:"شركات التشغيل",finance:"التحصيل والإيرادات",plans:"الباقات والأسعار",audit:"سجل إدارة DOU",couriers:"المناديب",geo:"الدول والمناطق",orders:"الطلبات",pricing:"العمولات والأسعار",staff:"الفريق والصلاحيات",settings:"إعدادات النظام"};
   document.getElementById("crumb").textContent = names[v];
   if(v==="dashboard") loadDashboard();
   if(v==="merchants") loadMerchants();
   if(v==="channels") loadChannels();
   if(v==="companies") loadCompanies();
+  if(v==="finance") loadFinance();
   if(v==="plans") loadPlans();
   if(v==="audit") loadAudit();
   if(v==="couriers") loadCouriers();
@@ -482,6 +491,7 @@ function go(v){
   if(v==="orders") loadOrders();
   if(v==="pricing") renderCommissionRows();
   if(v==="staff"){ loadStaff(); loadUsers(); }
+  if(v==="settings") loadSystemStatus();
 }
 
 function toggleSide(){
@@ -521,24 +531,38 @@ function closeModal(id){ document.getElementById(id).classList.remove("open"); }
 
 /* ===== DASHBOARD ===== */
 async function loadDashboard(){
-  const [tenants, couriers,alerts] = await Promise.all([api("/admin/tenants"), api("/admin/couriers"),api("/admin/subscription-alerts")]);
+  const month=new Date().toISOString().slice(0,7);const [tenants,couriers,alerts,finance]=await Promise.all([api("/admin/tenants"),api("/admin/couriers"),api("/admin/subscription-alerts"),api("/admin/finance/summary?month="+month)]);
   NOTIFS=alerts.map(x=>({ic:"⚠️",c:x.status==="SUSPENDED"?"#fee2e2":"#fdf3e3",t:x.company+" — "+x.status,s:x.days_left===null?"بدون تاريخ استحقاق":x.days_left+" يوم متبقٍ"}));document.getElementById("notifBadge").textContent=NOTIFS.length;document.getElementById("notifBadge").style.display=NOTIFS.length?"block":"none";
   allCompanies = tenants; allCouriers = couriers;
-  document.getElementById("kRevenue").textContent = tenants.reduce((s,t)=>s+(t.monthly_fee||0),0).toLocaleString()+" ر.س";
+  document.getElementById("kRevenue").textContent = moneyGroups(finance.actual_revenue);
+  document.getElementById("kOverdue").textContent = finance.overdue_companies;
+  document.getElementById("kPaidCompanies").textContent = finance.paid_companies+" / "+finance.companies;
   document.getElementById("kOrders").textContent = tenants.reduce((s,t)=>s+(t.users_count||0),0);
   document.getElementById("kMerchants").textContent = tenants.filter(t=>t.subscription_status!=="SUSPENDED").length;
   document.getElementById("kCouriers").textContent = couriers.length;
   document.getElementById("ctCompanies").textContent = tenants.length;
   document.getElementById("ctCouriers").textContent = couriers.length;
-  barChart("weekChart", WEEK_VALS);
-  document.getElementById("channelShare").innerHTML = tenants.slice(0,5).map(t=>`<div class="chartRow"><span class="lbl">🏢 ${t.name}</span><div class="bar"><i style="width:${Math.min(100,t.couriers_count*5)}%;background:var(--orange)"></i></div><span class="val">${t.couriers_count} سائق</span></div>`).join("");
+  document.getElementById("financeSnapshot").innerHTML=`<div class="opt"><div><b>الإيراد المحصل</b><small>إيصالات الشهر الحالي</small></div><b>${moneyGroups(finance.actual_revenue)}</b></div><div class="opt"><div><b>الإيراد المتوقع</b><small>إجمالي الاشتراكات الشهرية</small></div><b>${moneyGroups(finance.expected_revenue)}</b></div><div class="opt"><div><b>المتأخرات التقديرية</b><small>حسب تواريخ الاستحقاق</small></div><b style="color:var(--red)">${moneyGroups(finance.outstanding)}</b></div>`;
+  document.getElementById("companyStatusSnapshot").innerHTML=`<div class="opt"><div><b>دفعت هذا الشهر</b></div><span class="tag green">${finance.paid_companies}</span></div><div class="opt"><div><b>لم تسجل دفعة هذا الشهر</b></div><span class="tag amber">${finance.unpaid_this_month}</span></div><div class="opt"><div><b>متأخرة فعليًا</b></div><span class="tag red">${finance.overdue_companies}</span></div>`;
   document.getElementById("recentMerchants").innerHTML = tenants.slice(0,4).map(t=>`<div class="row"><span class="statusDot" style="width:8px;height:8px;border-radius:50%;background:${t.subscription_status!=="SUSPENDED"?"var(--green)":"var(--red)"}"></span><div><b>${t.name}</b><small>${t.plan} · ${t.couriers_count} سائق</small></div></div>`).join("");
-  const sa = tenants.filter(t=>t.country==="SA").length, eg = tenants.filter(t=>t.country==="EG").length;
-  const total = sa+eg||1;
-  document.getElementById("countrySplit").innerHTML = `
-    <div class="chartRow"><span class="lbl">🇸🇦 السعودية</span><div class="bar"><i style="width:${Math.round(sa/total*100)}%;background:var(--orange)"></i></div><span class="val">${sa} شركة</span></div>
-    <div class="chartRow"><span class="lbl">🇪🇬 مصر</span><div class="bar"><i style="width:${Math.round(eg/total*100)}%;background:var(--blue)"></i></div><span class="val">${eg} شركة</span></div>`;
+  const countryCounts=tenants.reduce((a,t)=>(a[t.market_code||t.country]=(a[t.market_code||t.country]||0)+1,a),{}),total=tenants.length||1;
+  document.getElementById("countrySplit").innerHTML=Object.entries(countryCounts).sort((a,b)=>b[1]-a[1]).map(([code,count])=>`<div class="chartRow"><span class="lbl">🌍 ${code}</span><div class="bar"><i style="width:${Math.round(count/total*100)}%;background:var(--blue)"></i></div><span class="val">${count}</span></div>`).join('')||'<small>لا توجد شركات بعد</small>';
 }
+
+function moneyGroups(groups){const entries=Object.entries(groups||{}).filter(([,v])=>Math.abs(v)>0.001);return entries.length?entries.map(([c,v])=>Number(v).toLocaleString('ar-SA')+' '+c).join(' · '):'0'}
+function dateOrDash(value){return value?new Date(value).toLocaleDateString('ar-SA'):'—'}
+function collectionTag(row){if(row.months_overdue)return '<span class="tag red">متأخر</span>';if(row.paid_this_month)return '<span class="tag green">دفع هذا الشهر</span>';if(row.collection_status==='UNCONFIGURED')return '<span class="tag gray">غير مضبوط</span>';return '<span class="tag blue">مغطى</span>'}
+async function loadFinance(){
+  const input=document.getElementById('financeMonth');if(!input.value)input.value=new Date().toISOString().slice(0,7);
+  financeData=await api('/admin/finance/summary?month='+input.value);
+  document.getElementById('finActual').textContent=moneyGroups(financeData.actual_revenue);document.getElementById('finExpected').textContent=moneyGroups(financeData.expected_revenue);document.getElementById('finOutstanding').textContent=moneyGroups(financeData.outstanding);document.getElementById('finPaid').textContent=financeData.paid_companies+' / '+financeData.companies;document.getElementById('finOverdue').textContent=financeData.overdue_companies;
+  document.getElementById('recentPaymentsBody').innerHTML=financeData.recent_payments.map(p=>`<tr><td><b>${p.receipt_number}</b></td><td>${p.company}</td><td>${dateOrDash(p.paid_at)}</td><td>${Number(p.amount).toLocaleString('ar-SA')} ${p.currency}</td><td>${paymentLabel(p.payment_method)}</td><td>${p.period_months} شهر</td><td>${p.recorded_by||'—'}</td></tr>`).join('')||'<tr><td colspan="7">لا توجد إيصالات في الشهر المحدد</td></tr>';
+  renderFinanceRows();
+}
+function filteredFinanceRows(){if(!financeData)return[];const status=document.getElementById('financeStatus').value,term=document.getElementById('financeSearch').value.trim().toLowerCase();return financeData.rows.filter(r=>{if(term&&!r.company.toLowerCase().includes(term))return false;if(status==='NOT_PAID_THIS_MONTH')return !r.paid_this_month;if(status==='PAID_THIS_MONTH')return r.paid_this_month;if(status==='OVERDUE')return r.months_overdue>0;if(status==='COVERED')return !r.months_overdue&&r.collection_status!=='UNCONFIGURED';return true})}
+function renderFinanceRows(){const rows=filteredFinanceRows();document.getElementById('financeBody').innerHTML=rows.map(r=>`<tr><td><b>${r.company}</b><small>${r.plan||'—'}</small></td><td>${Number(r.monthly_fee).toLocaleString('ar-SA')} ${r.currency}</td><td>${r.paid_this_month?'<b style="color:var(--green)">'+Number(r.paid_amount).toLocaleString('ar-SA')+' '+r.currency+'</b><small>'+r.receipts_count+' إيصال</small>':'<span class="tag gray">لم يسجل</span>'}</td><td>${dateOrDash(r.last_paid_at)}</td><td>${dateOrDash(r.due_date)}</td><td>${r.months_overdue?'<b style="color:var(--red)">'+r.months_overdue+'</b>':'0'}</td><td>${Number(r.outstanding_amount).toLocaleString('ar-SA')} ${r.currency}</td><td>${collectionTag(r)}</td><td><button class="btn dark small" onclick="go('companies');setTimeout(()=>openCompany(${r.tenant_id}),100)">فتح الشركة</button></td></tr>`).join('')||'<tr><td colspan="9">لا توجد شركات مطابقة للفلاتر</td></tr>'}
+function exportFinanceCsv(){const rows=filteredFinanceRows(),head=['الشركة','الباقة','العملة','الاشتراك الشهري','دفع خلال الشهر','المحصل','آخر دفع','الاستحقاق','شهور متأخرة','المستحق التقديري','الحالة'],data=[head,...rows.map(r=>[r.company,r.plan,r.currency,r.monthly_fee,r.paid_this_month?'نعم':'لا',r.paid_amount,r.last_paid_at||'',r.due_date||'',r.months_overdue,r.outstanding_amount,r.collection_status])],csv='\ufeff'+data.map(row=>row.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='DOU-finance-'+(financeData?.month||'report')+'.csv';a.click();URL.revokeObjectURL(a.href)}
+async function loadSystemStatus(){try{const s=await api('/admin/system-status');const set=(id,ok,on='يعمل',off='خطأ')=>{const el=document.getElementById(id);el.textContent=ok?on:off;el.className='tag '+(ok?'green':'red')};set('sysApi',s.api==='ONLINE');set('sysDatabase',s.database==='ONLINE');set('sysSignup',!s.public_company_signup,'مغلق وآمن','مفتوح');set('sysLegacy',!s.legacy_delivery_modules,'غير مفعلة','مفعلة')}catch(e){['sysApi','sysDatabase'].forEach(id=>{const el=document.getElementById(id);el.textContent='تعذر الفحص';el.className='tag red'})}}
 
 /* ===== MERCHANTS ===== */
 async function loadMerchants(){
@@ -638,7 +662,7 @@ async function loadCompanies(){
   document.getElementById("companiesBody").innerHTML = allCompanies.map(c=>`
     <tr>
       <td><div style="display:flex;align-items:center;gap:10px"><b>🏢 ${c.name}</b></div><small>${countryTag(c.country)}</small></td>
-      <td><span class="tag blue">${c.plan}</span><small>${c.monthly_fee||0} ${c.currency||'SAR'} · حد ${c.max_couriers||'∞'}</small></td><td>${c.couriers_count}</td><td><small>${c.last_activity_at?new Date(c.last_activity_at).toLocaleString('ar-SA'):'لم يدخل'}</small></td>
+      <td><span class="tag blue">${c.plan}</span><small>${c.monthly_fee||0} ${c.currency||'SAR'} · حد ${c.max_couriers||'∞'}</small></td><td>${c.couriers_count}</td><td>${c.paid_this_month?'<span class="tag green">دفع '+Number(c.paid_this_month_amount).toLocaleString('ar-SA')+' '+c.currency+'</span>':'<span class="tag gray">لم يسجل</span>'}</td><td>${dateOrDash(c.due_date)}</td><td>${c.months_overdue?'<span class="tag red">'+c.months_overdue+' شهر · '+Number(c.outstanding_amount).toLocaleString('ar-SA')+' '+c.currency+'</span>':'<span class="tag green">لا يوجد</span>'}</td><td><small>${c.last_activity_at?new Date(c.last_activity_at).toLocaleString('ar-SA'):'لم يدخل'}</small></td>
       <td>${c.subscription_status!=="SUSPENDED"?'<span class="tag green">'+c.subscription_status+'</span>':'<span class="tag red">موقوفة</span>'}</td>
       <td style="white-space:nowrap">
         <button class="btn dark small" onclick="openCompany(${c.id})">فتح وإدارة</button>
@@ -660,14 +684,15 @@ async function openCompany(id){
   d.style.display="block";d.innerHTML=`<div class="ph" style="display:flex;justify-content:space-between;align-items:center"><div><h3>🏢 إدارة ${c.name}</h3><small>تعديل بيانات العميل والاشتراك وتسجيل كل دفعة بإيصال</small></div><button class="btn ghost small" onclick="document.getElementById('companyDetail').style.display='none'">إغلاق</button></div>
   <div class="form-row"><input id="ecName" value="${c.name||''}" placeholder="اسم الشركة"><input id="ecPhone" value="${c.contact_phone||''}" placeholder="جوال التواصل"><input id="ecEmail" type="email" value="${c.contact_email||''}" placeholder="البريد"><select id="ecPlan">${(window.DOU_PLANS||[]).map(p=>`<option value="${p.code}" ${p.code===c.plan?'selected':''}>${p.name}</option>`).join('')}</select></div>
   <div class="form-row"><select id="ecLanguage"><option value="ar" ${c.default_language==='ar'?'selected':''}>العربية</option><option value="en" ${c.default_language==='en'?'selected':''}>English</option></select><input id="ecCurrency" value="${c.currency||'SAR'}" maxlength="3" placeholder="Currency"><input id="ecTimezone" value="${c.timezone||'Asia/Riyadh'}" placeholder="Timezone"><input id="ecFee" type="number" value="${c.monthly_fee||0}" placeholder="السعر المتفق عليه"><input id="ecBilling" type="number" min="1" max="28" value="${c.billing_day||1}" placeholder="يوم الفوترة"><input id="ecDue" type="date" value="${c.due_date?c.due_date.slice(0,10):''}"><select id="ecStatus"><option value="ACTIVE" ${c.subscription_status==='ACTIVE'?'selected':''}>نشط</option><option value="OVERDUE" ${c.subscription_status==='OVERDUE'?'selected':''}>متأخر</option><option value="SUSPENDED" ${c.subscription_status==='SUSPENDED'?'selected':''}>موقوف</option></select><button class="btn primary" onclick="saveCompany(${id})">حفظ البيانات</button></div>
-  <div class="panel mt" style="background:var(--soft)"><h3>💵 تسجيل دفعة اشتراك</h3><div class="form-row"><input id="payAmount" type="number" value="${c.monthly_fee||0}" placeholder="المبلغ"><select id="payMethod"><option value="CASH">كاش</option><option value="BANK_TRANSFER">تحويل بنكي</option><option value="CARD">بطاقة</option><option value="OTHER">أخرى</option></select><input id="payDate" type="date" value="${new Date().toISOString().slice(0,10)}"><input id="payMonths" type="number" min="1" value="1" placeholder="عدد الشهور"><input id="payRef" placeholder="مرجع التحويل (اختياري)"><input id="payNotes" placeholder="ملاحظات"><button class="btn primary" onclick="recordPayment(${id})">تسجيل وإصدار إيصال</button></div><div id="payMsg" class="msg"></div></div>
-  <div class="grid2 mt"><div><div style="display:flex;justify-content:space-between;align-items:center"><h3>سجل المدفوعات</h3><button class="btn ghost small" onclick="exportPayments(${id})">تنزيل CSV</button></div><table><thead><tr><th>الإيصال</th><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>الفترة</th></tr></thead><tbody>${c.payments.map(p=>`<tr><td><b>${p.receipt_number}</b></td><td>${new Date(p.paid_at).toLocaleDateString('ar-SA')}</td><td>${p.amount} ${p.currency||c.currency||'SAR'}</td><td>${paymentLabel(p.payment_method)}</td><td>${p.period_months} شهر</td></tr>`).join('')||'<tr><td colspan="5">لا توجد دفعات مسجلة</td></tr>'}</tbody></table></div><div><h3>حسابات الشركة (${c.users.length})</h3>${c.users.map(u=>`<div class="opt"><div><b>${u.name}</b><small>${u.phone} · ${u.role}</small></div>${u.active?'<span class="tag green">نشط</span>':'<span class="tag red">موقوف</span>'}</div>`).join('')}<div class="opt"><div><b>السائقون</b></div><b>${c.couriers_count}</b></div></div></div>`;
+  <div class="panel mt" style="background:var(--soft)"><h3>💵 تسجيل دفعة اشتراك وإصدار إيصال</h3><p style="color:var(--muted);font-size:11px">تسجيل الإيصال يضيف المبلغ للإيراد الفعلي للشهر ويجدد تاريخ الاستحقاق بعدد الشهور المحدد.</p><div class="form-row"><input id="payAmount" type="number" value="${c.monthly_fee||0}" data-monthly="${c.monthly_fee||0}" placeholder="المبلغ"><select id="payMethod"><option value="CASH">كاش</option><option value="BANK_TRANSFER">تحويل بنكي</option><option value="CARD">بطاقة</option><option value="OTHER">أخرى</option></select><input id="payDate" type="date" value="${new Date().toISOString().slice(0,10)}"><input id="payMonths" type="number" min="1" max="36" value="1" placeholder="عدد الشهور" oninput="syncPaymentExpected()"><input id="payRef" placeholder="مرجع التحويل (اختياري)"><input id="payNotes" placeholder="ملاحظات"><button class="btn primary" onclick="recordPayment(${id})">تسجيل وإصدار إيصال</button></div><label style="font-size:11px"><input id="payVariance" type="checkbox" style="width:auto"> اعتماد مبلغ مختلف عن السعر المتفق عليه (خصم أو تسوية موثقة)</label><div id="payExpected" class="msg">المتوقع: ${Number(c.monthly_fee||0).toLocaleString('ar-SA')} ${c.currency||'SAR'} لشهر واحد</div><div id="payMsg" class="msg"></div></div>
+  <div class="grid2 mt"><div><div style="display:flex;justify-content:space-between;align-items:center"><h3>سجل المدفوعات</h3><button class="btn ghost small" onclick="exportPayments(${id})">تنزيل CSV</button></div><table><thead><tr><th>الإيصال</th><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>الفترة</th><th>سجله</th></tr></thead><tbody>${c.payments.map(p=>`<tr><td><b>${p.receipt_number}</b><small>${p.reference||''}</small></td><td>${new Date(p.paid_at).toLocaleDateString('ar-SA')}</td><td>${p.amount} ${p.currency||c.currency||'SAR'}</td><td>${paymentLabel(p.payment_method)}</td><td>${p.period_months} شهر</td><td>${p.recorded_by||'—'}</td></tr>`).join('')||'<tr><td colspan="6">لا توجد دفعات مسجلة</td></tr>'}</tbody></table></div><div><h3>حسابات الشركة (${c.users.length})</h3>${c.users.map(u=>`<div class="opt"><div><b>${u.name}</b><small>${u.phone} · ${u.role}</small></div>${u.active?'<span class="tag green">نشط</span>':'<span class="tag red">موقوف</span>'}</div>`).join('')}<div class="opt"><div><b>السائقون</b></div><b>${c.couriers_count}</b></div></div></div>`;
   d.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function paymentLabel(x){return ({CASH:'كاش',BANK_TRANSFER:'تحويل بنكي',CARD:'بطاقة',OTHER:'أخرى'})[x]||x}
 async function exportPayments(id){const c=await api('/admin/tenants/'+id),rows=[['رقم الإيصال','التاريخ','المبلغ','طريقة الدفع','عدد الشهور','المرجع','الملاحظات'],...c.payments.map(p=>[p.receipt_number,p.paid_at,p.amount,paymentLabel(p.payment_method),p.period_months,p.reference||'',p.notes||''])];const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='DOU-'+c.name+'-payments.csv';a.click();URL.revokeObjectURL(a.href)}
 async function saveCompany(id){await api('/admin/tenants/'+id,{method:'PATCH',body:JSON.stringify({name:document.getElementById('ecName').value,contact_phone:document.getElementById('ecPhone').value,contact_email:document.getElementById('ecEmail').value,plan:document.getElementById('ecPlan').value,default_language:document.getElementById('ecLanguage').value,currency:document.getElementById('ecCurrency').value,timezone:document.getElementById('ecTimezone').value,monthly_fee:+document.getElementById('ecFee').value,billing_day:+document.getElementById('ecBilling').value,due_date:document.getElementById('ecDue').value,subscription_status:document.getElementById('ecStatus').value})});await loadCompanies();await openCompany(id)}
-async function recordPayment(id){try{const r=await api('/admin/tenants/'+id+'/payments',{method:'POST',body:JSON.stringify({amount:+document.getElementById('payAmount').value,payment_method:document.getElementById('payMethod').value,paid_at:document.getElementById('payDate').value,period_months:+document.getElementById('payMonths').value,reference:document.getElementById('payRef').value,notes:document.getElementById('payNotes').value})});alert('تم تسجيل الدفعة بنجاح\nرقم الإيصال: '+r.receipt_number);await loadCompanies();await openCompany(id)}catch(e){document.getElementById('payMsg').textContent='❌ '+e.message}}
+function syncPaymentExpected(){const months=Math.max(1,+document.getElementById('payMonths').value||1),amount=document.getElementById('payAmount'),expected=(+amount.dataset.monthly||0)*months;amount.value=expected;document.getElementById('payExpected').textContent='المتوقع: '+expected.toLocaleString('ar-SA')+' حسب السعر الشهري × '+months+' شهر'}
+async function recordPayment(id){try{const r=await api('/admin/tenants/'+id+'/payments',{method:'POST',body:JSON.stringify({amount:+document.getElementById('payAmount').value,payment_method:document.getElementById('payMethod').value,paid_at:document.getElementById('payDate').value,period_months:+document.getElementById('payMonths').value,reference:document.getElementById('payRef').value,notes:document.getElementById('payNotes').value,allow_variance:document.getElementById('payVariance').checked})});alert('تم تسجيل الدفعة وإضافتها للإيراد الفعلي\nرقم الإيصال: '+r.receipt_number+'\nالاستحقاق الجديد: '+dateOrDash(r.new_due_date));await loadCompanies();await openCompany(id);if(financeData)loadFinance()}catch(e){document.getElementById('payMsg').textContent='❌ '+e.message}}
 async function toggleCompany(id){
   const c = allCompanies.find(x=>x.id===id);
   await api("/admin/tenants/"+id,{method:"PATCH",body:JSON.stringify({subscription_status:c.subscription_status==="SUSPENDED"?"ACTIVE":"SUSPENDED"})});
@@ -703,7 +728,7 @@ function applyCourierFilter(){
       <td><div style="display:flex;align-items:center;gap:10px">${avatar(c.name,"#8b5cf6")}<b>${c.name}</b></div></td>
       <td>${countryTag(c.country)}</td>
       <td><span class="tag ${c.courier_type==="COMPANY"?"blue":"gray"}">${c.courier_type==="COMPANY"?"تابع لشركة":"فريلانسر"}</span></td>
-      <td><b style="color:var(--amber)">${c.score} ★</b></td><td>${c.acceptance_rate}%</td>
+      <td><b style="color:var(--amber)">${c.score==null?'—':c.score+' ★'}</b></td><td>${c.acceptance_rate==null?'لا بيانات':c.acceptance_rate+'%'}</td>
       <td>${c.is_active!==false?'<span class="tag green">نشط</span>':'<span class="tag red">محظور</span>'}</td>
       <td style="white-space:nowrap">
         <button class="btn ghost small" onclick="toggleCourier(${c.id})">${c.is_active!==false?"حظر":"اعتماد"}</button>

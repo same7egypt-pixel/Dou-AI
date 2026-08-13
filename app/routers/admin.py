@@ -4,7 +4,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..config import ADMIN_KEY
+from ..config import ADMIN_KEY, ENABLE_LEGACY_DELIVERY, ENABLE_PUBLIC_COMPANY_SIGNUP
+from sqlalchemy import text
 from ..models.entities import Channel, Courier, Merchant, Staff, CourierType, Country, User, UserRole, Tenant, Fleet, SubscriptionPlan, SubscriptionPayment, AdminAuditLog
 from .auth import get_current_user, hash_password, SECRET_KEY, ALGORITHM
 from jose import jwt as pyjwt, JWTError
@@ -35,6 +36,18 @@ def add_calendar_months(value: datetime, months: int) -> datetime:
     year = value.year + month_index // 12
     month = month_index % 12 + 1
     return value.replace(year=year, month=month, day=min(value.day, monthrange(year, month)[1]))
+
+
+def overdue_months(due_date: Optional[datetime], now: datetime) -> int:
+    """عدد دورات الفوترة المتأخرة بالتقويم، وليس قسمة تقريبية على 30 يومًا."""
+    if not due_date or due_date >= now:
+        return 0
+    months = 0
+    cursor = due_date
+    while cursor < now and months < 120:
+        months += 1
+        cursor = add_calendar_months(cursor, 1)
+    return months
 
 
 async def require_admin(x_admin_key: str = Header(default="", alias="X-Admin-Key"),
@@ -246,6 +259,15 @@ def list_tenants(db: Session = Depends(get_db)):
     for tenant in db.query(Tenant).order_by(Tenant.id.desc()).all():
         last_login = db.query(User).filter(User.tenant_id == tenant.id).order_by(User.last_login_at.desc()).first()
         plan = db.query(SubscriptionPlan).filter(SubscriptionPlan.code == tenant.plan).first()
+        now = datetime.utcnow()
+        month_start = datetime(now.year, now.month, 1)
+        next_month = add_calendar_months(month_start, 1)
+        month_payments = db.query(SubscriptionPayment).filter(
+            SubscriptionPayment.tenant_id == tenant.id,
+            SubscriptionPayment.paid_at >= month_start,
+            SubscriptionPayment.paid_at < next_month,
+        ).all()
+        late_months = overdue_months(tenant.due_date, now)
         rows.append({
             "id": tenant.id, "name": tenant.name,
             "country": tenant.country.value if hasattr(tenant.country, "value") else tenant.country,
@@ -260,8 +282,95 @@ def list_tenants(db: Session = Depends(get_db)):
             "max_couriers": plan.max_couriers if plan else 0,
             "last_login_at": last_login.last_login_at.isoformat() if last_login and last_login.last_login_at else None,
             "last_activity_at": tenant.last_activity_at.isoformat() if tenant.last_activity_at else None,
+            "paid_this_month": bool(month_payments),
+            "paid_this_month_amount": round(sum(p.amount or 0 for p in month_payments), 2),
+            "months_overdue": late_months,
+            "outstanding_amount": round(late_months * (tenant.monthly_fee or 0), 2),
+            "last_paid_at": tenant.last_paid_at.isoformat() if tenant.last_paid_at else None,
         })
     return rows
+
+
+@router.get("/finance/summary")
+def finance_summary(month: Optional[str] = None, db: Session = Depends(get_db)):
+    """دفتر متابعة تحصيل الاشتراكات: الإيراد الفعلي، المتوقع، والمتأخرات حسب العملة."""
+    now = datetime.utcnow()
+    try:
+        month_start = datetime.strptime(month, "%Y-%m") if month else datetime(now.year, now.month, 1)
+    except ValueError:
+        raise HTTPException(400, "صيغة الشهر يجب أن تكون YYYY-MM")
+    next_month = add_calendar_months(month_start, 1)
+    tenants = db.query(Tenant).order_by(Tenant.name).all()
+    payments = db.query(SubscriptionPayment).filter(
+        SubscriptionPayment.paid_at >= month_start,
+        SubscriptionPayment.paid_at < next_month,
+    ).order_by(SubscriptionPayment.paid_at.desc()).all()
+    payments_by_tenant = {}
+    for payment in payments:
+        payments_by_tenant.setdefault(payment.tenant_id, []).append(payment)
+
+    actual_by_currency, expected_by_currency, outstanding_by_currency = {}, {}, {}
+    rows = []
+    for tenant in tenants:
+        currency = tenant.currency or "SAR"
+        tenant_payments = payments_by_tenant.get(tenant.id, [])
+        paid_amount = round(sum(p.amount or 0 for p in tenant_payments), 2)
+        late_months = overdue_months(tenant.due_date, now)
+        outstanding = round(late_months * (tenant.monthly_fee or 0), 2)
+        expected_by_currency[currency] = round(expected_by_currency.get(currency, 0) + (tenant.monthly_fee or 0), 2)
+        actual_by_currency[currency] = round(actual_by_currency.get(currency, 0) + paid_amount, 2)
+        outstanding_by_currency[currency] = round(outstanding_by_currency.get(currency, 0) + outstanding, 2)
+        if late_months:
+            collection_status = "OVERDUE"
+        elif tenant_payments:
+            collection_status = "PAID_THIS_MONTH"
+        elif tenant.due_date:
+            collection_status = "COVERED"
+        else:
+            collection_status = "UNCONFIGURED"
+        rows.append({
+            "tenant_id": tenant.id, "company": tenant.name, "plan": tenant.plan,
+            "currency": currency, "monthly_fee": tenant.monthly_fee or 0,
+            "paid_this_month": bool(tenant_payments), "paid_amount": paid_amount,
+            "receipts_count": len(tenant_payments),
+            "last_receipt": tenant_payments[0].receipt_number if tenant_payments else None,
+            "last_paid_at": tenant.last_paid_at.isoformat() if tenant.last_paid_at else None,
+            "due_date": tenant.due_date.isoformat() if tenant.due_date else None,
+            "months_overdue": late_months, "outstanding_amount": outstanding,
+            "subscription_status": tenant.subscription_status or "ACTIVE",
+            "collection_status": collection_status,
+        })
+    recent = [{
+        "receipt_number": p.receipt_number, "tenant_id": p.tenant_id,
+        "company": next((t.name for t in tenants if t.id == p.tenant_id), "—"),
+        "amount": p.amount, "currency": p.currency or "SAR",
+        "payment_method": p.payment_method, "paid_at": p.paid_at.isoformat(),
+        "period_months": p.period_months, "recorded_by": p.recorded_by_name,
+    } for p in payments[:20]]
+    return {
+        "month": month_start.strftime("%Y-%m"), "actual_revenue": actual_by_currency,
+        "expected_revenue": expected_by_currency, "outstanding": outstanding_by_currency,
+        "companies": len(rows), "paid_companies": sum(r["paid_this_month"] for r in rows),
+        "unpaid_this_month": sum(not r["paid_this_month"] for r in rows),
+        "overdue_companies": sum(r["months_overdue"] > 0 for r in rows),
+        "rows": rows, "recent_payments": recent,
+    }
+
+
+@router.get("/system-status")
+def system_status(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        database_ok = True
+    except Exception:
+        database_ok = False
+    return {
+        "api": "ONLINE", "database": "ONLINE" if database_ok else "ERROR",
+        "public_company_signup": ENABLE_PUBLIC_COMPANY_SIGNUP,
+        "legacy_delivery_modules": ENABLE_LEGACY_DELIVERY,
+        "subscription_payments": "ADMIN_RECORDED",
+        "backup_status": "MANAGED_EXTERNALLY",
+    }
 
 
 @router.patch("/tenants/{tid}")
@@ -308,6 +417,9 @@ def record_subscription_payment(tid:int,payload:dict,db:Session=Depends(get_db),
     if not tenant:raise HTTPException(404,"Company not found")
     amount=float(payload.get("amount") or 0);months=max(1,min(36,int(payload.get("period_months") or 1)))
     if amount<=0:raise HTTPException(400,"المبلغ يجب أن يكون أكبر من صفر")
+    expected=round((tenant.monthly_fee or 0)*months,2)
+    if expected>0 and abs(amount-expected)>0.01 and not payload.get("allow_variance"):
+        raise HTTPException(400,f"المبلغ المتوقع لـ {months} شهر: {expected:.2f} {tenant.currency or 'SAR'}. فعّل اعتماد مبلغ مختلف إذا كان هناك خصم أو تسوية")
     try:paid_at=datetime.fromisoformat(payload.get("paid_at")) if payload.get("paid_at") else datetime.utcnow()
     except ValueError:raise HTTPException(400,"تاريخ الدفع غير صحيح")
     base=tenant.due_date if tenant.due_date and tenant.due_date>paid_at else paid_at
@@ -316,7 +428,7 @@ def record_subscription_payment(tid:int,payload:dict,db:Session=Depends(get_db),
     payment=SubscriptionPayment(tenant_id=tid,amount=amount,currency=tenant.currency or "SAR",payment_method=(payload.get("payment_method") or "CASH").upper(),paid_at=paid_at,period_months=months,reference=(payload.get("reference") or "").strip() or None,receipt_number=receipt,notes=(payload.get("notes") or "").strip() or None,recorded_by_id=actor.id if actor else None,recorded_by_name=actor.name if actor else "Admin")
     tenant.last_paid_at=paid_at;tenant.due_date=new_due;tenant.subscription_status="ACTIVE"
     db.add(payment);db.add(AdminAuditLog(actor_id=actor.id if actor else None,actor_name=actor.name if actor else "Admin",action=f"تسجيل دفعة اشتراك {amount:.2f} ر.س ({payment.payment_method}) بإيصال {receipt}",tenant_id=tid,entity="subscription_payment"));db.commit();db.refresh(payment)
-    return {"ok":True,"receipt_number":receipt,"new_due_date":new_due.isoformat()}
+    return {"ok":True,"receipt_number":receipt,"new_due_date":new_due.isoformat(),"amount":amount,"expected_amount":expected,"variance":round(amount-expected,2),"currency":tenant.currency or "SAR"}
 
 
 @router.post("/tenants")
@@ -436,7 +548,9 @@ def list_couriers(db: Session = Depends(get_db)):
         {"id": c.id, "name": c.name, "phone": c.phone,
          "courier_type": c.courier_type.value if hasattr(c.courier_type, "value") else c.courier_type,
          "country": c.country.value if hasattr(c.country, "value") else c.country,
-         "is_active": True, "is_online": c.is_online, "score": c.score}
+         "is_active": c.employment_status == "ACTIVE" and c.is_available is not False,
+         "is_online": c.is_online, "score": c.score,
+         "acceptance_rate": c.acceptance_rate}
         for c in db.query(Courier).all()
     ]
 
@@ -462,6 +576,11 @@ def patch_courier(cid: int, payload: CourierPatch, db: Session = Depends(get_db)
         raise HTTPException(404, "Courier not found")
     if payload.active is not None:
         c.is_available = payload.active
+        c.employment_status = "ACTIVE" if payload.active else "SUSPENDED"
+        linked_user = db.query(User).filter(User.courier_id == c.id).first()
+        if linked_user:
+            linked_user.is_active = payload.active
+            linked_user.token_version = (linked_user.token_version or 0) + 1
     db.commit()
     return {"ok": True, "id": c.id}
 
