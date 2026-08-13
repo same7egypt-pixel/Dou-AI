@@ -113,15 +113,15 @@ assert [(r["المندوب"], r["طلبات الفترة"]) for r in supervisor_
 leave_result = request_leave({"from_date": today.isoformat(), "to_date": (today + timedelta(days=2)).isoformat(),
                               "reason": "اختبار ظهور الطلب للمشرف"}, driver_user, db)
 assert [x["id"] for x in list_leaves(sup1_user, db)] == [leave_result["id"]]
-# فرع العقد هو المصدر الأساسي حتى لو ظل حقل المشرف القديم غير متزامن.
+# المشرف المباشر هو المصدر الأساسي، وفرع العقد احتياطي عند غيابه.
 c2.supervisor_id = sup1.id
 db.commit()
 sup2_scope_login = login(LoginIn(phone=sup2.phone, password="SupervisorB9!"), db)
 sup2_scope_user = get_current_user(sup2_scope_login.access_token, db)
 assert list_leaves(sup2_scope_user, db) == []
 assert decide_leave(leave_result["id"], {"action": "approve"}, sup1_user, db)["status"] == "SUPERVISOR_APPROVED"
-assert {x["id"] for x in fleet_couriers(sup2_scope_user, db)} == {c2.id}
-assert {x["id"] for x in fleet_couriers(sup1_user, db)} == {c1.id}
+assert fleet_couriers(sup2_scope_user, db) == []
+assert {x["id"] for x in fleet_couriers(sup1_user, db)} == {c1.id, c2.id}
 c2.supervisor_id = sup2.id
 db.commit()
 try:

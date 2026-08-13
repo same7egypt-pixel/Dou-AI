@@ -26,13 +26,13 @@ LEAVE_STATUSES = ("PENDING", "SUPERVISOR_APPROVED", "APPROVED", "REJECTED")
 
 
 def _supervisor_courier_scope(db: Session, supervisor_id: int):
-    """فرع العقد هو مرجع الفريق، والربط المباشر احتياطي للسجلات القديمة فقط."""
+    """المشرف المباشر هو المرجع؛ فرع العقد احتياطي عند غياب الربط المباشر."""
     branch_ids = db.query(ContractBranch.id).filter(
         ContractBranch.supervisor_id == supervisor_id
     )
     return or_(
-        Courier.contract_branch_id.in_(branch_ids),
-        and_(Courier.contract_branch_id.is_(None), Courier.supervisor_id == supervisor_id),
+        Courier.supervisor_id == supervisor_id,
+        and_(Courier.supervisor_id.is_(None), Courier.contract_branch_id.in_(branch_ids)),
     )
 
 
