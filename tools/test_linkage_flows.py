@@ -2,11 +2,11 @@
 from datetime import date
 
 from app.database import Base, SessionLocal, engine
-from app.models.entities import (Attendance, Contract, ContractBranch, Country, Courier, CourierType, Fleet,
+from app.models.entities import (Attendance, BonusPlan, Contract, ContractBranch, Country, Courier, CourierType, Fleet,
     PayrollAdjustment, Project, Tenant, User, UserRole)
 from app.routers.hr import (add_daily_log, company_documents, create_employee_request,
     decide_document, decide_employee_request, upload_my_document, create_contract, contract_structure, daily_report)
-from app.routers.fleet import add_courier
+from app.routers.fleet import add_courier, _report_rows
 from app.routers.shifts import check_in
 from app.routers.auth import create_token, get_current_user, logout_current
 from app.schemas.dou import AttendanceIn
@@ -51,6 +51,9 @@ add_daily_log({"log_date": date.today().isoformat(), "project_id": p1.id,
 period=daily_report(date_from=date.today(),date_to=date.today(),user=admin,db=db)
 driver_row=next(r for r in period["rows"] if r["المندوب"]=="Driver")
 assert period["summary"]["orders"]==10 and driver_row["طلبات الفترة"]==10
+db.add(BonusPlan(tenant_id=t1.id,courier_id=c.id,project_id=p1.id,target_orders=5,bonus_amount=100,over_target_rate=2));db.commit()
+bonus_rows=_report_rows(db,admin,"bonus",date_from=date.today(),date_to=date.today())
+assert bonus_rows[0]["طلبات الفترة"]==10 and bonus_rows[0]["البونص المستحق"]==110
 try:
     add_daily_log({"project_id": p2.id, "orders_count": 99}, driver, db)
     raise AssertionError("cross-tenant project was accepted")

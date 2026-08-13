@@ -57,7 +57,8 @@ def _tenant_record(db: Session, model, record_id: int, user: User):
 
 
 def _report_rows(db: Session, user: User, report_type: str,
-                 project_id: int = None, doc_status: str = None):
+                 project_id: int = None, doc_status: str = None,
+                 date_from: date = None, date_to: date = None):
     tenant_id = _scope(user, db)
     q = db.query(Courier)
     if tenant_id is not None:
@@ -85,8 +86,10 @@ def _report_rows(db: Session, user: User, report_type: str,
             })
         return rows
 
-    start = date(today.year, today.month, 1)
-    end = date(today.year + (today.month // 12), today.month % 12 + 1, 1)
+    period_end = date_to or today
+    period_start = date_from or date(period_end.year, period_end.month, 1)
+    if period_start > period_end: period_start, period_end = period_end, period_start
+    month_start = date(period_end.year, period_end.month, 1)
     projects = {p.id: p for p in db.query(Project).filter(
         Project.tenant_id == tenant_id if tenant_id is not None else text("1=1")
     ).all()}
@@ -94,7 +97,7 @@ def _report_rows(db: Session, user: User, report_type: str,
     from .hr import calculate_target_bonus
     for c in couriers:
         logs = db.query(DailyLog).filter(
-            DailyLog.courier_id == c.id, DailyLog.log_date >= start, DailyLog.log_date < end
+            DailyLog.courier_id == c.id, DailyLog.log_date >= min(period_start, month_start), DailyLog.log_date <= period_end
         ).all()
         plans = db.query(BonusPlan).filter(
             BonusPlan.tenant_id == c.tenant_id,
@@ -105,42 +108,43 @@ def _report_rows(db: Session, user: User, report_type: str,
             if plan.project_id in covered or (project_id and plan.project_id != project_id):
                 continue
             covered.add(plan.project_id)
-            orders = sum(l.orders_count or 0 for l in logs if l.project_id == plan.project_id)
-            result = calculate_target_bonus(orders, plan.target_orders, plan.bonus_amount, plan.over_target_rate)
+            month_orders = sum(l.orders_count or 0 for l in logs if l.project_id == plan.project_id and l.log_date >= month_start)
+            period_orders = sum(l.orders_count or 0 for l in logs if l.project_id == plan.project_id and period_start <= l.log_date <= period_end)
+            result = calculate_target_bonus(month_orders, plan.target_orders, plan.bonus_amount, plan.over_target_rate)
             project = projects.get(plan.project_id)
             rows.append({
                 "السائق": c.name, "المشروع": project.name if project else c.platform or "—",
-                "طلبات الشهر": orders, "التارجت": plan.target_orders,
+                "طلبات الفترة": period_orders, "طلبات الشهر حتى نهاية الفترة": month_orders, "التارجت الشهري": plan.target_orders,
                 "المتبقي": result["remaining_orders"], "الطلبات الزائدة": result["over_orders"],
                 "بونص التارجت": plan.bonus_amount, "سعر الطلب الزائد": plan.over_target_rate,
                 "البونص المستحق": result["earned"],
                 "الراتب الأساسي": c.base_salary or 0,
-                "إجمالي المستحق": round((c.base_salary or 0) + orders * (c.per_delivery_rate or 0) + result["earned"], 2),
+                "إجمالي الشهر التقديري حتى نهاية الفترة": round((c.base_salary or 0) + month_orders * (c.per_delivery_rate or 0) + result["earned"], 2),
             })
     return rows
 
 
 @router.get("/reports")
 def fleet_reports(report_type: str = Query("documents", pattern="^(documents|bonus)$"),
-                  project_id: int = None, doc_status: str = None,
+                  project_id: int = None, doc_status: str = None, date_from: date = None, date_to: date = None,
                   user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in TENANT_ROLES:
         raise HTTPException(403, "Not a fleet account")
     needed = "hr" if report_type == "documents" else "payroll"
     _require_permission(user, needed)
-    return _report_rows(db, user, report_type, project_id, doc_status)
+    return _report_rows(db, user, report_type, project_id, doc_status, date_from, date_to)
 
 
 @router.get("/reports/export")
 def fleet_reports_export(report_type: str = Query("documents", pattern="^(documents|bonus)$"),
-                         project_id: int = None, doc_status: str = None,
+                         project_id: int = None, doc_status: str = None, date_from: date = None, date_to: date = None,
                          user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Not a fleet account")
     _require_permission(user,"export")
     needed = "hr" if report_type == "documents" else "payroll"
     _require_permission(user, needed)
-    rows = _report_rows(db, user, report_type, project_id, doc_status)
+    rows = _report_rows(db, user, report_type, project_id, doc_status, date_from, date_to)
     output = io.StringIO()
     output.write("\ufeff")
     if rows:

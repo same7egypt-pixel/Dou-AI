@@ -488,7 +488,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
           <div class="reportPeriod" id="reportPeriod"><button data-period="day" onclick="setReportPeriod('day')">اليوم</button><button data-period="week" onclick="setReportPeriod('week')">هذا الأسبوع</button><button data-period="month" onclick="setReportPeriod('month')">هذا الشهر</button><button data-period="custom" onclick="setReportPeriod('custom')">فترة مخصصة</button></div>
           <div class="form-row"><input id="reportFrom" type="date" onchange="customReportDates()"><input id="reportTo" type="date" onchange="customReportDates()"></div>
           <div class="reportRangeLabel" id="reportRangeLabel"></div>
-          <details class="reportAdvanced"><summary>فلاتر متقدمة (اختياري)</summary><div class="form-row">
+          <details class="reportAdvanced" id="reportAdvancedFilters"><summary>فلاتر متقدمة (اختياري)</summary><div class="form-row">
             <select id="reportNationality" onchange="loadReport()"><option value="">كل الجنسيات</option></select>
             <select id="reportZone" onchange="loadReport()"><option value="">كل المدن والمناطق</option></select>
             <select id="reportSupervisor" onchange="loadReport()"><option value="">كل المشرفين</option></select>
@@ -1261,7 +1261,8 @@ function setupReportFilters(){
   const type=document.getElementById("reportType").value, daily=type==="daily", bonus=type==="bonus";
   document.getElementById("reportDocStatus").style.display=type==="documents"?"block":"none";
   document.getElementById("reportProject").style.display=(bonus||daily)?"block":"none";
-  document.getElementById("dailyReportFilters").style.display=daily?"flex":"none";
+  document.getElementById("dailyReportFilters").style.display=(daily||bonus)?"block":"none";
+  document.getElementById("reportAdvancedFilters").style.display=daily?"block":"none";
 }
 function reportQuery(){
   const type=document.getElementById("reportType").value;
@@ -1273,7 +1274,10 @@ function reportQuery(){
   }
   const p=new URLSearchParams({report_type:type});
   if(type==="documents") p.set("doc_status",document.getElementById("reportDocStatus").value);
-  else if(document.getElementById("reportProject").value) p.set("project_id",document.getElementById("reportProject").value);
+  else if(type==="bonus"){
+    p.set("date_from",document.getElementById("reportFrom").value);p.set("date_to",document.getElementById("reportTo").value);
+    if(document.getElementById("reportProject").value)p.set("project_id",document.getElementById("reportProject").value);
+  }
   return p.toString();
 }
 async function loadReport(){
@@ -1287,7 +1291,7 @@ async function loadReport(){
     document.getElementById("reportHead").innerHTML=visibleKeys.length?'<tr>'+visibleKeys.map(k=>`<th>${k}</th>`).join("")+'</tr>':'';
     document.getElementById("reportBody").innerHTML=REPORT_ROWS.map(r=>`<tr class="${r._target_state==="OVER"?"target-green":r._target_state==="PENDING"?"target-red":""}">`+visibleKeys.map(k=>`<td>${escapeHtml(r[k])}</td>`).join("")+'</tr>').join("")||'<tr><td>لا توجد نتائج مطابقة للفلاتر</td></tr>';
     const totalBonus=type==="bonus"?REPORT_ROWS.reduce((s,r)=>s+(Number(r["البونص المستحق"])||0),0):0;
-    document.getElementById("reportSummary").innerHTML=type==="daily"?`<div class="metric"><b>${response.summary.couriers}</b><span>السائقون</span></div><div class="metric trend"><b>${response.summary.logged}</b><span>سجلوا خلال الفترة</span></div><div class="metric alert"><b>${response.summary.not_logged}</b><span>لم يسجلوا</span></div><div class="metric"><b>${response.summary.orders}</b><span>طلبات الفترة</span></div><div class="metric"><b>${response.summary.average}</b><span>متوسط الطلبات</span></div><div class="metric trend"><b>${escapeHtml(response.summary.top)}</b><span>الأعلى في الفترة</span></div>`:`<div class="metric"><b>${REPORT_ROWS.length}</b><span>عدد النتائج</span></div>`+(type==="bonus"?`<div class="metric trend"><b>${totalBonus.toLocaleString()} ر.س</b><span>إجمالي البونص</span></div>`:'');
+    document.getElementById("reportSummary").innerHTML=type==="daily"?`<div class="metric"><b>${response.summary.couriers}</b><span>السائقون</span></div><div class="metric trend"><b>${response.summary.logged}</b><span>سجلوا خلال الفترة</span></div><div class="metric alert"><b>${response.summary.not_logged}</b><span>لم يسجلوا</span></div><div class="metric"><b>${response.summary.orders}</b><span>طلبات الفترة</span></div><div class="metric"><b>${response.summary.average}</b><span>متوسط الطلبات</span></div><div class="metric trend"><b>${escapeHtml(response.summary.top)}</b><span>الأعلى في الفترة</span></div>`:`<div class="metric"><b>${REPORT_ROWS.length}</b><span>عدد النتائج</span></div>`+(type==="bonus"?`<div class="metric trend"><b>${totalBonus.toLocaleString()} ر.س</b><span>البونص الشهري المستحق حتى نهاية الفترة</span></div>`:'');
   }catch(e){ document.getElementById("reportBody").innerHTML='<tr><td>تعذّر تحميل التقرير</td></tr>'; }
 }
 async function downloadReport(){
