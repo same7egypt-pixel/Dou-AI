@@ -382,15 +382,28 @@ async function init(){
     localStorage.removeItem("dou_token_courier"); TOKEN=null; loginView(); return;
   }
   try{
-    const [courierData,preferences]=await Promise.all([api("/couriers/me"),api("/couriers/me/preferences")]);
-    COURIER = courierData;
-    if(window.setDouTenantPreferences&&setDouTenantPreferences(preferences.language,preferences.currency))return;
+    const courierRequest=api("/couriers/me"),preferencesRequest=api("/couriers/me/preferences").catch(()=>null);
+    COURIER = await courierRequest;
     document.querySelectorAll(".tabs").forEach(t=>t.style.display="flex");
     fillProfile();
-    await Promise.all([loadProfile(), loadTasks(), loadHRWarnings(),loadMyDocuments(),loadMyTickets()]);
+    renderCourierState();
+    preferencesRequest.then(p=>{if(p&&window.setDouTenantPreferences)setDouTenantPreferences(p.language,p.currency)});
+    Promise.allSettled([loadTasks(),loadHRWarnings(),loadMyDocuments(),loadMyTickets()]);
   }catch(e){
     logout();
   }
+}
+
+function renderCourierState(){
+  if(!COURIER)return;
+  document.getElementById("acceptRate").textContent=COURIER.acceptance_rate+"%";
+  document.getElementById("score").textContent=COURIER.score;
+  online=COURIER.is_online;
+  document.getElementById("switch").classList.toggle("on",online);
+  document.getElementById("statusText").textContent=online?"متصل":"غير متصل";
+  document.getElementById("statusDot").style.color=online?"#5be0a3":"#8b94a3";
+  document.getElementById("profOnline").textContent=online?"متصل":"غير متصل";
+  document.getElementById("doneCount").textContent=COURIER.current_load||0;
 }
 
 function fillProfile(){
@@ -465,14 +478,7 @@ async function act(taskId, action){
 async function loadProfile(){
   if(!COURIER) return;
   COURIER = await api("/couriers/me");
-  document.getElementById("acceptRate").textContent = COURIER.acceptance_rate+"%";
-  document.getElementById("score").textContent = COURIER.score;
-  online = COURIER.is_online;
-  document.getElementById("switch").classList.toggle("on",online);
-  document.getElementById("statusText").textContent = online?"متصل":"غير متصل";
-  document.getElementById("statusDot").style.color = online?"#5be0a3":"#8b94a3";
-  document.getElementById("profOnline").textContent = online?"متصل":"غير متصل";
-  document.getElementById("doneCount").textContent = COURIER.current_load||0;
+  renderCourierState();
   const tasks = await api("/couriers/"+COURIER.id+"/tasks");
   document.getElementById("doneCount").textContent = tasks.filter(t=>t.status==="DELIVERED").length || COURIER.current_load||0;
 }

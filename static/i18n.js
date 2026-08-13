@@ -30,7 +30,7 @@
   window.setDouLanguage=function(lang){localStorage.setItem("dou_lang",lang);const u=new URL(location.href);u.searchParams.set("lang",lang);location.replace(u.pathname+u.search+u.hash)};
   window.setDouTenantPreferences=function(lang,currency){
     localStorage.setItem("dou_currency",currency||"SAR");
-    if(!localStorage.getItem("dou_lang")&&lang){localStorage.setItem("dou_lang",lang);location.reload();return true}
+    if(!localStorage.getItem("dou_lang")&&lang){localStorage.setItem("dou_lang",lang);apply()}
     if(document.body&&localStorage.getItem("dou_lang")==="en")translate(document.body);return false;
   };
   window.douT=convert;
