@@ -264,11 +264,11 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     </section>
 
     <section id="view-attendance" style="display:none">
-      <div class="header"><div><div class="kicker">Live Attendance</div><h1>Attendance Tracking</h1></div></div>
+      <div class="header"><div><div class="kicker">Attendance by Date</div><h1>Attendance Tracking</h1></div><div class="filters" style="margin:0"><label style="font-size:11px;color:var(--muted)">Select date</label><input id="attendanceDate" type="date" onchange="loadAttendance()"><button class="btn ghost small" onclick="setAttendanceToday()">Today</button></div></div>
       <div class="cards">
-        <div class="metric"><b id="attIn">–</b><span>Checked In Today</span></div>
-        <div class="metric"><b id="attLate">–</b><span>Late Today</span></div>
-        <div class="metric"><b>42</b><span>Hours Worked</span></div>
+        <div class="metric"><b id="attIn">–</b><span>Present on Selected Date</span></div>
+        <div class="metric"><b id="attLate">–</b><span>Late on Selected Date</span></div>
+        <div class="metric"><b id="attHours">–</b><span>Calculated Work Hours</span></div>
       </div>
       <div class="card"><table><thead><tr><th>Courier</th><th>Check-in</th><th>Check-out</th><th>Hours</th><th>Location (from → to)</th><th>Status</th></tr></thead>
         <tbody id="attendanceBody"></tbody></table></div>
@@ -1017,11 +1017,13 @@ async function loadPayouts(){
 
 async function loadAttendance(){
   try{
-    const rows = await api("/fleet/attendance");
-    const present = rows.filter(r=>r.check_in && !r.check_out).length;
+    const dateInput=document.getElementById("attendanceDate");if(!dateInput.value)dateInput.value=localDateValue();
+    const rows = await api("/fleet/attendance?attendance_date="+encodeURIComponent(dateInput.value));
+    const present = rows.filter(r=>r.check_in).length;
     const late = rows.filter(r=>r.is_late).length;
     document.getElementById("attIn").textContent = present;
     document.getElementById("attLate").textContent = late;
+    document.getElementById("attHours").textContent = rows.reduce((s,r)=>s+(Number(r.hours)||0),0).toFixed(1);
     document.getElementById("attendanceBody").innerHTML = rows.map(r=>{
       const cin = r.check_in?new Date(r.check_in).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}):"—";
       const cout = r.check_out?new Date(r.check_out).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"}):"—";
@@ -1035,6 +1037,8 @@ async function loadAttendance(){
     }).join("") || '<tr><td colspan="6" style="color:var(--muted)">No records</td></tr>';
   }catch(e){ /* keeps empty */ }
 }
+function localDateValue(){const d=new Date(),off=d.getTimezoneOffset();return new Date(d.getTime()-off*60000).toISOString().slice(0,10)}
+function setAttendanceToday(){document.getElementById("attendanceDate").value=localDateValue();loadAttendance()}
 
 async function loadCompliance(){
   const c = await api("/analytics/compliance");

@@ -274,11 +274,11 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     </section>
 
     <section id="view-attendance" style="display:none">
-      <div class="header"><div><div class="kicker">حضور حي</div><h1>تتبع الحضور</h1></div></div>
+      <div class="header"><div><div class="kicker">حضور حسب التاريخ</div><h1>تتبع الحضور</h1></div><div class="filters" style="margin:0"><label style="font-size:11px;color:var(--muted)">اختر اليوم</label><input id="attendanceDate" type="date" onchange="loadAttendance()"><button class="btn ghost small" onclick="setAttendanceToday()">اليوم</button></div></div>
       <div class="cards">
-        <div class="metric"><b id="attIn">–</b><span>حضور اليوم</span></div>
-        <div class="metric"><b id="attLate">–</b><span>متأخرون اليوم</span></div>
-        <div class="metric"><b>42</b><span>ساعات عمل محتسبة</span></div>
+        <div class="metric"><b id="attIn">–</b><span>الحضور في التاريخ المختار</span></div>
+        <div class="metric"><b id="attLate">–</b><span>المتأخرون في التاريخ المختار</span></div>
+        <div class="metric"><b id="attHours">–</b><span>ساعات عمل محتسبة</span></div>
       </div>
       <div class="card"><table><thead><tr><th>المندوب</th><th>الحضور</th><th>الانصراف</th><th>ساعات</th><th>الموقع (من → إلى)</th><th>الحالة</th></tr></thead>
         <tbody id="attendanceBody"></tbody></table></div>
@@ -1222,11 +1222,13 @@ async function loadPayouts(){
 
 async function loadAttendance(){
   try{
-    const rows = await api("/fleet/attendance");
-    const present = rows.filter(r=>r.check_in && !r.check_out).length;
+    const dateInput=document.getElementById("attendanceDate");if(!dateInput.value)dateInput.value=localDateValue();
+    const rows = await api("/fleet/attendance?attendance_date="+encodeURIComponent(dateInput.value));
+    const present = rows.filter(r=>r.check_in).length;
     const late = rows.filter(r=>r.is_late).length;
     document.getElementById("attIn").textContent = present;
     document.getElementById("attLate").textContent = late;
+    document.getElementById("attHours").textContent = rows.reduce((s,r)=>s+(Number(r.hours)||0),0).toFixed(1);
     document.getElementById("attendanceBody").innerHTML = rows.map(r=>{
       const cin = r.check_in?new Date(r.check_in).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}):"—";
       const cout = r.check_out?new Date(r.check_out).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}):"—";
@@ -1240,6 +1242,8 @@ async function loadAttendance(){
     }).join("") || '<tr><td colspan="6" style="color:var(--muted)">لا سجلات</td></tr>';
   }catch(e){ /* يبقي فارغاً */ }
 }
+function localDateValue(){const d=new Date(),off=d.getTimezoneOffset();return new Date(d.getTime()-off*60000).toISOString().slice(0,10)}
+function setAttendanceToday(){document.getElementById("attendanceDate").value=localDateValue();loadAttendance()}
 
 async function loadCompliance(){
   try{

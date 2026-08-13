@@ -697,13 +697,18 @@ def fleet_reassign(order_id: int, payload: dict, user: User = Depends(get_curren
 
 
 @router.get("/attendance")
-def fleet_attendance(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def fleet_attendance(attendance_date: date = None, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in TENANT_ROLES:
         raise HTTPException(403, "Not a fleet account")
     _require_permission(user, "attendance")
     tenant_id = _scope(user, db)
     ids = _courier_ids(db, tenant_id, user.id if user.role == UserRole.SUPERVISOR else None)
-    records = db.query(Attendance).filter(Attendance.courier_id.in_(ids)).all() if ids else []
+    chosen = attendance_date or date.today()
+    start = datetime.combine(chosen, datetime.min.time())
+    end = start + timedelta(days=1)
+    records = db.query(Attendance).filter(
+        Attendance.courier_id.in_(ids), Attendance.check_in >= start, Attendance.check_in < end
+    ).order_by(Attendance.check_in.desc()).all() if ids else []
     couriers = {c.id: c.name for c in db.query(Courier).all()}
     rows = []
     for a in records:
