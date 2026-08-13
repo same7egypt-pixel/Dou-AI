@@ -72,6 +72,8 @@ MIGRATIONS = {
     "subscription_plans": {
         "name_en": "VARCHAR(80)",
         "monthly_price_usd": "FLOAT DEFAULT 0",
+        "features_ar": "TEXT",
+        "features_en": "TEXT",
     },
     "subscription_payments": {"currency": "VARCHAR(3) DEFAULT 'SAR'"},
 }

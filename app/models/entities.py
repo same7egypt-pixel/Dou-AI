@@ -613,6 +613,8 @@ class SubscriptionPlan(Base):
     monthly_price = Column(Float, default=0)
     monthly_price_usd = Column(Float, default=0)
     max_couriers = Column(Integer, default=0)
+    features_ar = Column(Text)
+    features_en = Column(Text)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

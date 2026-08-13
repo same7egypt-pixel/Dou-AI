@@ -108,6 +108,8 @@ def public_plans(currency: str = "SAR", db: Session = Depends(get_db)):
             "monthly_price": plan.monthly_price,
             "monthly_price_usd": plan.monthly_price_usd or 0,
             "max_couriers": plan.max_couriers,
+            "features_ar": plan.features_ar or "",
+            "features_en": plan.features_en or "",
         }
         for plan in db.query(SubscriptionPlan)
         .filter(SubscriptionPlan.is_active == True)
@@ -380,10 +382,11 @@ def patch_tenant(tid: int, payload: dict, db: Session = Depends(get_db), actor: 
         raise HTTPException(404, "Company not found")
     if payload.get("subscription_status") in ("ACTIVE", "OVERDUE", "SUSPENDED"):
         tenant.subscription_status = payload["subscription_status"]
-    if payload.get("plan") in ("TRIAL", "STARTER", "GROWTH", "BUSINESS", "ENTERPRISE", "PRO"):
-        tenant.plan = payload["plan"]
-        plan = db.query(SubscriptionPlan).filter(SubscriptionPlan.code == tenant.plan).first()
-        if plan: tenant.monthly_fee = plan.monthly_price_usd if (tenant.currency or "SAR")=="USD" and plan.monthly_price_usd else plan.monthly_price
+    if payload.get("plan"):
+        plan = db.query(SubscriptionPlan).filter(SubscriptionPlan.code == str(payload["plan"]).upper(), SubscriptionPlan.is_active.is_(True)).first()
+        if not plan: raise HTTPException(400,"الباقة غير موجودة أو غير نشطة")
+        tenant.plan = plan.code
+        tenant.monthly_fee = plan.monthly_price_usd if (tenant.currency or "SAR")=="USD" and plan.monthly_price_usd else plan.monthly_price
     for key in ("name","contact_email","contact_phone"):
         if key in payload:setattr(tenant,key,(payload.get(key) or "").strip())
     if "monthly_fee" in payload:tenant.monthly_fee=float(payload.get("monthly_fee") or 0)
@@ -446,7 +449,7 @@ def list_plans(db: Session = Depends(get_db)):
     defaults = [("STARTER","الأساسية","Starter",499,149,10),("GROWTH","النمو","Growth",999,269,75),("BUSINESS","الأعمال","Business",1999,499,150),("ENTERPRISE","المؤسسات","Enterprise",3500,899,0)]
     if not db.query(SubscriptionPlan).count():
         db.add_all([SubscriptionPlan(code=c,name=n,name_en=e,monthly_price=p,monthly_price_usd=u,max_couriers=m) for c,n,e,p,u,m in defaults]); db.commit()
-    return [{"id":p.id,"code":p.code,"name":p.name,"name_en":p.name_en or "","monthly_price":p.monthly_price,"monthly_price_usd":p.monthly_price_usd or 0,"max_couriers":p.max_couriers,"is_active":p.is_active} for p in db.query(SubscriptionPlan).order_by(SubscriptionPlan.monthly_price).all()]
+    return [{"id":p.id,"code":p.code,"name":p.name,"name_en":p.name_en or "","monthly_price":p.monthly_price,"monthly_price_usd":p.monthly_price_usd or 0,"max_couriers":p.max_couriers,"features_ar":p.features_ar or "","features_en":p.features_en or "","is_active":p.is_active} for p in db.query(SubscriptionPlan).order_by(SubscriptionPlan.monthly_price).all()]
 
 
 @router.post("/plans")
@@ -454,7 +457,7 @@ def save_plan(payload: dict, db: Session = Depends(get_db), actor: User = Depend
     code=(payload.get("code") or "").upper().strip(); name=(payload.get("name") or "").strip()
     if not code or not name: raise HTTPException(400,"الكود والاسم مطلوبان")
     p=db.query(SubscriptionPlan).filter(SubscriptionPlan.code==code).first() or SubscriptionPlan(code=code,name=name)
-    p.name=name; p.name_en=(payload.get("name_en") or "").strip() or None; p.monthly_price=float(payload.get("monthly_price") or 0); p.monthly_price_usd=float(payload.get("monthly_price_usd") or 0); p.max_couriers=int(payload.get("max_couriers") or 0); p.is_active=payload.get("is_active",True)
+    p.name=name; p.name_en=(payload.get("name_en") or "").strip() or None; p.monthly_price=float(payload.get("monthly_price") or 0); p.monthly_price_usd=float(payload.get("monthly_price_usd") or 0); p.max_couriers=int(payload.get("max_couriers") or 0); p.features_ar=(payload.get("features_ar") or "").strip() or None; p.features_en=(payload.get("features_en") or "").strip() or None; p.is_active=payload.get("is_active",True)
     db.add(p); db.add(AdminAuditLog(actor_id=actor.id if actor else None,actor_name=actor.name if actor else "Admin",action=f"حفظ باقة {code}",entity="plan")); db.commit()
     return {"ok":True}
 

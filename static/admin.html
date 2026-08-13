@@ -113,10 +113,10 @@ tr:hover td{background:#fafbfe}
 .opt{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);gap:10px}
 .opt:last-child{border-bottom:0}
 .opt b{font-size:13px;display:block}.opt small{font-size:11px;color:var(--muted)}
-input[type=text],input[type=number],input[type=email],select{font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12px;width:100%;outline:none;background:#fff}
-input:focus,select:focus{border-color:var(--orange)}
+input[type=text],input[type=number],input[type=email],select,textarea{font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:12px;width:100%;outline:none;background:#fff}
+input:focus,select:focus,textarea:focus{border-color:var(--orange)}
 .form-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-.form-row input,.form-row select{flex:1;min-width:120px}
+.form-row input,.form-row select,.form-row textarea{flex:1;min-width:220px}
 .msg{font-size:12px;margin-top:8px}
 .modal{position:fixed;inset:0;background:rgba(10,15,26,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;backdrop-filter:blur(2px)}
 .modal.open{display:flex}
@@ -290,7 +290,7 @@ input:focus,select:focus{border-color:var(--orange)}
       </div>
       <div class="card mt" id="companyDetail" style="display:none"></div>
     </section>
-    <section id="view-plans" style="display:none"><div class="welcome"><div><h1>الباقات والأسعار</h1><p>أسعار محلية بالريال وأسعار دولية مستقلة بالدولار.</p></div></div><div class="card"><div class="form-row"><input id="plCode" placeholder="الكود STARTER"><input id="plName" placeholder="اسم الباقة بالعربية"><input id="plNameEn" placeholder="Plan name in English"><input id="plPrice" type="number" placeholder="السعر SAR"><input id="plPriceUsd" type="number" placeholder="International price USD"><input id="plLimit" type="number" placeholder="حد السائقين"><select id="plActive"><option value="true">نشطة ومتاحة للبيع</option><option value="false">موقوفة</option></select><button class="btn primary" onclick="savePlan()">حفظ الباقة</button></div><table><thead><tr><th>الباقة</th><th>الكود</th><th>SAR</th><th>USD</th><th>حد السائقين</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody id="plansBody"></tbody></table></div></section>
+    <section id="view-plans" style="display:none"><div class="welcome"><div><h1>الباقات والأسعار</h1><p>أسعار ومميزات الباقات الظاهرة تلقائيًا في صفحة المبيعات.</p></div></div><div class="card"><div class="form-row"><input id="plCode" placeholder="الكود STARTER"><input id="plName" placeholder="اسم الباقة بالعربية"><input id="plNameEn" placeholder="Plan name in English"><input id="plPrice" type="number" placeholder="السعر SAR"><input id="plPriceUsd" type="number" placeholder="International price USD"><input id="plLimit" type="number" placeholder="حد السائقين"><select id="plActive"><option value="true">نشطة ومتاحة للبيع</option><option value="false">موقوفة</option></select><textarea id="plFeaturesAr" rows="4" placeholder="المميزات بالعربية — كل ميزة في سطر"></textarea><textarea id="plFeaturesEn" rows="4" placeholder="English features — one feature per line"></textarea><button class="btn primary" onclick="savePlan()">حفظ الباقة</button></div><table><thead><tr><th>الباقة</th><th>الكود</th><th>SAR</th><th>USD</th><th>حد السائقين</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody id="plansBody"></tbody></table></div></section>
     <section id="view-audit" style="display:none"><div class="welcome"><div><h1>سجل إدارة DOU</h1><p>الدعم والتعديلات الحساسة على حسابات العملاء.</p></div></div><div class="card"><table><thead><tr><th>الوقت</th><th>المسؤول</th><th>الشركة</th><th>العملية</th></tr></thead><tbody id="auditBody"></tbody></table></div></section>
 
     <!-- ===== COURIERS ===== -->
@@ -581,7 +581,7 @@ function applyMerchantFilter(){
       <td>${m.category||"—"}</td>
       <td>${m.is_active!==false?'<span class="tag green">نشط</span>':'<span class="tag red">موقوف</span>'}</td>
       <td style="white-space:nowrap">
-        <select class="btn ghost small" onchange="setCompanyPlan(${c.id},this.value)"><option>${c.plan}</option><option>STARTER</option><option>GROWTH</option><option>BUSINESS</option><option>ENTERPRISE</option></select>
+        <select class="btn ghost small" onchange="setCompanyPlan(${c.id},this.value)">${(window.DOU_PLANS||[]).filter(p=>p.is_active).map(p=>`<option value="${p.code}" ${p.code===c.plan?'selected':''}>${p.name}</option>`).join('')||`<option>${c.plan}</option>`}</select>
         <button class="btn ghost small" onclick="toggleMerchant(${m.id})">${m.is_active!==false?"إيقاف":"تفعيل"}</button>
         <button class="btn red small" onclick="deleteMerchant(${m.id})">حذف</button>
       </td>
@@ -705,8 +705,8 @@ async function supportLogin(id){
   localStorage.setItem("dou_token_fleet",r.access_token);localStorage.setItem("dou_role",r.role);window.open("/static/fleet.html","_blank");loadAudit();
 }
 async function loadPlans(){const rows=await api("/admin/plans");window.DOU_PLANS=rows;document.getElementById('ncPlan').innerHTML=rows.filter(p=>p.is_active).map(p=>`<option value="${p.code}">${p.name} — ${p.monthly_price} SAR / ${p.monthly_price_usd||0} USD</option>`).join('');document.getElementById("plansBody").innerHTML=rows.map(p=>`<tr><td>${p.name}<small>${p.name_en||''}</small></td><td>${p.code}</td><td>${p.monthly_price}</td><td>$${p.monthly_price_usd||0}</td><td>${p.max_couriers||'غير محدود'}</td><td>${p.is_active?'<span class="tag green">نشطة</span>':'<span class="tag red">موقوفة</span>'}</td><td><button class="btn ghost small" onclick="editPlan('${p.code}')">تعديل</button></td></tr>`).join("")}
-function editPlan(code){const p=(window.DOU_PLANS||[]).find(x=>x.code===code);if(!p)return;document.getElementById('plCode').value=p.code;document.getElementById('plName').value=p.name;document.getElementById('plNameEn').value=p.name_en||'';document.getElementById('plPrice').value=p.monthly_price;document.getElementById('plPriceUsd').value=p.monthly_price_usd||0;document.getElementById('plLimit').value=p.max_couriers;document.getElementById('plActive').value=String(p.is_active);window.scrollTo({top:0,behavior:'smooth'})}
-async function savePlan(){try{await api("/admin/plans",{method:"POST",body:JSON.stringify({code:document.getElementById("plCode").value,name:document.getElementById("plName").value,name_en:document.getElementById("plNameEn").value,monthly_price:+document.getElementById("plPrice").value,monthly_price_usd:+document.getElementById("plPriceUsd").value,max_couriers:+document.getElementById("plLimit").value,is_active:document.getElementById('plActive').value==='true'})});alert('تم حفظ أسعار SAR وUSD');loadPlans()}catch(e){alert('تعذر الحفظ: '+e.message)}}
+function editPlan(code){const p=(window.DOU_PLANS||[]).find(x=>x.code===code);if(!p)return;document.getElementById('plCode').value=p.code;document.getElementById('plName').value=p.name;document.getElementById('plNameEn').value=p.name_en||'';document.getElementById('plPrice').value=p.monthly_price;document.getElementById('plPriceUsd').value=p.monthly_price_usd||0;document.getElementById('plLimit').value=p.max_couriers;document.getElementById('plFeaturesAr').value=p.features_ar||'';document.getElementById('plFeaturesEn').value=p.features_en||'';document.getElementById('plActive').value=String(p.is_active);window.scrollTo({top:0,behavior:'smooth'})}
+async function savePlan(){try{await api("/admin/plans",{method:"POST",body:JSON.stringify({code:document.getElementById("plCode").value,name:document.getElementById("plName").value,name_en:document.getElementById("plNameEn").value,monthly_price:+document.getElementById("plPrice").value,monthly_price_usd:+document.getElementById("plPriceUsd").value,max_couriers:+document.getElementById("plLimit").value,features_ar:document.getElementById('plFeaturesAr').value,features_en:document.getElementById('plFeaturesEn').value,is_active:document.getElementById('plActive').value==='true'})});alert('تم حفظ الباقة ومميزاتها وتحديث صفحة المبيعات');loadPlans()}catch(e){alert('تعذر الحفظ: '+e.message)}}
 async function loadAudit(){const rows=await api("/admin/audit-logs");document.getElementById("auditBody").innerHTML=rows.map(x=>`<tr><td>${x.created_at?new Date(x.created_at).toLocaleString('ar-SA'):'—'}</td><td>${x.actor}</td><td>${x.tenant}</td><td>${x.action}</td></tr>`).join("")||'<tr><td colspan="4">لا عمليات بعد</td></tr>'}
 async function deleteCompany(id){
   if(!confirm("حذف الشركة؟")) return;
@@ -908,6 +908,7 @@ async function boot(){
   if(!ADMIN_KEY && !ADMIN_TOKEN){ gateView(); return; }
   try{
     const t = await api("/admin/couriers", {method:"GET"});
+    await loadPlans();
     if(ADMIN_TOKEN && !ADMIN_KEY){ localStorage.setItem("dou_token_admin", ADMIN_TOKEN); }
     go("dashboard");
   }catch(e){

@@ -257,8 +257,12 @@ async function refreshPublicPlans(){
     if(!response.ok)return;
     const plans=await response.json();
     plans.forEach(plan=>{
-      const card=document.querySelector(`[data-plan-code="${plan.code}"]`);
-      if(!card)return;
+      let card=document.querySelector(`[data-plan-code="${plan.code}"]`);
+      if(!card){
+        card=document.createElement('div');card.className='plan';card.dataset.planCode=plan.code;
+        card.innerHTML='<h3></h3><div class="price"></div><small class="plan-limit"></small><ul></ul><a class="btn" href="https://wa.me/966556338075">ابدأ الآن</a>';
+        document.querySelector('#pricing .pricing').appendChild(card);
+      }
       card.querySelector('h3').textContent=plan.name;
       const price=Number(plan.monthly_price||0);
       card.querySelector('.price').innerHTML=price>0
@@ -268,6 +272,8 @@ async function refreshPublicPlans(){
       limit.textContent=Number(plan.max_couriers||0)>0
         ? `حتى ${Number(plan.max_couriers).toLocaleString('en-US')} سائقًا`
         : 'عدد سائقين مخصص';
+      const features=String(plan.features_ar||'').split('\n').map(x=>x.trim()).filter(Boolean);
+      if(features.length)card.querySelector('ul').innerHTML=features.map(x=>`<li>${x.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</li>`).join('');
     });
     document.querySelectorAll('[data-plan-code]').forEach(card=>{
       if(!plans.some(plan=>plan.code===card.dataset.planCode))card.style.display='none';
