@@ -384,11 +384,6 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <p style="font-size:11px;color:var(--muted);margin-top:10px">💡 المشرف يدخل من نفس لوحة الشركة، ويشاهد مناديبه فقط حسب صلاحياته.</p>
       </div>
       <div class="card"><h3>طلبات ضم السائقين للمشرفين</h3><div id="assignmentRequestsAdmin"></div></div>
-      <div class="card"><h3>المشاريع / المنصات</h3>
-        <div class="opt"><div><b>إضافة منصة أو مشروع</b><small>مثال: هنقرستيشن، جاهز، مرسول</small></div>
-          <button class="btn small" onclick="addProject()">+ منصة</button></div>
-        <div id="projectsBody"></div>
-      </div>
       <div class="card"><h3>خطط البونص — تارجت شهري + مكافأة + سعر الطلب الزائد</h3>
         <div class="opt"><div><b>إنشاء خطة بونص</b><small>مثال: 460 طلب → 2000 ر.س + 5 ر.س لكل طلب زائد</small></div>
           <button class="btn small" onclick="openBonusModal()">+ خطة بونص</button></div>
@@ -644,10 +639,10 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 <div class="modal" id="bonusModal">
 <div class="modalBox">
      <h3>🎯 خطة بونص — تارجت + مكافأة + طلب زائد</h3>
-     <label class="fLabel">المنصة/المشروع</label><select id="bnProject" class="fInput" onchange="bnScope()"></select>
+     <label class="fLabel">العقد التجاري / فرع المدينة</label><select id="bnProject" class="fInput" onchange="bnProjectChanged()"></select>
      <label class="fLabel">الاختيار</label><select id="bnScope" class="fInput" onchange="bnScope()">
-       <option value="project">كل مندوبي المشروع (خطة واحدة)</option>
-       <option value="courier">مندوب محدد على هذا المشروع</option></select>
+       <option value="project">كل مندوبي الفرع (خطة واحدة)</option>
+       <option value="courier">مندوب محدد داخل هذا الفرع</option></select>
      <div id="bnCourierWrap"><label class="fLabel">المندوب</label><select id="bnCourier" class="fInput"></select></div>
      <label class="fLabel">التارجت الشهري (طلب)</label><input id="bnTarget" type="number" min="1" class="fInput" placeholder="460" oninput="previewBonus()">
      <label class="fLabel">البونص عند تحقيق التارجت (ر.س)</label><input id="bnBonus" type="number" min="0" step="0.01" class="fInput" placeholder="2000" oninput="previewBonus()">
@@ -661,7 +656,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
   <div class="modalBox">
     <h3>📄 عقد جديد</h3>
     <label class="fLabel">اسم العميل / المنصة</label><input id="hrCtName" class="fInput" placeholder="مثال: هنقرستيشن">
-    <div class="hrEmptyGuide">العقد التجاري لا يحتوي رواتب أو بونص. أضف فروع المدن والمشرف المسؤول، ثم عرّف سياسة المستحقات لكل فرع من قسم الأداء والبونص.</div>
+    <div class="hrEmptyGuide">كل صف يمثل فريق تشغيل: مدينة + مشرف. يمكنك تكرار نفس المدينة مع مشرف مختلف عند وجود عدد كبير من المناديب. التارجت والبونص يُضبطان لاحقًا لكل فريق.</div>
     <label class="fLabel">فروع التشغيل</label><div id="hrCtBranches"></div><button class="btn ghost small" type="button" onclick="addContractBranchRow()">+ إضافة مدينة</button>
     <label class="fLabel">تاريخ الانتهاء</label><input id="hrCtEnd" type="date" class="fInput">
     <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveHrContract()">حفظ العقد</button><button class="btn ghost" onclick="closeHrContract()">إلغاء</button></div>
@@ -934,7 +929,7 @@ async function toggleAddCourier(){
     COURIER_CONTRACTS=await api("/hr/contract-structure");document.getElementById("cContract").innerHTML='<option value="">اختر العقد *</option>'+COURIER_CONTRACTS.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");courierContractChanged();
   }catch(e){ document.getElementById("courierMsg").textContent="تعذر تحميل المشرفين أو المشاريع: "+e.message; }
 }
-function courierContractChanged(){const c=COURIER_CONTRACTS.find(x=>x.id==document.getElementById("cContract").value);document.getElementById("cBranch").innerHTML='<option value="">اختر المدينة / الفرع *</option>'+((c?.branches||[]).map(b=>`<option value="${b.id}">${escapeHtml(b.city)}</option>`).join(""));courierBranchChanged()}
+function courierContractChanged(){const c=COURIER_CONTRACTS.find(x=>x.id==document.getElementById("cContract").value);document.getElementById("cBranch").innerHTML='<option value="">اختر فريق التشغيل *</option>'+((c?.branches||[]).map(b=>`<option value="${b.id}">${escapeHtml(b.city)} — ${escapeHtml(b.supervisor||"بدون مشرف")}</option>`).join(""));courierBranchChanged()}
 function courierBranchChanged(){const c=COURIER_CONTRACTS.find(x=>x.id==document.getElementById("cContract").value),b=c?.branches.find(x=>x.id==document.getElementById("cBranch").value);document.getElementById("cWorkCity").value=b?.city||"";document.getElementById("cSupervisor").innerHTML=b?.supervisor_id?`<option value="${b.supervisor_id}">${escapeHtml(b.supervisor||"")}</option>`:'<option value="">لا يوجد مشرف محدد لهذا الفرع</option>'}
 function toggleNationalityOther(){
   document.getElementById("cNationalityOther").style.display=document.getElementById("cNationality").value==="أخرى"?"block":"none";
@@ -1478,7 +1473,7 @@ function setupHRWorkspace(){
   const view=document.getElementById("view-hr");if(!view||view.dataset.organized)return;
   view.dataset.organized="1";
   const metrics=document.getElementById("hrMetricCards");if(metrics)document.getElementById("hrPane-overview").appendChild(metrics);
-  [["vBody","overview"],["supBody","people"],["projectsBody","people"],["assignmentRequestsAdmin","requests"],["hrLeaves","requests"],["employeeRequestsBody","requests"],["adjustmentsBody","payroll"],["payBody","payroll"],["uploadedDocumentsBody","compliance"],["contractsBody","compliance"],["bonusBody","performance"],["lbBody","performance"],["hrAudit","reports"]].forEach(x=>moveHRCard(x[0],x[1]));
+  [["vBody","overview"],["supBody","people"],["assignmentRequestsAdmin","requests"],["hrLeaves","requests"],["employeeRequestsBody","requests"],["adjustmentsBody","payroll"],["payBody","payroll"],["uploadedDocumentsBody","compliance"],["contractsBody","compliance"],["bonusBody","performance"],["lbBody","performance"],["hrAudit","reports"]].forEach(x=>moveHRCard(x[0],x[1]));
   showHRTab(sessionStorage.getItem("dou_hr_tab")||"overview");
 }
 function setHRPendingCount(n){const a=document.getElementById("hrPendingCount"),b=document.getElementById("hrTabPending");if(a)a.textContent=n;if(b){b.textContent=n;b.style.display=n?"inline-grid":"none"}}
@@ -1487,7 +1482,6 @@ async function loadHR(){
     setupHRWorkspace();
     const dash = await api("/hr/dashboard");
     const sups = await api("/hr/supervisors");
-    const projects = await api("/hr/projects");
     const bonus = await api("/hr/bonus");
     const leaves = await api("/hr/leaves");
     const assignments = await api("/hr/assignment-requests");
@@ -1506,14 +1500,11 @@ async function loadHR(){
       <td>${s.is_active?'<span class="tag green">نشط</span>':'<span class="tag gray">موقوف</span>'}</td>
       <td><button class="btn ghost small" onclick="toggleSup(${s.id},${s.is_active})">${s.is_active?'إيقاف':'تفعيل'}</button></td></tr>`).join("")
       || '<tr><td colspan="5" style="color:var(--muted)">لا مشرفين بعد — أضف أول مشرف</td></tr>';
-    document.getElementById("projectsBody").innerHTML = projects.map(p=>`
-      <div class="opt"><div><b>${p.name}</b><small>${p.is_active?'نشطة':'موقوفة'}</small></div></div>`).join("")
-      || '<p style="color:var(--muted)">لا مشاريع — أضف منصة (هنقرستيشن/جاهز...)</p>';
     document.getElementById("assignmentRequestsAdmin").innerHTML=assignments.filter(r=>r.status==="PENDING").map(r=>`
       <div class="opt"><div><b>${escapeHtml(r.supervisor)} يطلب ضم ${escapeHtml(r.courier)}</b><small>${escapeHtml(r.note||'بدون ملاحظة')}</small></div>
       <div><button class="btn green small" onclick="decideAssignment(${r.id},'approve')">موافقة</button> <button class="btn red small" onclick="decideAssignment(${r.id},'reject')">رفض</button></div></div>`).join("")||'<p style="color:var(--muted)">لا توجد طلبات معلقة</p>';
     document.getElementById("bonusBody").innerHTML = bonus.map(b=>`
-      <tr><td><b>${b.courier}</b>${b.is_project_plan?'<span class="tag blue" style="margin-right:6px">كل المشروع</span>':''}</td><td>${b.project}</td><td>${b.target_orders}</td>
+      <tr><td><b>${b.courier}</b>${b.is_project_plan?'<span class="tag blue" style="margin-right:6px">كل الفرع</span>':''}</td><td>${escapeHtml(b.contract)} — ${escapeHtml(b.city)}</td><td>${b.target_orders}</td>
       <td><b>${b.bonus_amount} ر.س</b><br><small>يُصرف عند ${b.target_orders} طلب</small></td><td>${b.over_target_rate} ر.س / طلب زائد</td>
       <td><button class="btn ghost small" onclick="delBonus(${b.id})">حذف</button></td></tr>`).join("")
       || '<tr><td colspan="6" style="color:var(--muted)">لا خطط بونص بعد</td></tr>';
@@ -1656,18 +1647,20 @@ function previewBonus(){
   const example=target+40;
   el.innerHTML=`أقل من <b>${target}</b> طلب: البونص <b>0 ر.س</b><br>عند <b>${target}</b> طلب: <b>${amount} ر.س</b><br>عند <b>${example}</b> طلب: ${amount} + (40 × ${rate}) = <b>${amount+40*rate} ر.س</b>`;
 }
+let BONUS_COURIERS=[],BONUS_BRANCHES=[];
 async function openBonusModal(){
-  const [couriers,projects]=await Promise.all([api("/fleet/couriers"),api("/hr/projects")]);
-  document.getElementById("bnCourier").innerHTML=couriers.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
-  document.getElementById("bnProject").innerHTML=projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
+  const [couriers,contracts]=await Promise.all([api("/fleet/couriers"),api("/hr/contract-structure")]);
+  BONUS_COURIERS=couriers;BONUS_BRANCHES=contracts.flatMap(c=>(c.branches||[]).map(b=>({...b,contract:c.name})));
+  document.getElementById("bnProject").innerHTML=BONUS_BRANCHES.map(b=>`<option value="${b.id}">${escapeHtml(b.contract)} — ${escapeHtml(b.city)} — ${escapeHtml(b.supervisor||"بدون مشرف")}</option>`).join("");
   document.getElementById("bnMsg").textContent=""; document.getElementById("bonusModal").classList.add("open");
-  bnScope(); previewBonus();
+  bnProjectChanged(); previewBonus();
 }
+function bnProjectChanged(){const id=+document.getElementById("bnProject").value;const rows=BONUS_COURIERS.filter(c=>c.contract_branch_id===id);document.getElementById("bnCourier").innerHTML=rows.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")||'<option value="">لا يوجد مناديب في هذا الفرع</option>';bnScope()}
 function closeBonusModal(){ document.getElementById("bonusModal").classList.remove("open"); }
 async function saveBonus(){
   try{
     const body={
-      project_id:parseInt(document.getElementById("bnProject").value),
+      contract_branch_id:parseInt(document.getElementById("bnProject").value),
       target_orders:parseInt(document.getElementById("bnTarget").value||0),
       bonus_amount:parseFloat(document.getElementById("bnBonus").value||0),
       over_target_rate:parseFloat(document.getElementById("bnOver").value||0)
@@ -1678,12 +1671,6 @@ async function saveBonus(){
     document.getElementById("bnMsg").textContent="✅ حُفظت خطة البونص — تُحسب تلقائياً من السجل اليومي لكل مندوب";
     setTimeout(()=>{closeBonusModal();loadHR();},900);
   }catch(e){ document.getElementById("bnMsg").style.color="var(--red)"; document.getElementById("bnMsg").textContent="❌ "+e.message; }
-}
-async function addProject(){
-  const n=prompt("اسم المنصة/المشروع (مثال: هنقرستيشن):");
-  if(!n)return;
-  try{await api("/hr/projects",{method:"POST",body:JSON.stringify({name:n})});loadHR();}
-  catch(e){alert(e.message);}
 }
 async function hrExport(){
   const r=await fetch(API+"/hr/export",{headers:{Authorization:"Bearer "+TOKEN}});

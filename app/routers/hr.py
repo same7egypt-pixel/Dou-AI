@@ -427,7 +427,9 @@ def list_projects(user: User = Depends(get_current_user), db: Session = Depends(
     if user.role == UserRole.COURIER and user.courier_id:
         c = db.get(Courier, user.courier_id)
         tenant_id = c.tenant_id if c else tenant_id
-    q = db.query(Project).filter(Project.tenant_id == tenant_id) if tenant_id else db.query(Project)
+    branch_project_ids=[x[0] for x in db.query(ContractBranch.project_id).filter(ContractBranch.tenant_id==tenant_id,ContractBranch.is_active==True,ContractBranch.project_id.isnot(None)).all()] if tenant_id else []
+    if c and c.primary_project_id and c.primary_project_id not in branch_project_ids: branch_project_ids.append(c.primary_project_id)
+    q = db.query(Project).filter(Project.tenant_id == tenant_id,Project.id.in_(branch_project_ids)) if tenant_id else db.query(Project).filter(Project.id.in_(branch_project_ids))
     return [{"id": p.id, "name": p.name, "is_active": p.is_active,"is_current":bool(c and c.primary_project_id==p.id),"manager_id":p.manager_id,"manager":db.get(User,p.manager_id).name if p.manager_id and db.get(User,p.manager_id) else None} for p in q.all()]
 
 
@@ -435,25 +437,16 @@ def list_projects(user: User = Depends(get_current_user), db: Session = Depends(
 def create_project(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Admin only")
-    name = (payload.get("name") or "").strip()
-    if not name:
-        raise HTTPException(400, "Project name required")
-    manager_id=payload.get("manager_id")
-    manager=db.get(User,int(manager_id)) if manager_id else None
-    if manager and manager.tenant_id!=user.tenant_id: raise HTTPException(400,"مدير المشروع غير تابع للشركة")
-    p = Project(tenant_id=user.tenant_id, name=name, manager_id=manager.id if manager else None)
-    db.add(p)
-    db.commit()
-    db.refresh(p)
-    return {"ok": True, "id": p.id, "name": p.name}
+    raise HTTPException(409,"أضف المشروع من خلال عقد تجاري وفرع تشغيل؛ الإنشاء المنفصل متوقف")
 
 @router.post("/couriers/{cid}/transfer-project")
 def transfer_project(cid:int,payload:dict,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
     if user.role not in COMPANY_ROLES: raise HTTPException(403,"Admin only")
     c=_tenant_couriers(db,user).filter(Courier.id==cid).first(); p=db.get(Project,int(payload.get("project_id") or 0))
-    if not c or not p or p.tenant_id!=user.tenant_id: raise HTTPException(404,"Courier or project not found")
+    branch=db.query(ContractBranch).filter(ContractBranch.tenant_id==user.tenant_id,ContractBranch.project_id==p.id,ContractBranch.is_active==True).first() if p else None
+    if not c or not p or p.tenant_id!=user.tenant_id or not branch: raise HTTPException(404,"اختر فريق تشغيل تابعاً لعقد تجاري")
     db.add(ProjectTransfer(tenant_id=user.tenant_id,courier_id=cid,from_project_id=c.primary_project_id,to_project_id=p.id,changed_by=user.id,note=payload.get("note")))
-    c.primary_project_id=p.id;c.platform=p.name;db.commit();return {"ok":True}
+    c.primary_project_id=p.id;c.platform=p.name;c.contract_id=branch.contract_id;c.contract_branch_id=branch.id;c.work_city=branch.city;c.supervisor_id=branch.supervisor_id;db.commit();return {"ok":True}
 
 @router.get("/couriers/{cid}/project-history")
 def project_history(cid:int,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
@@ -568,13 +561,17 @@ def list_bonus(user: User = Depends(get_current_user), db: Session = Depends(get
     q = db.query(BonusPlan)
     if user.tenant_id is not None:
         q = q.filter(BonusPlan.tenant_id == user.tenant_id)
+    q = q.filter(BonusPlan.contract_branch_id.isnot(None))
     out = []
     for p in q.all():
         c = db.get(Courier, p.courier_id) if p.courier_id else None
         pj = db.get(Project, p.project_id)
+        branch = db.get(ContractBranch, p.contract_branch_id)
+        contract = db.get(Contract, branch.contract_id) if branch else None
         out.append({
-            "id": p.id, "courier_id": p.courier_id, "courier": c.name if c else "كل مندوبي المشروع",
+            "id": p.id, "courier_id": p.courier_id, "courier": c.name if c else "كل مندوبي الفرع",
             "project_id": p.project_id, "project": pj.name if pj else "—",
+            "contract_branch_id":p.contract_branch_id,"contract":contract.name if contract else "—","city":branch.city if branch else "—",
             "is_project_plan": p.courier_id is None,
             "target_orders": p.target_orders, "bonus_amount": p.bonus_amount,
             "over_target_rate": p.over_target_rate,
@@ -586,12 +583,16 @@ def list_bonus(user: User = Depends(get_current_user), db: Session = Depends(get
 def create_bonus(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Admin only")
-    pid = payload.get("project_id")
-    if not pid:
-        raise HTTPException(400, "project_id required")
-    pj = db.get(Project, pid)
-    if not pj or pj.tenant_id != user.tenant_id:
-        raise HTTPException(404, "Project not found in your fleet")
+    branch_id = payload.get("contract_branch_id")
+    if not branch_id: raise HTTPException(400,"اختر فرعاً تابعاً لعقد تجاري")
+    branch=db.get(ContractBranch,int(branch_id))
+    if not branch or branch.tenant_id!=user.tenant_id or not branch.is_active:
+        raise HTTPException(404,"فرع العقد غير موجود أو غير نشط")
+    contract=db.get(Contract,branch.contract_id)
+    if not contract or contract.tenant_id!=user.tenant_id or contract.contract_type!="COMMERCIAL":
+        raise HTTPException(400,"خطة البونص يجب أن ترتبط بعقد تجاري")
+    pid=branch.project_id;pj=db.get(Project,pid) if pid else None
+    if not pj or pj.tenant_id!=user.tenant_id: raise HTTPException(400,"فرع العقد غير مربوط بالتشغيل")
     try:
         target_orders = int(payload.get("target_orders") or 0)
         bonus_amount = float(payload.get("bonus_amount") or 0)
@@ -607,17 +608,18 @@ def create_bonus(payload: dict, user: User = Depends(get_current_user), db: Sess
         c = db.get(Courier, cid)
         if not c or c.tenant_id != user.tenant_id:
             raise HTTPException(404, "Courier not found in your fleet")
+        if c.contract_branch_id!=branch.id: raise HTTPException(400,"المندوب المختار غير تابع لهذا الفرع")
         # خطة مندوب محدد: فريد لكل (مندوب, مشروع)
-        dup = db.query(BonusPlan).filter(BonusPlan.courier_id == cid, BonusPlan.project_id == pid).first()
+        dup = db.query(BonusPlan).filter(BonusPlan.courier_id == cid, BonusPlan.contract_branch_id == branch.id).first()
         if dup:
             raise HTTPException(400, "هناك خطة بونص لهذا المندوب على هذا المشروع")
     else:
         # خطة مشروع عامة: واحدة لكل (مشروع)
-        dup = db.query(BonusPlan).filter(BonusPlan.courier_id.is_(None), BonusPlan.project_id == pid).first()
+        dup = db.query(BonusPlan).filter(BonusPlan.courier_id.is_(None), BonusPlan.contract_branch_id == branch.id).first()
         if dup:
             raise HTTPException(400, "هناك خطة بونص عامة لهذا المشروع")
     p = BonusPlan(
-        tenant_id=user.tenant_id, courier_id=cid, project_id=pid,
+        tenant_id=user.tenant_id, courier_id=cid, project_id=pid, contract_branch_id=branch.id,
         target_orders=target_orders,
         bonus_amount=bonus_amount,
         over_target_rate=over_target_rate,
@@ -625,7 +627,7 @@ def create_bonus(payload: dict, user: User = Depends(get_current_user), db: Sess
     db.add(p)
     db.commit()
     db.refresh(p)
-    _log(db, user, f"خطة بونص للمشروع {pj.name}" if not cid else f"خطة بونص للمندوب {c.name}", "bonus", p.id)
+    _log(db, user, f"خطة بونص لعقد {contract.name} — {branch.city}" if not cid else f"خطة بونص للمندوب {c.name}", "bonus", p.id)
     return {"ok": True, "id": p.id}
 
 
@@ -1286,7 +1288,8 @@ def create_contract(payload: dict, user: User = Depends(get_current_user), db: S
     )
     db.add(ct);db.flush()
     for city,sid in clean:
-        project=Project(tenant_id=user.tenant_id,name=f"{name} — {city}",is_active=True,manager_id=sid);db.add(project);db.flush()
+        supervisor_name=db.get(User,sid).name if sid else "بدون مشرف"
+        project=Project(tenant_id=user.tenant_id,name=f"{name} — {city} — {supervisor_name}",is_active=True,manager_id=sid);db.add(project);db.flush()
         db.add(ContractBranch(tenant_id=user.tenant_id,contract_id=ct.id,city=city,project_id=project.id,supervisor_id=sid,is_active=True))
     db.commit(); db.refresh(ct)
     _log(db, user, f"أنشأ عقد {name} حتى {end_dt}", "contract", ct.id)

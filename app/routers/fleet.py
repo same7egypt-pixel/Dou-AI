@@ -102,7 +102,9 @@ def _report_rows(db: Session, user: User, report_type: str,
         plans = db.query(BonusPlan).filter(
             BonusPlan.tenant_id == c.tenant_id,
             (BonusPlan.courier_id == c.id) | (BonusPlan.courier_id.is_(None)),
-        ).all()
+        )
+        plans = plans.filter(BonusPlan.contract_branch_id == c.contract_branch_id) if c.contract_branch_id else plans.filter(BonusPlan.contract_branch_id.is_(None))
+        plans = plans.all()
         covered = set()
         for plan in sorted(plans, key=lambda x: 1 if x.courier_id is None else 0):
             if plan.project_id in covered or (project_id and plan.project_id != project_id):

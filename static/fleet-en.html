@@ -372,11 +372,6 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
           <tbody id="supBody"></tbody></table>
         <p style="font-size:11px;color:var(--muted);margin-top:10px">💡 Supervisor logs in via <b>/static/supervisor-en.html</b>.</p>
       </div>
-      <div class="card"><h3>Projects / Platforms</h3>
-        <div class="opt"><div><b>Add a platform or project</b><small>e.g. HungerStation, Jahez, Marsool</small></div>
-          <button class="btn small" onclick="addProject()">+ Platform</button></div>
-        <div id="projectsBody"></div>
-      </div>
       <div class="card"><h3>Bonus Plans — monthly target + reward + over-target pay</h3>
         <div class="opt"><div><b>Create a bonus plan</b><small>e.g. 460 orders → 2000 SAR + 5 SAR per extra order</small></div>
           <button class="btn small" onclick="openBonusModal()">+ Bonus Plan</button></div>
@@ -533,10 +528,10 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 <div class="modal" id="bonusModal">
   <div class="modalBox">
     <h3>🎯 Bonus Plan — target + reward + over-target pay</h3>
-    <label class="fLabel">Platform/Project</label><select id="bnProject" class="fInput" onchange="bnScope()"></select>
+    <label class="fLabel">Commercial contract / city branch</label><select id="bnProject" class="fInput" onchange="bnProjectChanged()"></select>
     <label class="fLabel">Scope</label><select id="bnScope" class="fInput" onchange="bnScope()">
-      <option value="project">All couriers of this project (one plan)</option>
-      <option value="courier">A specific courier on this project</option></select>
+      <option value="project">All couriers in this branch (one plan)</option>
+      <option value="courier">A specific courier in this branch</option></select>
     <div id="bnCourierWrap"><label class="fLabel">Courier</label><select id="bnCourier" class="fInput"></select></div>
     <label class="fLabel">Monthly target (orders)</label><input id="bnTarget" type="number" class="fInput" placeholder="460">
     <label class="fLabel">Reward at target (SAR)</label><input id="bnBonus" type="number" class="fInput" placeholder="2000">
@@ -549,7 +544,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
   <div class="modalBox">
     <h3>📄 New Contract</h3>
     <label class="fLabel">Client / platform name</label><input id="hrCtName" class="fInput" placeholder="e.g. HungerStation">
-    <div class="hrEmptyGuide">The commercial contract contains no salary or bonus. Add city branches and supervisors, then configure compensation by branch in Performance & Bonus.</div>
+    <div class="hrEmptyGuide">Each row is an operating team: city + supervisor. Repeat the same city with a different supervisor when driver volume requires multiple teams. Configure targets and bonuses per team.</div>
     <label class="fLabel">Operating branches</label><div id="hrCtBranches"></div><button class="btn ghost small" type="button" onclick="addContractBranchRow()">+ Add city</button>
     <label class="fLabel">End date</label><input id="hrCtEnd" type="date" class="fInput">
     <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveHrContract()">Save contract</button><button class="btn ghost" onclick="closeHrContract()">Cancel</button></div>
@@ -766,7 +761,7 @@ function renderOrders(){
 }
 
 let COURIER_CONTRACTS=[];async function toggleAddCourier(){const box=document.getElementById("addCourierBox"),opening=box.style.display==="none";box.style.display=opening?"block":"none";if(!opening)return;COURIER_CONTRACTS=await api("/hr/contract-structure");document.getElementById("cContract").innerHTML='<option value="">Select contract *</option>'+COURIER_CONTRACTS.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");courierContractChanged()}
-function courierContractChanged(){const c=COURIER_CONTRACTS.find(x=>x.id==document.getElementById("cContract").value);document.getElementById("cBranch").innerHTML='<option value="">Select city / branch *</option>'+((c?.branches||[]).map(b=>`<option value="${b.id}">${escapeHtml(b.city)}</option>`).join(""));courierBranchChanged()}
+function courierContractChanged(){const c=COURIER_CONTRACTS.find(x=>x.id==document.getElementById("cContract").value);document.getElementById("cBranch").innerHTML='<option value="">Select operating team *</option>'+((c?.branches||[]).map(b=>`<option value="${b.id}">${escapeHtml(b.city)} — ${escapeHtml(b.supervisor||"No supervisor")}</option>`).join(""));courierBranchChanged()}
 function courierBranchChanged(){const c=COURIER_CONTRACTS.find(x=>x.id==document.getElementById("cContract").value),b=c?.branches.find(x=>x.id==document.getElementById("cBranch").value);document.getElementById("cWorkCity").value=b?.city||"";document.getElementById("cSupervisor").innerHTML=b?.supervisor_id?`<option value="${b.supervisor_id}">${escapeHtml(b.supervisor||"")}</option>`:'<option value="">No supervisor assigned to this branch</option>'}
 async function addCourier(){
   const msg = document.getElementById("courierMsg");
@@ -1165,7 +1160,7 @@ function setupHRWorkspace(){
   const view=document.getElementById("view-hr");if(!view||view.dataset.organized)return;
   view.dataset.organized="1";
   const metrics=document.getElementById("hrMetricCards");if(metrics)document.getElementById("hrPane-overview").appendChild(metrics);
-  [["vBody","overview"],["supBody","people"],["projectsBody","people"],["hrLeaves","requests"],["payBody","payroll"],["contractsBody","compliance"],["bonusBody","performance"],["lbBody","performance"]].forEach(x=>moveHRCard(x[0],x[1]));
+  [["vBody","overview"],["supBody","people"],["hrLeaves","requests"],["payBody","payroll"],["contractsBody","compliance"],["bonusBody","performance"],["lbBody","performance"]].forEach(x=>moveHRCard(x[0],x[1]));
   showHRTab(sessionStorage.getItem("dou_hr_tab")||"overview");
 }
 function setHRPendingCount(n){const a=document.getElementById("hrPendingCount"),b=document.getElementById("hrTabPending");if(a)a.textContent=n;if(b){b.textContent=n;b.style.display=n?"inline-grid":"none"}}
@@ -1174,7 +1169,6 @@ async function loadHR(){
     setupHRWorkspace();
     const dash = await api("/hr/dashboard");
     const sups = await api("/hr/supervisors");
-    const projects = await api("/hr/projects");
     const bonus = await api("/hr/bonus");
     const leaves = await api("/hr/leaves");
     setHRPendingCount(leaves.filter(x=>["PENDING","SUPERVISOR_APPROVED"].includes(x.status)).length);
@@ -1187,11 +1181,8 @@ async function loadHR(){
       <td>${s.is_active?'<span class="tag green">Active</span>':'<span class="tag gray">Disabled</span>'}</td>
       <td><button class="btn ghost small" onclick="toggleSup(${s.id},${s.is_active})">${s.is_active?'Disable':'Enable'}</button></td></tr>`).join("")
       || '<tr><td colspan="5" style="color:var(--muted)">No supervisors yet — add the first one</td></tr>';
-    document.getElementById("projectsBody").innerHTML = projects.map(p=>`
-      <div class="opt"><div><b>${p.name}</b><small>${p.is_active?'Active':'Disabled'}</small></div></div>`).join("")
-      || '<p style="color:var(--muted)">No projects — add a platform (HungerStation/Jahez...)</p>';
     document.getElementById("bonusBody").innerHTML = bonus.map(b=>`
-      <tr><td><b>${b.courier}</b>${b.is_project_plan?'<span class="tag blue" style="margin-right:6px">All couriers</span>':''}</td><td>${b.project}</td><td>${b.target_orders}</td>
+      <tr><td><b>${b.courier}</b>${b.is_project_plan?'<span class="tag blue" style="margin-right:6px">All branch couriers</span>':''}</td><td>${escapeHtml(b.contract)} — ${escapeHtml(b.city)}</td><td>${b.target_orders}</td>
       <td>${b.bonus_amount} SAR</td><td>${b.over_target_rate} SAR</td>
       <td><button class="btn ghost small" onclick="delBonus(${b.id})">Delete</button></td></tr>`).join("")
       || '<tr><td colspan="6" style="color:var(--muted)">No bonus plans yet</td></tr>';
@@ -1310,18 +1301,20 @@ function bnScope(){
   const show=document.getElementById("bnScope").value==="courier";
   document.getElementById("bnCourierWrap").style.display=show?"block":"none";
 }
+let BONUS_COURIERS=[],BONUS_BRANCHES=[];
 async function openBonusModal(){
-  const [couriers,projects]=await Promise.all([api("/fleet/couriers"),api("/hr/projects")]);
-  document.getElementById("bnCourier").innerHTML=couriers.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
-  document.getElementById("bnProject").innerHTML=projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
+  const [couriers,contracts]=await Promise.all([api("/fleet/couriers"),api("/hr/contract-structure")]);
+  BONUS_COURIERS=couriers;BONUS_BRANCHES=contracts.flatMap(c=>(c.branches||[]).map(b=>({...b,contract:c.name})));
+  document.getElementById("bnProject").innerHTML=BONUS_BRANCHES.map(b=>`<option value="${b.id}">${escapeHtml(b.contract)} — ${escapeHtml(b.city)} — ${escapeHtml(b.supervisor||"No supervisor")}</option>`).join("");
   document.getElementById("bnMsg").textContent=""; document.getElementById("bonusModal").classList.add("open");
-  bnScope();
+  bnProjectChanged();
 }
+function bnProjectChanged(){const id=+document.getElementById("bnProject").value;const rows=BONUS_COURIERS.filter(c=>c.contract_branch_id===id);document.getElementById("bnCourier").innerHTML=rows.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")||'<option value="">No couriers in this branch</option>';bnScope()}
 function closeBonusModal(){ document.getElementById("bonusModal").classList.remove("open"); }
 async function saveBonus(){
   try{
     const body={
-      project_id:parseInt(document.getElementById("bnProject").value),
+      contract_branch_id:parseInt(document.getElementById("bnProject").value),
       target_orders:parseInt(document.getElementById("bnTarget").value||0),
       bonus_amount:parseFloat(document.getElementById("bnBonus").value||0),
       over_target_rate:parseFloat(document.getElementById("bnOver").value||0)
@@ -1332,12 +1325,6 @@ async function saveBonus(){
     document.getElementById("bnMsg").textContent="✅ Bonus plan saved — calculated automatically from daily logs for each courier";
     setTimeout(()=>{closeBonusModal();loadHR();},900);
   }catch(e){ document.getElementById("bnMsg").style.color="var(--red)"; document.getElementById("bnMsg").textContent="❌ "+e.message; }
-}
-async function addProject(){
-  const n=prompt("Platform/project name (e.g. HungerStation):");
-  if(!n)return;
-  try{await api("/hr/projects",{method:"POST",body:JSON.stringify({name:n})});loadHR();}
-  catch(e){alert(e.message);}
 }
 async function hrExport(){
   const r=await fetch(API+"/hr/export",{headers:{Authorization:"Bearer "+TOKEN}});
