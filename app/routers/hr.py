@@ -1175,6 +1175,19 @@ def hr_leaderboard(user: User = Depends(get_current_user), db: Session = Depends
 
 # ===================== الأدمن: كشف الرواتب (Payroll) =====================
 
+def _contract_courier_ids(ct, db):
+    if ct.scope_type in ("COURIER", "MANUAL") and ct.courier_ids:
+        try: return [int(x) for x in json.loads(ct.courier_ids)]
+        except (ValueError, TypeError, json.JSONDecodeError): return []
+    if ct.project_id:
+        return [x[0] for x in db.query(Courier.id).filter(Courier.tenant_id==ct.tenant_id, Courier.primary_project_id==ct.project_id).all()]
+    return []
+
+def _effective_contract(courier, contracts, db):
+    matches=[ct for ct in contracts if courier.id in _contract_courier_ids(ct,db)]
+    priority={"COURIER":3,"MANUAL":2,"PROJECT":1,"LEGACY":0}
+    return max(matches,key=lambda x:(priority.get(x.scope_type or "LEGACY",0),x.created_at or datetime.min),default=None)
+
 @router.get("/payroll")
 def hr_payroll(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """كشف رواتب شهر محدد: راتب ثابت + (أوردرات × أجر التوصيلة) + بونص."""
@@ -1182,16 +1195,19 @@ def hr_payroll(user: User = Depends(get_current_user), db: Session = Depends(get
         raise HTTPException(403, "Admin only")
     rows = []
     grand = {"fixed": 0.0, "delivery": 0.0, "bonus": 0.0, "total": 0.0}
+    contracts=db.query(Contract).filter(Contract.tenant_id==user.tenant_id,Contract.status=="ACTIVE").all()
     for c in _tenant_couriers(db, user).all():
         j = _courier_json(c, db)
-        fixed = c.base_salary or 0
-        delivery = (j["month_orders"] * (c.per_delivery_rate or 0))
+        ct=_effective_contract(c,contracts,db)
+        fixed = (ct.base_salary if ct else c.base_salary) or 0
+        rate = (ct.per_delivery_rate if ct else c.per_delivery_rate) or 0
+        delivery = (j["month_orders"] * rate)
         bonus = j["bonus"]["total"]
         adjs=db.query(PayrollAdjustment).filter(PayrollAdjustment.courier_id==c.id,PayrollAdjustment.month==date.today().strftime("%Y-%m")).all()
         additions=sum(x.amount or 0 for x in adjs if x.kind=="OVERTIME"); deductions=sum(x.amount or 0 for x in adjs if x.kind!="OVERTIME")
         total = round(fixed + delivery + bonus + additions - deductions, 2)
         rows.append({"id": c.id, "name": c.name, "phone": c.phone, "platform": c.platform or "—",
-                     "zone": c.zone, "orders": j["month_orders"], "fixed": round(fixed, 2),
+                     "zone": c.zone, "orders": j["month_orders"], "fixed": round(fixed, 2), "contract":ct.name if ct else "—",
                      "delivery": round(delivery, 2), "bonus": round(bonus, 2), "additions":round(additions,2),"deductions":round(deductions,2), "total": total,
                      "average_per_order": round(delivery / j["month_orders"], 2) if j["month_orders"] else 0,
                      "bank_iban": c.bank_iban or "—"})
@@ -1220,8 +1236,11 @@ def hr_contracts(user: User = Depends(get_current_user), db: Session = Depends(g
             status = "EXPIRED"
         elif days is not None and days <= 30:
             status = "EXPIRING"
+        ids=_contract_courier_ids(ct,db); names=[x[0] for x in db.query(Courier.name).filter(Courier.id.in_(ids)).order_by(Courier.name).all()] if ids else []
+        project=db.get(Project,ct.project_id) if ct.project_id else None
         rows.append({"id": ct.id, "name": ct.name, "contract_type": ct.contract_type,
-                     "duration_months": ct.duration_months, "couriers_count": ct.couriers_count,
+                     "scope_type":ct.scope_type or "LEGACY","project_id":ct.project_id,"project":project.name if project else None,
+                     "courier_ids":ids,"courier_names":names,"duration_months": ct.duration_months, "couriers_count": len(ids),
                      "base_salary": ct.base_salary or 0, "per_delivery_rate": ct.per_delivery_rate or 0,
                      "status": status, "days_left": days,
                      "end_date": ct.end_date.isoformat() if ct.end_date else None})
@@ -1246,19 +1265,27 @@ def create_contract(payload: dict, user: User = Depends(get_current_user), db: S
         end_dt = date.today() + timedelta(days=365)
     try:
         duration_months = int(payload.get("duration_months") or 12)
-        couriers_count = int(payload.get("couriers_count") or 0)
         base_salary = float(payload.get("base_salary") or 0)
         per_delivery_rate = float(payload.get("per_delivery_rate") or 6)
     except (ValueError, TypeError):
         raise HTTPException(400, "قيم رقمية غير صالحة في العقد")
-    project=db.query(Project).filter(Project.tenant_id==user.tenant_id,Project.name==name).first()
-    if not project: project=Project(tenant_id=user.tenant_id,name=name,is_active=True);db.add(project);db.flush()
+    scope=(payload.get("scope_type") or "PROJECT").upper()
+    if scope not in ("COURIER","PROJECT","MANUAL"): raise HTTPException(400,"نوع ربط العقد غير صالح")
+    project_id=int(payload["project_id"]) if payload.get("project_id") else None
+    project=db.get(Project,project_id) if project_id else None
+    if scope=="PROJECT" and (not project or project.tenant_id!=user.tenant_id): raise HTTPException(400,"اختر مشروعاً تابعاً للشركة")
+    raw_ids=payload.get("courier_ids") or []
+    try: courier_ids=list(dict.fromkeys(int(x) for x in raw_ids))
+    except (ValueError,TypeError): raise HTTPException(400,"اختيار المناديب غير صالح")
+    valid_ids={x[0] for x in db.query(Courier.id).filter(Courier.tenant_id==user.tenant_id,Courier.id.in_(courier_ids)).all()} if courier_ids else set()
+    if scope in ("COURIER","MANUAL") and (not courier_ids or len(valid_ids)!=len(courier_ids)): raise HTTPException(400,"اختر مندوباً واحداً على الأقل من الشركة")
+    if scope=="COURIER" and len(courier_ids)!=1: raise HTTPException(400,"عقد الموظف يجب أن يرتبط بمندوب واحد")
     ct = Contract(
         tenant_id=user.tenant_id, name=name,
-        project_id=project.id,
+        project_id=project.id if project else None, scope_type=scope, courier_ids=json.dumps(courier_ids),
         contract_type=payload.get("contract_type", "FIXED"),
         duration_months=duration_months,
-        couriers_count=couriers_count,
+        couriers_count=len(courier_ids) if scope!="PROJECT" else db.query(Courier).filter(Courier.tenant_id==user.tenant_id,Courier.primary_project_id==project.id).count(),
         base_salary=base_salary,
         per_delivery_rate=per_delivery_rate,
         status="ACTIVE", end_date=end_dt,

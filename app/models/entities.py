@@ -390,6 +390,8 @@ class Contract(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id"))
     fleet_id = Column(Integer, ForeignKey("fleets.id"))
     project_id = Column(Integer, ForeignKey("projects.id"))
+    scope_type = Column(String(20), default="PROJECT")  # COURIER / PROJECT / MANUAL / LEGACY
+    courier_ids = Column(Text)                           # JSON list for direct/manual assignment
     name = Column(String(120), nullable=False)
     contract_type = Column(String(20), default="FIXED")   # FIXED / PER_DELIVERY
     duration_months = Column(Integer, default=12)

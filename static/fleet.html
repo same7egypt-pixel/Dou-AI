@@ -306,10 +306,6 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="card"><h3>الرواتب والحوافز — حسب عقود المناديب</h3>
         <table><thead><tr><th>المندوب</th><th>النوع</th><th>الحالة</th><th>ثابت</th><th>أجر/توصيلة</th><th>توصيلات</th><th>أرباح التوصيلات</th><th>البونص</th><th>الإجمالي</th><th>IBAN</th></tr></thead>
         <tbody id="payBody"></tbody></table></div>
-      <div class="card"><h3>إدارة العقود</h3>
-        <div id="contractsBody"></div>
-        <button class="btn ghost small" style="margin-top:8px" onclick="openContractModal()">+ عقد جديد</button>
-      </div>
     </section>
 
     <section id="view-channels" style="display:none">
@@ -416,13 +412,12 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
           <div class="metric trend"><b id="payBonus">–</b><span>البونص</span></div>
           <div class="metric alert"><b id="payTotal">–</b><span>الإجمالي</span></div>
         </div>
-        <table><thead><tr><th>المندوب</th><th>المنصة</th><th>أوردرات</th><th>الثابت</th><th>التوصيل</th><th>البونص</th><th>الإجمالي</th><th>الـIBAN</th></tr></thead>
+        <table><thead><tr><th>المندوب</th><th>العقد المطبق</th><th>المنصة</th><th>أوردرات</th><th>الثابت</th><th>التوصيل</th><th>البونص</th><th>الإجمالي</th><th>الـIBAN</th></tr></thead>
           <tbody id="payBody"></tbody></table>
       </div>
-      <div class="card"><h3>📄 عقود التعاقد <span style="color:var(--muted);font-weight:400;font-size:11px">(تنبيه قبل انتهاء العقد بـ 30 يوم)</span></h3>
-        <div class="opt"><div><b>إضافة عقد جديد</b><small>عقد مندوبين/أسطول مع تاريخ انتهاء</small></div>
-          <button class="btn small" onclick="openHrContract()">+ عقد</button></div>
-        <table><thead><tr><th>العقد</th><th>النوع</th><th>المدة</th><th>المناديب</th><th>الراتب الثابت</th><th>أجر التوصيلة</th><th>الانتهاء</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+      <div class="card"><h3>📄 العقود المرتبطة <span style="color:var(--muted);font-weight:400;font-size:11px">(تُطبق على المستحقات + تنبيه قبل الانتهاء بـ30 يوم)</span></h3>
+        <div class="opt"><div><b>إنشاء عقد وربطه فعليًا</b><small>لموظف محدد، مشروع كامل، أو مجموعة مناديب مختارة</small></div><button class="btn small" onclick="openHrContract()">+ إنشاء عقد مرتبط</button></div>
+        <table><thead><tr><th>العقد</th><th>النطاق</th><th>المشمولون</th><th>الراتب الثابت</th><th>أجر التوصيلة</th><th>الانتهاء</th><th>الحالة</th><th>إجراءات</th></tr></thead>
           <tbody id="contractsBody"></tbody></table>
       </div>
       <div class="card"><h3>🚨 كشف التجاوزات</h3>
@@ -684,9 +679,11 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
   <div class="modalBox">
     <h3>📄 عقد جديد</h3>
     <label class="fLabel">اسم العقد</label><input id="hrCtName" class="fInput" placeholder="عقد مناديب الرياض 2026">
+    <label class="fLabel">نطاق العقد</label><select id="hrCtScope" class="fInput" onchange="updateContractScope()"><option value="COURIER">موظف / مندوب محدد</option><option value="PROJECT">مشروع أو أسطول كامل</option><option value="MANUAL">مجموعة مناديب مختارة يدويًا</option></select>
+    <div id="hrCtProjectWrap" style="display:none"><label class="fLabel">المشروع</label><select id="hrCtProject" class="fInput"></select><small style="color:var(--muted)">يشمل تلقائيًا كل المناديب المسندين للمشروع.</small></div>
+    <div id="hrCtCouriersWrap"><label class="fLabel">المناديب المشمولون</label><select id="hrCtCouriers" class="fInput" multiple size="6"></select><small style="color:var(--muted)">استخدم Ctrl أو ⌘ لاختيار أكثر من مندوب.</small></div>
     <label class="fLabel">النوع</label><select id="hrCtType" class="fInput"><option value="FIXED">راتب ثابت</option><option value="PER_DELIVERY">أجر التوصيلة</option></select>
-    <div class="form-row"><input id="hrCtMonths" type="number" class="fInput" placeholder="المدة بالشهور" value="12">
-      <input id="hrCtCount" type="number" class="fInput" placeholder="عدد المناديب"></div>
+    <div class="form-row"><input id="hrCtMonths" type="number" class="fInput" placeholder="المدة بالشهور" value="12"></div>
     <div class="form-row"><input id="hrCtBase" type="number" class="fInput" placeholder="الراتب الثابت الشهري (ر.س)" value="0">
       <input id="hrCtRate" type="number" class="fInput" placeholder="أجر التوصيلة (ر.س)" value="6"></div>
     <label class="fLabel">تاريخ الانتهاء</label><input id="hrCtEnd" type="date" class="fInput">
@@ -1623,10 +1620,10 @@ async function loadPayroll(){
     document.getElementById("payBonus").textContent = p.totals.bonus;
     document.getElementById("payTotal").textContent = p.totals.total;
     document.getElementById("payBody").innerHTML = p.rows.map(r=>`
-      <tr><td><b>${r.name}</b></td><td>${r.platform}</td><td>${r.orders}</td>
+      <tr><td><b>${r.name}</b></td><td>${escapeHtml(r.contract||"—")}</td><td>${r.platform}</td><td>${r.orders}</td>
       <td>${r.fixed}</td><td>${r.delivery}</td><td>${r.bonus}</td><td><b>${r.total} ر.س</b></td>
       <td dir="ltr" style="font-size:11px">${r.bank_iban}</td></tr>`).join("")
-      || '<tr><td colspan="8" style="color:var(--muted)">لا مناديب</td></tr>';
+      || '<tr><td colspan="9" style="color:var(--muted)">لا مناديب</td></tr>';
   }catch(e){}
 }
 async function loadContracts(){
@@ -1634,9 +1631,9 @@ async function loadContracts(){
     const ct = await api("/hr/contracts");
     const statusT = {ACTIVE:'<span class="tag green">نشط</span>',EXPIRING:'<span class="tag amber">قرب الانتهاء</span>',EXPIRED:'<span class="tag red">منتهي</span>'};
     document.getElementById("contractsBody").innerHTML = ct.rows.map(c=>`
-      <tr><td><b>${c.name}</b></td><td>${c.contract_type==="FIXED"?"ثابت":"أجر التوصيلة"}</td>
-      <td>${c.duration_months} شهر</td><td>${c.couriers_count}</td><td>${c.base_salary} ر.س</td>
-      <td>${c.per_delivery_rate} ر.س</td><td>${c.end_date||'—'}</td>
+      <tr><td><b>${escapeHtml(c.name)}</b><br><small>${c.contract_type==="FIXED"?"راتب ثابت":"أجر توصيل"}</small></td><td>${{COURIER:"مندوب محدد",PROJECT:"مشروع كامل",MANUAL:"اختيار يدوي",LEGACY:"عقد قديم"}[c.scope_type]||c.scope_type}</td>
+      <td><b>${c.couriers_count}</b><br><small>${escapeHtml(c.project||c.courier_names.join("، ")||"غير مربوط")}</small></td><td>${c.base_salary} ر.س</td>
+      <td>${c.per_delivery_rate} ر.س</td><td>${c.end_date?c.end_date.slice(0,10):'—'}</td>
       <td>${statusT[c.status]||c.status}</td>
       <td><button class="btn blue small" onclick="renewContract(${c.id})">↻ تجديد</button></td></tr>`).join("")
       || '<tr><td colspan="9" style="color:var(--muted)">لا عقود بعد — أضف عقد التعاقد الأول</td></tr>';
@@ -1651,7 +1648,8 @@ async function renewContract(id){
     loadContracts();
   }catch(e){alert(e.message);}
 }
-function openHrContract(){ document.getElementById("hrCtMsg").textContent=""; document.getElementById("hrCModal").classList.add("open"); }
+async function openHrContract(){document.getElementById("hrCtMsg").textContent="";const [projects,couriers]=await Promise.all([api("/hr/projects"),api("/hr/couriers")]);document.getElementById("hrCtProject").innerHTML=projects.map(x=>`<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("");document.getElementById("hrCtCouriers").innerHTML=couriers.map(x=>`<option value="${x.id}">${escapeHtml(x.name)} · ${escapeHtml(x.platform||"بدون مشروع")}</option>`).join("");updateContractScope();document.getElementById("hrCModal").classList.add("open")}
+function updateContractScope(){const s=document.getElementById("hrCtScope").value;document.getElementById("hrCtProjectWrap").style.display=s==="PROJECT"?"block":"none";document.getElementById("hrCtCouriersWrap").style.display=s==="PROJECT"?"none":"block";document.getElementById("hrCtCouriers").multiple=s==="MANUAL";document.getElementById("hrCtCouriers").size=s==="MANUAL"?6:1}
 function closeHrContract(){ document.getElementById("hrCModal").classList.remove("open"); }
 async function saveHrContract(){
   try{
@@ -1659,7 +1657,9 @@ async function saveHrContract(){
       name:document.getElementById("hrCtName").value.trim(),
       contract_type:document.getElementById("hrCtType").value,
       duration_months:parseInt(document.getElementById("hrCtMonths").value||12),
-      couriers_count:parseInt(document.getElementById("hrCtCount").value||0),
+      scope_type:document.getElementById("hrCtScope").value,
+      project_id:document.getElementById("hrCtScope").value==="PROJECT"?document.getElementById("hrCtProject").value:null,
+      courier_ids:document.getElementById("hrCtScope").value!=="PROJECT"?[...document.getElementById("hrCtCouriers").selectedOptions].map(x=>Number(x.value)):[],
       base_salary:parseFloat(document.getElementById("hrCtBase").value||0),
       per_delivery_rate:parseFloat(document.getElementById("hrCtRate").value||6),
       end_date:document.getElementById("hrCtEnd").value||null,

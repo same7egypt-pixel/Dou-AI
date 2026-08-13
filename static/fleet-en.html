@@ -294,10 +294,6 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="card"><h3>Payroll &amp; Bonuses — Per Courier Contracts</h3>
         <table><thead><tr><th>Courier</th><th>Type</th><th>Status</th><th>Fixed</th><th>Rate/Delivery</th><th>Deliveries</th><th>Delivery Earnings</th><th>Bonus</th><th>Total</th><th>IBAN</th></tr></thead>
         <tbody id="payBody"></tbody></table></div>
-      <div class="card"><h3>Contract Management</h3>
-        <div id="contractsBody"></div>
-        <button class="btn ghost small" style="margin-top:8px" onclick="openContractModal()">+ New Contract</button>
-      </div>
     </section>
 
     <section id="view-channels" style="display:none">
@@ -400,13 +396,12 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
           <div class="metric trend"><b id="payBonus">–</b><span>Bonus</span></div>
           <div class="metric alert"><b id="payTotal">–</b><span>Total</span></div>
         </div>
-        <table><thead><tr><th>Courier</th><th>Platform</th><th>Orders</th><th>Fixed</th><th>Delivery</th><th>Bonus</th><th>Total</th><th>IBAN</th></tr></thead>
+        <table><thead><tr><th>Courier</th><th>Applied Contract</th><th>Platform</th><th>Orders</th><th>Fixed</th><th>Delivery</th><th>Bonus</th><th>Total</th><th>IBAN</th></tr></thead>
           <tbody id="payBody"></tbody></table>
       </div>
-      <div class="card"><h3>📄 Contracts <span style="color:var(--muted);font-weight:400;font-size:11px">(alert 30 days before expiry)</span></h3>
-        <div class="opt"><div><b>Add a contract</b><small>Courier/fleet contract with an end date</small></div>
-          <button class="btn small" onclick="openHrContract()">+ Contract</button></div>
-        <table><thead><tr><th>Contract</th><th>Type</th><th>Duration</th><th>Couriers</th><th>Base</th><th>Per Delivery</th><th>End Date</th><th>Status</th><th>Actions</th></tr></thead>
+      <div class="card"><h3>📄 Linked Contracts <span style="color:var(--muted);font-weight:400;font-size:11px">(applied to estimates + 30-day expiry alert)</span></h3>
+        <div class="opt"><div><b>Create and link a contract</b><small>For one employee, an entire project, or selected drivers</small></div><button class="btn small" onclick="openHrContract()">+ Linked Contract</button></div>
+        <table><thead><tr><th>Contract</th><th>Scope</th><th>Covered Drivers</th><th>Base</th><th>Per Delivery</th><th>End Date</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody id="contractsBody"></tbody></table>
       </div>
       <div class="card"><h3>🚨 Violations</h3>
@@ -574,9 +569,11 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
   <div class="modalBox">
     <h3>📄 New Contract</h3>
     <label class="fLabel">Contract name</label><input id="hrCtName" class="fInput" placeholder="Riyadh couriers 2026">
+    <label class="fLabel">Contract scope</label><select id="hrCtScope" class="fInput" onchange="updateContractScope()"><option value="COURIER">Specific employee / driver</option><option value="PROJECT">Entire project or fleet</option><option value="MANUAL">Manually selected drivers</option></select>
+    <div id="hrCtProjectWrap" style="display:none"><label class="fLabel">Project</label><select id="hrCtProject" class="fInput"></select><small style="color:var(--muted)">Automatically covers all drivers assigned to this project.</small></div>
+    <div id="hrCtCouriersWrap"><label class="fLabel">Covered drivers</label><select id="hrCtCouriers" class="fInput" multiple size="6"></select><small style="color:var(--muted)">Use Ctrl or ⌘ to select multiple drivers.</small></div>
     <label class="fLabel">Type</label><select id="hrCtType" class="fInput"><option value="FIXED">Fixed salary</option><option value="PER_DELIVERY">Per delivery</option></select>
-    <div class="form-row"><input id="hrCtMonths" type="number" class="fInput" placeholder="Duration (months)" value="12">
-      <input id="hrCtCount" type="number" class="fInput" placeholder="Couriers count"></div>
+    <div class="form-row"><input id="hrCtMonths" type="number" class="fInput" placeholder="Duration (months)" value="12"></div>
     <div class="form-row"><input id="hrCtBase" type="number" class="fInput" placeholder="Monthly base (SAR)" value="0">
       <input id="hrCtRate" type="number" class="fInput" placeholder="Per delivery (SAR)" value="6"></div>
     <label class="fLabel">End date</label><input id="hrCtEnd" type="date" class="fInput">
@@ -1317,10 +1314,10 @@ async function loadPayroll(){
     document.getElementById("payBonus").textContent = p.totals.bonus;
     document.getElementById("payTotal").textContent = p.totals.total;
     document.getElementById("payBody").innerHTML = p.rows.map(r=>`
-      <tr><td><b>${r.name}</b></td><td>${r.platform}</td><td>${r.orders}</td>
+      <tr><td><b>${r.name}</b></td><td>${escapeHtml(r.contract||"—")}</td><td>${r.platform}</td><td>${r.orders}</td>
       <td>${r.fixed}</td><td>${r.delivery}</td><td>${r.bonus}</td><td><b>${r.total} SAR</b></td>
       <td dir="ltr" style="font-size:11px">${r.bank_iban}</td></tr>`).join("")
-      || '<tr><td colspan="8" style="color:var(--muted)">No couriers</td></tr>';
+      || '<tr><td colspan="9" style="color:var(--muted)">No couriers</td></tr>';
   }catch(e){}
 }
 async function loadContracts(){
@@ -1328,9 +1325,9 @@ async function loadContracts(){
     const ct = await api("/hr/contracts");
     const statusT = {ACTIVE:'<span class="tag green">Active</span>',EXPIRING:'<span class="tag amber">Expiring</span>',EXPIRED:'<span class="tag red">Expired</span>'};
     document.getElementById("contractsBody").innerHTML = ct.rows.map(c=>`
-      <tr><td><b>${c.name}</b></td><td>${c.contract_type==="FIXED"?"Fixed":"Per delivery"}</td>
-      <td>${c.duration_months} mo</td><td>${c.couriers_count}</td><td>${c.base_salary} SAR</td>
-      <td>${c.per_delivery_rate} SAR</td><td>${c.end_date||'—'}</td>
+      <tr><td><b>${escapeHtml(c.name)}</b><br><small>${c.contract_type==="FIXED"?"Fixed salary":"Per delivery"}</small></td><td>${{COURIER:"Specific driver",PROJECT:"Entire project",MANUAL:"Manual selection",LEGACY:"Legacy"}[c.scope_type]||c.scope_type}</td>
+      <td><b>${c.couriers_count}</b><br><small>${escapeHtml(c.project||c.courier_names.join(", ")||"Not linked")}</small></td><td>${c.base_salary} SAR</td>
+      <td>${c.per_delivery_rate} SAR</td><td>${c.end_date?c.end_date.slice(0,10):'—'}</td>
       <td>${statusT[c.status]||c.status}</td>
       <td><button class="btn blue small" onclick="renewContract(${c.id})">↻ Renew</button></td></tr>`).join("")
       || '<tr><td colspan="9" style="color:var(--muted)">No contracts yet — add the first one</td></tr>';
@@ -1345,7 +1342,8 @@ async function renewContract(id){
     loadContracts();
   }catch(e){alert(e.message);}
 }
-function openHrContract(){ document.getElementById("hrCtMsg").textContent=""; document.getElementById("hrCModal").classList.add("open"); }
+async function openHrContract(){document.getElementById("hrCtMsg").textContent="";const [projects,couriers]=await Promise.all([api("/hr/projects"),api("/hr/couriers")]);document.getElementById("hrCtProject").innerHTML=projects.map(x=>`<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("");document.getElementById("hrCtCouriers").innerHTML=couriers.map(x=>`<option value="${x.id}">${escapeHtml(x.name)} · ${escapeHtml(x.platform||"No project")}</option>`).join("");updateContractScope();document.getElementById("hrCModal").classList.add("open")}
+function updateContractScope(){const s=document.getElementById("hrCtScope").value;document.getElementById("hrCtProjectWrap").style.display=s==="PROJECT"?"block":"none";document.getElementById("hrCtCouriersWrap").style.display=s==="PROJECT"?"none":"block";document.getElementById("hrCtCouriers").multiple=s==="MANUAL";document.getElementById("hrCtCouriers").size=s==="MANUAL"?6:1}
 function closeHrContract(){ document.getElementById("hrCModal").classList.remove("open"); }
 async function saveHrContract(){
   try{
@@ -1353,7 +1351,9 @@ async function saveHrContract(){
       name:document.getElementById("hrCtName").value.trim(),
       contract_type:document.getElementById("hrCtType").value,
       duration_months:parseInt(document.getElementById("hrCtMonths").value||12),
-      couriers_count:parseInt(document.getElementById("hrCtCount").value||0),
+      scope_type:document.getElementById("hrCtScope").value,
+      project_id:document.getElementById("hrCtScope").value==="PROJECT"?document.getElementById("hrCtProject").value:null,
+      courier_ids:document.getElementById("hrCtScope").value!=="PROJECT"?[...document.getElementById("hrCtCouriers").selectedOptions].map(x=>Number(x.value)):[],
       base_salary:parseFloat(document.getElementById("hrCtBase").value||0),
       per_delivery_rate:parseFloat(document.getElementById("hrCtRate").value||6),
       end_date:document.getElementById("hrCtEnd").value||null,

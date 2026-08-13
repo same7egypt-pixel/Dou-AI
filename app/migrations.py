@@ -44,6 +44,8 @@ MIGRATIONS = {
     "contracts": {
         "end_date": "TIMESTAMP",
         "project_id": "INTEGER",
+        "scope_type": "VARCHAR(20) DEFAULT 'PROJECT'",
+        "courier_ids": "TEXT",
     },
     "projects": {"manager_id": "INTEGER"},
     "attendances": {
