@@ -274,7 +274,7 @@
 
 <script>
 const API = "";
-let TOKEN = localStorage.getItem("dou_token_courier")||localStorage.getItem("dou_token");
+let TOKEN = localStorage.getItem("dou_token_courier");
 let COURIER = null;
 let online = false;
 let checkedIn = false;
@@ -343,14 +343,14 @@ async function doLogin(){
       password: document.getElementById("loginPass").value
     })});
     TOKEN = res.access_token;
-    localStorage.setItem("dou_token_courier", TOKEN); localStorage.setItem("dou_role", res.role);
+    localStorage.setItem("dou_token_courier", TOKEN); localStorage.setItem("dou_role_courier", res.role);
     location.reload();
   }catch(e){ btn.disabled=false; btn.textContent="دخول"; alert("❌ "+e.message); }
 }
 
 async function logout(){
   const old=TOKEN;TOKEN=null;try{if(old)await fetch('/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+old}})}catch(_e){}
-  localStorage.removeItem("dou_token_courier"); localStorage.removeItem("dou_token"); localStorage.removeItem("dou_role"); COURIER = null; loginView();
+  localStorage.removeItem("dou_token_courier"); localStorage.removeItem("dou_role_courier"); COURIER = null; loginView();
 }
 async function changeMyPassword(){
   const current=prompt("كلمة المرور الحالية:");if(current===null)return;const next=prompt("كلمة المرور الجديدة (8 أحرف على الأقل):");if(!next)return;
@@ -360,7 +360,7 @@ async function sendEmployeeRequest(){try{await api("/hr/employee-requests",{meth
 
 async function init(){
   if(!TOKEN){ loginView(); return; }
-  const storedRole=localStorage.getItem("dou_role");
+  const storedRole=localStorage.getItem("dou_role_courier");
   if(storedRole && storedRole!=="COURIER"){
     localStorage.removeItem("dou_token_courier"); TOKEN=null; loginView(); return;
   }

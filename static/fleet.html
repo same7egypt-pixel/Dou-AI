@@ -678,7 +678,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
 <script>
 const API = "";
-let TOKEN = localStorage.getItem("dou_token_fleet")||localStorage.getItem("dou_token");
+let TOKEN = localStorage.getItem("dou_token_fleet");
 let META = null;
 let role = "company";
 
@@ -727,20 +727,20 @@ async function doLogin(){
       throw new Error("هذا الحساب ليس حساب شركة لوجستية");
     }
     TOKEN = res.access_token;
-    localStorage.setItem("dou_token_fleet", TOKEN); localStorage.setItem("dou_role", res.role);
+    localStorage.setItem("dou_token_fleet", TOKEN); localStorage.setItem("dou_role_fleet", res.role);
     location.reload();
   }catch(e){ btn.disabled=false; btn.textContent="دخول الشركة"; alert("❌ "+e.message); }
 }
 
 async function logout(){
   const old=TOKEN;TOKEN=null;try{if(old)await fetch('/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+old}})}catch(_e){}
-  localStorage.removeItem("dou_token_fleet"); localStorage.removeItem("dou_token"); localStorage.removeItem("dou_role"); META = null; location.reload();
+  localStorage.removeItem("dou_token_fleet"); localStorage.removeItem("dou_role_fleet"); META = null; location.reload();
 }
 async function changeFleetPassword(){const current=prompt("كلمة المرور الحالية:");if(current===null)return;const next=prompt("كلمة المرور الجديدة (8 أحرف على الأقل):");if(!next)return;try{await api("/auth/change-password",{method:"POST",body:JSON.stringify({current_password:current,new_password:next})});alert("تم التغيير، سجل الدخول مرة أخرى");logout()}catch(e){alert(e.message)}}
 
 async function init(){
   if(!TOKEN){ loginView(); return; }
-  const storedRole=localStorage.getItem("dou_role");
+  const storedRole=localStorage.getItem("dou_role_fleet");
   const fleetRoles=["COMPANY","COMPANY_ADMIN","OPERATIONS","HR","ACCOUNTANT","VIEWER","PROJECT_MANAGER","SUPERVISOR","DOU_OPS","DOU_ADMIN"];
   if(storedRole && !fleetRoles.includes(storedRole)){
     localStorage.removeItem("dou_token_fleet"); TOKEN=null; loginView(); return;

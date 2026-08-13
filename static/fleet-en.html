@@ -566,7 +566,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
 <script>
 const API = "";
-let TOKEN = localStorage.getItem("dou_token_fleet")||localStorage.getItem("dou_token");
+let TOKEN = localStorage.getItem("dou_token_fleet");
 let META = null;
 let role = "company";
 
@@ -609,23 +609,25 @@ async function doLogin(){
       phone: document.getElementById("loginPhone").value.trim(),
       password: document.getElementById("loginPass").value
     })});
-    if(res.role!=="COMPANY" && res.role!=="DOU_OPS" && res.role!=="DOU_ADMIN"){
+    const fleetRoles=["COMPANY","COMPANY_ADMIN","OPERATIONS","HR","ACCOUNTANT","VIEWER","PROJECT_MANAGER","SUPERVISOR","DOU_OPS","DOU_ADMIN"];
+    if(!fleetRoles.includes(res.role)){
       throw new Error("This account is not a logistics company account");
     }
     TOKEN = res.access_token;
-    localStorage.setItem("dou_token_fleet", TOKEN); localStorage.setItem("dou_role", res.role);
+    localStorage.setItem("dou_token_fleet", TOKEN); localStorage.setItem("dou_role_fleet", res.role);
     location.reload();
   }catch(e){ btn.disabled=false; btn.textContent="Company Sign In"; alert("❌ "+e.message); }
 }
 
 function logout(){
-  TOKEN = null; localStorage.removeItem("dou_token_fleet"); localStorage.removeItem("dou_token"); META = null; location.reload();
+  TOKEN = null; localStorage.removeItem("dou_token_fleet"); localStorage.removeItem("dou_role_fleet"); META = null; location.reload();
 }
 
 async function init(){
   if(!TOKEN){ loginView(); return; }
-  const storedRole=localStorage.getItem("dou_role");
-  if(storedRole && storedRole!=="COMPANY" && storedRole!=="DOU_OPS" && storedRole!=="DOU_ADMIN"){
+  const storedRole=localStorage.getItem("dou_role_fleet");
+  const fleetRoles=["COMPANY","COMPANY_ADMIN","OPERATIONS","HR","ACCOUNTANT","VIEWER","PROJECT_MANAGER","SUPERVISOR","DOU_OPS","DOU_ADMIN"];
+  if(storedRole && !fleetRoles.includes(storedRole)){
     localStorage.removeItem("dou_token_fleet"); TOKEN=null; loginView(); return;
   }
   try{

@@ -249,7 +249,7 @@
 <script>
 const COURIER_ID = 1;
 const API = "";
-let TOKEN = localStorage.getItem("dou_token_courier")||localStorage.getItem("dou_token");
+let TOKEN = localStorage.getItem("dou_token_courier");
 let online = false;
 let checkedIn = false;
 
@@ -266,7 +266,7 @@ async function silentLogin(){
   location.href="/static/courier.html";
  }
  function logout(){
-   TOKEN = null; localStorage.removeItem("dou_token_courier"); localStorage.removeItem("dou_token"); location.reload();
+   TOKEN = null; localStorage.removeItem("dou_token_courier"); localStorage.removeItem("dou_role_courier"); location.reload();
  }
 setInterval(()=>{ fetch("/health").catch(()=>{}); }, 10*60*1000);
 
