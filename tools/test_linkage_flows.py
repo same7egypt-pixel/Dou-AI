@@ -5,7 +5,7 @@ from app.database import Base, SessionLocal, engine
 from app.models.entities import (Attendance, Contract, ContractBranch, Country, Courier, CourierType, Fleet,
     PayrollAdjustment, Project, Tenant, User, UserRole)
 from app.routers.hr import (add_daily_log, company_documents, create_employee_request,
-    decide_document, decide_employee_request, upload_my_document, create_contract, contract_structure)
+    decide_document, decide_employee_request, upload_my_document, create_contract, contract_structure, daily_report)
 from app.routers.fleet import add_courier
 from app.routers.shifts import check_in
 from app.routers.auth import create_token, get_current_user, logout_current
@@ -48,6 +48,9 @@ assert db.query(Attendance).filter_by(courier_id=c.id).count() == 1
 
 add_daily_log({"log_date": date.today().isoformat(), "project_id": p1.id,
                "orders_count": 10}, driver, db)
+period=daily_report(date_from=date.today(),date_to=date.today(),user=admin,db=db)
+driver_row=next(r for r in period["rows"] if r["المندوب"]=="Driver")
+assert period["summary"]["orders"]==10 and driver_row["طلبات الفترة"]==10
 try:
     add_daily_log({"project_id": p2.id, "orders_count": 99}, driver, db)
     raise AssertionError("cross-tenant project was accepted")

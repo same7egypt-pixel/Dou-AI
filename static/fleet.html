@@ -104,6 +104,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 .hrTabs{display:flex;gap:7px;overflow:auto;background:#fff;border:1px solid var(--line);padding:7px;border-radius:14px;margin-bottom:16px;position:sticky;top:78px;z-index:12;box-shadow:0 8px 22px rgba(26,42,72,.06)}
 .hrTab{background:transparent;color:var(--muted);white-space:nowrap;padding:9px 14px}.hrTab.active{background:var(--nav);color:#fff}.hrTab .count{display:inline-grid;place-items:center;min-width:19px;height:19px;border-radius:10px;background:var(--red);color:#fff;font-size:9px;margin-right:5px}
 .hrPane{display:none}.hrPane.active{display:block}.hrPaneHead{display:flex;justify-content:space-between;align-items:end;gap:14px;margin:4px 2px 13px}.hrPaneHead h2{font-size:17px;margin:0}.hrPaneHead p{font-size:11px;color:var(--muted);margin:4px 0 0}
+.reportPeriod{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.reportPeriod button{border:1px solid var(--line);background:#f5f7fb;color:var(--text);border-radius:10px;padding:9px 16px;font-family:inherit;font-weight:700;cursor:pointer}.reportPeriod button.active{background:var(--blue);border-color:var(--blue);color:#fff}.reportAdvanced{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}.reportAdvanced summary{cursor:pointer;font-weight:700;color:var(--blue);list-style:none}.reportAdvanced summary:before{content:'⚙ '}.reportAdvanced[open] summary{margin-bottom:12px}.reportRangeLabel{font-size:11px;color:var(--muted);margin-top:4px}
 .hrEmptyGuide{border:1px dashed #cfd6e2;background:#fbfcfe;border-radius:14px;padding:18px;color:var(--muted);font-size:12px;margin-bottom:14px}
 @media(max-width:760px){.hrHero{display:block}.hrHeroActions{margin-top:16px}.hrTabs{top:72px}.hrPane .card{overflow-x:auto}.hrPaneHead{display:block}}
 </style>
@@ -483,16 +484,20 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
           </select>
           <select id="reportProject" onchange="loadReport()" style="display:none"><option value="">كل المشاريع</option></select>
         </div>
-        <div class="form-row" id="dailyReportFilters">
-          <input id="reportDate" type="date" onchange="loadReport()">
-          <select id="reportNationality" onchange="loadReport()"><option value="">كل الجنسيات</option></select>
-          <select id="reportZone" onchange="loadReport()"><option value="">كل المدن والمناطق</option></select>
-          <select id="reportSupervisor" onchange="loadReport()"><option value="">كل المشرفين</option></select>
-          <input id="reportCourierName" placeholder="بحث باسم المندوب" oninput="loadReport()">
-          <select id="reportLogStatus" onchange="loadReport()"><option value="">سجل ولم يسجل</option><option value="LOGGED">سجل الأوردرات</option><option value="NOT_LOGGED">لم يسجل</option></select>
-          <select id="reportTargetStatus" onchange="loadReport()"><option value="">كل حالات التارجت</option><option value="PENDING">لم يكمل التارجت</option><option value="OVER">وصل أو تخطى التارجت</option><option value="NO_TARGET">بدون تارجت</option></select>
-          <select id="reportAttendance" onchange="loadReport()"><option value="">كل حالات الحضور</option><option value="PRESENT">حاضر</option><option value="ABSENT">لم يسجل حضور</option><option value="LEAVE">إجازة</option></select>
-          <select id="reportEmployment" onchange="loadReport()"><option value="">كل حالات الموظف</option><option value="ACTIVE">نشط</option><option value="SUSPENDED">موقوف</option><option value="TERMINATED">منتهي</option></select>
+        <div id="dailyReportFilters">
+          <div class="reportPeriod" id="reportPeriod"><button data-period="day" onclick="setReportPeriod('day')">اليوم</button><button data-period="week" onclick="setReportPeriod('week')">هذا الأسبوع</button><button data-period="month" onclick="setReportPeriod('month')">هذا الشهر</button><button data-period="custom" onclick="setReportPeriod('custom')">فترة مخصصة</button></div>
+          <div class="form-row"><input id="reportFrom" type="date" onchange="customReportDates()"><input id="reportTo" type="date" onchange="customReportDates()"></div>
+          <div class="reportRangeLabel" id="reportRangeLabel"></div>
+          <details class="reportAdvanced"><summary>فلاتر متقدمة (اختياري)</summary><div class="form-row">
+            <select id="reportNationality" onchange="loadReport()"><option value="">كل الجنسيات</option></select>
+            <select id="reportZone" onchange="loadReport()"><option value="">كل المدن والمناطق</option></select>
+            <select id="reportSupervisor" onchange="loadReport()"><option value="">كل المشرفين</option></select>
+            <input id="reportCourierName" placeholder="بحث باسم المندوب" oninput="loadReport()">
+            <select id="reportLogStatus" onchange="loadReport()"><option value="">الكل: سجل ولم يسجل</option><option value="LOGGED">سجل الأوردرات</option><option value="NOT_LOGGED">لم يسجل</option></select>
+            <select id="reportTargetStatus" onchange="loadReport()"><option value="">كل حالات التارجت</option><option value="PENDING">لم يكمل التارجت</option><option value="OVER">وصل أو تخطى التارجت</option><option value="NO_TARGET">بدون تارجت</option></select>
+            <select id="reportAttendance" onchange="loadReport()"><option value="">كل حالات الحضور</option><option value="PRESENT">حاضر</option><option value="ABSENT">لم يسجل حضور</option><option value="LEAVE">إجازة</option></select>
+            <select id="reportEmployment" onchange="loadReport()"><option value="">كل حالات الموظف</option><option value="ACTIVE">نشط</option><option value="SUSPENDED">موقوف</option><option value="TERMINATED">منتهي</option></select>
+          </div></details>
         </div>
       </div>
       <div class="cards" id="reportSummary"></div>
@@ -1218,6 +1223,19 @@ async function loadCompliance(){
 }
 
 let REPORT_ROWS=[];
+let REPORT_PERIOD="day";
+function localISO(d){const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}
+function setReportPeriod(period,refresh=true){
+  REPORT_PERIOD=period;const today=new Date(),from=new Date(today),to=new Date(today);
+  if(period==="week")from.setDate(today.getDate()-((today.getDay()+6)%7));
+  if(period==="month")from.setDate(1);
+  if(period!=="custom"){document.getElementById("reportFrom").value=localISO(from);document.getElementById("reportTo").value=localISO(to)}
+  document.querySelectorAll("#reportPeriod button").forEach(b=>b.classList.toggle("active",b.dataset.period===period));
+  const labels={day:"عرض يومي",week:"عرض أسبوعي",month:"عرض شهري",custom:"فترة مخصصة"};
+  document.getElementById("reportRangeLabel").textContent=`${labels[period]} · من ${document.getElementById("reportFrom").value} إلى ${document.getElementById("reportTo").value}`;
+  if(refresh)loadReport();
+}
+function customReportDates(){REPORT_PERIOD="custom";setReportPeriod("custom")}
 async function initReports(){
   const permissions=META.permissions||[];
   const type=document.getElementById("reportType");
@@ -1231,12 +1249,12 @@ async function initReports(){
       document.getElementById("reportProject").innerHTML='<option value="">كل المشاريع</option>'+projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
       const unique=x=>[...new Set(x.filter(Boolean))].sort();
       document.getElementById("reportNationality").innerHTML='<option value="">كل الجنسيات</option>'+unique(couriers.map(c=>c.nationality)).map(x=>`<option>${escapeHtml(x)}</option>`).join("");
-      document.getElementById("reportZone").innerHTML='<option value="">كل المدن والمناطق</option>'+unique(couriers.map(c=>c.zone)).map(x=>`<option>${escapeHtml(x)}</option>`).join("");
+      document.getElementById("reportZone").innerHTML='<option value="">كل المدن والمناطق</option>'+unique(couriers.map(c=>c.work_city||c.zone)).map(x=>`<option>${escapeHtml(x)}</option>`).join("");
       document.getElementById("reportSupervisor").innerHTML='<option value="">كل المشرفين</option>'+supervisors.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
       document.getElementById("reportProject").dataset.loaded="1";
     }catch(e){}
   }
-  if(!document.getElementById("reportDate").value) document.getElementById("reportDate").value=new Date().toISOString().slice(0,10);
+  if(!document.getElementById("reportFrom").value)setReportPeriod(REPORT_PERIOD,false);
   setupReportFilters(); loadReport();
 }
 function setupReportFilters(){
@@ -1249,7 +1267,7 @@ function reportQuery(){
   const type=document.getElementById("reportType").value;
   if(type==="daily"){
     const p=new URLSearchParams();
-    const fields={report_date:"reportDate",project_id:"reportProject",nationality:"reportNationality",zone:"reportZone",supervisor_id:"reportSupervisor",courier_name:"reportCourierName",log_status:"reportLogStatus",target_status:"reportTargetStatus",attendance_status:"reportAttendance",employment_status:"reportEmployment"};
+    const fields={date_from:"reportFrom",date_to:"reportTo",project_id:"reportProject",nationality:"reportNationality",zone:"reportZone",supervisor_id:"reportSupervisor",courier_name:"reportCourierName",log_status:"reportLogStatus",target_status:"reportTargetStatus",attendance_status:"reportAttendance",employment_status:"reportEmployment"};
     Object.entries(fields).forEach(([k,id])=>{const v=document.getElementById(id).value;if(v)p.set(k,v)});
     return p.toString();
   }
@@ -1269,7 +1287,7 @@ async function loadReport(){
     document.getElementById("reportHead").innerHTML=visibleKeys.length?'<tr>'+visibleKeys.map(k=>`<th>${k}</th>`).join("")+'</tr>':'';
     document.getElementById("reportBody").innerHTML=REPORT_ROWS.map(r=>`<tr class="${r._target_state==="OVER"?"target-green":r._target_state==="PENDING"?"target-red":""}">`+visibleKeys.map(k=>`<td>${escapeHtml(r[k])}</td>`).join("")+'</tr>').join("")||'<tr><td>لا توجد نتائج مطابقة للفلاتر</td></tr>';
     const totalBonus=type==="bonus"?REPORT_ROWS.reduce((s,r)=>s+(Number(r["البونص المستحق"])||0),0):0;
-    document.getElementById("reportSummary").innerHTML=type==="daily"?`<div class="metric"><b>${response.summary.couriers}</b><span>السائقون</span></div><div class="metric trend"><b>${response.summary.logged}</b><span>سجلوا</span></div><div class="metric alert"><b>${response.summary.not_logged}</b><span>لم يسجلوا</span></div><div class="metric"><b>${response.summary.orders}</b><span>إجمالي الطلبات</span></div><div class="metric"><b>${response.summary.average}</b><span>المتوسط</span></div><div class="metric trend"><b>${escapeHtml(response.summary.top)}</b><span>الأعلى اليوم</span></div>`:`<div class="metric"><b>${REPORT_ROWS.length}</b><span>عدد النتائج</span></div>`+(type==="bonus"?`<div class="metric trend"><b>${totalBonus.toLocaleString()} ر.س</b><span>إجمالي البونص</span></div>`:'');
+    document.getElementById("reportSummary").innerHTML=type==="daily"?`<div class="metric"><b>${response.summary.couriers}</b><span>السائقون</span></div><div class="metric trend"><b>${response.summary.logged}</b><span>سجلوا خلال الفترة</span></div><div class="metric alert"><b>${response.summary.not_logged}</b><span>لم يسجلوا</span></div><div class="metric"><b>${response.summary.orders}</b><span>طلبات الفترة</span></div><div class="metric"><b>${response.summary.average}</b><span>متوسط الطلبات</span></div><div class="metric trend"><b>${escapeHtml(response.summary.top)}</b><span>الأعلى في الفترة</span></div>`:`<div class="metric"><b>${REPORT_ROWS.length}</b><span>عدد النتائج</span></div>`+(type==="bonus"?`<div class="metric trend"><b>${totalBonus.toLocaleString()} ر.س</b><span>إجمالي البونص</span></div>`:'');
   }catch(e){ document.getElementById("reportBody").innerHTML='<tr><td>تعذّر تحميل التقرير</td></tr>'; }
 }
 async function downloadReport(){
@@ -1277,7 +1295,7 @@ async function downloadReport(){
   const r=await fetch((daily?"/hr/daily-report/export?":"/fleet/reports/export?")+reportQuery(),{headers:{Authorization:"Bearer "+TOKEN}});
   if(!r.ok){alert("تعذّر تنزيل التقرير");return;}
   const blob=await r.blob(); const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob); a.download=(daily?"تقرير-إنجاز-السائقين-اليومي":document.getElementById("reportType").value==="documents"?"تقرير-المستندات":"تقرير-التارجت-والبونص")+".csv";
+  a.href=URL.createObjectURL(blob); a.download=(daily?`تقرير-السائقين-${document.getElementById("reportFrom").value}-${document.getElementById("reportTo").value}`:document.getElementById("reportType").value==="documents"?"تقرير-المستندات":"تقرير-التارجت-والبونص")+".csv";
   a.click(); URL.revokeObjectURL(a.href);
 }
 

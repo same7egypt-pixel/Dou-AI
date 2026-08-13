@@ -5,7 +5,7 @@ import csv, io
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy import text
+from sqlalchemy import text, or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -50,7 +50,7 @@ def calculate_target_bonus(orders: int, target: int, target_bonus: float,
 def _daily_report_data(db: Session, user: User, selected: date, project_id=None,
                        nationality=None, zone=None, supervisor_id=None,
                        log_status=None, target_status=None, attendance_status=None,
-                       employment_status=None, courier_name=None):
+                       employment_status=None, courier_name=None, date_from=None, date_to=None):
     q = db.query(Courier).filter(Courier.tenant_id == user.tenant_id)
     if user.role == UserRole.SUPERVISOR:
         q = q.filter(Courier.supervisor_id == user.id)
@@ -60,35 +60,38 @@ def _daily_report_data(db: Session, user: User, selected: date, project_id=None,
         q = q.filter(Courier.supervisor_id == int(supervisor_id))
     if project_id: q = q.filter(Courier.primary_project_id == int(project_id))
     if nationality: q = q.filter(Courier.nationality == nationality)
-    if zone: q = q.filter(Courier.zone == zone)
+    if zone: q = q.filter(or_(Courier.work_city == zone, Courier.zone == zone))
     if employment_status: q = q.filter(Courier.employment_status == employment_status)
     if courier_name: q = q.filter(Courier.name.ilike(f"%{courier_name}%"))
-    start = date(selected.year, selected.month, 1)
-    day_start = datetime.combine(selected, datetime.min.time())
-    day_end = day_start + timedelta(days=1)
+    period_start = date_from or selected
+    period_end = date_to or selected
+    if period_start > period_end: period_start, period_end = period_end, period_start
+    month_start = date(period_end.year, period_end.month, 1)
+    range_start = datetime.combine(period_start, datetime.min.time())
+    range_end = datetime.combine(period_end + timedelta(days=1), datetime.min.time())
     projects = {p.id: p.name for p in db.query(Project).filter(Project.tenant_id == user.tenant_id).all()}
     supervisors = {u.id: u.name for u in db.query(User).filter(User.tenant_id == user.tenant_id).all()}
     rows = []
     for c in q.order_by(Courier.name).all():
-        logs = db.query(DailyLog).filter(DailyLog.courier_id == c.id, DailyLog.log_date >= start,
-                                         DailyLog.log_date <= selected).all()
-        day_logs = [x for x in logs if x.log_date == selected]
+        logs = db.query(DailyLog).filter(DailyLog.courier_id == c.id, DailyLog.log_date >= month_start,
+                                         DailyLog.log_date <= period_end).all()
+        period_logs = [x for x in logs if period_start <= x.log_date <= period_end]
         pid = int(project_id) if project_id else c.primary_project_id
         if pid:
-            day_logs = [x for x in day_logs if x.project_id == pid]
+            period_logs = [x for x in period_logs if x.project_id == pid]
             project_logs = [x for x in logs if x.project_id == pid]
         else:
             project_logs = logs
-        day_orders = sum(x.orders_count or 0 for x in day_logs)
+        period_orders = sum(x.orders_count or 0 for x in period_logs)
         month_orders = sum(x.orders_count or 0 for x in project_logs)
-        if log_status == "LOGGED" and not day_logs: continue
-        if log_status == "NOT_LOGGED" and day_logs: continue
-        attendance = db.query(Attendance).filter(Attendance.courier_id == c.id,
-                                                  Attendance.check_in >= day_start,
-                                                  Attendance.check_in < day_end).first()
-        att_status = "حاضر" if attendance else ("إجازة" if c.is_on_leave else "لم يسجل حضور")
-        if attendance_status == "PRESENT" and not attendance: continue
-        if attendance_status == "ABSENT" and (attendance or c.is_on_leave): continue
+        if log_status == "LOGGED" and not period_logs: continue
+        if log_status == "NOT_LOGGED" and period_logs: continue
+        attendances = db.query(Attendance).filter(Attendance.courier_id == c.id,
+                                                  Attendance.check_in >= range_start,
+                                                  Attendance.check_in < range_end).all()
+        att_status = "حاضر" if attendances else ("إجازة" if c.is_on_leave else "لم يسجل حضور")
+        if attendance_status == "PRESENT" and not attendances: continue
+        if attendance_status == "ABSENT" and (attendances or c.is_on_leave): continue
         if attendance_status == "LEAVE" and not c.is_on_leave: continue
         plan = None
         if pid:
@@ -102,27 +105,24 @@ def _daily_report_data(db: Session, user: User, selected: date, project_id=None,
                                         plan.over_target_rate if plan else 0)
         state = "OVER" if target and result["achieved"] else "PENDING" if target else "NO_TARGET"
         if target_status and target_status != state: continue
-        hours = 0
-        if attendance and attendance.check_out:
-            hours = round((attendance.check_out - attendance.check_in).total_seconds()/3600, 1)
+        hours = round(sum((a.check_out-a.check_in).total_seconds()/3600 for a in attendances if a.check_out),1)
         rows.append({
-            "المندوب": c.name, "الجنسية": c.nationality or "—", "المدينة": c.zone or "—",
+            "المندوب": c.name, "الجنسية": c.nationality or "—", "المدينة": c.work_city or c.zone or "—",
             "المشرف": supervisors.get(c.supervisor_id, "—"), "المشروع": projects.get(pid, c.platform or "—"),
-            "طلبات اليوم": day_orders, "حالة التسجيل": "سجل" if day_logs else "لم يسجل",
+            "طلبات الفترة": period_orders, "أيام التسجيل": len({x.log_date for x in period_logs}),
             "طلبات الشهر": month_orders, "التارجت": target or "—",
             "حالة التارجت": (f"زائد {result['over_orders']}" if state == "OVER" else f"متبقي {result['remaining_orders']}" if state == "PENDING" else "بدون تارجت"),
-            "البونص المستحق": result["earned"], "الحضور": att_status,
-            "دخول": attendance.check_in.strftime("%H:%M") if attendance else "—",
-            "خروج": attendance.check_out.strftime("%H:%M") if attendance and attendance.check_out else "—",
-            "ساعات العمل": hours, "ملاحظات اليوم": " | ".join(x.notes for x in day_logs if x.notes) or "—",
+            "البونص المستحق": result["earned"], "حالة الحضور": att_status,
+            "أيام الحضور": len({a.check_in.date() for a in attendances}),
+            "ساعات العمل": hours, "ملاحظات الفترة": " | ".join(x.notes for x in period_logs if x.notes) or "—",
             "_target_state": state,
         })
-    total_orders = sum(r["طلبات اليوم"] for r in rows)
-    return {"date": selected.isoformat(), "rows": rows, "summary": {
-        "couriers": len(rows), "logged": sum(r["حالة التسجيل"] == "سجل" for r in rows),
-        "not_logged": sum(r["حالة التسجيل"] == "لم يسجل" for r in rows),
+    total_orders = sum(r["طلبات الفترة"] for r in rows)
+    return {"date_from": period_start.isoformat(), "date_to": period_end.isoformat(), "rows": rows, "summary": {
+        "couriers": len(rows), "logged": sum(r["أيام التسجيل"] > 0 for r in rows),
+        "not_logged": sum(r["أيام التسجيل"] == 0 for r in rows),
         "orders": total_orders, "average": round(total_orders / len(rows), 1) if rows else 0,
-        "top": max(rows, key=lambda r: r["طلبات اليوم"])["المندوب"] if rows else "—",
+        "top": max(rows, key=lambda r: r["طلبات الفترة"])["المندوب"] if rows else "—",
     }}
 
 
@@ -131,12 +131,13 @@ def daily_report(report_date: date = None, project_id: int = None, nationality: 
                  zone: str = None, supervisor_id: int = None, log_status: str = None,
                  target_status: str = None, attendance_status: str = None,
                  employment_status: str = None, courier_name: str = None,
+                 date_from: date = None, date_to: date = None,
                  user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in COMPANY_ROLES + (UserRole.OPERATIONS, UserRole.SUPERVISOR, UserRole.PROJECT_MANAGER):
         raise HTTPException(403, "Not allowed")
     return _daily_report_data(db, user, report_date or date.today(), project_id, nationality, zone,
                               supervisor_id, log_status, target_status, attendance_status,
-                              employment_status, courier_name)
+                              employment_status, courier_name, date_from, date_to)
 
 
 @router.get("/daily-report/export")
@@ -144,18 +145,19 @@ def daily_report_export(report_date: date = None, project_id: int = None, nation
                         zone: str = None, supervisor_id: int = None, log_status: str = None,
                         target_status: str = None, attendance_status: str = None,
                         employment_status: str = None, courier_name: str = None,
+                        date_from: date = None, date_to: date = None,
                         user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in COMPANY_ROLES + (UserRole.OPERATIONS, UserRole.SUPERVISOR, UserRole.PROJECT_MANAGER):
         raise HTTPException(403, "Not allowed")
     chosen = report_date or date.today()
     data = _daily_report_data(db, user, chosen, project_id, nationality, zone, supervisor_id,
-                              log_status, target_status, attendance_status, employment_status, courier_name)
+                              log_status, target_status, attendance_status, employment_status, courier_name, date_from, date_to)
     output = io.StringIO(); output.write("\ufeff")
     rows = [{k: v for k, v in row.items() if not k.startswith("_")} for row in data["rows"]]
     if rows:
         writer = csv.DictWriter(output, fieldnames=list(rows[0].keys())); writer.writeheader(); writer.writerows(rows)
     return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="daily-couriers-{chosen.isoformat()}.csv"'})
+        headers={"Content-Disposition": f'attachment; filename="couriers-{data["date_from"]}-{data["date_to"]}.csv"'})
 
 
 def _log(db: Session, user: User, action: str, entity: str, entity_id: int = None):
