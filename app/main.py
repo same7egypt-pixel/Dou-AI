@@ -85,7 +85,7 @@ class NoCacheHtml(StaticFiles):
 app.mount("/static", NoCacheHtml(directory=STATIC_DIR), name="static")
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def index(request: Request):
     forwarded_host = request.headers.get("x-forwarded-host", "").split(",")[0].strip().split(":")[0]
     direct_host = request.headers.get("host", "").split(":")[0]
@@ -94,30 +94,30 @@ def index(request: Request):
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
-@app.get("/en")
-@app.get("/en/")
+@app.api_route("/en", methods=["GET", "HEAD"])
+@app.api_route("/en/", methods=["GET", "HEAD"])
 def english_landing():
     return FileResponse(os.path.join(STATIC_DIR, "index-en.html"))
 
 
-@app.get("/help")
+@app.api_route("/help", methods=["GET", "HEAD"])
 def arabic_help():
     with open(os.path.join(STATIC_DIR, "help.html"), encoding="utf-8") as source:
         return HTMLResponse(source.read().replace("</head>", '<script src="/google-analytics.js" defer></script></head>'))
 
 
-@app.get("/help/en")
+@app.api_route("/help/en", methods=["GET", "HEAD"])
 def english_help():
     with open(os.path.join(STATIC_DIR, "help-en.html"), encoding="utf-8") as source:
         return HTMLResponse(source.read().replace("</head>", '<script src="/google-analytics.js" defer></script></head>'))
 
 
-@app.get("/robots.txt")
+@app.api_route("/robots.txt", methods=["GET", "HEAD"])
 def robots():
     return FileResponse(os.path.join(STATIC_DIR, "robots.txt"), media_type="text/plain")
 
 
-@app.get("/sitemap.xml")
+@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])
 def sitemap():
     return FileResponse(os.path.join(STATIC_DIR, "sitemap.xml"), media_type="application/xml")
 
