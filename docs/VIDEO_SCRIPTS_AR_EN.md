@@ -31,7 +31,7 @@ Filter by date, project, nationality, city and supervisor. Export daily achievem
 Show company activation, plans in SAR and USD, country, default language, currency, time zone, subscription payment and audit log.
 
 ### 08:15–End — Call to action
-«ابدأ تجربة DOU لشركتك من dou.delivery أو تواصل معنا على info@dou.delivery.»
+«ابدأ تجربة DOU لشركتك من dou.delivery أو تواصل معنا على sales@dou.delivery.»
 
 ## English master video — 8 to 10 minutes
 
@@ -64,7 +64,7 @@ Use date, project, nationality, city and supervisor filters, then export daily a
 Show company activation, local and USD pricing, market, language, currency, time zone, payments and the audit trail.
 
 ### 08:15–End — Call to action
-“Start your DOU demo at dou.delivery or contact info@dou.delivery.”
+“Start your DOU demo at dou.delivery or contact sales@dou.delivery.”
 
 ## Production notes
 - Record at 1920×1080, 30 fps.
