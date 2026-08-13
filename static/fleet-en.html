@@ -95,6 +95,15 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 .avatarDot.on{background:var(--green)}.avatarDot.off{background:#d3d7de}
 .lineItem{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px}
 .lineItem span{color:var(--muted)}
+.hrHero{position:relative;overflow:hidden;background:linear-gradient(135deg,#111827,#1f2c40);color:#fff;border-radius:20px;padding:24px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:18px}
+.hrHero:after{content:"";position:absolute;width:230px;height:230px;border-radius:50%;background:rgba(255,90,19,.18);filter:blur(35px);right:-70px;top:-120px}
+.hrHero>div{position:relative;z-index:1}.hrHero b{font-size:18px;display:block;margin-bottom:5px}.hrHero p{margin:0;color:#c5cfdd;font-size:12px;max-width:650px;line-height:1.8}
+.hrHeroActions{display:flex;gap:8px;flex-wrap:wrap;position:relative;z-index:1}.hrHeroActions .btn{white-space:nowrap}.hrHeroActions .primary{background:#ff5a13}
+.hrTabs{display:flex;gap:7px;overflow:auto;background:#fff;border:1px solid var(--line);padding:7px;border-radius:14px;margin-bottom:16px;position:sticky;top:78px;z-index:12;box-shadow:0 8px 22px rgba(26,42,72,.06)}
+.hrTab{background:transparent;color:var(--muted);white-space:nowrap;padding:9px 14px}.hrTab.active{background:var(--nav);color:#fff}.hrTab .count{display:inline-grid;place-items:center;min-width:19px;height:19px;border-radius:10px;background:var(--red);color:#fff;font-size:9px;margin-left:5px}
+.hrPane{display:none}.hrPane.active{display:block}.hrPaneHead{display:flex;justify-content:space-between;align-items:end;gap:14px;margin:4px 2px 13px}.hrPaneHead h2{font-size:17px;margin:0}.hrPaneHead p{font-size:11px;color:var(--muted);margin:4px 0 0}
+.hrEmptyGuide{border:1px dashed #cfd6e2;background:#fbfcfe;border-radius:14px;padding:18px;color:var(--muted);font-size:12px;margin-bottom:14px}
+@media(max-width:760px){.hrHero{display:block}.hrHeroActions{margin-top:16px}.hrTabs{top:72px}.hrPane .card{overflow-x:auto}.hrPaneHead{display:block}}
 </style>
 </head>
 <body>
@@ -336,7 +345,24 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     <section id="view-hr" style="display:none">
       <div class="header"><div><div class="kicker">Human Resources — Supervisors, Couriers &amp; Documents</div><h1>Human Resources</h1></div>
         <button class="btn ghost" onclick="hrExport()">⬇ HR Report</button></div>
-      <div class="cards">
+      <div class="hrHero"><div><b>Human Resources Center</b><p>A clear view of your workforce, pending decisions, estimated entitlements, documents and contracts — without searching through one long page.</p></div><div class="hrHeroActions"><button class="btn primary" onclick="openSupModal()">+ Supervisor</button><button class="btn ghost" onclick="showHRTab('requests')">Pending requests <span id="hrPendingCount">0</span></button><button class="btn ghost" onclick="showHRTab('compliance')">Critical documents</button></div></div>
+      <div class="hrTabs" role="tablist" aria-label="Human Resources sections">
+        <button class="hrTab active" data-hrtab="overview" onclick="showHRTab('overview')">Overview</button>
+        <button class="hrTab" data-hrtab="people" onclick="showHRTab('people')">People &amp; Structure</button>
+        <button class="hrTab" data-hrtab="requests" onclick="showHRTab('requests')">Requests &amp; Approvals <span class="count" id="hrTabPending" style="display:none">0</span></button>
+        <button class="hrTab" data-hrtab="payroll" onclick="showHRTab('payroll')">Estimated Payroll</button>
+        <button class="hrTab" data-hrtab="compliance" onclick="showHRTab('compliance')">Contracts &amp; Documents</button>
+        <button class="hrTab" data-hrtab="performance" onclick="showHRTab('performance')">Performance &amp; Bonus</button>
+        <button class="hrTab" data-hrtab="reports" onclick="showHRTab('reports')">Reports &amp; Audit</button>
+      </div>
+      <div id="hrPane-overview" class="hrPane active"><div class="hrPaneHead"><div><h2>Today's Overview</h2><p>The key workforce numbers and alerts requiring management attention.</p></div></div></div>
+      <div id="hrPane-people" class="hrPane"><div class="hrPaneHead"><div><h2>People &amp; Organization</h2><p>Supervisors, projects and workforce structure.</p></div></div></div>
+      <div id="hrPane-requests" class="hrPane"><div class="hrPaneHead"><div><h2>Requests &amp; Approvals</h2><p>Leave requests and operational approvals.</p></div></div></div>
+      <div id="hrPane-payroll" class="hrPane"><div class="hrPaneHead"><div><h2>Estimated Monthly Entitlements</h2><p>For administrative estimates only — not an accounting or money-transfer system.</p></div></div></div>
+      <div id="hrPane-compliance" class="hrPane"><div class="hrPaneHead"><div><h2>Contracts &amp; Documents</h2><p>Expirations, renewals and compliance follow-up.</p></div></div></div>
+      <div id="hrPane-performance" class="hrPane"><div class="hrPaneHead"><div><h2>Performance &amp; Incentives</h2><p>Targets, bonuses and monthly rankings.</p></div></div></div>
+      <div id="hrPane-reports" class="hrPane"><div class="hrPaneHead"><div><h2>Reports &amp; Activity Log</h2><p>Export HR information and review detailed operational reports.</p></div><button class="btn ghost" onclick="hrExport()">⬇ Download full report</button></div><div class="hrEmptyGuide">For detailed filters by date, project, supervisor, nationality and city, use the <button class="btn ghost small" onclick="document.querySelector('[data-view=reports]')?.click()">Reports Center</button>.</div></div>
+      <div class="cards" id="hrMetricCards">
         <div class="metric"><b id="hrTotal">–</b><span>Couriers</span></div>
         <div class="metric"><b id="hrSupCount">–</b><span>Supervisors</span></div>
         <div class="metric trend"><b id="hrOrders">–</b><span>Month Orders</span></div>
@@ -1195,13 +1221,32 @@ async function payInvoice(){
   }catch(e){ msg.style.color="var(--red)"; msg.textContent="❌ "+e.message; }
 }
 
+function showHRTab(name){
+  document.querySelectorAll("#view-hr .hrTab").forEach(b=>b.classList.toggle("active",b.dataset.hrtab===name));
+  document.querySelectorAll("#view-hr .hrPane").forEach(p=>p.classList.toggle("active",p.id==="hrPane-"+name));
+  sessionStorage.setItem("dou_hr_tab",name);
+}
+function moveHRCard(anchorId,pane){
+  const anchor=document.getElementById(anchorId),target=document.getElementById("hrPane-"+pane);
+  if(anchor&&target){const card=anchor.closest(".card");if(card&&!target.contains(card))target.appendChild(card)}
+}
+function setupHRWorkspace(){
+  const view=document.getElementById("view-hr");if(!view||view.dataset.organized)return;
+  view.dataset.organized="1";
+  const metrics=document.getElementById("hrMetricCards");if(metrics)document.getElementById("hrPane-overview").appendChild(metrics);
+  [["vBody","overview"],["supBody","people"],["projectsBody","people"],["hrLeaves","requests"],["payBody","payroll"],["contractsBody","compliance"],["bonusBody","performance"],["lbBody","performance"]].forEach(x=>moveHRCard(x[0],x[1]));
+  showHRTab(sessionStorage.getItem("dou_hr_tab")||"overview");
+}
+function setHRPendingCount(n){const a=document.getElementById("hrPendingCount"),b=document.getElementById("hrTabPending");if(a)a.textContent=n;if(b){b.textContent=n;b.style.display=n?"inline-grid":"none"}}
 async function loadHR(){
   try{
+    setupHRWorkspace();
     const dash = await api("/hr/dashboard");
     const sups = await api("/hr/supervisors");
     const projects = await api("/hr/projects");
     const bonus = await api("/hr/bonus");
     const leaves = await api("/hr/leaves");
+    setHRPendingCount(leaves.filter(x=>["PENDING","SUPERVISOR_APPROVED"].includes(x.status)).length);
     document.getElementById("hrTotal").textContent = dash.couriers_total;
     document.getElementById("hrSupCount").textContent = sups.length;
     document.getElementById("hrOrders").textContent = sups.reduce((s,x)=>s+x.couriers_count,0);

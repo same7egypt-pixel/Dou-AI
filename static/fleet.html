@@ -97,6 +97,15 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 .avatarDot.on{background:var(--green)}.avatarDot.off{background:#d3d7de}
 .lineItem{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px}
 .lineItem span{color:var(--muted)}
+.hrHero{position:relative;overflow:hidden;background:linear-gradient(135deg,#111827,#1f2c40);color:#fff;border-radius:20px;padding:24px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:18px}
+.hrHero:after{content:"";position:absolute;width:230px;height:230px;border-radius:50%;background:rgba(255,90,19,.18);filter:blur(35px);left:-70px;top:-120px}
+.hrHero>div{position:relative;z-index:1}.hrHero b{font-size:18px;display:block;margin-bottom:5px}.hrHero p{margin:0;color:#c5cfdd;font-size:12px;max-width:650px;line-height:1.8}
+.hrHeroActions{display:flex;gap:8px;flex-wrap:wrap;position:relative;z-index:1}.hrHeroActions .btn{white-space:nowrap}.hrHeroActions .primary{background:#ff5a13}
+.hrTabs{display:flex;gap:7px;overflow:auto;background:#fff;border:1px solid var(--line);padding:7px;border-radius:14px;margin-bottom:16px;position:sticky;top:78px;z-index:12;box-shadow:0 8px 22px rgba(26,42,72,.06)}
+.hrTab{background:transparent;color:var(--muted);white-space:nowrap;padding:9px 14px}.hrTab.active{background:var(--nav);color:#fff}.hrTab .count{display:inline-grid;place-items:center;min-width:19px;height:19px;border-radius:10px;background:var(--red);color:#fff;font-size:9px;margin-right:5px}
+.hrPane{display:none}.hrPane.active{display:block}.hrPaneHead{display:flex;justify-content:space-between;align-items:end;gap:14px;margin:4px 2px 13px}.hrPaneHead h2{font-size:17px;margin:0}.hrPaneHead p{font-size:11px;color:var(--muted);margin:4px 0 0}
+.hrEmptyGuide{border:1px dashed #cfd6e2;background:#fbfcfe;border-radius:14px;padding:18px;color:var(--muted);font-size:12px;margin-bottom:14px}
+@media(max-width:760px){.hrHero{display:block}.hrHeroActions{margin-top:16px}.hrTabs{top:72px}.hrPane .card{overflow-x:auto}.hrPaneHead{display:block}}
 </style>
 </head>
 <body>
@@ -348,7 +357,24 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     <section id="view-hr" style="display:none">
       <div class="header"><div><div class="kicker">الموارد البشرية — مشرفون ومناديب ومستندات</div><h1>الموارد البشرية</h1></div>
         <button class="btn ghost" onclick="hrExport()">⬇ تقرير HR</button></div>
-      <div class="cards">
+      <div class="hrHero"><div><b>مركز الموارد البشرية</b><p>صورة واضحة عن فريقك، الطلبات التي تحتاج قرارًا، المستحقات التقديرية، المستندات والعقود — بدون البحث داخل صفحة طويلة.</p></div><div class="hrHeroActions"><button class="btn primary" onclick="openSupModal()">+ مشرف</button><button class="btn ghost" onclick="showHRTab('requests')">الطلبات المعلقة <span id="hrPendingCount">0</span></button><button class="btn ghost" onclick="showHRTab('compliance')">المستندات الحرجة</button></div></div>
+      <div class="hrTabs" role="tablist" aria-label="أقسام الموارد البشرية">
+        <button class="hrTab active" data-hrtab="overview" onclick="showHRTab('overview')">الرئيسية</button>
+        <button class="hrTab" data-hrtab="people" onclick="showHRTab('people')">الموظفون والهيكل</button>
+        <button class="hrTab" data-hrtab="requests" onclick="showHRTab('requests')">الطلبات والموافقات <span class="count" id="hrTabPending" style="display:none">0</span></button>
+        <button class="hrTab" data-hrtab="payroll" onclick="showHRTab('payroll')">المستحقات التقديرية</button>
+        <button class="hrTab" data-hrtab="compliance" onclick="showHRTab('compliance')">العقود والمستندات</button>
+        <button class="hrTab" data-hrtab="performance" onclick="showHRTab('performance')">الأداء والبونص</button>
+        <button class="hrTab" data-hrtab="reports" onclick="showHRTab('reports')">التقارير والسجل</button>
+      </div>
+      <div id="hrPane-overview" class="hrPane active"><div class="hrPaneHead"><div><h2>ملخص اليوم</h2><p>أهم الأرقام والتنبيهات التي تحتاج انتباه مدير الشركة.</p></div></div></div>
+      <div id="hrPane-people" class="hrPane"><div class="hrPaneHead"><div><h2>الموظفون والهيكل التنظيمي</h2><p>المشرفون، المشاريع وربط فرق العمل.</p></div></div></div>
+      <div id="hrPane-requests" class="hrPane"><div class="hrPaneHead"><div><h2>الطلبات والموافقات</h2><p>الإجازات، طلبات السائقين، وطلبات ضم المناديب.</p></div></div></div>
+      <div id="hrPane-payroll" class="hrPane"><div class="hrPaneHead"><div><h2>المستحقات الشهرية التقديرية</h2><p>للمتابعة الإدارية فقط — ليست نظامًا محاسبيًا أو تحويلًا للأموال.</p></div></div></div>
+      <div id="hrPane-compliance" class="hrPane"><div class="hrPaneHead"><div><h2>العقود والمستندات</h2><p>المراجعات، تواريخ الانتهاء والتجديدات.</p></div></div></div>
+      <div id="hrPane-performance" class="hrPane"><div class="hrPaneHead"><div><h2>الأداء والحوافز</h2><p>التارجت، البونص والترتيب الشهري.</p></div></div></div>
+      <div id="hrPane-reports" class="hrPane"><div class="hrPaneHead"><div><h2>التقارير وسجل العمليات</h2><p>تصدير البيانات ومراجعة تغييرات الموارد البشرية.</p></div><button class="btn ghost" onclick="hrExport()">⬇ تنزيل تقرير شامل</button></div><div class="hrEmptyGuide">للتقارير التفصيلية حسب التاريخ والمشروع والمشرف والجنسية والمدينة، استخدم <button class="btn ghost small" onclick="document.querySelector('[data-view=reports]').click()">مركز التقارير</button></div></div>
+      <div class="cards" id="hrMetricCards">
         <div class="metric"><b id="hrTotal">–</b><span>مناديب</span></div>
         <div class="metric"><b id="hrSupCount">–</b><span>مشرفون</span></div>
         <div class="metric trend"><b id="hrOrders">–</b><span>أوردرات الشهر</span></div>
@@ -1489,8 +1515,26 @@ async function saveSupervisorReview(){
 }
 async function sendSupervisorBroadcast(){await api("/hr/broadcast",{method:"POST",body:JSON.stringify({message:document.getElementById("svBroadcast").value})});alert("تم إرسال الرسالة لمناديبك")}
 
+function showHRTab(name){
+  document.querySelectorAll("#view-hr .hrTab").forEach(b=>b.classList.toggle("active",b.dataset.hrtab===name));
+  document.querySelectorAll("#view-hr .hrPane").forEach(p=>p.classList.toggle("active",p.id==="hrPane-"+name));
+  sessionStorage.setItem("dou_hr_tab",name);
+}
+function moveHRCard(anchorId,pane){
+  const anchor=document.getElementById(anchorId),target=document.getElementById("hrPane-"+pane);
+  if(anchor&&target){const card=anchor.closest(".card");if(card&&!target.contains(card))target.appendChild(card)}
+}
+function setupHRWorkspace(){
+  const view=document.getElementById("view-hr");if(!view||view.dataset.organized)return;
+  view.dataset.organized="1";
+  const metrics=document.getElementById("hrMetricCards");if(metrics)document.getElementById("hrPane-overview").appendChild(metrics);
+  [["vBody","overview"],["supBody","people"],["projectsBody","people"],["assignmentRequestsAdmin","requests"],["hrLeaves","requests"],["employeeRequestsBody","requests"],["adjustmentsBody","payroll"],["payBody","payroll"],["uploadedDocumentsBody","compliance"],["contractsBody","compliance"],["bonusBody","performance"],["lbBody","performance"],["hrAudit","reports"]].forEach(x=>moveHRCard(x[0],x[1]));
+  showHRTab(sessionStorage.getItem("dou_hr_tab")||"overview");
+}
+function setHRPendingCount(n){const a=document.getElementById("hrPendingCount"),b=document.getElementById("hrTabPending");if(a)a.textContent=n;if(b){b.textContent=n;b.style.display=n?"inline-grid":"none"}}
 async function loadHR(){
   try{
+    setupHRWorkspace();
     const dash = await api("/hr/dashboard");
     const sups = await api("/hr/supervisors");
     const projects = await api("/hr/projects");
@@ -1498,6 +1542,7 @@ async function loadHR(){
     const leaves = await api("/hr/leaves");
     const assignments = await api("/hr/assignment-requests");
     const employeeRequests=await api("/hr/employee-requests");const adjustments=await api("/hr/adjustments");const allCouriers=await api("/hr/couriers");const uploadedDocs=await api("/hr/documents");
+    setHRPendingCount(assignments.filter(x=>x.status==="PENDING").length+leaves.filter(x=>["PENDING","SUPERVISOR_APPROVED"].includes(x.status)).length+employeeRequests.filter(x=>["PENDING","SUPERVISOR_APPROVED"].includes(x.status)).length+uploadedDocs.filter(x=>x.status==="PENDING").length);
     document.getElementById("adjCourier").innerHTML=allCouriers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
     document.getElementById("employeeRequestsBody").innerHTML=employeeRequests.map(r=>`<div class="opt"><div><b>${escapeHtml(r.courier)} — ${r.request_type}</b><small>${escapeHtml(r.title||'')} · ${escapeHtml(r.details||'')} · ${r.status}</small></div>${["PENDING","SUPERVISOR_APPROVED"].includes(r.status)?`<div><button class="btn green small" onclick="decideEmployeeRequest(${r.id},'approve')">موافقة</button> <button class="btn red small" onclick="decideEmployeeRequest(${r.id},'reject')">رفض</button></div>`:''}</div>`).join("")||'<p>لا طلبات</p>';
     document.getElementById("adjustmentsBody").innerHTML=adjustments.map(x=>`<div class="lineItem"><span>${escapeHtml(x.courier)} · ${x.kind} · ${escapeHtml(x.note||'')}</span><b>${x.amount} ر.س</b></div>`).join("")||'<p>لا خصومات أو سلف</p>';
