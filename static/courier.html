@@ -78,6 +78,14 @@
 .lineItem{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}
 .lineItem:last-child{border-bottom:0}
 .lineItem b{font-size:13px}
+.historyBox{max-height:310px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:0 10px}
+.historyToggle{margin-top:10px;background:var(--soft);border:0;border-radius:10px;padding:10px;width:100%;font-family:inherit;font-weight:700;cursor:pointer}
+.monthSummary{border:1px solid var(--line);border-radius:11px;margin-bottom:8px;padding:0 10px}
+.monthSummary summary{cursor:pointer;padding:11px 0;font-size:12px;font-weight:700}
+.dlogNav{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;position:sticky;top:111px;z-index:8;background:#fff;padding:8px 0;margin-bottom:10px}
+.dlogNav button{border:0;background:var(--soft);border-radius:10px;padding:9px 3px;font:700 10px Alexandria;color:var(--muted);cursor:pointer}
+.dlogNav button.active{background:var(--nav);color:#fff}
+.dlogPane{display:none}.dlogPane.active{display:block}
 .notifItem{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
 .notifItem:last-child{border-bottom:0}
 .notifItem .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:14px;flex-shrink:0}
@@ -233,6 +241,9 @@
         <div class="row"><span id="dlogToday">اليوم: —</span><span id="dlogBonus">بونص الشهر: —</span></div>
       </div>
 
+      <div class="dlogNav"><button class="active" data-dpane="today" onclick="showDlogPane('today')">📝 اليوم</button><button data-dpane="target" onclick="showDlogPane('target')">🎯 التارجت</button><button data-dpane="requests" onclick="showDlogPane('requests')">📨 طلباتي</button><button data-dpane="history" onclick="showDlogPane('history')">📆 السجل</button></div>
+
+      <div class="dlogPane active" id="dlogPane-today">
       <div class="card">
         <h3>📝 تسجيل اليوم</h3>
         <div class="row" style="margin-bottom:8px"><span>تاريخ اليوم</span><b><input type="date" id="dlDate" style="width:auto"></b></div>
@@ -242,12 +253,16 @@
         <button class="btn green" style="width:100%" onclick="saveDailyLog()">💾 حفظ سجل اليوم</button>
         <div class="msg" id="dlMsg"></div>
       </div>
+      </div>
 
+      <div class="dlogPane" id="dlogPane-target">
       <div class="card">
         <h3>🎯 التارجت والبونص الشهري</h3>
         <div id="bonusProgress"><p style="color:var(--muted);font-size:12px">جارِ حساب التارجت...</p></div>
       </div>
+      </div>
 
+      <div class="dlogPane" id="dlogPane-requests">
       <div class="card">
         <h3>🌴 طلب إجازة</h3>
         <div class="row" style="margin-bottom:8px"><span>من</span><b><input type="date" id="lvFrom" style="width:100%"></b></div>
@@ -257,16 +272,18 @@
         <div class="msg" id="lvMsg"></div>
         <div id="leaveStatus" style="margin-top:12px"></div>
       </div>
+      <div class="card"><h3>طلبات الموظف</h3><select id="erType" style="width:100%;margin-bottom:8px"><option value="ADVANCE">طلب سلفة</option><option value="SHIFT_CHANGE">تغيير وردية</option><option value="PROJECT_TRANSFER">نقل مشروع</option><option value="MAINTENANCE">صيانة مركبة</option><option value="INCIDENT">بلاغ حادث</option></select><select id="erProject" style="width:100%;margin-bottom:8px"><option value="">المشروع المطلوب عند طلب النقل</option></select><input id="erTitle" style="width:100%;margin-bottom:8px" placeholder="عنوان الطلب"><textarea id="erDetails" style="width:100%;margin-bottom:8px" placeholder="التفاصيل"></textarea><input id="erAmount" type="number" style="width:100%;margin-bottom:8px" placeholder="المبلغ إن وجد"><button class="btn" style="width:100%" onclick="sendEmployeeRequest()">إرسال الطلب</button><div id="erMsg" class="msg"></div></div>
+      </div>
 
+      <div class="dlogPane" id="dlogPane-history">
       <div class="card">
-        <h3>📆 هذا الشهر</h3>
+        <h3>📆 آخر سجلات هذا الشهر</h3>
         <div id="dlMonth"></div>
       </div>
-      <div class="card"><h3>طلبات الموظف</h3><select id="erType" style="width:100%;margin-bottom:8px"><option value="ADVANCE">طلب سلفة</option><option value="SHIFT_CHANGE">تغيير وردية</option><option value="PROJECT_TRANSFER">نقل مشروع</option><option value="MAINTENANCE">صيانة مركبة</option><option value="INCIDENT">بلاغ حادث</option></select><select id="erProject" style="width:100%;margin-bottom:8px"><option value="">المشروع المطلوب عند طلب النقل</option></select><input id="erTitle" style="width:100%;margin-bottom:8px" placeholder="عنوان الطلب"><textarea id="erDetails" style="width:100%;margin-bottom:8px" placeholder="التفاصيل"></textarea><input id="erAmount" type="number" style="width:100%;margin-bottom:8px" placeholder="المبلغ إن وجد"><button class="btn" style="width:100%" onclick="sendEmployeeRequest()">إرسال الطلب</button><div id="erMsg" class="msg"></div></div>
-
       <div class="card">
         <h3>🗓 الشهور السابقة</h3>
         <div id="dlPrev"></div>
+      </div>
       </div>
     </div>
   </div>
@@ -607,16 +624,16 @@ async function loadDailyLog(){
       document.getElementById("erProject").innerHTML='<option value="">المشروع المطلوب عند طلب النقل</option>'+projects.filter(p=>!p.is_current&&p.is_active).map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join('');
       projSel.dataset.loaded = "1";
     }
+    const monthRows=days=>'<div class="historyBox"><table><thead><tr><th>التاريخ</th><th>المشروع</th><th>الأوردرات</th><th>ملاحظات</th></tr></thead><tbody>'+days.map(d=>`<tr><td>${d.date}</td><td>${d.project||"—"}</td><td><b>${d.orders}</b></td><td>${d.notes||""}</td></tr>`).join("")+"</tbody></table></div>";
     document.getElementById("dlMonth").innerHTML = data.days.length
-      ? '<table><thead><tr><th>التاريخ</th><th>المشروع</th><th>الأوردرات</th><th>ملاحظات</th></tr></thead><tbody>'
-        + data.days.map(d=>`<tr><td>${d.date}</td><td>${d.project||"—"}</td><td><b>${d.orders}</b></td><td>${d.notes||""}</td></tr>`).join("")+"</tbody></table>"
+      ? monthRows(data.days.slice(-7))+(data.days.length>7?`<details><summary class="historyToggle">عرض كل سجل الشهر (${data.days.length} يوم)</summary>${monthRows(data.days)}</details>`:'')
       : '<p style="color:var(--muted);font-size:12px">لم تسجّل أي يوم هذا الشهر بعد</p>';
-    document.getElementById("dlPrev").innerHTML = data.previous_months.map(m=>`
-      <div class="lineItem"><span>${m.month} — ${m.total} أوردر</span>
-        <b>${m.days.length?"<small>آخر: "+m.days.slice(-1)[0].date+" ("+m.days.slice(-1)[0].orders+")</small>":"لا سجلات"}</b></div>`).join("");
+    const previous=(data.previous_months||[]).filter(m=>m.days.length);
+    document.getElementById("dlPrev").innerHTML = previous.map(m=>`<details class="monthSummary"><summary>${m.month} — ${m.total} أوردر · ${m.days.length} يوم</summary>${monthRows(m.days)}</details>`).join("")||'<p style="color:var(--muted);font-size:12px">لا توجد سجلات في الشهور السابقة</p>';
     loadLeaveStatus();
   }catch(e){}
 }
+function showDlogPane(name){document.querySelectorAll('.dlogPane').forEach(x=>x.classList.toggle('active',x.id==='dlogPane-'+name));document.querySelectorAll('.dlogNav button').forEach(x=>x.classList.toggle('active',x.dataset.dpane===name));sessionStorage.setItem('dou_driver_daily_pane',name)}
 
 async function saveDailyLog(){
   try{
@@ -661,7 +678,7 @@ function go(v){
   ["home","earnings","dlog","profile","notifs"].forEach(x=>document.getElementById("view-"+x).classList.toggle("active",x===v));
   document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active", b.textContent.includes(map[v])));
   if(v==="notifs") renderNotifs();
-  if(v==="dlog") loadDailyLog();
+  if(v==="dlog"){showDlogPane(sessionStorage.getItem('dou_driver_daily_pane')||'today');loadDailyLog()}
 }
 function tag(s){ s=String(s); return `<span class="tag ${/DELIVER/i.test(s)?"green":/ACCEPT/i.test(s)?"blue":/OFFER/i.test(s)?"orange":"gray"}">${s.replace(/_/g," ")}</span>`; }
 function toggleNotifPanel(e){ e.stopPropagation(); }
