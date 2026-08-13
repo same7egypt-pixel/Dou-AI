@@ -20,3 +20,5 @@ services:
         value: https://dou-platform.onrender.com
       - key: SEED_DEMO_DATA
         value: "false"
+      - key: ENABLE_PUBLIC_COMPANY_SIGNUP
+        value: "false"

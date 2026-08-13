@@ -130,16 +130,8 @@ def billing_subscribe(payload: SubscriptionPayload, user: User = Depends(get_cur
 
 @router.post("/pay")
 def billing_pay(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """تسجيل دفع للفترة التالية (العميل أو فريق DOU)."""
-    tenant = _tenant_for(user, db)
-    now = datetime.utcnow()
-    if tenant.subscription_status == "SUSPENDED":
-        tenant.subscription_status = "OVERDUE"
-    tenant.last_paid_at = now
-    tenant.due_date = now + timedelta(days=MONTH_DAYS)
-    tenant.subscription_status = "ACTIVE"
-    db.commit()
-    return {"ok": True, "status": "ACTIVE", "due_date": tenant.due_date.isoformat()}
+    """لا يجوز للعميل اعتماد دفعته بنفسه؛ التسجيل يتم من إدارة DOU مع إيصال ومراجعة."""
+    raise HTTPException(403, "سداد وتجديد الاشتراك يُسجلان من إدارة DOU بعد تأكيد الدفع")
 
 
 @router.get("/admin/tenants")

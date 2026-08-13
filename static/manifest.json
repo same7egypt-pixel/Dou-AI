@@ -3,7 +3,7 @@
   "short_name": "DOU",
   "description": "حضور، مهام وأرباح مندوبي التوصيل على منصة DOU",
   "start_url": "/driver",
-  "scope": "/static/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#11161d",

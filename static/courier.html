@@ -300,9 +300,8 @@ function escapeHtml(value){return String(value||"").replace(/[&<>\"]/g,char=>({"
 async function api(path, opts={}){
   const headers = {"Content-Type":"application/json"};
   if(TOKEN) headers["Authorization"] = "Bearer "+TOKEN;
-  const r = await fetch(API+path, Object.assign({headers}, opts));
-  if(r.status===401 && path!=="/auth/login"){ logout(); throw new Error("انتهت الجلسة — سجّل دخولك مجدداً"); }
-  if(!r.ok){let message="تعذر تنفيذ الطلب";try{const data=await r.json();message=data.detail||message}catch(_e){}if(path==="/auth/login"&&r.status===401)message="رقم الجوال أو كلمة المرور غير صحيحة";throw new Error(message);}
+  let r;try{r=await fetch(API+path, Object.assign({headers}, opts))}catch(_e){const err=new Error("تعذر الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة");err.status=0;throw err}
+  if(!r.ok){let message="تعذر تنفيذ الطلب";try{const data=await r.json();message=data.detail||message}catch(_e){}if(path==="/auth/login"&&r.status===401)message="رقم الجوال أو كلمة المرور غير صحيحة";const err=new Error(message);err.status=r.status;throw err;}
   return r.json();
 }
 
@@ -390,7 +389,8 @@ async function init(){
     preferencesRequest.then(p=>{if(p&&window.setDouTenantPreferences)setDouTenantPreferences(p.language,p.currency)});
     Promise.allSettled([loadTasks(),loadHRWarnings(),loadMyDocuments(),loadMyTickets()]);
   }catch(e){
-    logout();
+    if(e.status===401){localStorage.removeItem("dou_token_courier");localStorage.removeItem("dou_role_courier");TOKEN=null;loginView();return}
+    document.querySelector(".content").innerHTML=`<div class="card" style="margin-top:30px;text-align:center"><h3>تعذر تحميل التطبيق</h3><p>${escapeHtml(e.message||"خطأ مؤقت")}</p><button class="btn primary" onclick="location.reload()">إعادة المحاولة</button></div>`;
   }
 }
 

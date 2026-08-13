@@ -1,12 +1,14 @@
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException
+from collections import defaultdict, deque
+from threading import Lock
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ..config import SECRET_KEY
+from ..config import SECRET_KEY, ENABLE_PUBLIC_COMPANY_SIGNUP
 from ..database import get_db
 from ..models.entities import Country, Fleet, Tenant, User, UserRole
 from ..schemas.dou import CompanyRegisterIn, CompanyRegisterOut, LoginIn, TokenOut
@@ -19,6 +21,25 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+LOGIN_WINDOW_SECONDS = 600
+LOGIN_MAX_FAILURES = 8
+_login_failures = defaultdict(deque)
+_login_lock = Lock()
+
+
+def _login_key(request: Request, phone: str) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    client = forwarded or (request.client.host if request.client else "unknown")
+    return f"{client}:{phone.strip()}"
+
+
+def _prune_failures(key: str, now: datetime):
+    cutoff = now.timestamp() - LOGIN_WINDOW_SECONDS
+    attempts = _login_failures[key]
+    while attempts and attempts[0] < cutoff:
+        attempts.popleft()
+    return attempts
 
 
 def hash_password(password: str) -> str:
@@ -45,6 +66,8 @@ def register(payload: LoginIn, db: Session = Depends(get_db)):
 
 @router.post("/company-register", response_model=CompanyRegisterOut)
 def company_register(payload: CompanyRegisterIn, db: Session = Depends(get_db)):
+    if not ENABLE_PUBLIC_COMPANY_SIGNUP:
+        raise HTTPException(403, "تفعيل الشركات الجديدة يتم عن طريق إدارة DOU — sales@dou.delivery — 0556338075")
     country = Country(payload.country) if payload.country in ("SA", "EG") else Country.SA
     exists = db.query(User).filter(User.phone == payload.phone).first()
     if exists:
@@ -96,13 +119,22 @@ def company_register(payload: CompanyRegisterIn, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenOut)
-def login(payload: LoginIn, db: Session = Depends(get_db)):
+def login(payload: LoginIn, db: Session = Depends(get_db), request: Request = None):
+    now = datetime.utcnow()
+    key = _login_key(request, payload.phone) if request else f"direct:{payload.phone.strip()}"
+    with _login_lock:
+        if len(_prune_failures(key, now)) >= LOGIN_MAX_FAILURES:
+            raise HTTPException(429, "محاولات دخول كثيرة. انتظر 10 دقائق ثم حاول مرة أخرى")
     user = db.query(User).filter(User.phone == payload.phone).first()
     if not user or not pwd_context.verify(payload.password, user.password_hash):
+        with _login_lock:
+            _prune_failures(key, now).append(now.timestamp())
         raise HTTPException(401, "Invalid phone or password")
     if not user.is_active:
         raise HTTPException(403, "Account disabled")
-    user.last_login_at = datetime.utcnow()
+    with _login_lock:
+        _login_failures.pop(key, None)
+    user.last_login_at = now
     if user.tenant_id:
         tenant = db.get(Tenant, user.tenant_id)
         if tenant: tenant.last_activity_at = datetime.utcnow()
@@ -122,7 +154,7 @@ def logout_all(admin_key: str, db: Session = Depends(get_db)):
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db), request: Request = None
 ) -> User:
     credentials_exc = HTTPException(401, "Invalid or expired token")
     try:
@@ -135,6 +167,11 @@ def get_current_user(
         raise credentials_exc
     if int(payload.get("ver", 0)) != (user.token_version or 0):
         raise credentials_exc
+    # تطبيق إيقاف الاشتراك على كل وحدات الشركة والسائق، وليس لوحة Fleet فقط.
+    # تظل شاشة الفاتورة متاحة حتى يعرف العميل سبب الإيقاف وموعد الاستحقاق.
+    if user.tenant_id and (not request or request.url.path not in ("/billing/status", "/billing/invoice")):
+        from .billing import check_active
+        check_active(user, db)
     return user
 
 

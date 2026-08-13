@@ -7,6 +7,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dou.db")
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
 ADMIN_KEY = os.getenv("ADMIN_KEY", "")
 ENABLE_LEGACY_DELIVERY = os.getenv("ENABLE_LEGACY_DELIVERY", "false").lower() == "true"
+ENABLE_PUBLIC_COMPANY_SIGNUP = os.getenv("ENABLE_PUBLIC_COMPANY_SIGNUP", "false").lower() == "true"
 GOOGLE_ANALYTICS_ID = os.getenv("GOOGLE_ANALYTICS_ID", "G-XF8YF12JVQ").strip()
 CORS_ORIGINS = [x.strip() for x in os.getenv(
     "CORS_ORIGINS", "https://dou-platform.onrender.com,http://127.0.0.1:8765,http://localhost:8765"

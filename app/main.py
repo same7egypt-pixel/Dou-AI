@@ -117,6 +117,11 @@ def robots():
     return FileResponse(os.path.join(STATIC_DIR, "robots.txt"), media_type="text/plain")
 
 
+@app.api_route("/favicon.ico", methods=["GET", "HEAD"])
+def favicon():
+    return FileResponse(os.path.join(STATIC_DIR, "icons", "icon-192.png"), media_type="image/png")
+
+
 @app.api_route("/sitemap.xml", methods=["GET", "HEAD"])
 def sitemap():
     return FileResponse(os.path.join(STATIC_DIR, "sitemap.xml"), media_type="application/xml")

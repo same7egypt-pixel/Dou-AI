@@ -687,9 +687,8 @@ let role = "company";
 async function api(path, opts={}){
   const headers = {"Content-Type":"application/json"};
   if(TOKEN) headers["Authorization"] = "Bearer "+TOKEN;
-  const r = await fetch(API+path, Object.assign({headers}, opts));
-  if(r.status===401 && path!=="/auth/login"){ logout(); throw new Error("انتهت الجلسة — سجّل دخولك مجدداً"); }
-  if(!r.ok){let message="تعذر تنفيذ الطلب";try{const data=await r.json();message=data.detail||message}catch(_e){}if(path==="/auth/login"&&r.status===401)message="رقم الجوال أو كلمة المرور غير صحيحة";throw new Error(message);}
+  let r;try{r=await fetch(API+path, Object.assign({headers}, opts))}catch(_e){const err=new Error("تعذر الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة");err.status=0;throw err}
+  if(!r.ok){let message="تعذر تنفيذ الطلب";try{const data=await r.json();message=data.detail||message}catch(_e){}if(path==="/auth/login"&&r.status===401)message="رقم الجوال أو كلمة المرور غير صحيحة";const err=new Error(message);err.status=r.status;throw err;}
   return r.json();
 }
 
@@ -765,7 +764,10 @@ async function init(){
       if(!allowed) el.style.display="none";
     });
     go(META.role==="SUPERVISOR" ? "supervision" : "overview");
-  }catch(e){ logout(); }
+  }catch(e){
+    if(e.status===401){localStorage.removeItem("dou_token_fleet");localStorage.removeItem("dou_role_fleet");TOKEN=null;loginView();return}
+    document.querySelector(".content").innerHTML=`<div class="card" style="max-width:620px;margin:50px auto;text-align:center"><h2>تعذر تحميل لوحة التحكم</h2><p style="color:var(--muted)">${escapeHtml(e.message||"خطأ مؤقت")}</p><button class="btn blue" onclick="location.reload()">إعادة المحاولة</button></div>`;
+  }
 }
 
 function tag(s){ s=String(s); return `<span class="tag ${/DELIVER|COMPLETE/i.test(s)?"green":/ASSIGN|ACCEPT|READY|PICK/i.test(s)?"blue":/SHIPPING|PREPAR/i.test(s)?"amber":/CANCEL|FAIL/i.test(s)?"red":"gray"}">${s.replace(/_/g," ")}</span>`; }
@@ -1439,13 +1441,8 @@ async function loadBilling(){
 }
 async function payInvoice(){
   const msg = document.getElementById("billingMsg");
-  msg.textContent = "⏳ جاري معالجة الدفع..."; msg.style.color = "var(--muted)";
-  try{
-    const r = await api("/billing/pay", {method:"POST"});
-    msg.style.color = "var(--green)";
-    msg.textContent = "✅ تم سداد الفاتورة — اشتراكك مفعّل حتى " + r.due_date;
-    loadBilling();
-  }catch(e){ msg.style.color="var(--red)"; msg.textContent="❌ "+e.message; }
+  msg.style.color = "var(--ink)";
+  msg.innerHTML = 'لتجديد الاشتراك أو تسجيل دفعة تواصل مع إدارة DOU: <a href="mailto:sales@dou.delivery">sales@dou.delivery</a> · <a href="tel:+966556338075" dir="ltr">0556338075</a>';
 }
 async function loadSupervision(){
   try{
