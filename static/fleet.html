@@ -298,13 +298,13 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <button class="btn ghost" onclick="loadPayouts()">↻ تحديث</button></div>
       <div class="card" style="background:linear-gradient(115deg,#121a2c,#1b2a48);color:#fff">
         <div style="font-size:11px;color:#88a0c4">التقدير الشهري</div>
-        <div style="font-size:30px;font-weight:800" id="payTotal">–</div>
+        <div style="font-size:30px;font-weight:800" id="payoutsTotal">–</div>
         <div style="font-size:11px;color:#88a0c4">لكل المناديب · حسب العقود</div>
       </div>
       <div class="card" style="border-color:#f5b942;background:#fff9e8"><b>تنبيه:</b> جميع مبالغ الرواتب والحوافز تقديرية لأغراض الإدارة والمتابعة فقط، وليست مسيرًا محاسبيًا رسميًا أو خدمة تحويل أموال.</div>
       <div class="card"><h3>الرواتب والحوافز — حسب عقود المناديب</h3>
         <table><thead><tr><th>المندوب</th><th>النوع</th><th>الحالة</th><th>ثابت</th><th>أجر/توصيلة</th><th>توصيلات</th><th>أرباح التوصيلات</th><th>البونص</th><th>الإجمالي</th><th>IBAN</th></tr></thead>
-        <tbody id="payBody"></tbody></table></div>
+        <tbody id="payoutsBody"></tbody></table></div>
     </section>
 
     <section id="view-channels" style="display:none">
@@ -1165,8 +1165,8 @@ function showPerformanceDetails(id){const r=PERFORMANCE_ROWS.find(x=>x.id===id);
 async function loadPayouts(){
   try{
     const rows = await api("/fleet/payouts");
-    document.getElementById("payTotal").textContent = "ر.س " + rows.reduce((s,r)=>s+r.estimated_total,0).toLocaleString();
-    document.getElementById("payBody").innerHTML = rows.map(r=>`
+    document.getElementById("payoutsTotal").textContent = "ر.س " + rows.reduce((s,r)=>s+r.estimated_total,0).toLocaleString();
+    document.getElementById("payoutsBody").innerHTML = rows.map(r=>`
       <tr><td>${r.name}</td><td><span class="tag gray">${r.courier_type==="COMPANY"?"شركة":"فريلانسر"}</span></td>
       <td><span class="tag ${r.employment_status==="ACTIVE"?"green":"red"}">${r.employment_status==="ACTIVE"?"نشط":r.employment_status}</span></td>
       <td>${r.fixed.toLocaleString()}</td><td>${r.per_delivery_rate} ر.س</td><td>${r.deliveries}</td>

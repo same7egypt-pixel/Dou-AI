@@ -289,12 +289,12 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <button class="btn ghost" onclick="loadPayouts()">↻ Refresh</button></div>
       <div class="card" style="background:linear-gradient(115deg,#121a2c,#1b2a48);color:#fff">
         <div style="font-size:11px;color:#88a0c4">Monthly Estimate</div>
-        <div style="font-size:30px;font-weight:800" id="payTotal">–</div>
+        <div style="font-size:30px;font-weight:800" id="payoutsTotal">–</div>
         <div style="font-size:11px;color:#88a0c4">All couriers · per contracts</div>
       </div>
       <div class="card"><h3>Payroll &amp; Bonuses — Per Courier Contracts</h3>
         <table><thead><tr><th>Courier</th><th>Type</th><th>Status</th><th>Fixed</th><th>Rate/Delivery</th><th>Deliveries</th><th>Delivery Earnings</th><th>Bonus</th><th>Total</th><th>IBAN</th></tr></thead>
-        <tbody id="payBody"></tbody></table></div>
+        <tbody id="payoutsBody"></tbody></table></div>
     </section>
 
     <section id="view-channels" style="display:none">
@@ -963,8 +963,8 @@ function showPerformanceDetails(id){const r=PERFORMANCE_ROWS.find(x=>x.id===id);
 async function loadPayouts(){
   try{
     const rows = await api("/fleet/payouts");
-    document.getElementById("payTotal").textContent = "SAR " + rows.reduce((s,r)=>s+r.estimated_total,0).toLocaleString();
-    document.getElementById("payBody").innerHTML = rows.map(r=>`
+    document.getElementById("payoutsTotal").textContent = "SAR " + rows.reduce((s,r)=>s+r.estimated_total,0).toLocaleString();
+    document.getElementById("payoutsBody").innerHTML = rows.map(r=>`
       <tr><td>${r.name}</td><td><span class="tag gray">${r.courier_type==="COMPANY"?"Company":"Freelancer"}</span></td>
       <td><span class="tag ${r.employment_status==="ACTIVE"?"green":"red"}">${r.employment_status==="ACTIVE"?"Active":r.employment_status}</span></td>
       <td>${r.fixed.toLocaleString()}</td><td>${r.per_delivery_rate} SAR</td><td>${r.deliveries}</td>
