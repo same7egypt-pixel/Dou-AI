@@ -22,6 +22,7 @@ COMPANY_ROLES = (
     UserRole.COMPANY, UserRole.COMPANY_ADMIN, UserRole.HR,
     UserRole.DOU_OPS, UserRole.DOU_ADMIN,
 )
+ACCOUNT_ADMIN_ROLES = (UserRole.COMPANY, UserRole.COMPANY_ADMIN)
 LEAVE_STATUSES = ("PENDING", "SUPERVISOR_APPROVED", "APPROVED", "REJECTED")
 
 
@@ -333,22 +334,24 @@ def create_supervisor(payload: dict, user: User = Depends(get_current_user), db:
 
 @router.patch("/supervisors/{sid}")
 def update_supervisor(sid: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role not in COMPANY_ROLES:
-        raise HTTPException(403, "Admin only")
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Only the company admin can activate or deactivate supervisors")
     sup = db.get(User, sid)
     if not sup or sup.role != UserRole.SUPERVISOR:
         raise HTTPException(404, "Supervisor not found")
     for k, v in payload.items():
         if k in ("name", "is_active") and v is not None:
             setattr(sup, k, v)
+    if "is_active" in payload:
+        sup.token_version = (sup.token_version or 0) + 1
     db.commit()
     return {"ok": True}
 
 
 @router.delete("/supervisors/{sid}")
 def delete_supervisor(sid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role not in COMPANY_ROLES:
-        raise HTTPException(403, "Admin only")
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Only the company admin can delete supervisors")
     sup = db.get(User, sid)
     if not sup or sup.role != UserRole.SUPERVISOR:
         raise HTTPException(404, "Supervisor not found")
@@ -786,6 +789,8 @@ def hr_update_courier(cid: int, payload: dict, user: User = Depends(get_current_
     mine = _tenant_couriers(db, user).filter(Courier.id == cid).first()
     if not mine:
         raise HTTPException(403, "This courier is not in your group")
+    if "employment_status" in payload and user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Only the company admin can activate or deactivate couriers")
     if "primary_project_id" in payload:
         project_id = payload.get("primary_project_id")
         project = db.get(Project, int(project_id)) if project_id else None
@@ -825,6 +830,11 @@ def hr_update_courier(cid: int, payload: dict, user: User = Depends(get_current_
                 c.is_on_leave = False
             setattr(c, k, v)
             changed.append(k)
+    if "employment_status" in payload:
+        account = db.query(User).filter(User.courier_id == c.id, User.role == UserRole.COURIER).first()
+        if account:
+            account.is_active = payload["employment_status"] == "ACTIVE"
+            account.token_version = (account.token_version or 0) + 1
     db.commit()
     _log(db, user, f"عدّل مندوب {c.name}: {', '.join(changed)}", "courier", c.id)
     return {"ok": True, "updated": changed}

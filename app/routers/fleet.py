@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi import Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_, text
+from sqlalchemy import or_, and_, text, select, func
 import csv, io
 import json
 from datetime import date, datetime, timedelta
@@ -27,6 +27,10 @@ TENANT_ROLES = (
     UserRole.HR, UserRole.ACCOUNTANT, UserRole.VIEWER, UserRole.SUPERVISOR,
     UserRole.PROJECT_MANAGER,
 )
+
+# العمليات الحساسة الخاصة بحسابات العاملين لا تُمنح بالصلاحيات المخصصة.
+# مالك الشركة ومدير النظام فقط يستطيعان التعطيل أو الحذف.
+ACCOUNT_ADMIN_ROLES = (UserRole.COMPANY, UserRole.COMPANY_ADMIN)
 
 ROLE_PERMISSIONS = {
     UserRole.COMPANY: ["dashboard", "drivers", "attendance", "performance", "tickets", "hr", "payroll", "reports", "export", "users", "settings", "billing", "supervision"],
@@ -314,6 +318,8 @@ def fleet_update_user(uid: int, payload: dict, user: User = Depends(get_current_
     if "name" in payload and str(payload["name"]).strip():
         row.name = str(payload["name"]).strip()
     if "is_active" in payload:
+        if user.role not in ACCOUNT_ADMIN_ROLES:
+            raise HTTPException(403, "Only the company admin can activate or deactivate accounts")
         row.is_active = bool(payload["is_active"])
         row.token_version = (row.token_version or 0) + 1
     if payload.get("password"):
@@ -330,8 +336,8 @@ def fleet_update_user(uid: int, payload: dict, user: User = Depends(get_current_
 
 @router.delete("/users/{uid}")
 def fleet_delete_user(uid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role not in COMPANY_ROLES:
-        raise HTTPException(403, "Not a fleet account")
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Only the company admin can delete accounts")
     _require_permission(user, "users")
     row = db.get(User, uid)
     if not row or row.tenant_id != user.tenant_id or row.role == UserRole.COMPANY:
@@ -453,6 +459,8 @@ def fleet_couriers(user: User = Depends(get_current_user), db: Session = Depends
             "supervisor": (db.get(User, c.supervisor_id).name if c.supervisor_id else None),
             "primary_project_id": c.primary_project_id,
             "project": (db.get(Project, c.primary_project_id).name if c.primary_project_id else c.platform),
+            "account_active": (db.query(User).filter(User.courier_id == c.id, User.role == UserRole.COURIER).first().is_active
+                               if db.query(User).filter(User.courier_id == c.id, User.role == UserRole.COURIER).first() else False),
         }
         for c in couriers
     ]
@@ -550,9 +558,40 @@ def update_courier(cid: int, payload: dict, user: User = Depends(get_current_use
         "bonus_target", "employment_status", "bank_iban", "documents_valid",
         "is_online", "is_available", "shift_active", "lat", "lng",
     }
+    if "employment_status" in payload and user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Only the company admin can activate or deactivate couriers")
     for k, v in payload.items():
         if k in allowed:
             setattr(courier, k, v)
+    if "employment_status" in payload:
+        account = db.query(User).filter(User.courier_id == courier.id, User.role == UserRole.COURIER).first()
+        if account:
+            account.is_active = payload["employment_status"] == "ACTIVE"
+            account.token_version = (account.token_version or 0) + 1
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/couriers/{cid}")
+def delete_courier(cid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """حذف سجل أُنشئ بالخطأ فقط؛ السجلات ذات التاريخ التشغيلي تُعطّل للحفاظ على التقارير."""
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Only the company admin can delete couriers")
+    courier = _tenant_record(db, Courier, cid, user)
+    blockers = []
+    for table in Courier.__table__.metadata.sorted_tables:
+        if table.name in ("couriers", "users"):
+            continue
+        for column in table.columns:
+            if any(fk.target_fullname == "couriers.id" for fk in column.foreign_keys):
+                count = db.execute(select(func.count()).select_from(table).where(column == cid)).scalar() or 0
+                if count:
+                    blockers.append(table.name)
+                break
+    if blockers:
+        raise HTTPException(409, "لا يمكن حذف مندوب له سجل تشغيلي؛ اجعله غير نشط للحفاظ على التقارير")
+    db.query(User).filter(User.courier_id == cid, User.role == UserRole.COURIER).delete(synchronize_session=False)
+    db.delete(courier)
     db.commit()
     return {"ok": True}
 

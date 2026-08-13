@@ -807,7 +807,7 @@ async function loadTeamUsers(){
       <td><b>${escapeHtml(u.name)}</b>${u.is_owner?'<br><small>الحساب الرئيسي</small>':''}</td>
       <td dir="ltr">${escapeHtml(u.phone)}</td><td>${TEAM_ROLE_NAMES[u.role]||u.role}</td>
       <td>${u.is_active?'<span class="tag green">نشط</span>':'<span class="tag red">موقوف</span>'}</td>
-      <td>${u.is_owner?'—':`<button class="btn small ghost" onclick="toggleTeamUser(${u.id},${!u.is_active})">${u.is_active?'إيقاف':'تفعيل'}</button>`}</td>
+      <td>${u.is_owner||!isAccountAdmin()?'—':`<button class="btn small ghost" onclick="toggleTeamUser(${u.id},${!u.is_active})">${u.is_active?'إيقاف':'تفعيل'}</button> <button class="btn small red" onclick="deleteTeamUser(${u.id})">حذف</button>`}</td>
     </tr>`).join("")||'<tr><td colspan="5">لا يوجد مستخدمون بعد</td></tr>';
   }catch(e){ document.getElementById("teamUsersBody").innerHTML='<tr><td colspan="5">تعذّر تحميل المستخدمين</td></tr>'; }
 }
@@ -830,6 +830,8 @@ async function toggleTeamUser(id,is_active){
   try{ await api("/fleet/users/"+id,{method:"PATCH",body:JSON.stringify({is_active})}); loadTeamUsers(); }
   catch(e){ alert(e.message); }
 }
+function isAccountAdmin(){return META&&["COMPANY","COMPANY_ADMIN"].includes(META.role)}
+async function deleteTeamUser(id){if(!confirm("حذف حساب المستخدم نهائيًا؟"))return;try{await api("/fleet/users/"+id,{method:"DELETE"});loadTeamUsers()}catch(e){alert(e.message)}}
 
 function toggleSide(){
   const side=document.getElementById("side"), overlay=document.getElementById("overlay"), main=document.getElementById("main");
@@ -859,7 +861,7 @@ async function loadCouriers(){
       <td>${c.documents_valid?'<span class="tag green">موثّق</span>':'<span class="tag red">منتهي</span>'}</td>
       <td style="display:flex;gap:6px">
         <button class="btn blue small" onclick="openCourier(${c.id})">👤 ملف</button>
-        ${META&&META.role!=="SUPERVISOR"?`<button class="btn ${c.employment_status==="ACTIVE"?"red":"green"} small" onclick="setCourierStatus(${c.id},'${c.employment_status==="ACTIVE"?"SUSPENDED":"ACTIVE"}')">${c.employment_status==="ACTIVE"?"إيقاف":"تفعيل"}</button>`:""}
+        ${isAccountAdmin()?`<button class="btn ${c.employment_status==="ACTIVE"?"red":"green"} small" onclick="setCourierStatus(${c.id},'${c.employment_status==="ACTIVE"?"SUSPENDED":"ACTIVE"}')">${c.employment_status==="ACTIVE"?"غير نشط":"تفعيل"}</button> <button class="btn red small" onclick="deleteCourierRecord(${c.id})">حذف</button>`:""}
       </td></tr>`).join("") || '<tr><td colspan="9" style="color:var(--muted)">لا مناديب</td></tr>';
   }catch(e){ /* الصفرة تعرض بياناتها الثابتة */ }
 }
@@ -1041,6 +1043,7 @@ async function setCourierStatus(id, status){
     loadAll();
   }catch(e){ alert("❌ "+e.message); }
 }
+async function deleteCourierRecord(id){if(!confirm("حذف المندوب نهائيًا؟ إذا كان له حضور أو طلبات سيطلب منك النظام جعله غير نشط بدلًا من الحذف."))return;try{await api("/fleet/couriers/"+id,{method:"DELETE"});loadAll()}catch(e){alert("❌ "+e.message)}}
 function toggleAddShift(){ document.getElementById("addShiftBox").style.display = document.getElementById("addShiftBox").style.display==="none"?"block":"none"; }
 async function addShift(){
   try{ await api("/fleet/shifts",{method:"POST",body:JSON.stringify({
@@ -1508,7 +1511,7 @@ async function loadHR(){
     document.getElementById("supBody").innerHTML = sups.map(s=>`
       <tr><td><b>${s.name}</b></td><td dir="ltr">${s.phone}</td><td>${s.couriers_count}</td>
       <td>${s.is_active?'<span class="tag green">نشط</span>':'<span class="tag gray">موقوف</span>'}</td>
-      <td><button class="btn ghost small" onclick="toggleSup(${s.id},${s.is_active})">${s.is_active?'إيقاف':'تفعيل'}</button></td></tr>`).join("")
+      <td>${isAccountAdmin()?`<button class="btn ghost small" onclick="toggleSup(${s.id},${s.is_active})">${s.is_active?'غير نشط':'تفعيل'}</button> <button class="btn red small" onclick="deleteSup(${s.id})">حذف</button>`:'—'}</td></tr>`).join("")
       || '<tr><td colspan="5" style="color:var(--muted)">لا مشرفين بعد — أضف أول مشرف</td></tr>';
     document.getElementById("assignmentRequestsAdmin").innerHTML=assignments.filter(r=>r.status==="PENDING").map(r=>`
       <div class="opt"><div><b>${escapeHtml(r.supervisor)} يطلب ضم ${escapeHtml(r.courier)}</b><small>${escapeHtml(r.note||'بدون ملاحظة')}</small></div>
@@ -1615,6 +1618,7 @@ async function toggleSup(id,active){
   await api("/hr/supervisors/"+id,{method:"PATCH",body:JSON.stringify({is_active:!active})});
   loadHR();
 }
+async function deleteSup(id){if(!confirm("حذف المشرف نهائيًا؟ يجب نقل مناديبه أولًا."))return;try{await api("/hr/supervisors/"+id,{method:"DELETE"});loadHR()}catch(e){alert("❌ "+e.message)}}
 async function decideHrLeave(id,action){
   const c=prompt(action==="approve"?"ملاحظة (اختياري):":"ملاحظة الرفض:");
   if(action==="reject"&&c===null)return;

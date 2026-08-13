@@ -151,7 +151,7 @@ input:focus,select:focus{border-color:var(--orange)}
   <div class="group">الشركة</div>
   <button class="nav" data-view="staff"><i>👥</i><span>الفريق والصلاحيات</span></button>
   <button class="nav" data-view="settings"><i>⚙</i><span>إعدادات النظام</span></button>
-  <div class="user"><div class="photo">سم</div><div><b>سامح صالح</b><small>Super Admin</small></div><button class="btn ghost small" style="margin-right:8px;flex-shrink:0" onclick="logout()" title="تسجيل الخروج">🚪</button></div>
+  <div class="user"><div class="photo">سم</div><div><b>سامح صالح</b><small>Super Admin</small></div><button class="btn ghost small" style="margin-right:8px;flex-shrink:0" onclick="changeAdminPassword()" title="تغيير كلمة المرور">🔐</button><button class="btn ghost small" style="flex-shrink:0" onclick="logout()" title="تسجيل الخروج">🚪</button></div>
 </aside>
 <div class="overlay" id="overlay" onclick="toggleSide()"></div>
 <main class="main" id="main">
@@ -457,6 +457,12 @@ function barChart(elId, vals, color){
 async function logout(){
   const old=ADMIN_TOKEN;try{if(old)await fetch('/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+old}})}catch(_e){}
   localStorage.removeItem("dou_token_admin"); localStorage.removeItem("dou_token"); localStorage.removeItem("dou_role"); sessionStorage.removeItem("dou_admin_key"); location.reload();
+}
+async function changeAdminPassword(){
+  if(!ADMIN_TOKEN){alert("تغيير كلمة المرور متاح عند الدخول بحساب الأدمن، وليس بمفتاح الإدارة.");return}
+  const current=prompt("كلمة المرور الحالية:");if(current===null)return;
+  const next=prompt("كلمة المرور الجديدة (8 أحرف على الأقل):");if(!next)return;
+  try{await api("/auth/change-password",{method:"POST",body:JSON.stringify({current_password:current,new_password:next})});alert("تم تغيير كلمة المرور. سجل الدخول بالكلمة الجديدة.");logout()}catch(e){alert("❌ "+e.message)}
 }
 
 function go(v){
