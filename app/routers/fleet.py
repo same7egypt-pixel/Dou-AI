@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi import Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_
+from sqlalchemy import or_, and_, text
 import csv, io
 import json
 from datetime import date, datetime, timedelta
@@ -58,12 +58,20 @@ def _tenant_record(db: Session, model, record_id: int, user: User):
 
 
 def _report_rows(db: Session, user: User, report_type: str,
-                 project_id: int = None, doc_status: str = None,
+                 project_id: int = None, contract_id: int = None, branch_id: int = None, supervisor_id: int = None, doc_status: str = None,
                  date_from: date = None, date_to: date = None):
     tenant_id = _scope(user, db)
     q = db.query(Courier)
     if tenant_id is not None:
         q = q.filter(Courier.tenant_id == tenant_id)
+    if contract_id:
+        contract_projects = db.query(ContractBranch.project_id).filter(ContractBranch.contract_id == contract_id)
+        q = q.filter(or_(Courier.contract_id == contract_id, Courier.primary_project_id.in_(contract_projects)))
+    if branch_id:
+        selected_branch = db.get(ContractBranch, branch_id)
+        q = q.filter(or_(Courier.contract_branch_id == branch_id,
+                         Courier.primary_project_id == selected_branch.project_id)) if selected_branch else q.filter(text("1=0"))
+    if supervisor_id: q = q.filter(Courier.supervisor_id == supervisor_id)
     couriers = q.order_by(Courier.name).all()
     today = date.today()
 
@@ -129,25 +137,25 @@ def _report_rows(db: Session, user: User, report_type: str,
 
 @router.get("/reports")
 def fleet_reports(report_type: str = Query("documents", pattern="^(documents|bonus)$"),
-                  project_id: int = None, doc_status: str = None, date_from: date = None, date_to: date = None,
+                  project_id: int = None, contract_id: int = None, branch_id: int = None, supervisor_id: int = None, doc_status: str = None, date_from: date = None, date_to: date = None,
                   user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in TENANT_ROLES:
         raise HTTPException(403, "Not a fleet account")
     needed = "hr" if report_type == "documents" else "payroll"
     _require_permission(user, needed)
-    return _report_rows(db, user, report_type, project_id, doc_status, date_from, date_to)
+    return _report_rows(db, user, report_type, project_id, contract_id, branch_id, supervisor_id, doc_status, date_from, date_to)
 
 
 @router.get("/reports/export")
 def fleet_reports_export(report_type: str = Query("documents", pattern="^(documents|bonus)$"),
-                         project_id: int = None, doc_status: str = None, date_from: date = None, date_to: date = None,
+                         project_id: int = None, contract_id: int = None, branch_id: int = None, supervisor_id: int = None, doc_status: str = None, date_from: date = None, date_to: date = None,
                          user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Not a fleet account")
     _require_permission(user,"export")
     needed = "hr" if report_type == "documents" else "payroll"
     _require_permission(user, needed)
-    rows = _report_rows(db, user, report_type, project_id, doc_status, date_from, date_to)
+    rows = _report_rows(db, user, report_type, project_id, contract_id, branch_id, supervisor_id, doc_status, date_from, date_to)
     output = io.StringIO()
     output.write("\ufeff")
     if rows:

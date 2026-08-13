@@ -477,7 +477,9 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
             <option value="SOON">تنتهي خلال 30 يوم</option>
             <option value="OK">سليمة</option>
           </select>
-          <select id="reportProject" onchange="loadReport()" style="display:none"><option value="">كل المشاريع</option></select>
+          <select id="reportContract" onchange="reportContractChanged()" style="display:none"><option value="">كل العقود / المشاريع</option></select>
+          <select id="reportBranch" onchange="reportBranchChanged()" style="display:none"><option value="">كل الفروع والمدن</option></select>
+          <select id="reportSupervisorMain" onchange="loadReport()" style="display:none"><option value="">كل المشرفين</option></select>
         </div>
         <div id="dailyReportFilters">
           <div class="reportPeriod" id="reportPeriod"><button data-period="day" onclick="setReportPeriod('day')">اليوم</button><button data-period="week" onclick="setReportPeriod('week')">هذا الأسبوع</button><button data-period="month" onclick="setReportPeriod('month')">هذا الشهر</button><button data-period="custom" onclick="setReportPeriod('custom')">فترة مخصصة</button></div>
@@ -1220,6 +1222,7 @@ async function loadCompliance(){
 
 let REPORT_ROWS=[];
 let REPORT_PERIOD="day";
+let REPORT_CONTRACTS=[];
 function localISO(d){const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}
 function setReportPeriod(period,refresh=true){
   REPORT_PERIOD=period;const today=new Date(),from=new Date(today),to=new Date(today);
@@ -1239,15 +1242,17 @@ async function initReports(){
     if(o.value==="documents"&&!permissions.includes("hr")&&!permissions.includes("*")) o.remove();
     if(o.value==="bonus"&&!permissions.includes("payroll")&&!permissions.includes("*")) o.remove();
   });
-  if(!document.getElementById("reportProject").dataset.loaded){
+  if(!document.getElementById("reportContract").dataset.loaded){
     try{
-      const [projects,couriers,supervisors]=await Promise.all([api("/hr/projects"),api("/fleet/couriers"),META.role==="SUPERVISOR"?Promise.resolve([]):api("/hr/supervisors")]);
-      document.getElementById("reportProject").innerHTML='<option value="">كل المشاريع</option>'+projects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+      const [contracts,couriers,supervisors]=await Promise.all([api("/hr/contracts"),api("/fleet/couriers"),META.role==="SUPERVISOR"?Promise.resolve([]):api("/hr/supervisors")]);
+      REPORT_CONTRACTS=contracts;
+      document.getElementById("reportContract").innerHTML='<option value="">كل العقود / المشاريع</option>'+contracts.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+      document.getElementById("reportSupervisorMain").innerHTML='<option value="">كل المشرفين</option>'+supervisors.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
       const unique=x=>[...new Set(x.filter(Boolean))].sort();
       document.getElementById("reportNationality").innerHTML='<option value="">كل الجنسيات</option>'+unique(couriers.map(c=>c.nationality)).map(x=>`<option>${escapeHtml(x)}</option>`).join("");
       document.getElementById("reportZone").innerHTML='<option value="">كل المدن والمناطق</option>'+unique(couriers.map(c=>c.work_city||c.zone)).map(x=>`<option>${escapeHtml(x)}</option>`).join("");
       document.getElementById("reportSupervisor").innerHTML='<option value="">كل المشرفين</option>'+supervisors.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
-      document.getElementById("reportProject").dataset.loaded="1";
+      document.getElementById("reportContract").dataset.loaded="1";reportContractChanged(false);
     }catch(e){}
   }
   if(!document.getElementById("reportFrom").value)setReportPeriod(REPORT_PERIOD,false);
@@ -1256,7 +1261,7 @@ async function initReports(){
 function setupReportFilters(){
   const type=document.getElementById("reportType").value, daily=type==="daily", bonus=type==="bonus";
   document.getElementById("reportDocStatus").style.display=type==="documents"?"block":"none";
-  document.getElementById("reportProject").style.display=(bonus||daily)?"block":"none";
+  ["reportContract","reportBranch","reportSupervisorMain"].forEach(id=>document.getElementById(id).style.display=(bonus||daily)?"block":"none");
   document.getElementById("dailyReportFilters").style.display=(daily||bonus)?"block":"none";
   document.getElementById("reportAdvancedFilters").style.display=daily?"block":"none";
 }
@@ -1264,7 +1269,7 @@ function reportQuery(){
   const type=document.getElementById("reportType").value;
   if(type==="daily"){
     const p=new URLSearchParams();
-    const fields={date_from:"reportFrom",date_to:"reportTo",project_id:"reportProject",nationality:"reportNationality",zone:"reportZone",supervisor_id:"reportSupervisor",courier_name:"reportCourierName",log_status:"reportLogStatus",target_status:"reportTargetStatus",attendance_status:"reportAttendance",employment_status:"reportEmployment"};
+    const fields={date_from:"reportFrom",date_to:"reportTo",contract_id:"reportContract",branch_id:"reportBranch",supervisor_id:"reportSupervisorMain",nationality:"reportNationality",zone:"reportZone",courier_name:"reportCourierName",log_status:"reportLogStatus",target_status:"reportTargetStatus",attendance_status:"reportAttendance",employment_status:"reportEmployment"};
     Object.entries(fields).forEach(([k,id])=>{const v=document.getElementById(id).value;if(v)p.set(k,v)});
     return p.toString();
   }
@@ -1272,10 +1277,12 @@ function reportQuery(){
   if(type==="documents") p.set("doc_status",document.getElementById("reportDocStatus").value);
   else if(type==="bonus"){
     p.set("date_from",document.getElementById("reportFrom").value);p.set("date_to",document.getElementById("reportTo").value);
-    if(document.getElementById("reportProject").value)p.set("project_id",document.getElementById("reportProject").value);
+    [["contract_id","reportContract"],["branch_id","reportBranch"],["supervisor_id","reportSupervisorMain"]].forEach(([k,id])=>{if(document.getElementById(id).value)p.set(k,document.getElementById(id).value)});
   }
   return p.toString();
 }
+function reportContractChanged(refresh=true){const id=+document.getElementById("reportContract").value,c=REPORT_CONTRACTS.find(x=>x.id===id),branches=c?c.branches:REPORT_CONTRACTS.flatMap(x=>x.branches||[]);document.getElementById("reportBranch").innerHTML='<option value="">كل الفروع والمدن</option>'+branches.map(b=>`<option value="${b.id}">${escapeHtml(b.city)}${b.supervisor?' — '+escapeHtml(b.supervisor):''}</option>`).join('');reportBranchChanged(refresh)}
+function reportBranchChanged(refresh=true){const bid=+document.getElementById("reportBranch").value,b=REPORT_CONTRACTS.flatMap(x=>x.branches||[]).find(x=>x.id===bid);if(b?.supervisor_id)document.getElementById("reportSupervisorMain").value=String(b.supervisor_id);if(refresh)loadReport()}
 async function loadReport(){
   try{
     const type=document.getElementById("reportType").value;

@@ -65,7 +65,7 @@ def calculate_target_bonus(orders: int, target: int, target_bonus: float,
     }
 
 
-def _daily_report_data(db: Session, user: User, selected: date, project_id=None,
+def _daily_report_data(db: Session, user: User, selected: date, project_id=None, contract_id=None, branch_id=None,
                        nationality=None, zone=None, supervisor_id=None,
                        log_status=None, target_status=None, attendance_status=None,
                        employment_status=None, courier_name=None, date_from=None, date_to=None):
@@ -76,6 +76,13 @@ def _daily_report_data(db: Session, user: User, selected: date, project_id=None,
         q=q.filter(Courier.primary_project_id.in_(json.loads(user.managed_project_ids or "[]")))
     elif supervisor_id:
         q = q.filter(Courier.supervisor_id == int(supervisor_id))
+    if contract_id:
+        contract_projects = db.query(ContractBranch.project_id).filter(ContractBranch.contract_id == int(contract_id))
+        q = q.filter(or_(Courier.contract_id == int(contract_id), Courier.primary_project_id.in_(contract_projects)))
+    if branch_id:
+        selected_branch = db.get(ContractBranch, int(branch_id))
+        q = q.filter(or_(Courier.contract_branch_id == int(branch_id),
+                         Courier.primary_project_id == selected_branch.project_id)) if selected_branch else q.filter(text("1=0"))
     if project_id: q = q.filter(Courier.primary_project_id == int(project_id))
     if nationality: q = q.filter(Courier.nationality == nationality)
     if zone: q = q.filter(or_(Courier.work_city == zone, Courier.zone == zone))
@@ -145,7 +152,7 @@ def _daily_report_data(db: Session, user: User, selected: date, project_id=None,
 
 
 @router.get("/daily-report")
-def daily_report(report_date: date = None, project_id: int = None, nationality: str = None,
+def daily_report(report_date: date = None, project_id: int = None, contract_id: int = None, branch_id: int = None, nationality: str = None,
                  zone: str = None, supervisor_id: int = None, log_status: str = None,
                  target_status: str = None, attendance_status: str = None,
                  employment_status: str = None, courier_name: str = None,
@@ -153,13 +160,13 @@ def daily_report(report_date: date = None, project_id: int = None, nationality: 
                  user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in COMPANY_ROLES + (UserRole.OPERATIONS, UserRole.SUPERVISOR, UserRole.PROJECT_MANAGER):
         raise HTTPException(403, "Not allowed")
-    return _daily_report_data(db, user, report_date or date.today(), project_id, nationality, zone,
+    return _daily_report_data(db, user, report_date or date.today(), project_id, contract_id, branch_id, nationality, zone,
                               supervisor_id, log_status, target_status, attendance_status,
                               employment_status, courier_name, date_from, date_to)
 
 
 @router.get("/daily-report/export")
-def daily_report_export(report_date: date = None, project_id: int = None, nationality: str = None,
+def daily_report_export(report_date: date = None, project_id: int = None, contract_id: int = None, branch_id: int = None, nationality: str = None,
                         zone: str = None, supervisor_id: int = None, log_status: str = None,
                         target_status: str = None, attendance_status: str = None,
                         employment_status: str = None, courier_name: str = None,
@@ -168,7 +175,7 @@ def daily_report_export(report_date: date = None, project_id: int = None, nation
     if user.role not in COMPANY_ROLES + (UserRole.OPERATIONS, UserRole.SUPERVISOR, UserRole.PROJECT_MANAGER):
         raise HTTPException(403, "Not allowed")
     chosen = report_date or date.today()
-    data = _daily_report_data(db, user, chosen, project_id, nationality, zone, supervisor_id,
+    data = _daily_report_data(db, user, chosen, project_id, contract_id, branch_id, nationality, zone, supervisor_id,
                               log_status, target_status, attendance_status, employment_status, courier_name, date_from, date_to)
     output = io.StringIO(); output.write("\ufeff")
     rows = [{k: v for k, v in row.items() if not k.startswith("_")} for row in data["rows"]]
