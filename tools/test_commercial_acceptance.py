@@ -124,6 +124,14 @@ assert fleet_couriers(sup2_scope_user, db) == []
 assert {x["id"] for x in fleet_couriers(sup1_user, db)} == {c1.id, c2.id}
 c2.supervisor_id = sup2.id
 db.commit()
+# سجل قديم: مربوط بالمشروع التشغيلي فقط من غير supervisor_id أو contract_branch_id.
+c2.supervisor_id = None
+c2.contract_branch_id = None
+db.commit()
+assert {x["id"] for x in fleet_couriers(sup2_scope_user, db)} == {c2.id}
+c2.supervisor_id = sup2.id
+c2.contract_branch_id = branches[1]["id"]
+db.commit()
 try:
     add_courier({"name": "ممنوع", "phone": "966500299999"}, sup1_user, db)
     raise AssertionError("Supervisor added a courier")

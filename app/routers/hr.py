@@ -30,9 +30,16 @@ def _supervisor_courier_scope(db: Session, supervisor_id: int):
     branch_ids = db.query(ContractBranch.id).filter(
         ContractBranch.supervisor_id == supervisor_id
     )
+    project_ids = db.query(ContractBranch.project_id).filter(
+        ContractBranch.supervisor_id == supervisor_id,
+        ContractBranch.project_id.isnot(None),
+    )
     return or_(
         Courier.supervisor_id == supervisor_id,
-        and_(Courier.supervisor_id.is_(None), Courier.contract_branch_id.in_(branch_ids)),
+        and_(Courier.supervisor_id.is_(None), or_(
+            Courier.contract_branch_id.in_(branch_ids),
+            Courier.primary_project_id.in_(project_ids),
+        )),
     )
 
 
