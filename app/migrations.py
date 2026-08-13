@@ -58,7 +58,16 @@ MIGRATIONS = {
         "subscription_status": "VARCHAR(20) DEFAULT 'ACTIVE'",
         "last_paid_at": "TIMESTAMP",
         "last_activity_at": "TIMESTAMP",
+        "market_code": "VARCHAR(2) DEFAULT 'SA'",
+        "default_language": "VARCHAR(5) DEFAULT 'ar'",
+        "currency": "VARCHAR(3) DEFAULT 'SAR'",
+        "timezone": "VARCHAR(60) DEFAULT 'Asia/Riyadh'",
     },
+    "subscription_plans": {
+        "name_en": "VARCHAR(80)",
+        "monthly_price_usd": "FLOAT DEFAULT 0",
+    },
+    "subscription_payments": {"currency": "VARCHAR(3) DEFAULT 'SAR'"},
 }
 
 
@@ -76,6 +85,11 @@ def run_migrations(engine):
                 if col not in existing:
                     conn.execute(text(f'ALTER TABLE {table} ADD COLUMN {col} {ddl}'))
                     print(f"   ➕ migration: {table}.{col}")
+        # أسعار دولية افتراضية للباقات الحالية؛ تظل قابلة للتعديل من إدارة DOU.
+        for code, name_en, usd in (("STARTER","Starter",149),("GROWTH","Growth",269),
+                                   ("BUSINESS","Business",499),("ENTERPRISE","Enterprise",899)):
+            conn.execute(text("UPDATE subscription_plans SET name_en=:name WHERE code=:code AND (name_en IS NULL OR name_en='')"), {"name":name_en,"code":code})
+            conn.execute(text("UPDATE subscription_plans SET monthly_price_usd=:usd WHERE code=:code AND (monthly_price_usd IS NULL OR monthly_price_usd=0)"), {"usd":usd,"code":code})
         # توسيع enum userrole بأدوار الشركة (PostgreSQL)
         if engine.dialect.name == "postgresql":
             for role in ("SUPERVISOR", "COMPANY_ADMIN", "OPERATIONS", "HR", "ACCOUNTANT", "VIEWER", "PROJECT_MANAGER"):

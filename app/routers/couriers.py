@@ -83,6 +83,16 @@ def my_profile(user: User = Depends(get_current_user), db: Session = Depends(get
     return courier
 
 
+@router.get("/me/preferences")
+def my_preferences(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != UserRole.COURIER or not user.tenant_id:
+        raise HTTPException(403, "This account is not a courier")
+    from ..models.entities import Tenant
+    tenant = db.get(Tenant, user.tenant_id)
+    return {"language": tenant.default_language or "ar", "currency": tenant.currency or "SAR",
+            "timezone": tenant.timezone or "Asia/Riyadh", "market_code": tenant.market_code or "SA"}
+
+
 @router.get("/{courier_id}/tasks")
 def my_tasks(courier_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     _courier_access(courier_id, user, db)

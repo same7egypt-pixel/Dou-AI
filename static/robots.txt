@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /app
+Disallow: /driver
+Disallow: /static/admin.html
+Disallow: /static/fleet.html
+Disallow: /static/courier.html
+Sitemap: https://dou.delivery/sitemap.xml

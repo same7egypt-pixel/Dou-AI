@@ -11,6 +11,24 @@ from jose import jwt as pyjwt, JWTError
 from datetime import datetime, timedelta
 from calendar import monthrange
 
+MARKETS = {
+    "SA": ("ar", "SAR", "Asia/Riyadh"), "AE": ("en", "AED", "Asia/Dubai"),
+    "EG": ("ar", "EGP", "Africa/Cairo"), "KW": ("ar", "KWD", "Asia/Kuwait"),
+    "QA": ("ar", "QAR", "Asia/Qatar"), "BH": ("ar", "BHD", "Asia/Bahrain"),
+    "OM": ("ar", "OMR", "Asia/Muscat"), "GB": ("en", "GBP", "Europe/London"),
+    "US": ("en", "USD", "America/New_York"), "CA": ("en", "CAD", "America/Toronto"),
+    "AU": ("en", "AUD", "Australia/Sydney"), "OTHER": ("en", "USD", "UTC"),
+}
+
+def regional_settings(payload: dict):
+    market = (payload.get("market_code") or payload.get("country") or "SA").upper()
+    if market not in MARKETS: market = "OTHER"
+    lang, currency, timezone = MARKETS[market]
+    lang = payload.get("default_language") if payload.get("default_language") in ("ar", "en") else lang
+    currency = (payload.get("currency") or currency).upper()[:3]
+    timezone = (payload.get("timezone") or timezone).strip()
+    return market, lang, currency, timezone
+
 
 def add_calendar_months(value: datetime, months: int) -> datetime:
     month_index = value.month - 1 + months
@@ -67,13 +85,15 @@ def admin_gate(payload: GateIn):
 
 
 @gate_router.get("/public-plans")
-def public_plans(db: Session = Depends(get_db)):
+def public_plans(currency: str = "SAR", db: Session = Depends(get_db)):
     """الباقات النشطة المعروضة في صفحة المبيعات، بدون أي بيانات إدارية حساسة."""
     return [
         {
             "code": plan.code,
             "name": plan.name,
+            "name_en": plan.name_en or plan.name,
             "monthly_price": plan.monthly_price,
+            "monthly_price_usd": plan.monthly_price_usd or 0,
             "max_couriers": plan.max_couriers,
         }
         for plan in db.query(SubscriptionPlan)
@@ -229,6 +249,9 @@ def list_tenants(db: Session = Depends(get_db)):
         rows.append({
             "id": tenant.id, "name": tenant.name,
             "country": tenant.country.value if hasattr(tenant.country, "value") else tenant.country,
+            "market_code": tenant.market_code or (tenant.country.value if hasattr(tenant.country, "value") else tenant.country),
+            "default_language": tenant.default_language or "ar", "currency": tenant.currency or "SAR",
+            "timezone": tenant.timezone or "Asia/Riyadh",
             "plan": tenant.plan or "TRIAL", "monthly_fee": tenant.monthly_fee or 0,
             "subscription_status": tenant.subscription_status or "ACTIVE",
             "due_date": tenant.due_date.isoformat() if tenant.due_date else None,
@@ -251,10 +274,12 @@ def patch_tenant(tid: int, payload: dict, db: Session = Depends(get_db), actor: 
     if payload.get("plan") in ("TRIAL", "STARTER", "GROWTH", "BUSINESS", "ENTERPRISE", "PRO"):
         tenant.plan = payload["plan"]
         plan = db.query(SubscriptionPlan).filter(SubscriptionPlan.code == tenant.plan).first()
-        if plan: tenant.monthly_fee = plan.monthly_price
+        if plan: tenant.monthly_fee = plan.monthly_price_usd if (tenant.currency or "SAR")=="USD" and plan.monthly_price_usd else plan.monthly_price
     for key in ("name","contact_email","contact_phone"):
         if key in payload:setattr(tenant,key,(payload.get(key) or "").strip())
     if "monthly_fee" in payload:tenant.monthly_fee=float(payload.get("monthly_fee") or 0)
+    if any(k in payload for k in ("market_code","default_language","currency","timezone")):
+        tenant.market_code,tenant.default_language,tenant.currency,tenant.timezone=regional_settings(payload)
     if "billing_day" in payload:tenant.billing_day=max(1,min(28,int(payload.get("billing_day") or 1)))
     if payload.get("due_date"):
         try:tenant.due_date=datetime.fromisoformat(payload["due_date"])
@@ -274,7 +299,7 @@ def tenant_detail(tid:int,db:Session=Depends(get_db)):
     if not t:raise HTTPException(404,"Company not found")
     users=db.query(User).filter(User.tenant_id==tid,User.role!=UserRole.COURIER).all()
     payments=db.query(SubscriptionPayment).filter(SubscriptionPayment.tenant_id==tid).order_by(SubscriptionPayment.paid_at.desc()).all()
-    return {"id":t.id,"name":t.name,"country":t.country.value,"contact_email":t.contact_email,"contact_phone":t.contact_phone,"plan":t.plan,"monthly_fee":t.monthly_fee or 0,"billing_day":t.billing_day or 1,"due_date":t.due_date.isoformat() if t.due_date else None,"last_paid_at":t.last_paid_at.isoformat() if t.last_paid_at else None,"subscription_status":t.subscription_status,"created_at":t.created_at.isoformat(),"users":[{"id":u.id,"name":u.name,"phone":u.phone,"role":u.role.value,"last_login_at":u.last_login_at.isoformat() if u.last_login_at else None,"active":u.is_active} for u in users],"couriers_count":db.query(Courier).filter(Courier.tenant_id==tid).count(),"payments":[{"id":p.id,"amount":p.amount,"payment_method":p.payment_method,"paid_at":p.paid_at.isoformat(),"period_months":p.period_months,"reference":p.reference,"receipt_number":p.receipt_number,"notes":p.notes,"recorded_by":p.recorded_by_name} for p in payments]}
+    return {"id":t.id,"name":t.name,"country":t.country.value,"market_code":t.market_code or t.country.value,"default_language":t.default_language or "ar","currency":t.currency or "SAR","timezone":t.timezone or "Asia/Riyadh","contact_email":t.contact_email,"contact_phone":t.contact_phone,"plan":t.plan,"monthly_fee":t.monthly_fee or 0,"billing_day":t.billing_day or 1,"due_date":t.due_date.isoformat() if t.due_date else None,"last_paid_at":t.last_paid_at.isoformat() if t.last_paid_at else None,"subscription_status":t.subscription_status,"created_at":t.created_at.isoformat(),"users":[{"id":u.id,"name":u.name,"phone":u.phone,"role":u.role.value,"last_login_at":u.last_login_at.isoformat() if u.last_login_at else None,"active":u.is_active} for u in users],"couriers_count":db.query(Courier).filter(Courier.tenant_id==tid).count(),"payments":[{"id":p.id,"amount":p.amount,"currency":p.currency or t.currency or "SAR","payment_method":p.payment_method,"paid_at":p.paid_at.isoformat(),"period_months":p.period_months,"reference":p.reference,"receipt_number":p.receipt_number,"notes":p.notes,"recorded_by":p.recorded_by_name} for p in payments]}
 
 
 @router.post("/tenants/{tid}/payments")
@@ -288,7 +313,7 @@ def record_subscription_payment(tid:int,payload:dict,db:Session=Depends(get_db),
     base=tenant.due_date if tenant.due_date and tenant.due_date>paid_at else paid_at
     new_due=add_calendar_months(base,months)
     receipt=f"DOU-{paid_at.strftime('%Y%m')}-{tid:04d}-{db.query(SubscriptionPayment).filter(SubscriptionPayment.tenant_id==tid).count()+1:04d}"
-    payment=SubscriptionPayment(tenant_id=tid,amount=amount,payment_method=(payload.get("payment_method") or "CASH").upper(),paid_at=paid_at,period_months=months,reference=(payload.get("reference") or "").strip() or None,receipt_number=receipt,notes=(payload.get("notes") or "").strip() or None,recorded_by_id=actor.id if actor else None,recorded_by_name=actor.name if actor else "Admin")
+    payment=SubscriptionPayment(tenant_id=tid,amount=amount,currency=tenant.currency or "SAR",payment_method=(payload.get("payment_method") or "CASH").upper(),paid_at=paid_at,period_months=months,reference=(payload.get("reference") or "").strip() or None,receipt_number=receipt,notes=(payload.get("notes") or "").strip() or None,recorded_by_id=actor.id if actor else None,recorded_by_name=actor.name if actor else "Admin")
     tenant.last_paid_at=paid_at;tenant.due_date=new_due;tenant.subscription_status="ACTIVE"
     db.add(payment);db.add(AdminAuditLog(actor_id=actor.id if actor else None,actor_name=actor.name if actor else "Admin",action=f"تسجيل دفعة اشتراك {amount:.2f} ر.س ({payment.payment_method}) بإيصال {receipt}",tenant_id=tid,entity="subscription_payment"));db.commit();db.refresh(payment)
     return {"ok":True,"receipt_number":receipt,"new_due_date":new_due.isoformat()}
@@ -299,16 +324,17 @@ def create_tenant(payload:dict,db:Session=Depends(get_db),actor:User=Depends(req
     name=(payload.get("name") or "").strip();phone=(payload.get("owner_phone") or "").strip();password=str(payload.get("password") or "")
     if not name or not phone or len(password)<8:raise HTTPException(400,"اسم الشركة ورقم المالك وكلمة مرور 8 أحرف مطلوبة")
     if db.query(User).filter(User.phone==phone).first():raise HTTPException(400,"رقم المالك مستخدم")
-    country=Country(payload.get("country") or "SA");plan_code=payload.get("plan") or "STARTER";plan=db.query(SubscriptionPlan).filter(SubscriptionPlan.code==plan_code).first()
-    t=Tenant(name=name,country=country,contact_phone=payload.get("contact_phone") or phone,contact_email=payload.get("contact_email"),plan=plan_code,monthly_fee=plan.monthly_price if plan else float(payload.get("monthly_fee") or 0),billing_day=int(payload.get("billing_day") or 1),due_date=datetime.utcnow()+timedelta(days=int(payload.get("trial_days") or 14)),subscription_status="ACTIVE");db.add(t);db.flush();db.add(Fleet(tenant_id=t.id,name=f"أسطول {name}"));db.add(User(phone=phone,name=payload.get("owner_name") or f"إدارة {name}",password_hash=hash_password(password),role=UserRole.COMPANY,tenant_id=t.id,country=country,is_active=True));db.add(AdminAuditLog(actor_id=actor.id if actor else None,actor_name=actor.name if actor else "Admin",action="إنشاء شركة لوجستية وحساب المالك",tenant_id=t.id,entity="tenant",entity_id=t.id));db.commit();return {"ok":True,"id":t.id,"owner_phone":phone}
+    market,language,currency,timezone=regional_settings(payload);country=Country.EG if market=="EG" else Country.SA;plan_code=payload.get("plan") or "STARTER";plan=db.query(SubscriptionPlan).filter(SubscriptionPlan.code==plan_code).first()
+    fee=(plan.monthly_price_usd if currency=="USD" and plan and plan.monthly_price_usd else plan.monthly_price if plan else float(payload.get("monthly_fee") or 0))
+    t=Tenant(name=name,country=country,market_code=market,default_language=language,currency=currency,timezone=timezone,contact_phone=payload.get("contact_phone") or phone,contact_email=payload.get("contact_email"),plan=plan_code,monthly_fee=fee,billing_day=int(payload.get("billing_day") or 1),due_date=datetime.utcnow()+timedelta(days=int(payload.get("trial_days") or 14)),subscription_status="ACTIVE");db.add(t);db.flush();db.add(Fleet(tenant_id=t.id,name=f"أسطول {name}"));db.add(User(phone=phone,name=payload.get("owner_name") or f"إدارة {name}",password_hash=hash_password(password),role=UserRole.COMPANY,tenant_id=t.id,country=country,is_active=True));db.add(AdminAuditLog(actor_id=actor.id if actor else None,actor_name=actor.name if actor else "Admin",action="إنشاء شركة لوجستية وحساب المالك",tenant_id=t.id,entity="tenant",entity_id=t.id));db.commit();return {"ok":True,"id":t.id,"owner_phone":phone}
 
 
 @router.get("/plans")
 def list_plans(db: Session = Depends(get_db)):
-    defaults = [("STARTER","الأساسية",499,25),("GROWTH","النمو",999,75),("BUSINESS","الأعمال",1999,200),("ENTERPRISE","المؤسسات",0,0)]
+    defaults = [("STARTER","الأساسية","Starter",499,149,10),("GROWTH","النمو","Growth",999,269,75),("BUSINESS","الأعمال","Business",1999,499,150),("ENTERPRISE","المؤسسات","Enterprise",3500,899,0)]
     if not db.query(SubscriptionPlan).count():
-        db.add_all([SubscriptionPlan(code=c,name=n,monthly_price=p,max_couriers=m) for c,n,p,m in defaults]); db.commit()
-    return [{"id":p.id,"code":p.code,"name":p.name,"monthly_price":p.monthly_price,"max_couriers":p.max_couriers,"is_active":p.is_active} for p in db.query(SubscriptionPlan).order_by(SubscriptionPlan.monthly_price).all()]
+        db.add_all([SubscriptionPlan(code=c,name=n,name_en=e,monthly_price=p,monthly_price_usd=u,max_couriers=m) for c,n,e,p,u,m in defaults]); db.commit()
+    return [{"id":p.id,"code":p.code,"name":p.name,"name_en":p.name_en or "","monthly_price":p.monthly_price,"monthly_price_usd":p.monthly_price_usd or 0,"max_couriers":p.max_couriers,"is_active":p.is_active} for p in db.query(SubscriptionPlan).order_by(SubscriptionPlan.monthly_price).all()]
 
 
 @router.post("/plans")
@@ -316,7 +342,7 @@ def save_plan(payload: dict, db: Session = Depends(get_db), actor: User = Depend
     code=(payload.get("code") or "").upper().strip(); name=(payload.get("name") or "").strip()
     if not code or not name: raise HTTPException(400,"الكود والاسم مطلوبان")
     p=db.query(SubscriptionPlan).filter(SubscriptionPlan.code==code).first() or SubscriptionPlan(code=code,name=name)
-    p.name=name; p.monthly_price=float(payload.get("monthly_price") or 0); p.max_couriers=int(payload.get("max_couriers") or 0); p.is_active=payload.get("is_active",True)
+    p.name=name; p.name_en=(payload.get("name_en") or "").strip() or None; p.monthly_price=float(payload.get("monthly_price") or 0); p.monthly_price_usd=float(payload.get("monthly_price_usd") or 0); p.max_couriers=int(payload.get("max_couriers") or 0); p.is_active=payload.get("is_active",True)
     db.add(p); db.add(AdminAuditLog(actor_id=actor.id if actor else None,actor_name=actor.name if actor else "Admin",action=f"حفظ باقة {code}",entity="plan")); db.commit()
     return {"ok":True}
 

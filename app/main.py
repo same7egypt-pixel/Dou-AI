@@ -1,12 +1,12 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from .database import Base, engine
 from .routers import merchants, couriers, orders, auth, shifts, shipping, analytics, geo, admin, fleet, billing, hr
 from .models import entities  # noqa: F401 — يسجّل الجداول على Base
 from .migrations import run_migrations
-from .config import ENABLE_LEGACY_DELIVERY, CORS_ORIGINS
+from .config import ENABLE_LEGACY_DELIVERY, CORS_ORIGINS, GOOGLE_ANALYTICS_ID
 from .database import SessionLocal
 from .models.entities import Country, User, UserRole
 from .routers.auth import hash_password
@@ -92,6 +92,42 @@ def index(request: Request):
     if "admin.dou.delivery" in {request.url.hostname or "", forwarded_host, direct_host}:
         return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.get("/en")
+@app.get("/en/")
+def english_landing():
+    return FileResponse(os.path.join(STATIC_DIR, "index-en.html"))
+
+
+@app.get("/help")
+def arabic_help():
+    with open(os.path.join(STATIC_DIR, "help.html"), encoding="utf-8") as source:
+        return HTMLResponse(source.read().replace("</head>", '<script src="/google-analytics.js" defer></script></head>'))
+
+
+@app.get("/help/en")
+def english_help():
+    with open(os.path.join(STATIC_DIR, "help-en.html"), encoding="utf-8") as source:
+        return HTMLResponse(source.read().replace("</head>", '<script src="/google-analytics.js" defer></script></head>'))
+
+
+@app.get("/robots.txt")
+def robots():
+    return FileResponse(os.path.join(STATIC_DIR, "robots.txt"), media_type="text/plain")
+
+
+@app.get("/sitemap.xml")
+def sitemap():
+    return FileResponse(os.path.join(STATIC_DIR, "sitemap.xml"), media_type="application/xml")
+
+
+@app.get("/google-analytics.js")
+def google_analytics():
+    if not GOOGLE_ANALYTICS_ID.startswith("G-"):
+        return Response("", media_type="application/javascript")
+    script = f"""(function(){{var s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id={GOOGLE_ANALYTICS_ID}';document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){{dataLayer.push(arguments)}};gtag('js',new Date());gtag('config','{GOOGLE_ANALYTICS_ID}',{{anonymize_ip:true}});}})();"""
+    return Response(script, media_type="application/javascript", headers={"Cache-Control":"public, max-age=300"})
 
 
 @app.get("/app")

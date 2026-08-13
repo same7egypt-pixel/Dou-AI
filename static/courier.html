@@ -365,7 +365,9 @@ async function init(){
     localStorage.removeItem("dou_token_courier"); TOKEN=null; loginView(); return;
   }
   try{
-    COURIER = await api("/couriers/me");
+    const [courierData,preferences]=await Promise.all([api("/couriers/me"),api("/couriers/me/preferences")]);
+    COURIER = courierData;
+    if(window.setDouTenantPreferences&&setDouTenantPreferences(preferences.language,preferences.currency))return;
     document.querySelectorAll(".tabs").forEach(t=>t.style.display="flex");
     fillProfile();
     await Promise.all([loadProfile(), loadTasks(), loadHRWarnings(),loadMyDocuments(),loadMyTickets()]);

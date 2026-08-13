@@ -17,7 +17,7 @@
   };
   const ATTRS=["placeholder","title","aria-label"];
   const entries=Object.entries(T).sort((a,b)=>b[0].length-a[0].length);
-  function convert(value){if(!value||!/[؀-ۿ]/.test(value))return value;if(T[value.trim()])return value.replace(value.trim(),T[value.trim()]);let out=value;for(const [ar,en] of entries)if(out.includes(ar))out=out.split(ar).join(en);return out}
+  function convert(value){if(!value)return value;const currency=localStorage.getItem("dou_currency")||"SAR";let out=String(value).replaceAll("ر.س",currency);if(!/[؀-ۿ]/.test(out))return out;if(T[out.trim()])return out.replace(out.trim(),T[out.trim()]);for(const [ar,en] of entries)if(out.includes(ar))out=out.split(ar).join(en);return out}
   function translate(root){
     const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;
     while(n=walker.nextNode()){if(["SCRIPT","STYLE"].includes(n.parentElement?.tagName))continue;n.nodeValue=convert(n.nodeValue)}
@@ -25,6 +25,11 @@
   }
   function apply(){const en=localStorage.getItem("dou_lang")==="en";document.documentElement.lang=en?"en":"ar";document.documentElement.dir=en?"ltr":"rtl";document.body?.classList.toggle("lang-en",en);if(en){document.title=convert(document.title);translate(document.body)}}
   window.setDouLanguage=function(lang){localStorage.setItem("dou_lang",lang);location.reload()};
+  window.setDouTenantPreferences=function(lang,currency){
+    localStorage.setItem("dou_currency",currency||"SAR");
+    if(!localStorage.getItem("dou_lang")&&lang){localStorage.setItem("dou_lang",lang);location.reload();return true}
+    if(document.body)translate(document.body);return false;
+  };
   window.douT=convert;
   if(localStorage.getItem("dou_lang")==="en"){
     const nativeAlert=window.alert.bind(window),nativeConfirm=window.confirm.bind(window),nativePrompt=window.prompt.bind(window);

@@ -750,6 +750,7 @@ async function init(){
   }
   try{
     META = await api("/fleet/me");
+    if(window.setDouTenantPreferences&&setDouTenantPreferences(META.tenant?.default_language,META.tenant?.currency))return;
     const name = META.name || "شركة لوجستية";
     const tenant = META.tenant ? META.tenant.name : "";
     document.getElementById("roleName").textContent = name;

@@ -187,7 +187,11 @@ def fleet_me(user: User = Depends(get_current_user), db: Session = Depends(get_d
     return {
         "role": user.role.value,
         "permissions": permissions,
-        "tenant": {"id": tenant.id, "name": tenant.name, "country": tenant.country.value} if tenant else None,
+        "tenant": {"id": tenant.id, "name": tenant.name, "country": tenant.country.value,
+                   "market_code": tenant.market_code or tenant.country.value,
+                   "default_language": tenant.default_language or "ar",
+                   "currency": tenant.currency or "SAR",
+                   "timezone": tenant.timezone or "Asia/Riyadh"} if tenant else None,
         "fleets": fleets,
         "name": user.name or (tenant.name if tenant else "شركة"),
     }
