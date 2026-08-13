@@ -5,7 +5,7 @@ import csv, io
 import json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy import text, or_
+from sqlalchemy import text, or_, and_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -23,6 +23,17 @@ COMPANY_ROLES = (
     UserRole.DOU_OPS, UserRole.DOU_ADMIN,
 )
 LEAVE_STATUSES = ("PENDING", "SUPERVISOR_APPROVED", "APPROVED", "REJECTED")
+
+
+def _supervisor_courier_scope(db: Session, supervisor_id: int):
+    """فرع العقد هو مرجع الفريق، والربط المباشر احتياطي للسجلات القديمة فقط."""
+    branch_ids = db.query(ContractBranch.id).filter(
+        ContractBranch.supervisor_id == supervisor_id
+    )
+    return or_(
+        Courier.contract_branch_id.in_(branch_ids),
+        and_(Courier.contract_branch_id.is_(None), Courier.supervisor_id == supervisor_id),
+    )
 
 
 def calculate_target_bonus(orders: int, target: int, target_bonus: float,
@@ -53,7 +64,7 @@ def _daily_report_data(db: Session, user: User, selected: date, project_id=None,
                        employment_status=None, courier_name=None, date_from=None, date_to=None):
     q = db.query(Courier).filter(Courier.tenant_id == user.tenant_id)
     if user.role == UserRole.SUPERVISOR:
-        q = q.filter(Courier.supervisor_id == user.id)
+        q = q.filter(_supervisor_courier_scope(db, user.id))
     elif user.role==UserRole.PROJECT_MANAGER:
         q=q.filter(Courier.primary_project_id.in_(json.loads(user.managed_project_ids or "[]")))
     elif supervisor_id:
@@ -175,7 +186,10 @@ def _tenant_couriers(db: Session, user: User):
     elif user.role in (UserRole.SUPERVISOR, UserRole.PROJECT_MANAGER, UserRole.DOU_OPS, UserRole.DOU_ADMIN):
         q = db.query(Courier)
         if user.role == UserRole.SUPERVISOR:
-            q = q.filter(Courier.supervisor_id == user.id)
+            q = q.filter(
+                Courier.tenant_id == user.tenant_id,
+                _supervisor_courier_scope(db, user.id),
+            )
         elif user.role==UserRole.PROJECT_MANAGER:
             q=q.filter(Courier.tenant_id==user.tenant_id,Courier.primary_project_id.in_(json.loads(user.managed_project_ids or "[]")))
         elif user.tenant_id is not None:

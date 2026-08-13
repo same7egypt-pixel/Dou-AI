@@ -761,7 +761,7 @@ async function init(){
       const allowed=permissions.includes("*")||permissions.includes(el.dataset.permission);
       if(!allowed) el.style.display="none";
     });
-    go("overview");
+    go(META.role==="SUPERVISOR" ? "supervision" : "overview");
   }catch(e){ logout(); }
 }
 

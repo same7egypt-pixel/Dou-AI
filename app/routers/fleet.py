@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi import Query
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 import csv, io
 import json
 from datetime import date, datetime, timedelta
@@ -174,9 +175,27 @@ def _courier_ids(db: Session, tenant_id, supervisor_id=None, project_ids=None):
         return {c.id for c in db.query(Courier).all()}
     q = db.query(Courier).filter(Courier.tenant_id == tenant_id)
     if supervisor_id:
-        q = q.filter(Courier.supervisor_id == supervisor_id)
+        q = q.filter(_supervisor_courier_scope(db, supervisor_id))
     if project_ids is not None: q=q.filter(Courier.primary_project_id.in_(project_ids))
     return {c.id for c in q.all()}
+
+
+def _supervisor_courier_scope(db: Session, supervisor_id: int):
+    """فرع العقد هو مرجع الفريق، والربط المباشر احتياطي للسجلات القديمة فقط."""
+    branch_ids = db.query(ContractBranch.id).filter(
+        ContractBranch.supervisor_id == supervisor_id
+    )
+    return or_(
+        Courier.contract_branch_id.in_(branch_ids),
+        and_(Courier.contract_branch_id.is_(None), Courier.supervisor_id == supervisor_id),
+    )
+
+
+def _supervisor_can_access_courier(db: Session, supervisor_id: int, courier: Courier) -> bool:
+    if courier.contract_branch_id:
+        branch = db.get(ContractBranch, courier.contract_branch_id)
+        return bool(branch and branch.supervisor_id == supervisor_id)
+    return courier.supervisor_id == supervisor_id
 
 
 @router.get("/me")
@@ -380,7 +399,7 @@ def fleet_couriers(user: User = Depends(get_current_user), db: Session = Depends
     if tenant_id is not None:
         q = q.filter(Courier.tenant_id == tenant_id)
     if user.role == UserRole.SUPERVISOR:
-        q = q.filter(Courier.supervisor_id == user.id)
+        q = q.filter(_supervisor_courier_scope(db, user.id))
     if user.role==UserRole.PROJECT_MANAGER:q=q.filter(Courier.primary_project_id.in_(json.loads(user.managed_project_ids or "[]")))
     couriers = q.all()
     today = date.today()
@@ -523,12 +542,10 @@ def courier_profile(cid: int, user: User = Depends(get_current_user), db: Sessio
         raise HTTPException(403, "Not a fleet account")
     _require_permission(user, "drivers")
     courier = _tenant_record(db, Courier, cid, user)
-    if user.role == UserRole.SUPERVISOR and courier.supervisor_id != user.id:
+    if user.role == UserRole.SUPERVISOR and not _supervisor_can_access_courier(db, user.id, courier):
         raise HTTPException(404, "Courier not found")
     if user.role==UserRole.PROJECT_MANAGER and courier.primary_project_id not in json.loads(user.managed_project_ids or "[]"):
         raise HTTPException(404,"Courier not found")
-    if user.role == UserRole.SUPERVISOR and courier.supervisor_id != user.id:
-        raise HTTPException(404, "Courier not found")
     tasks = db.query(CourierTask).filter(CourierTask.courier_id == cid).all()
     delivered = [t for t in tasks if t.status == CourierTaskStatus.DELIVERED]
     attendances = db.query(Attendance).filter(Attendance.courier_id == cid).all()

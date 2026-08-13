@@ -107,6 +107,15 @@ sup1_login = login(LoginIn(phone=sup1.phone, password="SupervisorA9!"), db)
 sup1_user = get_current_user(sup1_login.access_token, db)
 visible = fleet_couriers(sup1_user, db)
 assert [x["id"] for x in visible] == [c1.id]
+# فرع العقد هو المصدر الأساسي حتى لو ظل حقل المشرف القديم غير متزامن.
+c2.supervisor_id = sup1.id
+db.commit()
+sup2_scope_login = login(LoginIn(phone=sup2.phone, password="SupervisorB9!"), db)
+sup2_scope_user = get_current_user(sup2_scope_login.access_token, db)
+assert {x["id"] for x in fleet_couriers(sup2_scope_user, db)} == {c2.id}
+assert {x["id"] for x in fleet_couriers(sup1_user, db)} == {c1.id}
+c2.supervisor_id = sup2.id
+db.commit()
 try:
     add_courier({"name": "ممنوع", "phone": "966500299999"}, sup1_user, db)
     raise AssertionError("Supervisor added a courier")
