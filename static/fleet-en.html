@@ -141,7 +141,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="rolebar" style="margin:0">
         <button class="active">Company Account</button>
       </div>
-      <button class="btn ghost" onclick="exportCSV()">⬇ Export</button>
+      <button class="btn ghost" onclick="exportCurrentView()">⬇ Export Page</button>
     </div>
   </header>
   <div class="content">
@@ -302,7 +302,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
     <section id="view-channels" style="display:none">
       <div class="header"><div><div class="kicker">Channels &amp; Cost</div><h1>Channels &amp; Costs</h1></div>
-        <button class="btn ghost" onclick="exportCSV()">⬇ CSV</button></div>
+        <button class="btn ghost" onclick="exportCurrentView()">⬇ CSV</button></div>
       <div class="cards">
         <div class="metric"><b>2.4 SAR</b><span>Avg Delivery Cost (Internal)</span></div>
         <div class="metric"><b>11.8 SAR</b><span>Avg Delivery Cost (External)</span></div>
@@ -1130,18 +1130,37 @@ async function saveContract(){
   }catch(e){ document.getElementById("ctMsg").style.color="var(--red)"; document.getElementById("ctMsg").textContent="❌ "+e.message; }
 }
 
-async function exportCSV(){
-  try{
-    const r = await fetch("/fleet/export/csv", {headers:{Authorization:"Bearer "+TOKEN}});
-    if(!r.ok) throw new Error("Export failed");
-    const blob = await r.blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "fleet_payouts.csv";
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }catch(e){ alert("❌ "+e.message); }
+function csvCell(value){return '"'+String(value??"").replace(/\s+/g," ").trim().replaceAll('"','""')+'"'}
+function elementVisible(el){return !!el&&el.getClientRects().length>0&&!el.closest('.hrPane:not(.active)')}
+function exportCurrentView(){
+  const activeNav=document.querySelector('.nav.active[data-view]');
+  const viewName=activeNav?.dataset.view||"report";
+  const section=document.getElementById("view-"+viewName);
+  if(!section)return alert("Could not identify the current page");
+  const pageTitle=section.querySelector("h1")?.textContent.trim()||document.getElementById("crumb")?.textContent.trim()||viewName;
+  const rows=[["DOU",pageTitle],["Exported at",new Date().toLocaleString("en")],[]];
+  section.querySelectorAll("table").forEach(table=>{
+    if(!elementVisible(table))return;
+    const heading=table.closest(".card")?.querySelector("h3")?.textContent.trim();
+    if(heading)rows.push([heading]);
+    table.querySelectorAll("tr").forEach(tr=>{const cells=[...tr.querySelectorAll("th,td")].map(x=>x.innerText.trim());if(cells.length)rows.push(cells)});
+    rows.push([]);
+  });
+  if(rows.length===3){
+    section.querySelectorAll(".metric,.lineItem,.ticket,.opt").forEach(el=>{
+      if(!elementVisible(el))return;
+      const label=el.querySelector("span,small")?.innerText.trim()||el.querySelector("b")?.innerText.trim()||"";
+      const value=el.querySelector("b")?.innerText.trim()||el.innerText.trim();
+      if(label||value)rows.push([label,value]);
+    });
+  }
+  if(rows.length===3)return alert("There is no visible data to export on this page");
+  const csv="\ufeff"+rows.map(r=>r.map(csvCell).join(",")).join("\r\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="DOU-"+viewName+"-"+new Date().toISOString().slice(0,10)+".csv";a.click();URL.revokeObjectURL(a.href);
 }
+function exportCSV(){exportCurrentView()}
 
 async function sendTestOrder(){
   if(!confirm("Create a real test order and verify the dispatch cycle?")) return;
