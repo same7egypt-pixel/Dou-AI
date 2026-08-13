@@ -31,7 +31,7 @@
   window.setDouTenantPreferences=function(lang,currency){
     localStorage.setItem("dou_currency",currency||"SAR");
     if(!localStorage.getItem("dou_lang")&&lang){localStorage.setItem("dou_lang",lang);location.reload();return true}
-    if(document.body)translate(document.body);return false;
+    if(document.body&&localStorage.getItem("dou_lang")==="en")translate(document.body);return false;
   };
   window.douT=convert;
   if(localStorage.getItem("dou_lang")==="en"){
