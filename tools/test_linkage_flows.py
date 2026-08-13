@@ -2,10 +2,11 @@
 from datetime import date
 
 from app.database import Base, SessionLocal, engine
-from app.models.entities import (Attendance, Country, Courier, CourierType, Fleet,
+from app.models.entities import (Attendance, Contract, ContractBranch, Country, Courier, CourierType, Fleet,
     PayrollAdjustment, Project, Tenant, User, UserRole)
 from app.routers.hr import (add_daily_log, company_documents, create_employee_request,
-    decide_document, decide_employee_request, upload_my_document)
+    decide_document, decide_employee_request, upload_my_document, create_contract, contract_structure)
+from app.routers.fleet import add_courier
 from app.routers.shifts import check_in
 from app.routers.auth import create_token, get_current_user, logout_current
 from app.schemas.dou import AttendanceIn
@@ -34,6 +35,12 @@ db.add(c); db.flush()
 driver = User(phone="3", name="Driver", password_hash="x", role=UserRole.COURIER,
               country=Country.SA, tenant_id=t1.id, courier_id=c.id, is_active=True)
 db.add(driver); db.commit()
+
+ct_result=create_contract({"name":"HungerStation","cities":[{"city":"Riyadh","supervisor_id":sup.id}],"end_date":"2027-12-31"},admin,db)
+ct=db.get(Contract,ct_result["id"]);branch=db.query(ContractBranch).filter_by(contract_id=ct.id).one()
+structure=contract_structure(admin,db);assert structure[0]["branches"][0]["city"]=="Riyadh"
+new_c=add_courier({"name":"Branch Driver","phone":"966500009999","country":"SA","courier_type":"COMPANY","password":"StrongPass9!","contract_id":ct.id,"contract_branch_id":branch.id,"supervisor_id":sup.id},admin,db)
+linked=db.query(Courier).filter_by(phone="966500009999").one();assert linked.work_city=="Riyadh" and linked.primary_project_id==branch.project_id
 
 check_in(AttendanceIn(courier_id=c.id), driver, db)
 check_in(AttendanceIn(courier_id=c.id), driver, db)

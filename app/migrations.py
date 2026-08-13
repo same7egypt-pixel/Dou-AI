@@ -28,6 +28,9 @@ MIGRATIONS = {
         "work_permit_expiry": "DATE",
         "supervisor_id": "INTEGER",
         "primary_project_id": "INTEGER",
+        "contract_id": "INTEGER",
+        "contract_branch_id": "INTEGER",
+        "work_city": "VARCHAR(120)",
         "platform": "VARCHAR(60)",
         "platform_courier_id": "VARCHAR(60)",
         "iqama_expiry": "DATE",
@@ -41,6 +44,7 @@ MIGRATIONS = {
         "shift_started_at": "TIMESTAMP",
         "shift_preference": "VARCHAR(120)",
     },
+    "bonus_plans": {"contract_branch_id": "INTEGER"},
     "contracts": {
         "end_date": "TIMESTAMP",
         "project_id": "INTEGER",

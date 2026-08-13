@@ -8,7 +8,7 @@ from datetime import date, datetime, timedelta
 
 from ..database import get_db
 from ..models.entities import (
-    Attendance, AppSetting, Contract, Courier, CourierTask, CourierTaskStatus, Country, CourierType, Merchant,
+    Attendance, AppSetting, Contract, ContractBranch, Courier, CourierTask, CourierTaskStatus, Country, CourierType, Merchant,
     Order, OrderStatus, Shift, ShiftStatus, SupportTicket, Tenant, User, UserRole, Fleet,
     Project, DailyLog, BonusPlan, LeaveRequest, SubscriptionPlan,
 )
@@ -394,6 +394,11 @@ def fleet_couriers(user: User = Depends(get_current_user), db: Session = Depends
             "bank_iban": c.bank_iban,
             "nationality": c.nationality,
             "zone": c.zone,
+            "work_city": c.work_city,
+            "contract_id": c.contract_id,
+            "contract": (db.get(Contract, c.contract_id).name if c.contract_id else None),
+            "contract_branch_id": c.contract_branch_id,
+            "branch": (db.get(ContractBranch, c.contract_branch_id).city if c.contract_branch_id else None),
             "today_orders": sum(x.orders_count or 0 for x in db.query(DailyLog).filter(DailyLog.courier_id == c.id, DailyLog.log_date == today).all()),
             "month_orders": sum(x.orders_count or 0 for x in db.query(DailyLog).filter(DailyLog.courier_id == c.id, DailyLog.log_date >= month_start, DailyLog.log_date <= today).all()),
             "fleet": (db.get(Fleet, c.fleet_id).name if c.fleet_id else None),
@@ -434,23 +439,22 @@ def add_courier(payload: dict, user: User = Depends(get_current_user), db: Sessi
     except (ValueError, TypeError):
         raise HTTPException(400, "قيم رقمية غير صالحة")
     supervisor_id = payload.get("supervisor_id")
-    contract_id = payload.get("contract_id")
+    contract_id = payload.get("contract_id"); branch_id=payload.get("contract_branch_id")
     supervisor = db.get(User, int(supervisor_id)) if supervisor_id else None
     contract = db.get(Contract, int(contract_id)) if contract_id else None
     if supervisor and (supervisor.role != UserRole.SUPERVISOR or supervisor.tenant_id != tenant_id):
         raise HTTPException(400, "المشرف المختار غير تابع للشركة")
     if contract and contract.tenant_id != tenant_id:
         raise HTTPException(400, "العقد المختار غير تابع للشركة")
-    project = None
-    if contract:
-        project = db.get(Project, contract.project_id) if contract.project_id else None
-        if project and project.tenant_id != tenant_id:
-            project = None
-        if not project:
-            project = Project(tenant_id=tenant_id, name=contract.name, is_active=True)
-            db.add(project)
-            db.flush()
-            contract.project_id = project.id
+    branch=db.get(ContractBranch,int(branch_id)) if branch_id else None
+    if not contract or not branch or branch.tenant_id!=tenant_id or branch.contract_id!=contract.id:
+        raise HTTPException(400,"اختر العقد ثم فرع المدينة الصحيح")
+    if not branch.supervisor_id:
+        raise HTTPException(400,"عيّن مشرفاً مسؤولاً لفرع العقد قبل إضافة المندوب")
+    if not supervisor or supervisor.id!=branch.supervisor_id:
+        raise HTTPException(400,"المشرف المختار غير مسؤول عن فرع العقد")
+    project=db.get(Project,branch.project_id) if branch.project_id else None
+    if not project or project.tenant_id!=tenant_id: raise HTTPException(400,"فرع العقد غير مربوط بمشروع تشغيلي صحيح")
     courier = Courier(
         tenant_id=tenant_id, fleet_id=fleet.id if fleet else None,
         name=name, phone=phone, courier_type=ctype, country=country,
@@ -464,6 +468,7 @@ def add_courier(payload: dict, user: User = Depends(get_current_user), db: Sessi
         emergency_phone=(payload.get("emergency_phone") or None),
         supervisor_id=supervisor.id if supervisor else None,
         primary_project_id=project.id if project else None,
+        contract_id=contract.id, contract_branch_id=branch.id, work_city=branch.city,
         platform=project.name if project else None,
         vehicle_type=(payload.get("vehicle_type") or None),
     )

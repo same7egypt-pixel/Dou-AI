@@ -155,6 +155,9 @@ class Courier(Base):
     work_permit_expiry = Column(Date)
     supervisor_id = Column(Integer, ForeignKey("users.id"))  # المشرف المسؤول عن المندوب
     primary_project_id = Column(Integer, ForeignKey("projects.id"))  # المشروع الأساسي
+    contract_id = Column(Integer, ForeignKey("contracts.id"))
+    contract_branch_id = Column(Integer, ForeignKey("contract_branches.id"))
+    work_city = Column(String(120))
     platform = Column(String(60))                    # المنصة/المشروع الرئيسي (هنقرستيشن/جاهز/...)
     platform_courier_id = Column(String(60))         # كود/ID المندوب داخل المنصة الخارجية
     iqama_expiry = Column(Date)                      # موعد انتهاء الإقامة
@@ -403,6 +406,19 @@ class Contract(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ContractBranch(Base):
+    """فرع تشغيلي داخل عقد تجاري: مدينة + مشروع + مشرف مسؤول."""
+    __tablename__ = "contract_branches"
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False)
+    city = Column(String(120), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id"))
+    supervisor_id = Column(Integer, ForeignKey("users.id"))
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class SupportTicket(Base):
     """تذكرة دعم — يرفعها المندوب ويرد عليها فريق الشركة/المنصة."""
     __tablename__ = "support_tickets"
@@ -492,6 +508,7 @@ class BonusPlan(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id"))
     courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    contract_branch_id = Column(Integer, ForeignKey("contract_branches.id"))
     target_orders = Column(Integer, default=0)        # 460
     bonus_amount = Column(Float, default=0.0)         # 2000 ر.س
     over_target_rate = Column(Float, default=0.0)     # 5 ر.س/طلب زائد

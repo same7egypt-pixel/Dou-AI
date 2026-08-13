@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.entities import (
-    Attendance, AuditLog, BonusPlan, BroadcastMessage, Contract, Courier, CourierRating,
+    Attendance, AuditLog, BonusPlan, BroadcastMessage, Contract, ContractBranch, Courier, CourierRating,
     DailyLog, LeaveRequest, PerformanceNote, Project, Tenant, User, UserRole,
     SupervisorAssignmentRequest, ProjectTransfer, PayrollAdjustment, EmployeeRequest, CourierDocumentSubmission,
 )
@@ -1236,7 +1236,8 @@ def hr_contracts(user: User = Depends(get_current_user), db: Session = Depends(g
             status = "EXPIRED"
         elif days is not None and days <= 30:
             status = "EXPIRING"
-        ids=_contract_courier_ids(ct,db); names=[x[0] for x in db.query(Courier.name).filter(Courier.id.in_(ids)).order_by(Courier.name).all()] if ids else []
+        branches=db.query(ContractBranch).filter(ContractBranch.contract_id==ct.id).order_by(ContractBranch.city).all()
+        ids=[x[0] for x in db.query(Courier.id).filter(Courier.contract_id==ct.id).all()]; names=[x[0] for x in db.query(Courier.name).filter(Courier.id.in_(ids)).order_by(Courier.name).all()] if ids else []
         project=db.get(Project,ct.project_id) if ct.project_id else None
         rows.append({"id": ct.id, "name": ct.name, "contract_type": ct.contract_type,
                      "scope_type":ct.scope_type or "LEGACY","project_id":ct.project_id,"project":project.name if project else None,
@@ -1244,6 +1245,7 @@ def hr_contracts(user: User = Depends(get_current_user), db: Session = Depends(g
                      "base_salary": ct.base_salary or 0, "per_delivery_rate": ct.per_delivery_rate or 0,
                      "status": status, "days_left": days,
                      "end_date": ct.end_date.isoformat() if ct.end_date else None})
+        rows[-1]["branches"]=[{"id":b.id,"city":b.city,"project_id":b.project_id,"project":db.get(Project,b.project_id).name if b.project_id and db.get(Project,b.project_id) else None,"supervisor_id":b.supervisor_id,"supervisor":db.get(User,b.supervisor_id).name if b.supervisor_id and db.get(User,b.supervisor_id) else None,"couriers_count":db.query(Courier).filter(Courier.contract_branch_id==b.id).count()} for b in branches]
     rows.sort(key=lambda r: (r["days_left"] or 999))
     return {"rows": rows, "expiring_soon": sum(1 for r in rows if r["status"] in ("EXPIRING", "EXPIRED"))}
 
@@ -1263,34 +1265,27 @@ def create_contract(payload: dict, user: User = Depends(get_current_user), db: S
             raise HTTPException(400, "end_date غير صالح — استخدم YYYY-MM-DD")
     else:
         end_dt = date.today() + timedelta(days=365)
-    try:
-        duration_months = int(payload.get("duration_months") or 12)
-        base_salary = float(payload.get("base_salary") or 0)
-        per_delivery_rate = float(payload.get("per_delivery_rate") or 6)
-    except (ValueError, TypeError):
-        raise HTTPException(400, "قيم رقمية غير صالحة في العقد")
-    scope=(payload.get("scope_type") or "PROJECT").upper()
-    if scope not in ("COURIER","PROJECT","MANUAL"): raise HTTPException(400,"نوع ربط العقد غير صالح")
-    project_id=int(payload["project_id"]) if payload.get("project_id") else None
-    project=db.get(Project,project_id) if project_id else None
-    if scope=="PROJECT" and (not project or project.tenant_id!=user.tenant_id): raise HTTPException(400,"اختر مشروعاً تابعاً للشركة")
-    raw_ids=payload.get("courier_ids") or []
-    try: courier_ids=list(dict.fromkeys(int(x) for x in raw_ids))
-    except (ValueError,TypeError): raise HTTPException(400,"اختيار المناديب غير صالح")
-    valid_ids={x[0] for x in db.query(Courier.id).filter(Courier.tenant_id==user.tenant_id,Courier.id.in_(courier_ids)).all()} if courier_ids else set()
-    if scope in ("COURIER","MANUAL") and (not courier_ids or len(valid_ids)!=len(courier_ids)): raise HTTPException(400,"اختر مندوباً واحداً على الأقل من الشركة")
-    if scope=="COURIER" and len(courier_ids)!=1: raise HTTPException(400,"عقد الموظف يجب أن يرتبط بمندوب واحد")
+    cities=payload.get("cities") or []
+    if not isinstance(cities,list) or not cities: raise HTTPException(400,"أضف مدينة واحدة على الأقل للعقد")
+    clean=[]
+    for item in cities:
+        city=(item.get("city") if isinstance(item,dict) else item or "").strip()
+        sid=item.get("supervisor_id") if isinstance(item,dict) else None
+        if not city: continue
+        sup=db.get(User,int(sid)) if sid else None
+        if sup and (sup.tenant_id!=user.tenant_id or sup.role!=UserRole.SUPERVISOR): raise HTTPException(400,"مشرف الفرع غير صالح")
+        clean.append((city,sup.id if sup else None))
+    if not clean: raise HTTPException(400,"أضف مدينة صحيحة")
     ct = Contract(
         tenant_id=user.tenant_id, name=name,
-        project_id=project.id if project else None, scope_type=scope, courier_ids=json.dumps(courier_ids),
-        contract_type=payload.get("contract_type", "FIXED"),
-        duration_months=duration_months,
-        couriers_count=len(courier_ids) if scope!="PROJECT" else db.query(Courier).filter(Courier.tenant_id==user.tenant_id,Courier.primary_project_id==project.id).count(),
-        base_salary=base_salary,
-        per_delivery_rate=per_delivery_rate,
+        scope_type="COMMERCIAL", contract_type="COMMERCIAL", duration_months=0,
+        couriers_count=0, base_salary=0, per_delivery_rate=0,
         status="ACTIVE", end_date=end_dt,
     )
-    db.add(ct)
+    db.add(ct);db.flush()
+    for city,sid in clean:
+        project=Project(tenant_id=user.tenant_id,name=f"{name} — {city}",is_active=True,manager_id=sid);db.add(project);db.flush()
+        db.add(ContractBranch(tenant_id=user.tenant_id,contract_id=ct.id,city=city,project_id=project.id,supervisor_id=sid,is_active=True))
     db.commit(); db.refresh(ct)
     _log(db, user, f"أنشأ عقد {name} حتى {end_dt}", "contract", ct.id)
     return {"ok": True, "id": ct.id}
@@ -1318,6 +1313,21 @@ def renew_contract(cid: int, payload: dict, user: User = Depends(get_current_use
     _log(db, user, f"جدّد عقد {ct.name} إلى {new_end.date()}", "contract", ct.id)
     return {"ok": True, "end_date": new_end.date().isoformat()}
 
+@router.get("/contract-structure")
+def contract_structure(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES + (UserRole.SUPERVISOR,UserRole.PROJECT_MANAGER): raise HTTPException(403,"Not allowed")
+    contracts=db.query(Contract).filter(Contract.tenant_id==user.tenant_id,Contract.status=="ACTIVE").order_by(Contract.name).all()
+    rows=[]
+    for ct in contracts:
+        if not db.query(ContractBranch).filter(ContractBranch.contract_id==ct.id).first() and ct.project_id:
+            db.add(ContractBranch(tenant_id=user.tenant_id,contract_id=ct.id,city="غير محدد",project_id=ct.project_id,is_active=True));db.flush()
+        branches=[]
+        for b in db.query(ContractBranch).filter(ContractBranch.contract_id==ct.id,ContractBranch.is_active==True).order_by(ContractBranch.city).all():
+            sup=db.get(User,b.supervisor_id) if b.supervisor_id else None
+            branches.append({"id":b.id,"city":b.city,"project_id":b.project_id,"supervisor_id":b.supervisor_id,"supervisor":sup.name if sup else None})
+        if branches: rows.append({"id":ct.id,"name":ct.name,"branches":branches})
+    db.commit();return rows
+
 
 # ===================== الأدمن/المشرف: كشف التجاوزات =====================
 
@@ -1329,6 +1339,7 @@ def hr_violations(user: User = Depends(get_current_user), db: Session = Depends(
     today = date.today()
     cols = ["documents_expired", "documents_soon", "suspended", "on_leave", "low_rating"]
     rows = []
+    doc_fields={"iqama":("الإقامة", "iqama_expiry"),"license":("رخصة القيادة","license_expiry"),"vehicle":("رخصة المركبة","vehicle_license_expiry"),"passport":("جواز السفر","passport_expiry"),"insurance":("التأمين","insurance_expiry"),"inspection":("الفحص الدوري","inspection_expiry"),"work_permit":("تصريح العمل","work_permit_expiry")}
     for c in _tenant_couriers(db, user).all():
         j = _courier_json(c, db)
         flags = {k: False for k in cols}
@@ -1340,8 +1351,14 @@ def hr_violations(user: User = Depends(get_current_user), db: Session = Depends(
         flags["on_leave"] = c.is_on_leave
         flags["low_rating"] = j["avg_rating"] is not None and j["avg_rating"] < 3.5
         if any(flags.values()):
+            docs=[]
+            for key,days in j["doc_days_left"].items():
+                if key in doc_fields and days is not None and days<=30:
+                    label,field=doc_fields[key];value=getattr(c,field,None)
+                    docs.append({"type":label,"expiry":value.isoformat() if value else None,"days":days,"status":"EXPIRED" if days<0 else "SOON"})
+            project=db.get(Project,c.primary_project_id) if c.primary_project_id else None
             rows.append({"id": c.id, "name": c.name, "phone": c.phone, "flags": flags,
-                         "details": j["risks"],
+                         "details": j["risks"],"documents":docs,"city":c.work_city or c.zone,"project":project.name if project else c.platform,
                          "rating": j["avg_rating"], "orders": j["month_orders"],
                          "supervisor": (db.get(User, c.supervisor_id).name if c.supervisor_id else None)})
     counts = {k: sum(1 for r in rows if r["flags"][k]) for k in cols}

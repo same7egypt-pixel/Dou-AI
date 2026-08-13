@@ -229,10 +229,10 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <div class="form-row"><select id="cType" style="font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:10px">
           <option value="COMPANY">Company Courier</option><option value="FREELANCER">Freelancer</option></select>
           <input id="cCountry" placeholder="SA / EG" value="SA"></div>
-        <div class="form-row"><input id="cSalary" type="number" placeholder="Monthly Base Salary" value="3000">
-          <input id="cRate" type="number" step="0.5" placeholder="Rate per Delivery" value="7">
-          <input id="cBonus" type="number" placeholder="Monthly Bonus" value="300"></div>
-        <div class="form-row"><input id="cIban" placeholder="IBAN (optional)"></div>
+        <div class="form-row"><select id="cContract" class="fInput" onchange="courierContractChanged()" required><option value="">Select contract *</option></select><select id="cBranch" class="fInput" onchange="courierBranchChanged()" required><option value="">Select city / branch *</option></select></div>
+        <div class="form-row"><select id="cSupervisor" class="fInput" required><option value="">Select responsible supervisor *</option></select><input id="cWorkCity" class="fInput" placeholder="Work city" readonly></div>
+        <div class="hrEmptyGuide">Entitlements, targets and bonuses are configured in the branch/project compensation plan, not in the commercial contract or driver profile.</div>
+        <div class="form-row"><input id="cIban" placeholder="IBAN (optional)"><input id="cPassword" type="password" minlength="8" placeholder="Initial password (8+ characters)"></div>
         <button class="btn" onclick="addCourier()">Save Courier</button>
         <span id="courierMsg" class="msg"></span>
       </div>
@@ -400,18 +400,18 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <table><thead><tr><th>Courier</th><th>Applied Contract</th><th>Platform</th><th>Orders</th><th>Fixed</th><th>Delivery</th><th>Bonus</th><th>Total</th><th>IBAN</th></tr></thead>
           <tbody id="payBody"></tbody></table>
       </div>
-      <div class="card"><h3>📄 Linked Contracts <span style="color:var(--muted);font-weight:400;font-size:11px">(applied to estimates + 30-day expiry alert)</span></h3>
-        <div class="opt"><div><b>Create and link a contract</b><small>For one employee, an entire project, or selected drivers</small></div><button class="btn small" onclick="openHrContract()">+ Linked Contract</button></div>
-        <table><thead><tr><th>Contract</th><th>Scope</th><th>Covered Drivers</th><th>Base</th><th>Per Delivery</th><th>End Date</th><th>Status</th><th>Actions</th></tr></thead>
+      <div class="card"><h3>📄 Commercial Contracts & Operating Branches <span style="color:var(--muted);font-weight:400;font-size:11px">(30-day expiry alert)</span></h3>
+        <div class="opt"><div><b>Add a client contract</b><small>Contract ← city branches ← supervisor ← drivers</small></div><button class="btn small" onclick="openHrContract()">+ Commercial Contract</button></div>
+        <table><thead><tr><th>Client / Contract</th><th>Branches</th><th>City Operations</th><th>Compensation Policy</th><th>End Date</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody id="contractsBody"></tbody></table>
       </div>
       <div class="card"><h3>🚨 Violations</h3>
         <div class="cards" style="grid-template-columns:repeat(5,1fr);margin-bottom:10px">
-          <div class="metric alert"><b id="vExpired">–</b><span>Expired docs</span></div>
-          <div class="metric"><b id="vSoon">–</b><span>Expiring soon</span></div>
-          <div class="metric alert"><b id="vSuspended">–</b><span>Suspended</span></div>
-          <div class="metric"><b id="vLeave">–</b><span>On leave</span></div>
-          <div class="metric"><b id="vRating">–</b><span>Low rating</span></div>
+          <div class="metric alert" style="cursor:pointer" onclick="openViolationDetails('documents_expired')"><b id="vExpired">–</b><span>Expired docs · details</span></div>
+          <div class="metric" style="cursor:pointer" onclick="openViolationDetails('documents_soon')"><b id="vSoon">–</b><span>Expiring soon · details</span></div>
+          <div class="metric alert" style="cursor:pointer" onclick="openViolationDetails('suspended')"><b id="vSuspended">–</b><span>Suspended · details</span></div>
+          <div class="metric" style="cursor:pointer" onclick="openViolationDetails('on_leave')"><b id="vLeave">–</b><span>On leave · details</span></div>
+          <div class="metric" style="cursor:pointer" onclick="openViolationDetails('low_rating')"><b id="vRating">–</b><span>Low rating · details</span></div>
         </div>
         <div id="vBody"></div>
       </div>
@@ -520,27 +520,6 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
   </div>
 </div>
 
-<!-- Modal: New Contract -->
-<div class="modal" id="contractModal">
-  <div class="modalBox">
-    <h3 id="ctTitle">📝 New Contract</h3>
-    <label class="fLabel">Contract name</label>
-    <input class="fInput" id="ctName" placeholder="e.g. North Couriers Contract">
-    <label class="fLabel">Contract type</label>
-    <select class="fInput" id="ctType"><option value="FIXED">Fixed (monthly salary)</option><option value="PER_DELIVERY">Per delivery</option></select>
-    <div class="form-row">
-      <div><label class="fLabel">Duration (months)</label><input class="fInput" id="ctMonths" type="number" value="12"></div>
-      <div><label class="fLabel">Couriers</label><input class="fInput" id="ctCount" type="number" value="0"></div>
-    </div>
-    <div class="form-row">
-      <div><label class="fLabel">Fixed salary (SAR)</label><input class="fInput" id="ctSalary" type="number" value="0"></div>
-      <div><label class="fLabel">Delivery rate (SAR)</label><input class="fInput" id="ctRate" type="number" value="6"></div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn blue" style="flex:1" onclick="saveContract()">💾 Save Contract</button><button class="btn ghost" onclick="closeContractModal()">Cancel</button></div>
-    <div id="ctMsg" class="msg"></div>
-  </div>
-</div>
-
 <div class="modal" id="supModal">
   <div class="modalBox">
     <h3>🧑‍💼 New Supervisor</h3>
@@ -569,19 +548,15 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 <div class="modal" id="hrCModal">
   <div class="modalBox">
     <h3>📄 New Contract</h3>
-    <label class="fLabel">Contract name</label><input id="hrCtName" class="fInput" placeholder="Riyadh couriers 2026">
-    <label class="fLabel">Contract scope</label><select id="hrCtScope" class="fInput" onchange="updateContractScope()"><option value="COURIER">Specific employee / driver</option><option value="PROJECT">Entire project or fleet</option><option value="MANUAL">Manually selected drivers</option></select>
-    <div id="hrCtProjectWrap" style="display:none"><label class="fLabel">Project</label><select id="hrCtProject" class="fInput"></select><small style="color:var(--muted)">Automatically covers all drivers assigned to this project.</small></div>
-    <div id="hrCtCouriersWrap"><label class="fLabel">Covered drivers</label><select id="hrCtCouriers" class="fInput" multiple size="6"></select><small style="color:var(--muted)">Use Ctrl or ⌘ to select multiple drivers.</small></div>
-    <label class="fLabel">Type</label><select id="hrCtType" class="fInput"><option value="FIXED">Fixed salary</option><option value="PER_DELIVERY">Per delivery</option></select>
-    <div class="form-row"><input id="hrCtMonths" type="number" class="fInput" placeholder="Duration (months)" value="12"></div>
-    <div class="form-row"><input id="hrCtBase" type="number" class="fInput" placeholder="Monthly base (SAR)" value="0">
-      <input id="hrCtRate" type="number" class="fInput" placeholder="Per delivery (SAR)" value="6"></div>
+    <label class="fLabel">Client / platform name</label><input id="hrCtName" class="fInput" placeholder="e.g. HungerStation">
+    <div class="hrEmptyGuide">The commercial contract contains no salary or bonus. Add city branches and supervisors, then configure compensation by branch in Performance & Bonus.</div>
+    <label class="fLabel">Operating branches</label><div id="hrCtBranches"></div><button class="btn ghost small" type="button" onclick="addContractBranchRow()">+ Add city</button>
     <label class="fLabel">End date</label><input id="hrCtEnd" type="date" class="fInput">
     <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveHrContract()">Save contract</button><button class="btn ghost" onclick="closeHrContract()">Cancel</button></div>
     <div id="hrCtMsg" class="msg"></div>
   </div>
 </div>
+<div class="modal" id="metricDetailModal"><div class="modalBox" style="max-width:850px"><h3 id="metricDetailTitle">Details</h3><div class="filters"><input id="metricDetailSearch" placeholder="Search driver" oninput="renderViolationDetails()"></div><div id="metricDetailBody"></div><button class="btn ghost" style="margin-top:12px" onclick="document.getElementById('metricDetailModal').classList.remove('open')">Close</button></div></div>
 <!-- Modal: Reassign courier -->
 <div class="modal" id="reassignModal">
   <div class="modalBox">
@@ -695,7 +670,6 @@ function go(v){
   if(v==="tickets") loadTickets();
   if(v==="attendance") loadAttendance();
   if(v==="billing") loadBilling();
-  if(v==="payouts"||v==="overview") renderContracts();
   if(v==="dispatch"){ loadDispatch(); loadOverride(); }
   if(v==="hr") loadHR();
 }
@@ -724,8 +698,8 @@ async function loadCouriers(){
     document.getElementById("couriersBody").innerHTML = couriers.map(c=>`
       <tr><td>${c.name}</td><td><span class="tag gray">${c.courier_type==="COMPANY"?"Company":"Freelancer"}</span></td>
       <td>${c.is_online?'<span class="tag green">Online</span>':'<span class="tag gray">Offline</span>'}</td>
-      <td><span class="tag blue">${c.fleet||"—"}</span></td>
-      <td>${(c.base_salary||0).toLocaleString()} SAR</td><td>${c.acceptance_rate}%</td><td>${c.score}</td>
+      <td><b>${escapeHtml(c.contract||"No contract")}</b><br><small>${escapeHtml(c.work_city||c.branch||"No city")} → ${escapeHtml(c.supervisor||"No supervisor")}</small><br><span class="tag blue">${escapeHtml(c.project||"—")}</span></td>
+      <td><small>From branch / project plan</small></td><td>${c.acceptance_rate}%</td><td>${c.score}</td>
       <td>${c.documents_valid?'<span class="tag green">Verified</span>':'<span class="tag red">Expired</span>'}</td>
       <td style="display:flex;gap:6px">
         <button class="btn blue small" onclick="openCourier(${c.id})">👤 Profile</button>
@@ -791,7 +765,9 @@ function renderOrders(){
   });
 }
 
-function toggleAddCourier(){ document.getElementById("addCourierBox").style.display = document.getElementById("addCourierBox").style.display==="none"?"block":"none"; }
+let COURIER_CONTRACTS=[];async function toggleAddCourier(){const box=document.getElementById("addCourierBox"),opening=box.style.display==="none";box.style.display=opening?"block":"none";if(!opening)return;COURIER_CONTRACTS=await api("/hr/contract-structure");document.getElementById("cContract").innerHTML='<option value="">Select contract *</option>'+COURIER_CONTRACTS.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");courierContractChanged()}
+function courierContractChanged(){const c=COURIER_CONTRACTS.find(x=>x.id==document.getElementById("cContract").value);document.getElementById("cBranch").innerHTML='<option value="">Select city / branch *</option>'+((c?.branches||[]).map(b=>`<option value="${b.id}">${escapeHtml(b.city)}</option>`).join(""));courierBranchChanged()}
+function courierBranchChanged(){const c=COURIER_CONTRACTS.find(x=>x.id==document.getElementById("cContract").value),b=c?.branches.find(x=>x.id==document.getElementById("cBranch").value);document.getElementById("cWorkCity").value=b?.city||"";document.getElementById("cSupervisor").innerHTML=b?.supervisor_id?`<option value="${b.supervisor_id}">${escapeHtml(b.supervisor||"")}</option>`:'<option value="">No supervisor assigned to this branch</option>'}
 async function addCourier(){
   const msg = document.getElementById("courierMsg");
   msg.textContent = "⏳ Adding...";
@@ -801,10 +777,8 @@ async function addCourier(){
       phone:document.getElementById("cPhone").value,
       courier_type:document.getElementById("cType").value,
       country:document.getElementById("cCountry").value,
-      base_salary:+document.getElementById("cSalary").value||0,
-      per_delivery_rate:+document.getElementById("cRate").value||0,
-      bonus_target:+document.getElementById("cBonus").value||0,
-      bank_iban:document.getElementById("cIban").value||null
+      base_salary:0,per_delivery_rate:0,bonus_target:0,
+      bank_iban:document.getElementById("cIban").value||null,password:document.getElementById("cPassword").value,supervisor_id:document.getElementById("cSupervisor").value||null,contract_id:document.getElementById("cContract").value||null,contract_branch_id:document.getElementById("cBranch").value||null
     })});
     msg.style.color="var(--green)";
     msg.innerHTML = "✅ Courier added — <b>App login:</b> "+r.login_phone+" / "+r.password+" <small>(send to courier)</small>";
@@ -1068,58 +1042,6 @@ async function replyTicket(id){
   }catch(e){ alert("❌ "+e.message); }
 }
 
-async function renderContracts(){
-  try{
-    const list = await api("/fleet/contracts");
-    const el = document.getElementById("contractsBody");
-    if(!el) return;
-    el.innerHTML = list.map(c=>`
-      <div class="opt"><div><b>${escapeHtml(c.name)}</b><small>${c.contract_type==="FIXED"?"Fixed contract":"Per delivery"} · ${c.duration_months} months · ${c.couriers_count} couriers · ${(c.base_salary||0).toLocaleString()} SAR</small></div>
-        <div style="display:flex;gap:6px;align-items:center"><span class="tag ${c.status==="ACTIVE"?"blue":"gray"}">${c.status==="ACTIVE"?"Active":"Expired"}</span>
-        <button class="btn ghost small" onclick="editContract(${c.id})">✏️ Edit</button></div></div>`).join("")
-      || '<p class="msg" style="text-align:center">No contracts yet — add the first one</p>';
-  }catch(e){ const el=document.getElementById("contractsBody"); if(el) el.innerHTML='<p class="msg">Failed to load contracts</p>'; }
-}
-let CT_ID = null;
-function openContractModal(){
-  CT_ID = null;
-  document.getElementById("ctTitle").textContent = "📝 New Contract";
-  ["ctName","ctType","ctMonths","ctCount","ctSalary","ctRate"].forEach(i=>document.getElementById(i).value = i==="ctType"?"FIXED":i==="ctMonths"?"12":i==="ctRate"?"6":i==="ctCount"?"0":i==="ctSalary"?"0":"");
-  document.getElementById("ctMsg").textContent = "";
-  document.getElementById("contractModal").classList.add("open");
-}
-async function editContract(id){
-  const list = await api("/fleet/contracts");
-  const c = list.find(x=>x.id===id);
-  if(!c) return;
-  CT_ID = id;
-  document.getElementById("ctTitle").textContent = "✏️ Edit Contract — " + c.name;
-  document.getElementById("ctName").value = c.name;
-  document.getElementById("ctType").value = c.contract_type;
-  document.getElementById("ctMonths").value = c.duration_months;
-  document.getElementById("ctCount").value = c.couriers_count;
-  document.getElementById("ctSalary").value = c.base_salary;
-  document.getElementById("ctRate").value = c.per_delivery_rate;
-  document.getElementById("ctMsg").textContent = "";
-  document.getElementById("contractModal").classList.add("open");
-}
-function closeContractModal(){ document.getElementById("contractModal").classList.remove("open"); }
-async function saveContract(){
-  const payload = {
-    name: document.getElementById("ctName").value,
-    contract_type: document.getElementById("ctType").value,
-    duration_months: +document.getElementById("ctMonths").value||12,
-    couriers_count: +document.getElementById("ctCount").value||0,
-    base_salary: +document.getElementById("ctSalary").value||0,
-    per_delivery_rate: +document.getElementById("ctRate").value||6,
-  };
-  try{
-    if(CT_ID) await api("/fleet/contracts/"+CT_ID, {method:"PATCH", body:JSON.stringify(payload)});
-    else await api("/fleet/contracts", {method:"POST", body:JSON.stringify(payload)});
-    closeContractModal(); renderContracts();
-  }catch(e){ document.getElementById("ctMsg").style.color="var(--red)"; document.getElementById("ctMsg").textContent="❌ "+e.message; }
-}
-
 function csvCell(value){return '"'+String(value??"").replace(/\s+/g," ").trim().replaceAll('"','""')+'"'}
 function elementVisible(el){return !!el&&el.getClientRects().length>0&&!el.closest('.hrPane:not(.active)')}
 function exportCurrentView(){
@@ -1314,12 +1236,11 @@ async function loadContracts(){
     const ct = await api("/hr/contracts");
     const statusT = {ACTIVE:'<span class="tag green">Active</span>',EXPIRING:'<span class="tag amber">Expiring</span>',EXPIRED:'<span class="tag red">Expired</span>'};
     document.getElementById("contractsBody").innerHTML = ct.rows.map(c=>`
-      <tr><td><b>${escapeHtml(c.name)}</b><br><small>${c.contract_type==="FIXED"?"Fixed salary":"Per delivery"}</small></td><td>${{COURIER:"Specific driver",PROJECT:"Entire project",MANUAL:"Manual selection",LEGACY:"Legacy"}[c.scope_type]||c.scope_type}</td>
-      <td><b>${c.couriers_count}</b><br><small>${escapeHtml(c.project||c.courier_names.join(", ")||"Not linked")}</small></td><td>${c.base_salary} SAR</td>
-      <td>${c.per_delivery_rate} SAR</td><td>${c.end_date?c.end_date.slice(0,10):'—'}</td>
+      <tr><td><b>${escapeHtml(c.name)}</b><br><small>Commercial contract</small></td><td>${c.branches.length} branches</td>
+      <td>${c.branches.map(b=>`<b>${escapeHtml(b.city)}</b> · ${escapeHtml(b.supervisor||"No supervisor")} · ${b.couriers_count} drivers`).join("<br>")||"—"}</td><td>Defined by branch bonus plan</td><td>${c.end_date?c.end_date.slice(0,10):'—'}</td>
       <td>${statusT[c.status]||c.status}</td>
       <td><button class="btn blue small" onclick="renewContract(${c.id})">↻ Renew</button></td></tr>`).join("")
-      || '<tr><td colspan="9" style="color:var(--muted)">No contracts yet — add the first one</td></tr>';
+      || '<tr><td colspan="7" style="color:var(--muted)">No contracts yet — add the first commercial contract</td></tr>';
   }catch(e){}
 }
 async function renewContract(id){
@@ -1331,20 +1252,14 @@ async function renewContract(id){
     loadContracts();
   }catch(e){alert(e.message);}
 }
-async function openHrContract(){document.getElementById("hrCtMsg").textContent="";const [projects,couriers]=await Promise.all([api("/hr/projects"),api("/hr/couriers")]);document.getElementById("hrCtProject").innerHTML=projects.map(x=>`<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("");document.getElementById("hrCtCouriers").innerHTML=couriers.map(x=>`<option value="${x.id}">${escapeHtml(x.name)} · ${escapeHtml(x.platform||"No project")}</option>`).join("");updateContractScope();document.getElementById("hrCModal").classList.add("open")}
-function updateContractScope(){const s=document.getElementById("hrCtScope").value;document.getElementById("hrCtProjectWrap").style.display=s==="PROJECT"?"block":"none";document.getElementById("hrCtCouriersWrap").style.display=s==="PROJECT"?"none":"block";document.getElementById("hrCtCouriers").multiple=s==="MANUAL";document.getElementById("hrCtCouriers").size=s==="MANUAL"?6:1}
+let CONTRACT_SUPERVISORS=[];async function openHrContract(){document.getElementById("hrCtMsg").textContent="";CONTRACT_SUPERVISORS=await api("/hr/supervisors");document.getElementById("hrCtBranches").innerHTML="";addContractBranchRow();document.getElementById("hrCModal").classList.add("open")}
+function addContractBranchRow(){const row=document.createElement("div");row.className="form-row contractBranchRow";row.innerHTML=`<input class="fInput branchCity" placeholder="City: Riyadh / Jeddah / Makkah"><select class="fInput branchSupervisor"><option value="">No supervisor yet</option>${CONTRACT_SUPERVISORS.filter(x=>x.is_active).map(x=>`<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("")}</select><button type="button" class="btn red small" onclick="this.parentElement.remove()">×</button>`;document.getElementById("hrCtBranches").appendChild(row)}
 function closeHrContract(){ document.getElementById("hrCModal").classList.remove("open"); }
 async function saveHrContract(){
   try{
     await api("/hr/contracts",{method:"POST",body:JSON.stringify({
       name:document.getElementById("hrCtName").value.trim(),
-      contract_type:document.getElementById("hrCtType").value,
-      duration_months:parseInt(document.getElementById("hrCtMonths").value||12),
-      scope_type:document.getElementById("hrCtScope").value,
-      project_id:document.getElementById("hrCtScope").value==="PROJECT"?document.getElementById("hrCtProject").value:null,
-      courier_ids:document.getElementById("hrCtScope").value!=="PROJECT"?[...document.getElementById("hrCtCouriers").selectedOptions].map(x=>Number(x.value)):[],
-      base_salary:parseFloat(document.getElementById("hrCtBase").value||0),
-      per_delivery_rate:parseFloat(document.getElementById("hrCtRate").value||6),
+      cities:[...document.querySelectorAll(".contractBranchRow")].map(x=>({city:x.querySelector(".branchCity").value.trim(),supervisor_id:x.querySelector(".branchSupervisor").value||null})).filter(x=>x.city),
       end_date:document.getElementById("hrCtEnd").value||null,
     })});
     document.getElementById("hrCtMsg").style.color="var(--green)";
@@ -1352,9 +1267,11 @@ async function saveHrContract(){
     setTimeout(()=>{closeHrContract();loadContracts();},900);
   }catch(e){ document.getElementById("hrCtMsg").style.color="var(--red)"; document.getElementById("hrCtMsg").textContent="❌ "+e.message; }
 }
+let VIOLATION_ROWS=[],VIOLATION_KIND="";
 async function loadViolations(){
   try{
     const v = await api("/hr/violations");
+    VIOLATION_ROWS=v.rows;
     document.getElementById("vExpired").textContent = v.counts.documents_expired;
     document.getElementById("vSoon").textContent = v.counts.documents_soon;
     document.getElementById("vSuspended").textContent = v.counts.suspended;
@@ -1366,6 +1283,8 @@ async function loadViolations(){
       || '<p style="color:var(--muted)">No violations — all clear 🎉</p>';
   }catch(e){}
 }
+function openViolationDetails(kind){VIOLATION_KIND=kind;document.getElementById("metricDetailSearch").value="";const titles={documents_expired:"Expired Documents",documents_soon:"Documents Expiring Soon",suspended:"Suspended Drivers",on_leave:"Drivers on Leave",low_rating:"Low Ratings"};document.getElementById("metricDetailTitle").textContent=titles[kind];renderViolationDetails();document.getElementById("metricDetailModal").classList.add("open")}
+function renderViolationDetails(){const q=document.getElementById("metricDetailSearch").value.trim().toLowerCase(),rows=VIOLATION_ROWS.filter(r=>r.flags[VIOLATION_KIND]&&(!q||r.name.toLowerCase().includes(q)));document.getElementById("metricDetailBody").innerHTML=rows.map(r=>{const docs=(r.documents||[]).filter(d=>VIOLATION_KIND==="documents_expired"?d.status==="EXPIRED":VIOLATION_KIND==="documents_soon"?d.status==="SOON":false);return `<div class="card"><div class="opt"><div><b>${escapeHtml(r.name)}</b><small>${escapeHtml(r.project||"No project")} · ${escapeHtml(r.city||"No city")} · Supervisor: ${escapeHtml(r.supervisor||"—")}</small></div><button class="btn blue small" onclick="openCourier(${r.id});document.getElementById('metricDetailModal').classList.remove('open')">Open Profile</button></div>${docs.map(d=>`<div class="lineItem"><span>${escapeHtml(d.type)} · ${d.expiry||"—"}</span><b class="${d.days<0?'tag red':'tag amber'}">${d.days<0?Math.abs(d.days)+" days overdue":d.days+" days left"}</b></div>`).join("")}${VIOLATION_KIND==="low_rating"?`<div class="lineItem"><span>Current rating</span><b>${r.rating??"—"}</b></div>`:""}</div>`}).join("")||'<div class="hrEmptyGuide">No results for this indicator.</div>'}
 async function toggleSup(id,active){ await api("/hr/supervisors/"+id,{method:"PATCH",body:JSON.stringify({is_active:!active})}); loadHR(); }
 async function decideHrLeave(id,action){
   const cm=prompt(action==="approve"?"Note (optional):":"Rejection note:");
