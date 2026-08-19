@@ -304,9 +304,20 @@ def list_supervisors(user: User = Depends(get_current_user), db: Session = Depen
         q = q.filter(User.id == user.id)
     out = []
     for u in q.all():
-        cnt = db.query(Courier).filter(Courier.supervisor_id == u.id).count()
-        out.append({"id": u.id, "name": u.name, "phone": u.phone, "couriers_count": cnt,
-                    "is_active": u.is_active})
+        team = db.query(Courier).filter(Courier.tenant_id == u.tenant_id, Courier.supervisor_id == u.id).all()
+        branches = db.query(ContractBranch).filter(
+            ContractBranch.tenant_id == u.tenant_id,
+            ContractBranch.supervisor_id == u.id,
+            ContractBranch.is_active == True,
+        ).order_by(ContractBranch.city).all()
+        out.append({
+            "id": u.id, "name": u.name, "phone": u.phone,
+            "couriers_count": len(team), "is_active": u.is_active,
+            "courier_ids": [c.id for c in team],
+            "branch_ids": [b.id for b in branches],
+            "branches": [{"id": b.id, "city": b.city, "zone": None} for b in branches],
+            "zones": sorted({c.zone for c in team if c.zone}),
+        })
     return out
 
 
@@ -336,18 +347,99 @@ def create_supervisor(payload: dict, user: User = Depends(get_current_user), db:
 
 @router.patch("/supervisors/{sid}")
 def update_supervisor(sid: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """تعديل حساب المشرف وربط فروعه/فريقه من إدارة الشركة فقط."""
     if user.role not in ACCOUNT_ADMIN_ROLES:
-        raise HTTPException(403, "Only the company admin can activate or deactivate supervisors")
+        raise HTTPException(403, "Only the company admin can update supervisors")
     sup = db.get(User, sid)
-    if not sup or sup.role != UserRole.SUPERVISOR:
+    if not sup or sup.role != UserRole.SUPERVISOR or sup.tenant_id != user.tenant_id:
         raise HTTPException(404, "Supervisor not found")
-    for k, v in payload.items():
-        if k in ("name", "is_active") and v is not None:
-            setattr(sup, k, v)
-    if "is_active" in payload:
+
+    changes = []
+    selected_branch_ids = None
+    if "name" in payload and str(payload["name"] or "").strip():
+        value = str(payload["name"]).strip()
+        if value != sup.name:
+            changes.append(f"الاسم: {sup.name or '—'} → {value}")
+            sup.name = value
+    if "phone" in payload and str(payload["phone"] or "").strip():
+        value = str(payload["phone"]).strip()
+        value = value if value.startswith("966") else "966" + value.lstrip("0")
+        duplicate = db.query(User).filter(User.phone == value, User.role == UserRole.SUPERVISOR, User.id != sup.id).first()
+        if duplicate:
+            raise HTTPException(400, "Phone already registered")
+        if value != sup.phone:
+            changes.append(f"الجوال: {sup.phone or '—'} → {value}")
+            sup.phone = value
+    if "password" in payload and payload.get("password"):
+        password = str(payload["password"])
+        if len(password) < 8:
+            raise HTTPException(400, "كلمة مرور المشرف يجب أن تكون 8 أحرف على الأقل")
+        sup.password_hash = hash_password(password)
         sup.token_version = (sup.token_version or 0) + 1
+        changes.append("إعادة تعيين كلمة المرور")
+    if "is_active" in payload:
+        value = bool(payload["is_active"])
+        if value != bool(sup.is_active):
+            changes.append(f"الحالة: {'نشط' if sup.is_active else 'موقوف'} → {'نشط' if value else 'موقوف'}")
+            sup.is_active = value
+            sup.token_version = (sup.token_version or 0) + 1
+
+    if "branch_ids" in payload:
+        try:
+            branch_ids = {int(x) for x in (payload.get("branch_ids") or [])}
+        except (TypeError, ValueError):
+            raise HTTPException(400, "branch_ids غير صالحة")
+        branches = db.query(ContractBranch).filter(ContractBranch.tenant_id == user.tenant_id).all()
+        valid_ids = {b.id for b in branches}
+        if not branch_ids.issubset(valid_ids):
+            raise HTTPException(400, "يوجد فرع لا يتبع الشركة")
+        selected_branch_ids = branch_ids
+        previous = {b.id for b in branches if b.supervisor_id == sup.id}
+        for branch in branches:
+            if branch.id in branch_ids:
+                branch.supervisor_id = sup.id
+                project = db.get(Project, branch.project_id) if branch.project_id else None
+                if project:
+                    project.manager_id = sup.id
+                for courier in db.query(Courier).filter(Courier.contract_branch_id == branch.id).all():
+                    courier.supervisor_id = sup.id
+                    courier.work_city = branch.city
+            elif branch.supervisor_id == sup.id:
+                branch.supervisor_id = None
+                project = db.get(Project, branch.project_id) if branch.project_id else None
+                if project and project.manager_id == sup.id:
+                    project.manager_id = None
+                for courier in db.query(Courier).filter(Courier.contract_branch_id == branch.id, Courier.supervisor_id == sup.id).all():
+                    courier.supervisor_id = None
+        if branch_ids != previous:
+            changes.append("الفروع: " + ", ".join(str(x) for x in sorted(previous)) + " → " + ", ".join(str(x) for x in sorted(branch_ids)))
+
+    if "courier_ids" in payload:
+        try:
+            courier_ids = {int(x) for x in (payload.get("courier_ids") or [])}
+        except (TypeError, ValueError):
+            raise HTTPException(400, "courier_ids غير صالحة")
+        team = db.query(Courier).filter(Courier.tenant_id == user.tenant_id).all()
+        valid_ids = {c.id for c in team}
+        if not courier_ids.issubset(valid_ids):
+            raise HTTPException(400, "يوجد مندوب لا يتبع الشركة")
+        if selected_branch_ids:
+            courier_ids.update(
+                c.id for c in team if c.contract_branch_id in selected_branch_ids
+            )
+        previous = {c.id for c in team if c.supervisor_id == sup.id}
+        for courier in team:
+            if courier.id in courier_ids:
+                courier.supervisor_id = sup.id
+            elif courier.supervisor_id == sup.id:
+                courier.supervisor_id = None
+        if courier_ids != previous:
+            changes.append("الفريق: " + ", ".join(str(x) for x in sorted(previous)) + " → " + ", ".join(str(x) for x in sorted(courier_ids)))
+
     db.commit()
-    return {"ok": True}
+    if changes:
+        _log(db, user, f"عدّل المشرف {sup.name}: {' | '.join(changes)}", "supervisor", sup.id)
+    return {"ok": True, "updated": changes}
 
 
 @router.delete("/supervisors/{sid}")
@@ -788,66 +880,126 @@ def hr_couriers(user: User = Depends(get_current_user), db: Session = Depends(ge
 
 @router.patch("/couriers/{cid}")
 def hr_update_courier(cid: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """تعديل بيانات HR للمندوب (مستندات، منصّة، مركبة، مشرف، تعليق/إجازة)."""
+    """تعديل ملف المندوب وإعادة إسناده تشغيلياً مع فرض نطاق الشركة."""
     if user.role not in (COMPANY_ROLES + (UserRole.SUPERVISOR,)):
         raise HTTPException(403, "Not allowed")
     c = db.get(Courier, cid)
     if not c:
         raise HTTPException(404, "Courier not found")
-    mine = _tenant_couriers(db, user).filter(Courier.id == cid).first()
-    if not mine:
+    if not _tenant_couriers(db, user).filter(Courier.id == cid).first():
         raise HTTPException(403, "This courier is not in your group")
-    if "employment_status" in payload and user.role not in ACCOUNT_ADMIN_ROLES:
-        raise HTTPException(403, "Only the company admin can activate or deactivate couriers")
-    if user.role == UserRole.SUPERVISOR and "supervisor_id" in payload:
-        raise HTTPException(403, "Only the company admin can reassign a courier")
-    if "primary_project_id" in payload:
-        project_id = payload.get("primary_project_id")
-        project = db.get(Project, int(project_id)) if project_id else None
-        if project and project.tenant_id != user.tenant_id:
-            raise HTTPException(400, "المشروع غير تابع للشركة")
-        if user.role == UserRole.SUPERVISOR and project_id:
-            raise HTTPException(403, "تغيير مشروع السائق يحتاج موافقة إدارة الشركة")
+
+    company_only = {"phone", "employment_status", "supervisor_id", "contract_id", "contract_branch_id", "work_city"}
+    if user.role not in COMPANY_ROLES and any(key in payload for key in company_only):
+        raise HTTPException(403, "Only the company can change assignment or employment data")
+
+    changes = []
+    if "phone" in payload and str(payload.get("phone") or "").strip():
+        phone = str(payload["phone"]).strip()
+        phone = phone if phone.startswith("966") else "966" + phone.lstrip("0")
+        duplicate = db.query(Courier).filter(Courier.phone == phone, Courier.id != c.id).first()
+        if duplicate:
+            raise HTTPException(400, "Courier phone already exists")
+        if phone != c.phone:
+            changes.append(f"الجوال: {c.phone} → {phone}")
+            c.phone = phone
+            account = db.query(User).filter(User.courier_id == c.id, User.role == UserRole.COURIER).first()
+            if account:
+                account.phone = phone
+
+    selected_branch = None
+    if "contract_branch_id" in payload:
+        branch_id = payload.get("contract_branch_id")
+        selected_branch = db.get(ContractBranch, int(branch_id)) if branch_id else None
+        if not selected_branch or selected_branch.tenant_id != user.tenant_id or not selected_branch.is_active:
+            raise HTTPException(400, "اختر فرع تشغيل نشط تابعاً للشركة")
+        contract = db.get(Contract, selected_branch.contract_id)
+        project = db.get(Project, selected_branch.project_id) if selected_branch.project_id else None
+        if not contract or contract.tenant_id != user.tenant_id or not project or project.tenant_id != user.tenant_id:
+            raise HTTPException(400, "فرع العقد غير مكتمل الربط التشغيلي")
+        changes.append(f"فرع التشغيل: {c.contract_branch_id or '—'} → {selected_branch.id}")
         old_project_id = c.primary_project_id
-        if project and old_project_id != project.id:
+        c.contract_branch_id = selected_branch.id
+        c.contract_id = contract.id
+        c.primary_project_id = project.id
+        c.platform = project.name
+        c.work_city = selected_branch.city
+        c.supervisor_id = selected_branch.supervisor_id
+        if old_project_id != project.id:
             db.add(ProjectTransfer(tenant_id=user.tenant_id, courier_id=c.id,
                                    from_project_id=old_project_id, to_project_id=project.id,
-                                   changed_by=user.id, note="تعديل من ملف السائق"))
-        c.primary_project_id = project.id if project else None
-        c.platform = project.name if project else None
+                                   changed_by=user.id, note="تعديل فرع/مشرف من ملف السائق"))
+    else:
+        if "contract_id" in payload:
+            contract_id = payload.get("contract_id")
+            contract = db.get(Contract, int(contract_id)) if contract_id else None
+            if contract and contract.tenant_id != user.tenant_id:
+                raise HTTPException(400, "العقد غير تابع للشركة")
+            c.contract_id = contract.id if contract else None
+            changes.append("العقد")
+        if "primary_project_id" in payload:
+            project_id = payload.get("primary_project_id")
+            project = db.get(Project, int(project_id)) if project_id else None
+            if project and project.tenant_id != user.tenant_id:
+                raise HTTPException(400, "المشروع غير تابع للشركة")
+            if user.role == UserRole.SUPERVISOR and project_id:
+                raise HTTPException(403, "تغيير مشروع السائق يحتاج موافقة إدارة الشركة")
+            old_project_id = c.primary_project_id
+            if project and old_project_id != project.id:
+                db.add(ProjectTransfer(tenant_id=user.tenant_id, courier_id=c.id,
+                                       from_project_id=old_project_id, to_project_id=project.id,
+                                       changed_by=user.id, note="تعديل من ملف السائق"))
+            c.primary_project_id = project.id if project else None
+            c.platform = project.name if project else None
+            changes.append("المشروع")
+        if "supervisor_id" in payload:
+            supervisor_id = payload.get("supervisor_id")
+            supervisor = db.get(User, int(supervisor_id)) if supervisor_id else None
+            if supervisor and (supervisor.tenant_id != user.tenant_id or supervisor.role != UserRole.SUPERVISOR):
+                raise HTTPException(400, "المشرف المختار غير تابع للشركة")
+            if c.supervisor_id != (supervisor.id if supervisor else None):
+                changes.append(f"المشرف: {c.supervisor_id or '—'} → {supervisor.id if supervisor else '—'}")
+                c.supervisor_id = supervisor.id if supervisor else None
+        if "work_city" in payload:
+            c.work_city = str(payload.get("work_city") or "").strip() or None
+            changes.append("المدينة")
+
     allowed = {
         "platform", "platform_courier_id", "iqama_expiry", "license_expiry",
         "vehicle_license_expiry", "passport_expiry", "insurance_expiry", "inspection_expiry", "work_permit_expiry",
         "vehicle_type", "vehicle_plate", "zone", "nationality", "iqama_number", "passport_number",
-        "emergency_name", "emergency_phone",
-        "photo_url", "is_on_leave", "supervisor_id", "employment_status",
+        "emergency_name", "emergency_phone", "photo_url", "is_on_leave", "employment_status",
         "base_salary", "per_delivery_rate", "bank_iban", "name",
     }
-    changed = []
-    for k, v in payload.items():
-        if k in allowed and v is not None:
-            if k in ("iqama_expiry", "license_expiry", "vehicle_license_expiry", "passport_expiry", "insurance_expiry", "inspection_expiry", "work_permit_expiry"):
-                try:
-                    v = date.fromisoformat(v)
-                except (ValueError, TypeError):
-                    raise HTTPException(400, f"{k} غير صالح — استخدم YYYY-MM-DD")
-            if k in ("base_salary", "per_delivery_rate"):
-                try:
-                    v = float(v)
-                except (ValueError, TypeError):
-                    raise HTTPException(400, f"{k} يجب أن يكون رقماً")
-            if k == "employment_status" and v == "SUSPENDED":
-                c.is_on_leave = False
-            setattr(c, k, v)
-            changed.append(k)
+    date_fields = {"iqama_expiry", "license_expiry", "vehicle_license_expiry", "passport_expiry", "insurance_expiry", "inspection_expiry", "work_permit_expiry"}
+    for key, value in payload.items():
+        if key not in allowed or value is None:
+            continue
+        if key in date_fields:
+            try:
+                value = date.fromisoformat(value)
+            except (ValueError, TypeError):
+                raise HTTPException(400, f"{key} غير صالح — استخدم YYYY-MM-DD")
+        if key in ("base_salary", "per_delivery_rate"):
+            try:
+                value = float(value)
+            except (ValueError, TypeError):
+                raise HTTPException(400, f"{key} يجب أن يكون رقماً")
+        if getattr(c, key) != value:
+            changes.append(key)
+            setattr(c, key, value)
+        if key == "employment_status" and value == "SUSPENDED":
+            c.is_on_leave = False
+
     if "employment_status" in payload:
         account = db.query(User).filter(User.courier_id == c.id, User.role == UserRole.COURIER).first()
         if account:
             account.is_active = payload["employment_status"] == "ACTIVE"
             account.token_version = (account.token_version or 0) + 1
     db.commit()
-    _log(db, user, f"عدّل مندوب {c.name}: {', '.join(changed)}", "courier", c.id)
-    return {"ok": True, "updated": changed}
+    if changes:
+        _log(db, user, f"عدّل مندوب {c.name}: {', '.join(changes)}", "courier", c.id)
+    return {"ok": True, "updated": changes}
 
 
 @router.post("/couriers/{cid}/note")
@@ -1306,6 +1458,7 @@ def hr_contracts(user: User = Depends(get_current_user), db: Session = Depends(g
                      "courier_ids":ids,"courier_names":names,"duration_months": ct.duration_months, "couriers_count": len(ids),
                      "base_salary": ct.base_salary or 0, "per_delivery_rate": ct.per_delivery_rate or 0,
                      "status": status, "days_left": days,
+                     "start_date": ct.start_date.isoformat() if ct.start_date else None,
                      "end_date": ct.end_date.isoformat() if ct.end_date else None})
         rows[-1]["branches"]=[{"id":b.id,"city":b.city,"project_id":b.project_id,"project":db.get(Project,b.project_id).name if b.project_id and db.get(Project,b.project_id) else None,"supervisor_id":b.supervisor_id,"supervisor":db.get(User,b.supervisor_id).name if b.supervisor_id and db.get(User,b.supervisor_id) else None,"couriers_count":db.query(Courier).filter(Courier.contract_branch_id==b.id).count()} for b in branches]
     rows.sort(key=lambda r: (r["days_left"] or 999))
@@ -1319,6 +1472,14 @@ def create_contract(payload: dict, user: User = Depends(get_current_user), db: S
     name = (payload.get("name") or "").strip()
     if not name:
         raise HTTPException(400, "Contract name required")
+    start = payload.get("start_date")
+    if start:
+        try:
+            start_dt = datetime.combine(date.fromisoformat(start), datetime.min.time())
+        except (ValueError, TypeError):
+            raise HTTPException(400, "start_date غير صالح — استخدم YYYY-MM-DD")
+    else:
+        start_dt = datetime.combine(date.today(), datetime.min.time())
     end = payload.get("end_date")
     if end:
         try:
@@ -1327,6 +1488,19 @@ def create_contract(payload: dict, user: User = Depends(get_current_user), db: S
             raise HTTPException(400, "end_date غير صالح — استخدم YYYY-MM-DD")
     else:
         end_dt = date.today() + timedelta(days=365)
+    try:
+        base_salary = float(payload.get("base_salary") or 0)
+        per_delivery_rate = float(payload.get("per_delivery_rate") or 0)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "قيم التعويض غير صالحة")
+    if base_salary < 0 or per_delivery_rate < 0:
+        raise HTTPException(400, "قيم التعويض لا يمكن أن تكون سالبة")
+    contract_type = str(payload.get("contract_type") or "COMMERCIAL").upper()
+    if contract_type not in ("COMMERCIAL", "FIXED", "PER_DELIVERY"):
+        raise HTTPException(400, "نوع العقد غير صالح")
+    status = str(payload.get("status") or "ACTIVE").upper()
+    if status not in ("ACTIVE", "SUSPENDED", "EXPIRED"):
+        raise HTTPException(400, "حالة العقد غير صالحة")
     cities=payload.get("cities") or []
     if not isinstance(cities,list) or not cities: raise HTTPException(400,"أضف مدينة واحدة على الأقل للعقد")
     clean=[]
@@ -1340,9 +1514,9 @@ def create_contract(payload: dict, user: User = Depends(get_current_user), db: S
     if not clean: raise HTTPException(400,"أضف مدينة صحيحة")
     ct = Contract(
         tenant_id=user.tenant_id, name=name,
-        scope_type="COMMERCIAL", contract_type="COMMERCIAL", duration_months=0,
-        couriers_count=0, base_salary=0, per_delivery_rate=0,
-        status="ACTIVE", end_date=end_dt,
+        scope_type="COMMERCIAL", contract_type=contract_type, duration_months=0,
+        couriers_count=0, base_salary=base_salary, per_delivery_rate=per_delivery_rate,
+        status=status, start_date=start_dt, end_date=end_dt,
     )
     db.add(ct);db.flush()
     for city,sid in clean:
@@ -1352,6 +1526,124 @@ def create_contract(payload: dict, user: User = Depends(get_current_user), db: S
     db.commit(); db.refresh(ct)
     _log(db, user, f"أنشأ عقد {name} حتى {end_dt}", "contract", ct.id)
     return {"ok": True, "id": ct.id}
+
+
+@router.patch("/contracts/{cid}")
+def update_contract(cid: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """تعديل العقد التجاري وفروع التشغيل دون إنشاء عقد بديل."""
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Admin only")
+    ct = db.get(Contract, cid)
+    if not ct or ct.tenant_id != user.tenant_id:
+        raise HTTPException(404, "Contract not found")
+    changes = []
+    if "name" in payload and str(payload.get("name") or "").strip():
+        value = str(payload["name"]).strip()
+        if value != ct.name:
+            changes.append(f"الاسم: {ct.name} → {value}")
+            ct.name = value
+    if "contract_type" in payload and payload.get("contract_type"):
+        value = str(payload["contract_type"]).upper()
+        if value not in ("COMMERCIAL", "FIXED", "PER_DELIVERY"):
+            raise HTTPException(400, "نوع العقد غير صالح")
+        if value != ct.contract_type:
+            changes.append(f"النوع: {ct.contract_type} → {value}")
+            ct.contract_type = value
+    for key in ("base_salary", "per_delivery_rate"):
+        if key in payload:
+            try:
+                value = float(payload[key] or 0)
+            except (ValueError, TypeError):
+                raise HTTPException(400, f"{key} يجب أن يكون رقماً")
+            if value < 0:
+                raise HTTPException(400, f"{key} لا يمكن أن يكون سالباً")
+            if getattr(ct, key) != value:
+                changes.append(key)
+                setattr(ct, key, value)
+    if "status" in payload:
+        value = str(payload["status"] or "").upper()
+        if value not in ("ACTIVE", "EXPIRED", "SUSPENDED"):
+            raise HTTPException(400, "حالة العقد غير صالحة")
+        if ct.status != value:
+            changes.append(f"الحالة: {ct.status} → {value}")
+            ct.status = value
+    if "start_date" in payload:
+        raw = payload.get("start_date")
+        try:
+            value = datetime.combine(date.fromisoformat(raw), datetime.min.time()) if raw else None
+        except (ValueError, TypeError):
+            raise HTTPException(400, "start_date غير صالح — استخدم YYYY-MM-DD")
+        if ct.start_date != value:
+            changes.append("تاريخ البداية")
+            ct.start_date = value
+    if "end_date" in payload:
+        raw = payload.get("end_date")
+        try:
+            value = datetime.combine(date.fromisoformat(raw), datetime.min.time()) if raw else None
+        except (ValueError, TypeError):
+            raise HTTPException(400, "end_date غير صالح — استخدم YYYY-MM-DD")
+        if ct.end_date != value:
+            changes.append("تاريخ الانتهاء")
+            ct.end_date = value
+
+    if "branches" in payload:
+        rows = payload.get("branches")
+        if not isinstance(rows, list) or not rows:
+            raise HTTPException(400, "أضف فرع تشغيل واحداً على الأقل")
+        existing = {branch.id: branch for branch in db.query(ContractBranch).filter(ContractBranch.contract_id == ct.id).all()}
+        handled = set()
+        for item in rows:
+            if not isinstance(item, dict):
+                raise HTTPException(400, "بيانات الفرع غير صالحة")
+            city = str(item.get("city") or "").strip()
+            if not city:
+                raise HTTPException(400, "اسم المدينة مطلوب")
+            branch_id = item.get("id")
+            branch = existing.get(int(branch_id)) if branch_id else None
+            if branch_id and not branch:
+                raise HTTPException(404, "فرع العقد غير موجود")
+            supervisor_id = item.get("supervisor_id")
+            supervisor = db.get(User, int(supervisor_id)) if supervisor_id else None
+            if supervisor and (supervisor.tenant_id != user.tenant_id or supervisor.role != UserRole.SUPERVISOR):
+                raise HTTPException(400, "مشرف الفرع غير صالح")
+            if not branch:
+                supervisor_name = supervisor.name if supervisor else "بدون مشرف"
+                project = Project(tenant_id=user.tenant_id, name=f"{ct.name} — {city} — {supervisor_name}", is_active=True, manager_id=supervisor.id if supervisor else None)
+                db.add(project); db.flush()
+                branch = ContractBranch(tenant_id=user.tenant_id, contract_id=ct.id, city=city, project_id=project.id, supervisor_id=supervisor.id if supervisor else None, is_active=True)
+                db.add(branch); db.flush()
+                changes.append(f"إضافة فرع {city}")
+            else:
+                old_city, old_supervisor = branch.city, branch.supervisor_id
+                branch.city = city
+                branch.supervisor_id = supervisor.id if supervisor else None
+                branch.is_active = True
+                if old_city != city or old_supervisor != branch.supervisor_id:
+                    changes.append(f"فرع {old_city} → {city}")
+            handled.add(branch.id)
+            project = db.get(Project, branch.project_id) if branch.project_id else None
+            if project:
+                supervisor_name = supervisor.name if supervisor else "بدون مشرف"
+                project.name = f"{ct.name} — {city} — {supervisor_name}"
+                project.manager_id = supervisor.id if supervisor else None
+            for courier in db.query(Courier).filter(Courier.contract_branch_id == branch.id).all():
+                courier.contract_id = ct.id
+                courier.work_city = city
+                courier.supervisor_id = supervisor.id if supervisor else None
+                if project:
+                    courier.primary_project_id = project.id
+                    courier.platform = project.name
+        for branch_id, branch in existing.items():
+            if branch_id not in handled:
+                branch.is_active = False
+                for courier in db.query(Courier).filter(Courier.contract_branch_id == branch.id).all():
+                    courier.supervisor_id = None
+                changes.append(f"تعطيل فرع {branch.city}")
+
+    db.commit()
+    if changes:
+        _log(db, user, f"عدّل عقد {ct.name}: {' | '.join(changes)}", "contract", ct.id)
+    return {"ok": True, "updated": changes}
 
 
 @router.post("/contracts/{cid}/renew")

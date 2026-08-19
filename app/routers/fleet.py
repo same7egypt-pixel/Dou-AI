@@ -14,6 +14,7 @@ from ..models.entities import (
     Project, DailyLog, BonusPlan, LeaveRequest, SubscriptionPlan,
 )
 from .auth import get_current_user
+from .shifts import _assigned_courier_ids, _parse_shift_time, _shift_json, _shift_window
 
 router = APIRouter(prefix="/fleet", tags=["fleet"])
 
@@ -653,7 +654,9 @@ def courier_profile(cid: int, user: User = Depends(get_current_user), db: Sessio
         "inspection_expiry": courier.inspection_expiry.isoformat() if courier.inspection_expiry else None,
         "work_permit_expiry": courier.work_permit_expiry.isoformat() if courier.work_permit_expiry else None,
         "platform": courier.platform, "platform_courier_id": courier.platform_courier_id,
-        "zone": courier.zone, "shift_preference": courier.shift_preference, "primary_project_id": courier.primary_project_id,
+        "zone": courier.zone, "work_city": courier.work_city, "shift_preference": courier.shift_preference,
+        "primary_project_id": courier.primary_project_id, "supervisor_id": courier.supervisor_id,
+        "contract_id": courier.contract_id, "contract_branch_id": courier.contract_branch_id,
         "nationality": courier.nationality,
         "today_orders": today_orders, "month_orders": month_orders,
         "deliveries_done": len(delivered),
@@ -732,24 +735,23 @@ def fleet_shifts(user: User = Depends(get_current_user), db: Session = Depends(g
     q = db.query(Shift)
     if user.tenant_id is not None:
         q = q.filter(Shift.tenant_id == user.tenant_id)
+    allowed_ids = None
     if user.role == UserRole.SUPERVISOR:
-        team = _courier_ids(db, user.tenant_id, user.id)
-        zones = {c.zone for c in db.query(Courier).filter(Courier.id.in_(team)).all() if c.zone}
-        q = q.filter(Shift.zone.in_(zones)) if zones else q.filter(text("1=0"))
+        allowed_ids = _courier_ids(db, user.tenant_id, user.id)
     elif user.role == UserRole.PROJECT_MANAGER:
         managed = json.loads(user.managed_project_ids or "[]")
-        zones = {c.zone for c in db.query(Courier).filter(Courier.tenant_id == user.tenant_id, Courier.primary_project_id.in_(managed)).all() if c.zone}
-        q = q.filter(Shift.zone.in_(zones)) if zones else q.filter(text("1=0"))
-    return [
-        {
-            "id": s.id, "name": s.name, "zone": s.zone or "", "fleet_id": s.fleet_id,
-            "fleet": (db.get(Fleet, s.fleet_id).name if s.fleet_id else None),
-            "start_time": s.start_time, "end_time": s.end_time,
-            "required_couriers": s.required_couriers,
-            "status": s.status.value if hasattr(s.status, "value") else s.status,
-        }
-        for s in q.all()
-    ]
+        allowed_ids = _courier_ids(db, user.tenant_id, project_ids=managed)
+    now = datetime.utcnow()
+    rows = []
+    for shift in q.order_by(Shift.id.desc()).all():
+        assigned = _assigned_courier_ids(shift)
+        if allowed_ids is not None and not (assigned & allowed_ids):
+            continue
+        row = _shift_json(db, shift, now)
+        row["fleet"] = db.get(Fleet, shift.fleet_id).name if shift.fleet_id and db.get(Fleet, shift.fleet_id) else None
+        row["assigned_count"] = len(assigned)
+        rows.append(row)
+    return rows
 
 
 @router.post("/shifts")
@@ -760,22 +762,35 @@ def fleet_create_shift(payload: dict, user: User = Depends(get_current_user), db
     name = (payload.get("name") or "").strip()
     if not name:
         raise HTTPException(400, "Shift name is required")
-    fleet = db.query(Fleet).filter(Fleet.tenant_id == user.tenant_id).first() if user.tenant_id else None
+    start_time = str(payload.get("start_time") or "").strip()
+    end_time = str(payload.get("end_time") or "").strip()
+    start = _parse_shift_time(start_time); end = _parse_shift_time(end_time)
+    if start == end:
+        raise HTTPException(400, "وقت الانتهاء يجب أن يختلف عن وقت البداية")
     try:
         required_couriers = int(payload.get("required_couriers") or 0)
+        courier_ids = {int(x) for x in (payload.get("courier_ids") or [])}
     except (ValueError, TypeError):
-        raise HTTPException(400, "required_couriers يجب أن يكون رقماً")
+        raise HTTPException(400, "بيانات الوردية غير صالحة")
+    if required_couriers <= 0:
+        raise HTTPException(400, "أدخل عدد المناديب المطلوب")
+    if len(courier_ids) > required_couriers:
+        raise HTTPException(400, "عدد المناديب المسندين لا يمكن أن يتجاوز السعة المطلوبة")
+    valid_ids = _courier_ids(db, user.tenant_id)
+    if not courier_ids.issubset(valid_ids):
+        raise HTTPException(400, "يوجد مندوب لا يتبع الشركة")
+    fleet = db.query(Fleet).filter(Fleet.tenant_id == user.tenant_id).first() if user.tenant_id else None
     shift = Shift(
         tenant_id=user.tenant_id, fleet_id=fleet.id if fleet else None,
-        name=name, zone=payload.get("zone") or "",
-        start_time=payload.get("start_time") or "09:00",
-        end_time=payload.get("end_time") or "17:00",
-        required_couriers=required_couriers,
+        name=name, zone=(payload.get("zone") or "").strip(), start_time=start_time,
+        end_time=end_time, required_couriers=required_couriers,
+        courier_ids=json.dumps(sorted(courier_ids)),
     )
     db.add(shift)
     db.commit()
     db.refresh(shift)
-    return {"ok": True, "id": shift.id, "name": shift.name}
+    row = _shift_json(db, shift, datetime.utcnow())
+    return {"ok": True, **row}
 
 
 @router.post("/orders/{order_id}/reassign")
@@ -813,21 +828,36 @@ def fleet_attendance(attendance_date: date = None, user: User = Depends(get_curr
     records = db.query(Attendance).filter(
         Attendance.courier_id.in_(ids), Attendance.check_in >= start, Attendance.check_in < end
     ).order_by(Attendance.check_in.desc()).all() if ids else []
-    couriers = {c.id: c.name for c in db.query(Courier).all()}
+    couriers = {c.id: c.name for c in db.query(Courier).filter(Courier.id.in_(ids)).all()} if ids else {}
     rows = []
-    for a in records:
-        hours = None
-        if a.check_in and a.check_out:
-            hours = round((a.check_out - a.check_in).total_seconds() / 3600, 1)
+    for attendance in records:
+        shift = db.get(Shift, attendance.shift_id) if attendance.shift_id else None
+        scheduled_start = scheduled_end = None
+        scheduled_hours = None
+        late_minutes = early_leave_minutes = 0
+        if shift:
+            scheduled_start, scheduled_end, _ = _shift_window(shift, attendance.check_in or start)
+            scheduled_hours = round((scheduled_end - scheduled_start).total_seconds() / 3600, 1)
+            late_minutes = max(0, int(((attendance.check_in or scheduled_start) - scheduled_start).total_seconds() // 60))
+            if attendance.check_out:
+                early_leave_minutes = max(0, int((scheduled_end - attendance.check_out).total_seconds() // 60))
+        hours = round((attendance.check_out - attendance.check_in).total_seconds() / 3600, 1) if attendance.check_in and attendance.check_out else None
+        status = "LATE" if late_minutes else "PRESENT"
+        if not attendance.check_out:
+            status = "IN_PROGRESS"
+        elif early_leave_minutes:
+            status = "EARLY_LEAVE"
         rows.append({
-            "id": a.id,
-            "name": couriers.get(a.courier_id),
-            "check_in": a.check_in.isoformat() if a.check_in else None,
-            "check_out": a.check_out.isoformat() if a.check_out else None,
-            "hours": hours,
-            "is_late": a.is_late,
-            "check_in_lat": a.check_in_lat, "check_in_lng": a.check_in_lng,
-            "check_out_lat": a.check_out_lat, "check_out_lng": a.check_out_lng,
+            "id": attendance.id, "name": couriers.get(attendance.courier_id), "shift_id": attendance.shift_id,
+            "shift": shift.name if shift else None,
+            "check_in": attendance.check_in.isoformat() if attendance.check_in else None,
+            "check_out": attendance.check_out.isoformat() if attendance.check_out else None,
+            "scheduled_start": scheduled_start.isoformat() if scheduled_start else None,
+            "scheduled_end": scheduled_end.isoformat() if scheduled_end else None,
+            "scheduled_hours": scheduled_hours, "hours": hours, "status": status,
+            "late_minutes": late_minutes, "early_leave_minutes": early_leave_minutes, "is_late": late_minutes > 0,
+            "check_in_lat": attendance.check_in_lat, "check_in_lng": attendance.check_in_lng,
+            "check_out_lat": attendance.check_out_lat, "check_out_lng": attendance.check_out_lng,
         })
     return rows
 
@@ -876,7 +906,14 @@ def monthly_attendance(month: str = None, user: User = Depends(get_current_user)
     for c in db.query(Courier).filter(Courier.id.in_(ids)).order_by(Courier.name).all() if ids else []:
         records=db.query(Attendance).filter(Attendance.courier_id==c.id,Attendance.check_in>=start,Attendance.check_in<end).all()
         hours=sum((a.check_out-a.check_in).total_seconds()/3600 for a in records if a.check_out)
-        rows.append({"المندوب":c.name,"أيام الحضور":len({a.check_in.date() for a in records}),"مرات التأخير":sum(bool(a.is_late) for a in records),"ساعات العمل":round(hours,1),"الحالة":c.employment_status or "ACTIVE"})
+        late_minutes=0; early_leave_minutes=0
+        for attendance in records:
+            shift=db.get(Shift,attendance.shift_id) if attendance.shift_id else None
+            if not shift: continue
+            scheduled_start,scheduled_end,_=_shift_window(shift,attendance.check_in)
+            late_minutes+=max(0,int((attendance.check_in-scheduled_start).total_seconds()//60))
+            if attendance.check_out: early_leave_minutes+=max(0,int((scheduled_end-attendance.check_out).total_seconds()//60))
+        rows.append({"المندوب":c.name,"أيام الحضور":len({a.check_in.date() for a in records}),"مرات التأخير":sum(bool(a.is_late) for a in records),"دقائق التأخير":late_minutes,"دقائق الانصراف المبكر":early_leave_minutes,"ساعات العمل":round(hours,1),"الحالة":c.employment_status or "ACTIVE"})
     return {"month":start.strftime("%Y-%m"),"rows":rows}
 
 

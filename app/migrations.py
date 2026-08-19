@@ -46,12 +46,16 @@ MIGRATIONS = {
     },
     "bonus_plans": {"contract_branch_id": "INTEGER"},
     "contracts": {
+        "start_date": "TIMESTAMP",
         "end_date": "TIMESTAMP",
         "project_id": "INTEGER",
         "scope_type": "VARCHAR(20) DEFAULT 'PROJECT'",
         "courier_ids": "TEXT",
     },
     "projects": {"manager_id": "INTEGER"},
+    "shifts": {
+        "courier_ids": "TEXT",
+    },
     "attendances": {
         "check_out_lat": "FLOAT",
         "check_out_lng": "FLOAT",

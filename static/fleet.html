@@ -261,14 +261,15 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
     <section id="view-shifts" style="display:none">
       <div class="header"><div><div class="kicker">تخطيط القوى</div><h1>الورديات والحضور</h1></div>
-        <button class="btn blue" onclick="toggleAddShift()">+ إنشاء وردية</button></div>
+        <button class="btn blue" data-company-only onclick="toggleAddShift()">+ إنشاء وردية</button></div>
       <div class="card" id="addShiftBox" style="display:none">
         <div class="form-row"><input id="sName" placeholder="اسم الوردية"><input id="sZone" placeholder="المنطقة"></div>
-        <div class="form-row"><input id="sStart" placeholder="من 09:00"><input id="sEnd" placeholder="إلى 17:00"><input id="sReq" type="number" placeholder="عدد مطلوب"></div>
-        <div class="form-row"><select id="sFleet"><option>كل الأساطيل</option><option>أسطول مقهى بن القهوة</option><option>أسطول مندوبي الشمال</option></select></div>
+        <div class="form-row"><div><label class="fLabel">من</label><input id="sStart" type="time" value="09:00"></div><div><label class="fLabel">إلى</label><input id="sEnd" type="time" value="17:00"></div><input id="sReq" type="number" min="1" placeholder="عدد مطلوب"></div>
+        <label class="fLabel">المناديب المسندون</label><select id="sCouriers" class="fInput" multiple size="5"></select>
+        <div class="hrEmptyGuide">إذا كان وقت الانتهاء أبكر من البداية، تُحسب الوردية لليوم التالي تلقائيًا.</div>
         <button class="btn" onclick="addShift()">حفظ</button><span id="shiftMsg" class="msg"></span>
       </div>
-      <div class="card"><table><thead><tr><th>الوردية</th><th>المنطقة</th><th>الوقت</th><th>المطلوب</th><th>الأسطول</th><th>الحالة</th></tr></thead>
+      <div class="card"><table><thead><tr><th>الوردية</th><th>المنطقة</th><th>الوقت / المدة</th><th>المسندون</th><th>المطلوب</th><th>الحالة</th></tr></thead>
         <tbody id="shiftsBody"></tbody></table></div>
     </section>
 
@@ -279,9 +280,9 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <div class="metric"><b id="attLate">–</b><span>المتأخرون في التاريخ المختار</span></div>
         <div class="metric"><b id="attHours">–</b><span>ساعات عمل محتسبة</span></div>
       </div>
-      <div class="card"><table><thead><tr><th>المندوب</th><th>الحضور</th><th>الانصراف</th><th>ساعات</th><th>الموقع (من → إلى)</th><th>الحالة</th></tr></thead>
+      <div class="card"><table><thead><tr><th>المندوب</th><th>الوردية المجدولة</th><th>الحضور</th><th>الانصراف</th><th>ساعات</th><th>الموقع (من → إلى)</th><th>الحالة</th></tr></thead>
         <tbody id="attendanceBody"></tbody></table></div>
-      <div class="card"><div class="header"><h3>تقرير الحضور الشهري</h3><input id="attendanceMonth" type="month" onchange="loadMonthlyAttendance()"></div><table><thead><tr><th>المندوب</th><th>أيام الحضور</th><th>مرات التأخير</th><th>ساعات العمل</th><th>الحالة</th></tr></thead><tbody id="monthlyAttendanceBody"></tbody></table></div>
+      <div class="card"><div class="header"><h3>تقرير الحضور الشهري</h3><input id="attendanceMonth" type="month" onchange="loadMonthlyAttendance()"></div><table><thead><tr><th>المندوب</th><th>أيام الحضور</th><th>مرات التأخير</th><th>دقائق التأخير</th><th>انصراف مبكر</th><th>ساعات العمل</th><th>الحالة</th></tr></thead><tbody id="monthlyAttendanceBody"></tbody></table></div>
     </section>
 
     <section id="view-performance" style="display:none">
@@ -589,6 +590,10 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     <div class="card">
       <h3>بيانات التوظيف</h3>
       <div id="cmInfo"></div>
+      <h3 style="margin-top:14px">بيانات أساسية وإسناد تشغيلي</h3>
+      <div class="form-row"><input id="cmName" placeholder="اسم المندوب"><input id="cmPhone" dir="ltr" placeholder="رقم الجوال"><input id="cmNationality" placeholder="الجنسية"></div>
+      <div class="form-row"><select id="cmContract" onchange="courierProfileContractChanged()"><option value="">اختر العقد</option></select><select id="cmBranch" onchange="courierProfileBranchChanged()"><option value="">اختر فرع التشغيل</option></select><select id="cmSupervisor"><option value="">بدون مشرف</option></select></div>
+      <div class="form-row"><input id="cmWorkCity" placeholder="المدينة" readonly><input id="cmZone" placeholder="منطقة العمل"></div>
       <h3 style="margin-top:14px">تعديل سريع</h3>
       <div class="form-row">
         <input id="cmSalary" type="number" placeholder="الراتب الثابت">
@@ -609,7 +614,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="form-row">
         <select id="cmVehicleType"><option value="">بدون نوع مركبة (اختياري)</option><option value="سيارة">سيارة</option><option value="دباب">دباب</option></select>
         <input id="cmVehiclePlate" placeholder="رقم اللوحة">
-        <input id="cmZone" placeholder="منطقة العمل">
+        <span class="msg">يُحدّد موقع العمل من فرع التشغيل المختار</span>
       </div>
       <div class="form-row">
         <select id="cmProject"><option value="">بدون مشروع (اختياري)</option></select>
@@ -628,14 +633,18 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
   </div>
 </div>
 
-<!-- Modal: إعادة تعيين مندوب -->
+<!-- Modal: إنشاء / تعديل مشرف -->
 <div class="modal" id="supModal">
   <div class="modalBox">
-    <h3>🧑‍💼 مشرف جديد</h3>
+    <h3 id="supTitle">🧑‍💼 مشرف جديد</h3>
     <label class="fLabel">اسم المشرف</label><input id="supName" class="fInput" placeholder="أحمد المحمد">
     <label class="fLabel">رقم الجوال</label><input id="supPhone" class="fInput" dir="ltr" placeholder="9665XXXXXXXX">
-    <label class="fLabel">كلمة مرور أولية (8 أحرف على الأقل)</label><input id="supPass" class="fInput" type="password" dir="ltr" minlength="8" placeholder="اختر كلمة مرور قوية">
-    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveSup()">إنشاء الحساب</button><button class="btn ghost" onclick="closeSup()">إلغاء</button></div>
+    <div id="supPasswordWrap"><label class="fLabel">كلمة مرور أولية (8 أحرف على الأقل)</label><input id="supPass" class="fInput" type="password" dir="ltr" minlength="8" placeholder="اختر كلمة مرور قوية"></div>
+    <div id="supAssignmentWrap" style="display:none">
+      <label class="fLabel">فروع التشغيل المسندة</label><select id="supBranches" class="fInput" multiple size="4"></select>
+      <label class="fLabel">المناديب المسندون مباشرة</label><select id="supTeam" class="fInput" multiple size="5"></select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" id="supSaveBtn" style="flex:1" onclick="saveSup()">إنشاء الحساب</button><button class="btn ghost" onclick="closeSup()">إلغاء</button></div>
     <div id="supMsg" class="msg"></div>
   </div>
 </div>
@@ -657,12 +666,14 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 </div>
 <div class="modal" id="hrCModal">
   <div class="modalBox">
-    <h3>📄 عقد جديد</h3>
+    <h3 id="hrCtTitle">📄 عقد جديد</h3>
     <label class="fLabel">اسم العميل / المنصة</label><input id="hrCtName" class="fInput" placeholder="مثال: هنقرستيشن">
+    <div class="form-row"><select id="hrCtType" class="fInput"><option value="COMMERCIAL">عقد تجاري</option><option value="FIXED">راتب ثابت</option><option value="PER_DELIVERY">أجر لكل توصيلة</option></select><select id="hrCtStatus" class="fInput"><option value="ACTIVE">نشط</option><option value="SUSPENDED">موقوف</option><option value="EXPIRED">منتهي</option></select></div>
+    <div class="form-row"><input id="hrCtSalary" class="fInput" type="number" min="0" step="0.01" placeholder="الراتب / التعويض"><input id="hrCtRate" class="fInput" type="number" min="0" step="0.01" placeholder="أجر التوصيلة"></div>
     <div class="hrEmptyGuide">كل صف يمثل فريق تشغيل: مدينة + مشرف. يمكنك تكرار نفس المدينة مع مشرف مختلف عند وجود عدد كبير من المناديب. التارجت والبونص يُضبطان لاحقًا لكل فريق.</div>
     <label class="fLabel">فروع التشغيل</label><div id="hrCtBranches"></div><button class="btn ghost small" type="button" onclick="addContractBranchRow()">+ إضافة مدينة</button>
-    <label class="fLabel">تاريخ الانتهاء</label><input id="hrCtEnd" type="date" class="fInput">
-    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" style="flex:1" onclick="saveHrContract()">حفظ العقد</button><button class="btn ghost" onclick="closeHrContract()">إلغاء</button></div>
+    <div class="form-row"><div><label class="fLabel">تاريخ البداية</label><input id="hrCtStart" type="date" class="fInput"></div><div><label class="fLabel">تاريخ الانتهاء</label><input id="hrCtEnd" type="date" class="fInput"></div></div>
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn" id="hrCtSaveBtn" style="flex:1" onclick="saveHrContract()">حفظ العقد</button><button class="btn ghost" onclick="closeHrContract()">إلغاء</button></div>
     <div id="hrCtMsg" class="msg"></div>
   </div>
 </div>
@@ -880,11 +891,13 @@ async function loadOrders(){
 async function loadShifts(){
   try{
     const shifts = await api("/fleet/shifts");
+    const labels={SCHEDULED:'مجدولة',ACTIVE:'نشطة',COMPLETED:'مكتملة',CANCELLED:'ملغاة'};
+    const color={SCHEDULED:'gray',ACTIVE:'green',COMPLETED:'blue',CANCELLED:'red'};
     document.getElementById("shiftsBody").innerHTML = shifts.map(s=>`
-      <tr><td>${s.name}</td><td>${s.zone||"—"}</td><td>${s.start_time}-${s.end_time}</td>
-      <td>${s.required_couriers}</td><td><span class="tag blue">${s.fleet||"—"}</span></td>
-      <td><span class="tag gray">${s.status||"SCHEDULED"}</span></td></tr>`).join("") || '<tr><td colspan="6" style="color:var(--muted)">لا ورديات</td></tr>';
-  }catch(e){}
+      <tr><td><b>${escapeHtml(s.name)}</b></td><td>${escapeHtml(s.zone||"—")}</td><td dir="ltr">${s.start_time}–${s.end_time}<br><small>${s.duration_hours} س${s.overnight?' · لليوم التالي':''}</small></td>
+      <td>${s.assigned_count||0} مندوب</td><td>${s.required_couriers}</td>
+      <td><span class="tag ${color[s.status]||'gray'}">${labels[s.status]||s.status||'مجدولة'}</span></td></tr>`).join("") || '<tr><td colspan="6" style="color:var(--muted)">لا ورديات</td></tr>';
+  }catch(e){ document.getElementById("shiftsBody").innerHTML='<tr><td colspan="6">تعذّر تحميل الورديات</td></tr>'; }
 }
 async function loadCompanies(){
   try{
@@ -968,9 +981,31 @@ async function addCourier(){
 
 let CM_ID = null;
 let CM_PROJECT_ID = null;
+let CM_CONTRACTS = [];
+let CM_SUPERVISORS = [];
+function setCourierProfileSupervisors(selectedId){
+  const select=document.getElementById("cmSupervisor");
+  select.innerHTML='<option value="">بدون مشرف</option>'+CM_SUPERVISORS.filter(s=>s.is_active).map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+  select.value=selectedId||"";
+}
+function courierProfileContractChanged(){
+  const contract=CM_CONTRACTS.find(c=>c.id===+document.getElementById("cmContract").value);
+  const branch=document.getElementById("cmBranch");
+  branch.innerHTML='<option value="">اختر فرع التشغيل</option>'+((contract?.branches||[]).map(b=>`<option value="${b.id}">${escapeHtml(b.city)} — ${escapeHtml(b.supervisor||"بدون مشرف")}</option>`).join(""));
+  courierProfileBranchChanged();
+}
+function courierProfileBranchChanged(){
+  const contract=CM_CONTRACTS.find(c=>c.id===+document.getElementById("cmContract").value);
+  const branch=(contract?.branches||[]).find(b=>b.id===+document.getElementById("cmBranch").value);
+  if(!branch)return;
+  document.getElementById("cmWorkCity").value=branch.city||"";
+  setCourierProfileSupervisors(branch.supervisor_id||null);
+  document.getElementById("cmProject").value=branch.project_id||"";
+}
 async function openCourier(id){
   CM_ID = id;
-  const [c,projects] = await Promise.all([api("/fleet/couriers/"+id),api("/hr/projects")]);
+  const [c,projects,contracts,supervisors] = await Promise.all([api("/fleet/couriers/"+id),api("/hr/projects"),api("/hr/contract-structure"),api("/hr/supervisors")]);
+  CM_CONTRACTS=contracts; CM_SUPERVISORS=supervisors;
   CM_PROJECT_ID=c.primary_project_id||null;
   document.getElementById("cmTitle").textContent = "👤 "+c.name+" — ملف الموظف";
   document.getElementById("cmCards").innerHTML = `
@@ -991,6 +1026,16 @@ async function openCourier(id){
     <div class="lineItem"><span>IBAN</span><b dir="ltr">${c.bank_iban||"—"}</b></div>
     <div class="lineItem"><span>الهاتف</span><b dir="ltr">${c.phone}</b></div>
     <div class="lineItem"><span>الجنسية</span><b>${c.nationality||"—"}</b></div>`;
+  document.getElementById("cmName").value=c.name||"";
+  document.getElementById("cmPhone").value=c.phone||"";
+  document.getElementById("cmNationality").value=c.nationality||"";
+  document.getElementById("cmContract").innerHTML='<option value="">اختر العقد</option>'+CM_CONTRACTS.map(x=>`<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("");
+  document.getElementById("cmContract").value=c.contract_id||"";
+  courierProfileContractChanged();
+  document.getElementById("cmBranch").value=c.contract_branch_id||"";
+  courierProfileBranchChanged();
+  document.getElementById("cmWorkCity").value=c.work_city||document.getElementById("cmWorkCity").value||"";
+  setCourierProfileSupervisors(c.supervisor_id||null);
   document.getElementById("cmSalary").value = c.base_salary||0;
   document.getElementById("cmRate").value = c.per_delivery_rate||0;
   document.getElementById("cmBonus").value = c.bonus_target||0;
@@ -1004,7 +1049,9 @@ async function openCourier(id){
   document.getElementById("cmZone").value = c.zone||"";
   document.getElementById("cmProject").innerHTML='<option value="">بدون مشروع (اختياري)</option>'+projects.filter(p=>p.is_active).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   document.getElementById("cmProject").value=c.primary_project_id||"";
-  document.getElementById("cmProject").disabled=META.role==="SUPERVISOR";
+  document.getElementById("cmProject").disabled=true;
+  const companyEdit=META.role!=="SUPERVISOR";
+  ["cmName","cmPhone","cmNationality","cmContract","cmBranch","cmSupervisor","cmStatus","cmSalary","cmRate","cmBonus","cmIban"].forEach(x=>document.getElementById(x).disabled=!companyEdit);
   document.getElementById("cmPlatformId").value = c.platform_courier_id||"";
   document.getElementById("cmIqamaNumber").value=c.iqama_number||"";document.getElementById("cmEmergencyName").value=c.emergency_name||"";document.getElementById("cmEmergencyPhone").value=c.emergency_phone||"";document.getElementById("cmPassportNumber").value=c.passport_number||"";document.getElementById("cmPassportExpiry").value=c.passport_expiry||"";document.getElementById("cmInsuranceExpiry").value=c.insurance_expiry||"";document.getElementById("cmInspectionExpiry").value=c.inspection_expiry||"";document.getElementById("cmWorkPermitExpiry").value=c.work_permit_expiry||"";
   document.getElementById("cmMsg").textContent = "";
@@ -1014,7 +1061,8 @@ function closeCourier(){ document.getElementById("courierModal").classList.remov
 async function saveCourierProfile(){
   const msg = document.getElementById("cmMsg");
   try{
-    if(META.role!=="SUPERVISOR") await api("/fleet/couriers/"+CM_ID,{method:"PATCH",body:JSON.stringify({
+    const companyEdit=META.role!=="SUPERVISOR";
+    if(companyEdit) await api("/fleet/couriers/"+CM_ID,{method:"PATCH",body:JSON.stringify({
       base_salary:+document.getElementById("cmSalary").value||0,
       per_delivery_rate:+document.getElementById("cmRate").value||0,
       bonus_target:+document.getElementById("cmBonus").value||0,
@@ -1022,17 +1070,23 @@ async function saveCourierProfile(){
       bank_iban:document.getElementById("cmIban").value||null
     })});
     if(META.role==="SUPERVISOR"||(META.permissions||[]).includes("hr")||(META.permissions||[]).includes("*")){
-      await api("/hr/couriers/"+CM_ID,{method:"PATCH",body:JSON.stringify({
+      const details={
         iqama_expiry:document.getElementById("cmIqama").value||null,
         license_expiry:document.getElementById("cmLicense").value||null,
         vehicle_license_expiry:document.getElementById("cmVehicleLicense").value||null,
         vehicle_type:document.getElementById("cmVehicleType").value||null,
         vehicle_plate:document.getElementById("cmVehiclePlate").value||null,
         zone:document.getElementById("cmZone").value||null,
-        primary_project_id:META.role==="SUPERVISOR"?CM_PROJECT_ID:(document.getElementById("cmProject").value||null),
-        platform_courier_id:document.getElementById("cmPlatformId").value||null
-        ,iqama_number:document.getElementById("cmIqamaNumber").value||null,emergency_name:document.getElementById("cmEmergencyName").value||null,emergency_phone:document.getElementById("cmEmergencyPhone").value||null,passport_number:document.getElementById("cmPassportNumber").value||null,passport_expiry:document.getElementById("cmPassportExpiry").value||null,insurance_expiry:document.getElementById("cmInsuranceExpiry").value||null,inspection_expiry:document.getElementById("cmInspectionExpiry").value||null,work_permit_expiry:document.getElementById("cmWorkPermitExpiry").value||null
-      })});
+        platform_courier_id:document.getElementById("cmPlatformId").value||null,
+        iqama_number:document.getElementById("cmIqamaNumber").value||null,emergency_name:document.getElementById("cmEmergencyName").value||null,emergency_phone:document.getElementById("cmEmergencyPhone").value||null,passport_number:document.getElementById("cmPassportNumber").value||null,passport_expiry:document.getElementById("cmPassportExpiry").value||null,insurance_expiry:document.getElementById("cmInsuranceExpiry").value||null,inspection_expiry:document.getElementById("cmInspectionExpiry").value||null,work_permit_expiry:document.getElementById("cmWorkPermitExpiry").value||null
+      };
+      if(companyEdit){
+        details.name=document.getElementById("cmName").value.trim();details.phone=document.getElementById("cmPhone").value.trim();details.nationality=document.getElementById("cmNationality").value.trim()||null;
+        const branchId=+document.getElementById("cmBranch").value;
+        if(!branchId)throw new Error("اختر فرع التشغيل قبل الحفظ");
+        details.contract_branch_id=branchId;
+      }else details.primary_project_id=CM_PROJECT_ID;
+      await api("/hr/couriers/"+CM_ID,{method:"PATCH",body:JSON.stringify(details)});
     }
     msg.style.color="var(--green)"; msg.textContent="✅ حُفظت التغييرات";
     closeCourier(); loadAll();
@@ -1046,14 +1100,17 @@ async function setCourierStatus(id, status){
   }catch(e){ alert("❌ "+e.message); }
 }
 async function deleteCourierRecord(id){if(!confirm("حذف المندوب نهائيًا؟ إذا كان له حضور أو طلبات سيطلب منك النظام جعله غير نشط بدلًا من الحذف."))return;try{await api("/fleet/couriers/"+id,{method:"DELETE"});loadAll()}catch(e){alert("❌ "+e.message)}}
-function toggleAddShift(){ document.getElementById("addShiftBox").style.display = document.getElementById("addShiftBox").style.display==="none"?"block":"none"; }
+async function toggleAddShift(){
+  const box=document.getElementById("addShiftBox"),opening=box.style.display==="none";box.style.display=opening?"block":"none";if(!opening)return;
+  try{const couriers=await api("/fleet/couriers");document.getElementById("sCouriers").innerHTML=couriers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)} — ${escapeHtml(c.work_city||c.zone||'بدون مدينة')}</option>`).join("");}catch(e){document.getElementById("shiftMsg").textContent="❌ تعذر تحميل المناديب: "+e.message;}
+}
 async function addShift(){
-  try{ await api("/fleet/shifts",{method:"POST",body:JSON.stringify({
-    name:document.getElementById("sName").value, zone:document.getElementById("sZone").value||null,
-    start_time:document.getElementById("sStart").value, end_time:document.getElementById("sEnd").value,
-    required_couriers:+document.getElementById("sReq").value||0})});
-    document.getElementById("shiftMsg").textContent="✅ أُنشئت الوردية"; loadAll();
-  }catch(e){ document.getElementById("shiftMsg").textContent="❌ "+e.message; }
+  const msg=document.getElementById("shiftMsg"),selected=[...document.getElementById("sCouriers").selectedOptions].map(x=>+x.value),required=+document.getElementById("sReq").value||0;
+  if(!document.getElementById("sName").value.trim()||!required){msg.textContent="❌ أدخل اسم الوردية والعدد المطلوب";return;}
+  if(selected.length>required){msg.textContent="❌ عدد المناديب المسندين أكبر من السعة المطلوبة";return;}
+  try{ await api("/fleet/shifts",{method:"POST",body:JSON.stringify({name:document.getElementById("sName").value.trim(),zone:document.getElementById("sZone").value||null,start_time:document.getElementById("sStart").value,end_time:document.getElementById("sEnd").value,required_couriers:required,courier_ids:selected})});
+    msg.style.color="var(--green)";msg.textContent="✅ أُنشئت الوردية وأُسند المناديب";loadShifts();
+  }catch(e){ msg.style.color="var(--red)";msg.textContent="❌ "+e.message; }
 }
 function toggleAddCompany(){ document.getElementById("addCompanyBox").style.display = document.getElementById("addCompanyBox").style.display==="none"?"block":"none"; }
 async function addCompany(){
@@ -1189,23 +1246,17 @@ async function loadAttendance(){
   try{
     const dateInput=document.getElementById("attendanceDate");if(!dateInput.value)dateInput.value=localDateValue();
     const rows = await api("/fleet/attendance?attendance_date="+encodeURIComponent(dateInput.value));
-    const present = rows.filter(r=>r.check_in).length;
-    const late = rows.filter(r=>r.is_late).length;
-    document.getElementById("attIn").textContent = present;
-    document.getElementById("attLate").textContent = late;
+    document.getElementById("attIn").textContent = rows.filter(r=>r.check_in).length;
+    document.getElementById("attLate").textContent = rows.filter(r=>r.late_minutes>0).length;
     document.getElementById("attHours").textContent = rows.reduce((s,r)=>s+(Number(r.hours)||0),0).toFixed(1);
+    const status={PRESENT:['green','حاضر'],LATE:['amber','متأخر'],IN_PROGRESS:['blue','قيد الوردية'],EARLY_LEAVE:['red','انصراف مبكر']};
     document.getElementById("attendanceBody").innerHTML = rows.map(r=>{
-      const cin = r.check_in?new Date(r.check_in).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}):"—";
-      const cout = r.check_out?new Date(r.check_out).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}):"—";
+      const fmt=v=>v?new Date(v).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}):"—";const cin=fmt(r.check_in),cout=fmt(r.check_out),scheduled=r.shift?`${escapeHtml(r.shift)}<br><small dir="ltr">${fmt(r.scheduled_start)}–${fmt(r.scheduled_end)}</small>`:'—';
       const mapLink = (r.check_in_lat&&r.check_in_lng)?`<a href="https://maps.google.com/?q=${r.check_in_lat},${r.check_in_lng}" target="_blank" style="color:var(--blue);font-size:11px">من ${r.check_in_lat.toFixed(4)},${r.check_in_lng.toFixed(4)}</a>`:"من —";
-      const mapLinkOut = (r.check_out_lat&&r.check_out_lng)?`<a href="https://maps.google.com/?q=${r.check_out_lat},${r.check_out_lng}" target="_blank" style="color:var(--blue);font-size:11px">إلى ${r.check_out_lat.toFixed(4)},${r.check_out_lng.toFixed(4)}</a>`:"إلى —";
-      return `
-      <tr><td>${r.name||"—"}</td>
-      <td dir="ltr">${cin}</td><td dir="ltr">${cout}</td>
-      <td>${r.hours??"جاري"} س</td><td>${mapLink}<br>${mapLinkOut}</td>
-      <td><span class="tag ${r.is_late?"amber":r.check_in?"green":"red"}">${r.is_late?"متأخر":r.check_in?"حاضر":"—"}</span></td></tr>`;
-    }).join("") || '<tr><td colspan="6" style="color:var(--muted)">لا سجلات</td></tr>';
-  }catch(e){ /* يبقي فارغاً */ }
+      const mapLinkOut = (r.check_out_lat&&r.check_out_lng)?`<a href="https://maps.google.com/?q=${r.check_out_lat},${r.check_out_lng}" target="_blank" style="color:var(--blue);font-size:11px">إلى ${r.check_out_lat.toFixed(4)},${r.check_out_lng.toFixed(4)}</a>`:"إلى —";const st=status[r.status]||['gray',r.status||'—'];
+      return `<tr><td>${escapeHtml(r.name||"—")}</td><td>${scheduled}</td><td dir="ltr">${cin}${r.late_minutes?`<br><small>+${r.late_minutes} د</small>`:''}</td><td dir="ltr">${cout}${r.early_leave_minutes?`<br><small>-${r.early_leave_minutes} د</small>`:''}</td><td>${r.hours??"جاري"} س</td><td>${mapLink}<br>${mapLinkOut}</td><td><span class="tag ${st[0]}">${st[1]}</span></td></tr>`;
+    }).join("") || '<tr><td colspan="7" style="color:var(--muted)">لا سجلات</td></tr>';
+  }catch(e){ document.getElementById("attendanceBody").innerHTML='<tr><td colspan="7">تعذر تحميل سجل الحضور</td></tr>'; }
 }
 function localDateValue(){const d=new Date(),off=d.getTimezoneOffset();return new Date(d.getTime()-off*60000).toISOString().slice(0,10)}
 function setAttendanceToday(){document.getElementById("attendanceDate").value=localDateValue();loadAttendance()}
@@ -1492,10 +1543,11 @@ async function loadHR(){
     setupHRWorkspace();
     const dash = await api("/hr/dashboard");
     const sups = await api("/hr/supervisors");
+    SUPERVISOR_ROWS=sups;
     const bonus = await api("/hr/bonus");
     const leaves = await api("/hr/leaves");
     const assignments = await api("/hr/assignment-requests");
-    const employeeRequests=await api("/hr/employee-requests");const adjustments=await api("/hr/adjustments");const allCouriers=await api("/hr/couriers");const uploadedDocs=await api("/hr/documents");
+    const employeeRequests=await api("/hr/employee-requests");const adjustments=await api("/hr/adjustments");const allCouriers=await api("/hr/couriers");SUPERVISOR_COURIERS=allCouriers;const uploadedDocs=await api("/hr/documents");
     setHRPendingCount(assignments.filter(x=>x.status==="PENDING").length+leaves.filter(x=>["PENDING","SUPERVISOR_APPROVED"].includes(x.status)).length+employeeRequests.filter(x=>["PENDING","SUPERVISOR_APPROVED"].includes(x.status)).length+uploadedDocs.filter(x=>x.status==="PENDING").length);
     document.getElementById("adjCourier").innerHTML=allCouriers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
     document.getElementById("employeeRequestsBody").innerHTML=employeeRequests.map(r=>`<div class="opt"><div><b>${escapeHtml(r.courier)} — ${r.request_type}</b><small>${escapeHtml(r.title||'')} · ${escapeHtml(r.details||'')} · ${r.status}</small></div>${["PENDING","SUPERVISOR_APPROVED"].includes(r.status)?`<div><button class="btn green small" onclick="decideEmployeeRequest(${r.id},'approve')">موافقة</button> <button class="btn red small" onclick="decideEmployeeRequest(${r.id},'reject')">رفض</button></div>`:''}</div>`).join("")||'<p>لا طلبات</p>';
@@ -1508,7 +1560,7 @@ async function loadHR(){
     document.getElementById("supBody").innerHTML = sups.map(s=>`
       <tr><td><b>${s.name}</b></td><td dir="ltr">${s.phone}</td><td>${s.couriers_count}</td>
       <td>${s.is_active?'<span class="tag green">نشط</span>':'<span class="tag gray">موقوف</span>'}</td>
-      <td>${isAccountAdmin()?`<button class="btn ghost small" onclick="toggleSup(${s.id},${s.is_active})">${s.is_active?'غير نشط':'تفعيل'}</button> <button class="btn red small" onclick="deleteSup(${s.id})">حذف</button>`:'—'}</td></tr>`).join("")
+      <td><button class="btn ghost small" onclick="openSupModal(${s.id},true)">عرض</button>${isAccountAdmin()?` <button class="btn blue small" onclick="openSupModal(${s.id})">تعديل</button> <button class="btn ghost small" onclick="toggleSup(${s.id},${s.is_active})">${s.is_active?'غير نشط':'تفعيل'}</button> <button class="btn red small" onclick="deleteSup(${s.id})">حذف</button>`:''}</td></tr>`).join("")
       || '<tr><td colspan="5" style="color:var(--muted)">لا مشرفين بعد — أضف أول مشرف</td></tr>';
     document.getElementById("assignmentRequestsAdmin").innerHTML=assignments.filter(r=>r.status==="PENDING").map(r=>`
       <div class="opt"><div><b>${escapeHtml(r.supervisor)} يطلب ضم ${escapeHtml(r.courier)}</b><small>${escapeHtml(r.note||'بدون ملاحظة')}</small></div>
@@ -1542,7 +1594,7 @@ async function loadLB(){
   }catch(e){}
   loadMonthlyAttendance();
 }
-async function loadMonthlyAttendance(){const el=document.getElementById("attendanceMonth");if(!el.value)el.value=new Date().toISOString().slice(0,7);try{const d=await api("/fleet/attendance/monthly?month="+el.value);document.getElementById("monthlyAttendanceBody").innerHTML=d.rows.map(r=>`<tr><td>${r["المندوب"]}</td><td>${r["أيام الحضور"]}</td><td>${r["مرات التأخير"]}</td><td>${r["ساعات العمل"]}</td><td>${r["الحالة"]}</td></tr>`).join("")||'<tr><td colspan="5">لا بيانات</td></tr>'}catch(e){}}
+async function loadMonthlyAttendance(){const el=document.getElementById("attendanceMonth");if(!el.value)el.value=new Date().toISOString().slice(0,7);try{const d=await api("/fleet/attendance/monthly?month="+el.value);document.getElementById("monthlyAttendanceBody").innerHTML=d.rows.map(r=>`<tr><td>${escapeHtml(r["المندوب"])}</td><td>${r["أيام الحضور"]}</td><td>${r["مرات التأخير"]}</td><td>${r["دقائق التأخير"]||0} د</td><td>${r["دقائق الانصراف المبكر"]||0} د</td><td>${r["ساعات العمل"]}</td><td>${r["الحالة"]}</td></tr>`).join("")||'<tr><td colspan="7">لا بيانات</td></tr>'}catch(e){document.getElementById("monthlyAttendanceBody").innerHTML='<tr><td colspan="7">تعذر تحميل التقرير</td></tr>'}}
 async function loadPayroll(){
   try{
     const p = await api("/hr/payroll");
@@ -1557,39 +1609,39 @@ async function loadPayroll(){
       || '<tr><td colspan="9" style="color:var(--muted)">لا مناديب</td></tr>';
   }catch(e){}
 }
+let CONTRACT_ROWS=[];
 async function loadContracts(){
   try{
-    const ct = await api("/hr/contracts");
-    const statusT = {ACTIVE:'<span class="tag green">نشط</span>',EXPIRING:'<span class="tag amber">قرب الانتهاء</span>',EXPIRED:'<span class="tag red">منتهي</span>'};
-    document.getElementById("contractsBody").innerHTML = ct.rows.map(c=>`
-      <tr><td><b>${escapeHtml(c.name)}</b><br><small>عقد تجاري</small></td><td>${c.branches.length} فروع</td>
-      <td>${c.branches.map(b=>`<b>${escapeHtml(b.city)}</b> · ${escapeHtml(b.supervisor||"بدون مشرف")} · ${b.couriers_count} مندوب`).join("<br>")||"—"}</td><td>تُحدد من خطة البونص للفرع</td><td>${c.end_date?c.end_date.slice(0,10):'—'}</td>
+    const ct = await api("/hr/contracts"); CONTRACT_ROWS=ct.rows||[];
+    const statusT = {ACTIVE:'<span class="tag green">نشط</span>',SUSPENDED:'<span class="tag gray">موقوف</span>',EXPIRING:'<span class="tag amber">قرب الانتهاء</span>',EXPIRED:'<span class="tag red">منتهي</span>'};
+    document.getElementById("contractsBody").innerHTML = CONTRACT_ROWS.map(c=>`
+      <tr><td><b>${escapeHtml(c.name)}</b><br><small>${escapeHtml(c.contract_type||'عقد تجاري')}</small></td><td>${c.branches.length} فروع</td>
+      <td>${c.branches.map(b=>`<b>${escapeHtml(b.city)}</b> · ${escapeHtml(b.supervisor||"بدون مشرف")} · ${b.couriers_count} مندوب`).join("<br>")||"—"}</td><td>أساسي ${c.base_salary||0} ر.س · ${c.per_delivery_rate||0} / توصيلة</td><td>${c.start_date?c.start_date.slice(0,10):'—'} ← ${c.end_date?c.end_date.slice(0,10):'—'}</td>
       <td>${statusT[c.status]||c.status}</td>
-      <td><button class="btn blue small" onclick="renewContract(${c.id})">↻ تجديد</button></td></tr>`).join("")
+      <td><button class="btn ghost small" onclick="openHrContract(${c.id},true)">عرض</button>${isAccountAdmin()?` <button class="btn blue small" onclick="openHrContract(${c.id})">تعديل</button>`:''}</td></tr>`).join("")
       || '<tr><td colspan="7" style="color:var(--muted)">لا عقود بعد — أضف العقد التجاري الأول</td></tr>';
   }catch(e){}
 }
-async function renewContract(id){
-  const m = prompt("عدد شهور التجديد (افتراضي 12):");
-  if(m===null)return;
-  try{
-    const r = await api("/hr/contracts/"+id+"/renew",{method:"POST",body:JSON.stringify({months:parseInt(m||12)})});
-    alert("✅ جُدّد العقد — الانتهاء الجديد: "+r.end_date);
-    loadContracts();
-  }catch(e){alert(e.message);}
+let CONTRACT_SUPERVISORS=[], EDIT_CONTRACT_ID=null;
+async function openHrContract(id=null,readOnly=false){
+  document.getElementById("hrCtMsg").textContent="";CONTRACT_SUPERVISORS=await api("/hr/supervisors"); EDIT_CONTRACT_ID=id;
+  const selected=id?CONTRACT_ROWS.find(x=>x.id===id):null;
+  document.getElementById("hrCtTitle").textContent=selected?(readOnly?'📄 عرض العقد':'📄 تعديل العقد'):'📄 عقد جديد';
+  document.getElementById("hrCtSaveBtn").textContent=selected?'حفظ التعديلات':'حفظ العقد';
+  document.getElementById("hrCtName").value=selected?.name||"";document.getElementById("hrCtType").value=selected?.contract_type||"COMMERCIAL";document.getElementById("hrCtStatus").value=selected?.status||"ACTIVE";document.getElementById("hrCtSalary").value=selected?.base_salary||0;document.getElementById("hrCtRate").value=selected?.per_delivery_rate||0;document.getElementById("hrCtStart").value=selected?.start_date?.slice(0,10)||new Date().toISOString().slice(0,10);document.getElementById("hrCtEnd").value=selected?.end_date?.slice(0,10)||"";
+  document.getElementById("hrCtBranches").innerHTML="";(selected?.branches||[{}]).forEach(b=>addContractBranchRow(b));
+  ["hrCtName","hrCtType","hrCtStatus","hrCtSalary","hrCtRate","hrCtStart","hrCtEnd"].forEach(x=>document.getElementById(x).disabled=readOnly);
+  document.querySelectorAll("#hrCtBranches input,#hrCtBranches select,#hrCtBranches button").forEach(x=>x.disabled=readOnly);document.querySelector("#hrCModal button[onclick='addContractBranchRow()']").style.display=readOnly?'none':'';document.getElementById("hrCtSaveBtn").style.display=readOnly?'none':'';
+  document.getElementById("hrCModal").classList.add("open");
 }
-let CONTRACT_SUPERVISORS=[];async function openHrContract(){document.getElementById("hrCtMsg").textContent="";CONTRACT_SUPERVISORS=await api("/hr/supervisors");document.getElementById("hrCtBranches").innerHTML="";addContractBranchRow();document.getElementById("hrCModal").classList.add("open")}
-function addContractBranchRow(){const row=document.createElement("div");row.className="form-row contractBranchRow";row.innerHTML=`<input class="fInput branchCity" placeholder="المدينة: الرياض / جدة / مكة"><select class="fInput branchSupervisor"><option value="">بدون مشرف حاليًا</option>${CONTRACT_SUPERVISORS.filter(x=>x.is_active).map(x=>`<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("")}</select><button type="button" class="btn red small" onclick="this.parentElement.remove()">×</button>`;document.getElementById("hrCtBranches").appendChild(row)}
+function addContractBranchRow(branch={}){const row=document.createElement("div");row.className="form-row contractBranchRow";if(branch.id)row.dataset.branchId=branch.id;row.innerHTML=`<input class="fInput branchCity" placeholder="المدينة: الرياض / جدة / مكة"><select class="fInput branchSupervisor"><option value="">بدون مشرف حاليًا</option>${CONTRACT_SUPERVISORS.filter(x=>x.is_active).map(x=>`<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("")}</select><button type="button" class="btn red small" onclick="this.parentElement.remove()">×</button>`;row.querySelector(".branchCity").value=branch.city||"";row.querySelector(".branchSupervisor").value=branch.supervisor_id||"";document.getElementById("hrCtBranches").appendChild(row)}
 function closeHrContract(){ document.getElementById("hrCModal").classList.remove("open"); }
 async function saveHrContract(){
   try{
-    await api("/hr/contracts",{method:"POST",body:JSON.stringify({
-      name:document.getElementById("hrCtName").value.trim(),
-      cities:[...document.querySelectorAll(".contractBranchRow")].map(x=>({city:x.querySelector(".branchCity").value.trim(),supervisor_id:x.querySelector(".branchSupervisor").value||null})).filter(x=>x.city),
-      end_date:document.getElementById("hrCtEnd").value||null,
-    })});
-    document.getElementById("hrCtMsg").style.color="var(--green)";
-    document.getElementById("hrCtMsg").textContent="✅ أُضيف العقد";
+    const body={name:document.getElementById("hrCtName").value.trim(),contract_type:document.getElementById("hrCtType").value,status:document.getElementById("hrCtStatus").value,base_salary:+document.getElementById("hrCtSalary").value||0,per_delivery_rate:+document.getElementById("hrCtRate").value||0,start_date:document.getElementById("hrCtStart").value||null,end_date:document.getElementById("hrCtEnd").value||null,branches:[...document.querySelectorAll(".contractBranchRow")].map(x=>({id:x.dataset.branchId?+x.dataset.branchId:null,city:x.querySelector(".branchCity").value.trim(),supervisor_id:x.querySelector(".branchSupervisor").value||null})).filter(x=>x.city)};
+    if(EDIT_CONTRACT_ID) await api("/hr/contracts/"+EDIT_CONTRACT_ID,{method:"PATCH",body:JSON.stringify(body)});
+    else await api("/hr/contracts",{method:"POST",body:JSON.stringify({...body,cities:body.branches})});
+    document.getElementById("hrCtMsg").style.color="var(--green)";document.getElementById("hrCtMsg").textContent=EDIT_CONTRACT_ID?"✅ حُفظت التعديلات":"✅ أُضيف العقد";
     setTimeout(()=>{closeHrContract();loadContracts();},900);
   }catch(e){ document.getElementById("hrCtMsg").style.color="var(--red)"; document.getElementById("hrCtMsg").textContent="❌ "+e.message; }
 }
@@ -1631,19 +1683,32 @@ async function viewUploadedDocument(id){const x=await api('/hr/documents/'+id+'/
 async function decideUploadedDocument(id,action){const note=prompt('ملاحظة المراجعة (اختياري):','')||'';await api('/hr/documents/'+id+'/decide',{method:'POST',body:JSON.stringify({action,note})});loadHR()}
 async function saveAdjustment(){await api("/hr/adjustments",{method:"POST",body:JSON.stringify({courier_id:+document.getElementById("adjCourier").value,kind:document.getElementById("adjKind").value,amount:+document.getElementById("adjAmount").value,note:document.getElementById("adjNote").value})});loadHR()}
 async function delBonus(id){ if(!confirm("حذف خطة البونص نهائياً؟"))return; await api("/hr/bonus/"+id,{method:"DELETE"}); loadHR(); }
-function openSupModal(){ document.getElementById("supMsg").textContent=""; document.getElementById("supModal").classList.add("open"); }
+let SUPERVISOR_ROWS=[],SUPERVISOR_COURIERS=[],EDIT_SUPERVISOR_ID=null;
+async function openSupModal(id=null,readOnly=false){
+  EDIT_SUPERVISOR_ID=id;const current=id?SUPERVISOR_ROWS.find(x=>x.id===id):null;
+  const structures=await api("/hr/contract-structure");const branches=structures.flatMap(c=>(c.branches||[]).map(b=>({...b,contract:c.name})));
+  document.getElementById("supMsg").textContent="";document.getElementById("supTitle").textContent=current?(readOnly?'🧑‍💼 عرض المشرف':'🧑‍💼 تعديل المشرف'):'🧑‍💼 مشرف جديد';document.getElementById("supSaveBtn").textContent=current?'حفظ التعديلات':'إنشاء الحساب';
+  document.getElementById("supName").value=current?.name||"";document.getElementById("supPhone").value=current?.phone||"";document.getElementById("supPass").value="";
+  document.getElementById("supPasswordWrap").style.display=readOnly?'none':'';document.getElementById("supPasswordWrap").querySelector("label").textContent=current?'كلمة مرور جديدة (اختياري)':'كلمة مرور أولية (8 أحرف على الأقل)';
+  const branchesSelect=document.getElementById("supBranches"),teamSelect=document.getElementById("supTeam");branchesSelect.innerHTML=branches.map(b=>`<option value="${b.id}">${escapeHtml(b.contract)} — ${escapeHtml(b.city)} — ${escapeHtml(b.supervisor||'بدون مشرف')}</option>`).join("");teamSelect.innerHTML=SUPERVISOR_COURIERS.map(c=>`<option value="${c.id}">${escapeHtml(c.name)} — ${escapeHtml(c.work_city||c.zone||'بدون مدينة')}</option>`).join("");
+  if(current){[...branchesSelect.options].forEach(o=>o.selected=(current.branch_ids||[]).includes(+o.value));[...teamSelect.options].forEach(o=>o.selected=(current.courier_ids||[]).includes(+o.value));}
+  document.getElementById("supAssignmentWrap").style.display=current?'block':'none';["supName","supPhone","supPass","supBranches","supTeam"].forEach(x=>document.getElementById(x).disabled=readOnly);document.getElementById("supSaveBtn").style.display=readOnly?'none':'';
+  document.getElementById("supModal").classList.add("open");
+}
 function closeSup(){ document.getElementById("supModal").classList.remove("open"); }
 async function saveSup(){
+  const msg=document.getElementById("supMsg");
   try{
-    const r=await api("/hr/supervisors",{method:"POST",body:JSON.stringify({
-      name:document.getElementById("supName").value.trim(),
-      phone:document.getElementById("supPhone").value.trim(),
-      password:document.getElementById("supPass").value
-    })});
-    document.getElementById("supMsg").style.color="var(--green)";
-    document.getElementById("supMsg").innerHTML="✅ حُفظ. دخول المشرف: <b dir='ltr'>"+r.login_phone+"</b> / "+r.password+" من نفس لوحة الشركة";
-    setTimeout(()=>{closeSup();loadHR();},1800);
-  }catch(e){ document.getElementById("supMsg").style.color="var(--red)"; document.getElementById("supMsg").textContent="❌ "+e.message; }
+    const password=document.getElementById("supPass").value;
+    if(EDIT_SUPERVISOR_ID){
+      const body={name:document.getElementById("supName").value.trim(),phone:document.getElementById("supPhone").value.trim(),branch_ids:[...document.getElementById("supBranches").selectedOptions].map(x=>+x.value),courier_ids:[...document.getElementById("supTeam").selectedOptions].map(x=>+x.value)};if(password)body.password=password;
+      await api("/hr/supervisors/"+EDIT_SUPERVISOR_ID,{method:"PATCH",body:JSON.stringify(body)});msg.style.color="var(--green)";msg.textContent="✅ حُفظت تعديلات المشرف";
+    }else{
+      const r=await api("/hr/supervisors",{method:"POST",body:JSON.stringify({name:document.getElementById("supName").value.trim(),phone:document.getElementById("supPhone").value.trim(),password})});
+      msg.style.color="var(--green)";msg.innerHTML="✅ حُفظ. دخول المشرف: <b dir='ltr'>"+r.login_phone+"</b> / "+r.password+" من نفس لوحة الشركة";
+    }
+    setTimeout(()=>{closeSup();loadHR();},1200);
+  }catch(e){ msg.style.color="var(--red)";msg.textContent="❌ "+e.message; }
 }
 function bnScope(){
   const show=document.getElementById("bnScope").value==="courier";

@@ -3,6 +3,7 @@ Run with DATABASE_URL pointing to an isolated SQLite database seeded by seed.py.
 """
 import os
 import sys
+import json
 from datetime import date
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -74,8 +75,8 @@ def prepare_fixture():
         rider_a.supervisor_id = supervisor_a.id
         rider_b.supervisor_id = supervisor_b.id
         db.add_all([
-            Shift(tenant_id=tenant.id, name="Supervisor A Shift", zone="Supervisor A Zone", start_time="08:00", end_time="16:00", required_couriers=1, status=ShiftStatus.ACTIVE),
-            Shift(tenant_id=tenant.id, name="Supervisor B Shift", zone="Supervisor B Zone", start_time="16:00", end_time="23:00", required_couriers=1, status=ShiftStatus.ACTIVE),
+            Shift(tenant_id=tenant.id, name="Supervisor A Shift", zone="Supervisor A Zone", start_time="08:00", end_time="16:00", required_couriers=1, courier_ids=json.dumps([rider_a.id]), status=ShiftStatus.ACTIVE),
+            Shift(tenant_id=tenant.id, name="Supervisor B Shift", zone="Supervisor B Zone", start_time="16:00", end_time="23:00", required_couriers=1, courier_ids=json.dumps([rider_b.id]), status=ShiftStatus.ACTIVE),
         ])
         project = db.query(Project).filter(
             Project.tenant_id == tenant.id,

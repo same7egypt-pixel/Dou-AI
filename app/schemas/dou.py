@@ -39,6 +39,7 @@ class ShiftCreate(BaseModel):
     start_time: str = "09:00"
     end_time: str = "17:00"
     required_couriers: int = 0
+    courier_ids: List[int] = []
 
 
 class AttendanceIn(BaseModel):

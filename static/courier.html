@@ -295,6 +295,7 @@ let TOKEN = localStorage.getItem("dou_token_courier");
 let COURIER = null;
 let online = false;
 let checkedIn = false;
+let CURRENT_SHIFT = null;
 function escapeHtml(value){return String(value||"").replace(/[&<>\"]/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;"}[char]));}
 
 async function api(path, opts={}){
@@ -478,9 +479,19 @@ async function act(taskId, action){
 async function loadProfile(){
   if(!COURIER) return;
   COURIER = await api("/couriers/me");
+  checkedIn=Boolean(COURIER.shift_active);
   renderCourierState();
   const tasks = await api("/couriers/"+COURIER.id+"/tasks");
   document.getElementById("doneCount").textContent = tasks.filter(t=>t.status==="DELIVERED").length || COURIER.current_load||0;
+  await loadAssignedShift();
+}
+async function loadAssignedShift(){
+  try{
+    const data=await api("/shifts/me");CURRENT_SHIFT=data.current||(data.shifts||[])[0]||null;
+    const title=document.getElementById("shiftTitle"),info=document.getElementById("shiftInfo"),zone=document.getElementById("shiftZone");
+    if(!CURRENT_SHIFT){title.textContent="لا توجد وردية مسندة";info.textContent="اطلب من مشرفك إسناد وردية لك";zone.textContent="المنطقة: —";return;}
+    title.textContent="ورديتي المسندة — "+CURRENT_SHIFT.name;info.textContent=`${CURRENT_SHIFT.start_time} - ${CURRENT_SHIFT.end_time}${CURRENT_SHIFT.overnight?' (لليوم التالي)':''} · ${CURRENT_SHIFT.duration_hours} ساعة`;zone.textContent="المنطقة: "+(CURRENT_SHIFT.zone||"غير محددة");
+  }catch(_e){CURRENT_SHIFT=null;}
 }
 
 function updateShiftClock(){
@@ -578,31 +589,23 @@ async function loadMyTickets(){
 async function checkIn(){
   try{
     const loc = await getLocation();
-    await api("/shifts/attendance/check-in",{method:"POST",body:JSON.stringify({courier_id:COURIER.id, lat:loc.lat, lng:loc.lng})});
+    const result=await api("/shifts/attendance/check-in",{method:"POST",body:JSON.stringify({courier_id:COURIER.id, lat:loc.lat, lng:loc.lng})});
     checkedIn = true;
-    document.getElementById("shiftTitle").textContent = "الوردية الحالية — وردية المساء";
-    document.getElementById("shiftInfo").textContent = "في وردية (16:00 - 00:00) · المنطقة: الملقا";
-    document.getElementById("shiftZone").textContent = "المنطقة: الرياض — الملقا ✓" + (loc.lat?` <small>(${loc.lat}, ${loc.lng})</small>`:"");
-    document.getElementById("checkinBtn").textContent = "✓ مسجّل الحضور";
-    document.getElementById("checkinBtn").disabled = true;
-    document.getElementById("checkoutBtn").disabled = false;
-    document.getElementById("statusText").textContent = "متصل";
-    alert(loc.lat?`✅ تم تسجيل الحضور مع موقعك (${loc.lat}, ${loc.lng}) — ظهر للشركة`:"✅ تم تسجيل الحضور — لكن الموقع غير متاح (فعّل GPS)");
+    document.getElementById("checkinBtn").textContent = "✓ مسجّل الحضور";document.getElementById("checkinBtn").disabled = true;document.getElementById("checkoutBtn").disabled = false;document.getElementById("statusText").textContent = "متصل";
+    await loadAssignedShift();
+    const late=result.late_minutes?` · تأخير ${result.late_minutes} دقيقة`:'';
+    alert((loc.lat?"✅ تم تسجيل الحضور بالموقع — ظهر للشركة":"✅ تم تسجيل الحضور — الموقع غير متاح")+late);
     loadProfile();
   }catch(e){ alert("❌ "+e.message); }
 }
 async function checkOut(){
   try{
     const loc = await getLocation();
-    await api("/shifts/attendance/check-out",{method:"POST",body:JSON.stringify({courier_id:COURIER.id, lat:loc.lat, lng:loc.lng})});
-    checkedIn = false;
-    document.getElementById("shiftTitle").textContent = "الوردية الحالية";
-    document.getElementById("shiftInfo").textContent = "غير مسجّل الحضور";
-    document.getElementById("shiftZone").textContent = "المنطقة: —";
-    document.getElementById("checkinBtn").textContent = "تسجيل دخول (حضور GPS)";
-    document.getElementById("checkinBtn").disabled = false;
-    document.getElementById("checkoutBtn").disabled = true;
-    alert(loc.lat?`✅ تم تسجيل الخروج مع موقعك (${loc.lat}, ${loc.lng}) — ظهر للشركة`:"✅ تم تسجيل الخروج — لكن الموقع غير متاح (فعّل GPS)");
+    const result=await api("/shifts/attendance/check-out",{method:"POST",body:JSON.stringify({courier_id:COURIER.id, lat:loc.lat, lng:loc.lng})});
+    checkedIn = false;document.getElementById("checkinBtn").textContent = "تسجيل دخول (حضور GPS)";document.getElementById("checkinBtn").disabled = false;document.getElementById("checkoutBtn").disabled = true;
+    await loadAssignedShift();
+    alert("✅ تم تسجيل الخروج"+(result.early_leave_minutes?` · انصراف مبكر ${result.early_leave_minutes} دقيقة`:''));
+    loadProfile();
   }catch(e){ alert("❌ "+e.message); }
 }
 

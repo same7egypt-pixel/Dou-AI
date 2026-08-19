@@ -301,6 +301,7 @@ class Shift(Base):
     start_time = Column(String(8))             # "10:00"
     end_time = Column(String(8))               # "18:00"
     required_couriers = Column(Integer, default=0)
+    courier_ids = Column(Text)                    # JSON: المناديب المسندون لهذه الوردية المتكررة
     status = Column(Enum(ShiftStatus), default=ShiftStatus.SCHEDULED)
 
 
@@ -402,6 +403,7 @@ class Contract(Base):
     base_salary = Column(Float, default=0.0)
     per_delivery_rate = Column(Float, default=6.0)
     status = Column(String(20), default="ACTIVE")          # ACTIVE / EXPIRED
+    start_date = Column(DateTime)                          # تاريخ بداية العقد
     end_date = Column(DateTime)                            # تاريخ انتهاء العقد
     created_at = Column(DateTime, default=datetime.utcnow)
 

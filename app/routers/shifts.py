@@ -1,4 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta
+import json
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -16,6 +18,74 @@ STAFF_ROLES = (UserRole.COMPANY, UserRole.COMPANY_ADMIN, UserRole.OPERATIONS,
                UserRole.HR, UserRole.DOU_OPS, UserRole.DOU_ADMIN)
 
 
+def _parse_shift_time(value: str):
+    try:
+        return datetime.strptime((value or "").strip(), "%H:%M").time()
+    except ValueError:
+        raise HTTPException(400, "وقت الوردية غير صالح — استخدم HH:MM")
+
+
+def _shift_window(shift: Shift, reference: datetime):
+    """نافذة الوردية المتكررة حول وقت مرجعي؛ تدعم الورديات التي تعبر منتصف الليل."""
+    start_time = _parse_shift_time(shift.start_time)
+    end_time = _parse_shift_time(shift.end_time)
+    start = datetime.combine(reference.date(), start_time)
+    end = datetime.combine(reference.date(), end_time)
+    overnight = end <= start
+    if overnight:
+        end += timedelta(days=1)
+        # بعد منتصف الليل وحتى وقت نهاية الوردية، الوردية بدأت في اليوم السابق.
+        if reference < datetime.combine(reference.date(), end_time):
+            start -= timedelta(days=1)
+            end -= timedelta(days=1)
+    return start, end, overnight
+
+
+def _assigned_courier_ids(shift: Shift):
+    try:
+        return {int(x) for x in json.loads(shift.courier_ids or "[]")}
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return set()
+
+
+def _scheduled_shift_for(db: Session, courier: Courier, reference: datetime):
+    """يختار أقرب وردية مسندة للمندوب؛ ولا يسمح بربط وردية تخص زميله."""
+    shifts = db.query(Shift).filter(Shift.tenant_id == courier.tenant_id).all()
+    candidates = [s for s in shifts if courier.id in _assigned_courier_ids(s)]
+    if not candidates:
+        return None
+    ranked = []
+    for shift in candidates:
+        start, end, _ = _shift_window(shift, reference)
+        distance = min(abs((reference - start).total_seconds()), abs((reference - end).total_seconds()))
+        ranked.append((distance, shift))
+    return min(ranked, key=lambda item: item[0])[1]
+
+
+def _shift_status(db: Session, shift: Shift, now: datetime):
+    if db.query(Attendance).filter(Attendance.shift_id == shift.id, Attendance.check_out.is_(None)).first():
+        return "ACTIVE"
+    start, end, _ = _shift_window(shift, now)
+    if start <= now < end:
+        return "ACTIVE"
+    if now >= end and now < start + timedelta(days=1):
+        return "COMPLETED"
+    return "SCHEDULED"
+
+
+def _shift_json(db: Session, shift: Shift, reference: datetime):
+    start, end, overnight = _shift_window(shift, reference)
+    return {
+        "id": shift.id, "name": shift.name, "zone": shift.zone or "",
+        "start_time": shift.start_time, "end_time": shift.end_time,
+        "required_couriers": shift.required_couriers or 0,
+        "courier_ids": sorted(_assigned_courier_ids(shift)),
+        "scheduled_start": start.isoformat(), "scheduled_end": end.isoformat(),
+        "overnight": overnight, "duration_hours": round((end - start).total_seconds() / 3600, 2),
+        "status": _shift_status(db, shift, reference),
+    }
+
+
 def _courier_for(user: User, courier_id: int, db: Session):
     courier = db.get(Courier, courier_id)
     if not courier:
@@ -31,11 +101,20 @@ def _courier_for(user: User, courier_id: int, db: Session):
 def create_shift(payload: ShiftCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in STAFF_ROLES:
         raise HTTPException(403, "Not authorized")
-    shift = Shift(**payload.model_dump(), tenant_id=user.tenant_id)
+    _parse_shift_time(payload.start_time); _parse_shift_time(payload.end_time)
+    courier_ids = {int(x) for x in (payload.courier_ids or [])}
+    if payload.required_couriers < 0:
+        raise HTTPException(400, "عدد المناديب المطلوب لا يمكن أن يكون سالباً")
+    if courier_ids:
+        valid = {c.id for c in db.query(Courier).filter(Courier.tenant_id == user.tenant_id).all()}
+        if not courier_ids.issubset(valid):
+            raise HTTPException(400, "يوجد مندوب لا يتبع الشركة")
+    shift = Shift(**payload.model_dump(exclude={"courier_ids"}), tenant_id=user.tenant_id,
+                  courier_ids=json.dumps(sorted(courier_ids)))
     db.add(shift)
     db.commit()
     db.refresh(shift)
-    return shift
+    return _shift_json(db, shift, datetime.utcnow())
 
 
 @router.get("")
@@ -45,7 +124,19 @@ def list_shifts(user: User = Depends(get_current_user), db: Session = Depends(ge
     q = db.query(Shift)
     if user.role not in (UserRole.DOU_OPS, UserRole.DOU_ADMIN):
         q = q.filter(Shift.tenant_id == user.tenant_id)
-    return q.all()
+    return [_shift_json(db, shift, datetime.utcnow()) for shift in q.all()]
+
+
+@router.get("/me")
+def my_shifts(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != UserRole.COURIER or not user.courier_id:
+        raise HTTPException(403, "Courier account required")
+    courier = _courier_for(user, user.courier_id, db)
+    now = datetime.utcnow()
+    shifts = [s for s in db.query(Shift).filter(Shift.tenant_id == courier.tenant_id).all() if courier.id in _assigned_courier_ids(s)]
+    rows = [_shift_json(db, shift, now) for shift in shifts]
+    active = next((row for row in rows if row["status"] == "ACTIVE"), None)
+    return {"current": active, "shifts": rows}
 
 
 @router.post("/{shift_id}/start")
@@ -66,20 +157,25 @@ def check_in(payload: AttendanceIn, user: User = Depends(get_current_user), db: 
     existing = db.query(Attendance).filter(Attendance.courier_id == courier.id,
                                             Attendance.check_out.is_(None)).order_by(Attendance.id.desc()).first()
     if existing:
-        return {"ok": True, "attendance_id": existing.id, "already_checked_in": True}
+        return {"ok": True, "attendance_id": existing.id, "shift_id": existing.shift_id, "already_checked_in": True}
+    now = datetime.utcnow()
+    shift = _scheduled_shift_for(db, courier, now)
+    late_minutes = 0
+    if shift:
+        start, _, _ = _shift_window(shift, now)
+        late_minutes = max(0, int((now - start).total_seconds() // 60))
     record = Attendance(
-        courier_id=courier.id,
-        check_in=datetime.utcnow(),
-        check_in_lat=payload.lat,
-        check_in_lng=payload.lng,
-        is_late=payload.is_late,
+        courier_id=courier.id, shift_id=shift.id if shift else None,
+        check_in=now, check_in_lat=payload.lat, check_in_lng=payload.lng,
+        is_late=late_minutes > 0,
     )
     db.add(record)
     courier.is_online = True
     courier.shift_active = True
     db.commit()
     db.refresh(record)
-    return {"ok": True, "attendance_id": record.id}
+    return {"ok": True, "attendance_id": record.id, "shift_id": record.shift_id,
+            "late_minutes": late_minutes, "is_late": record.is_late}
 
 
 @router.post("/attendance/check-out")
@@ -90,10 +186,21 @@ def check_out(payload: AttendanceIn, user: User = Depends(get_current_user), db:
     ).order_by(Attendance.id.desc()).first()
     if not record:
         raise HTTPException(404, "No open attendance")
-    record.check_out = datetime.utcnow()
+    now = datetime.utcnow()
+    record.check_out = now
     record.check_out_lat = payload.lat
     record.check_out_lng = payload.lng
+    scheduled_end = None
+    early_leave_minutes = 0
+    if record.shift_id:
+        shift = db.get(Shift, record.shift_id)
+        if shift:
+            _, scheduled_end, _ = _shift_window(shift, record.check_in or now)
+            early_leave_minutes = max(0, int((scheduled_end - now).total_seconds() // 60))
     courier.is_online = False
     courier.shift_active = False
     db.commit()
-    return {"ok": True, "attendance_id": record.id}
+    return {"ok": True, "attendance_id": record.id, "shift_id": record.shift_id,
+            "worked_hours": round((now - record.check_in).total_seconds() / 3600, 2),
+            "scheduled_end": scheduled_end.isoformat() if scheduled_end else None,
+            "early_leave_minutes": early_leave_minutes}
