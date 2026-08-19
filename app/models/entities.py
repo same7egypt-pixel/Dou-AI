@@ -518,6 +518,9 @@ class DailyLog(Base):
     project_id = Column(Integer, ForeignKey("projects.id"))
     log_date = Column(Date, nullable=False)
     orders_count = Column(Integer, default=0)
+    source_type = Column(String(30), default="MANUAL")  # MANUAL / FILE_IMPORT / FUTURE_API
+    source_batch_id = Column(Integer, ForeignKey("operational_import_batches.id"))
+    source_row_key = Column(String(180))
     notes = Column(String(300))
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -743,18 +746,98 @@ class OperationalFinancialSnapshot(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class OperationalImportBatch(Base):
+    """دفعة استيراد تشغيلية قابلة للمراجعة؛ تخزن المعاينة والنتيجة دون إنشاء بيانات جزئية."""
+    __tablename__ = "operational_import_batches"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "import_type", "fingerprint", name="uq_operational_import_fingerprint"),
+        Index("ix_operational_import_tenant_type_status", "tenant_id", "import_type", "status"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    import_type = Column(String(30), nullable=False)  # RIDERS / PERFORMANCE
+    status = Column(String(20), nullable=False, default="PREVIEW")  # PREVIEW / COMMITTED / FAILED
+    file_name = Column(String(200))
+    fingerprint = Column(String(64), nullable=False)
+    source_label = Column(String(80))  # FILE_IMPORT / MANUAL
+    total_rows = Column(Integer, default=0)
+    valid_rows = Column(Integer, default=0)
+    invalid_rows = Column(Integer, default=0)
+    warning_rows = Column(Integer, default=0)
+    payload_json = Column(Text)  # only normalized valid rows and row-level issues
+    result_json = Column(Text)
+    created_by = Column(Integer, ForeignKey("users.id"))
+    confirmed_by = Column(Integer, ForeignKey("users.id"))
+    confirmed_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AttendanceDeductionPolicy(Base):
+    """سياسة خصم حضور تابعة للشركة؛ لا تنشئ خصماً ما لم تكن مفعلة ومكتملة."""
+    __tablename__ = "attendance_deduction_policies"
+    __table_args__ = (
+        Index("ix_attendance_policy_tenant_event_active", "tenant_id", "event_type", "is_active"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    name = Column(String(120), nullable=False)
+    event_type = Column(String(20), nullable=False)  # ABSENCE / LATE / EARLY_LEAVE
+    grace_minutes = Column(Integer, default=0)
+    calculation_method = Column(String(30), nullable=False)  # FIXED / PER_MINUTE / PER_HOUR / MANUAL_APPROVAL_ONLY
+    amount_rate = Column(Float)  # لا تستخدم مع MANUAL_APPROVAL_ONLY
+    maximum_deduction = Column(Float)
+    requires_approval = Column(Boolean, default=False, nullable=False)
+    effective_from = Column(Date, nullable=False)
+    effective_to = Column(Date)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AttendanceEvent(Base):
+    """حدث حضور محفوظ ومراجع، لا يخلق أكثر من تعديل راتب واحد عبر مفتاح التكرار."""
+    __tablename__ = "attendance_events"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "idempotency_key", name="uq_attendance_event_idempotency"),
+        Index("ix_attendance_event_tenant_status_date", "tenant_id", "status", "event_date"),
+        Index("ix_attendance_event_courier_date", "courier_id", "event_date"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False, index=True)
+    attendance_id = Column(Integer, ForeignKey("attendances.id"))
+    shift_id = Column(Integer, ForeignKey("shifts.id"))
+    policy_id = Column(Integer, ForeignKey("attendance_deduction_policies.id"))
+    event_type = Column(String(20), nullable=False)  # ABSENCE / LATE / EARLY_LEAVE
+    event_date = Column(Date, nullable=False)
+    measured_minutes = Column(Integer, default=0)
+    status = Column(String(30), nullable=False, default="NO_POLICY")
+    deduction_amount = Column(Float, default=0)
+    payroll_adjustment_id = Column(Integer, ForeignKey("payroll_adjustments.id"))
+    idempotency_key = Column(String(180), nullable=False)
+    note = Column(String(300))
+    decided_by = Column(Integer, ForeignKey("users.id"))
+    decided_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class PayrollAdjustment(Base):
     __tablename__ = "payroll_adjustments"
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
     month = Column(String(7), nullable=False)
-    kind = Column(String(30), nullable=False)  # ABSENCE/LATE/ADVANCE/DEDUCTION/VIOLATION/OVERTIME
+    kind = Column(String(30), nullable=False)  # ABSENCE/LATE/EARLY_LEAVE/ADVANCE/DEDUCTION/VIOLATION/OVERTIME
     amount = Column(Float, default=0)
     note = Column(String(300))
-    source_type = Column(String(40))  # ATTENDANCE / MANUAL / EMPLOYEE_REQUEST
+    source_type = Column(String(40))  # ATTENDANCE_EVENT / MANUAL / EMPLOYEE_REQUEST / PAYROLL_CORRECTION
     source_id = Column(Integer)
     idempotency_key = Column(String(180))
+    status = Column(String(20), nullable=False, default="APPROVED")  # APPROVED / VOID
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
 

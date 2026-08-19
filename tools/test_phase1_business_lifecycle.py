@@ -182,7 +182,13 @@ def main():
         "courier_id": rider_id, "month": month, "kind": "OVERTIME", "amount": 999,
         "note": "Must not alter finalized snapshots",
     })
-    assert post_finalization_adjustment.status_code == 200, post_finalization_adjustment.text
+    assert post_finalization_adjustment.status_code == 409, post_finalization_adjustment.text
+    next_month = f"{int(month[:4]) + (1 if month[5:] == '12' else 0):04d}-{(int(month[5:]) % 12) + 1:02d}"
+    correction = client.post("/hr/payroll/corrections", headers=company_headers, json={
+        "courier_id": rider_id, "original_month": month, "target_month": next_month,
+        "kind": "OVERTIME", "amount": 999, "note": "Correct after close in the next open period",
+    })
+    assert correction.status_code == 200, correction.text
     immutable_payroll = client.get(f"/hr/payroll?month={month}", headers=company_headers).json()
     immutable_row = next(row for row in immutable_payroll["rows"] if row["id"] == rider_id)
     assert immutable_row["total"] == 1700.0, immutable_row

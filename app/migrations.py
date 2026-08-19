@@ -62,11 +62,12 @@ MIGRATIONS = {
     "shifts": {
         "courier_ids": "TEXT",
     },
-    "payroll_adjustments": {"source_type": "VARCHAR(40)", "source_id": "INTEGER", "idempotency_key": "VARCHAR(180)"},
+    "payroll_adjustments": {"source_type": "VARCHAR(40)", "source_id": "INTEGER", "idempotency_key": "VARCHAR(180)", "status": "VARCHAR(20) DEFAULT 'APPROVED'"},
     "attendances": {
         "check_out_lat": "FLOAT",
         "check_out_lng": "FLOAT",
     },
+    "daily_logs": {"source_type": "VARCHAR(30) DEFAULT 'MANUAL'", "source_batch_id": "INTEGER", "source_row_key": "VARCHAR(180)"},
     "tenants": {
         "plan": "VARCHAR(20) DEFAULT 'PRO'",
         "monthly_fee": "FLOAT DEFAULT 0",
@@ -152,6 +153,12 @@ def run_migrations(engine):
                 "CREATE INDEX IF NOT EXISTS ix_branches_tenant_city ON contract_branches (tenant_id, city_id)",
                 "CREATE INDEX IF NOT EXISTS ix_daily_logs_courier_date_project ON daily_logs (courier_id, log_date, project_id)",
                 "CREATE INDEX IF NOT EXISTS ix_attendances_courier_checkin ON attendances (courier_id, check_in)",
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_attendance_event_idempotency ON attendance_events (tenant_id, idempotency_key)",
+                "CREATE INDEX IF NOT EXISTS ix_attendance_event_tenant_status_date ON attendance_events (tenant_id, status, event_date)",
+                "CREATE INDEX IF NOT EXISTS ix_attendance_policy_tenant_event_active ON attendance_deduction_policies (tenant_id, event_type, is_active)",
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_operational_import_fingerprint ON operational_import_batches (tenant_id, import_type, fingerprint)",
+                "CREATE INDEX IF NOT EXISTS ix_operational_import_tenant_type_status ON operational_import_batches (tenant_id, import_type, status)",
+                "CREATE INDEX IF NOT EXISTS ix_daily_logs_tenant_source_batch ON daily_logs (tenant_id, source_batch_id)",
             ):
                 conn.execute(text(ddl))
             print("   ➕ migration: Phase 1 operational relationship indexes")

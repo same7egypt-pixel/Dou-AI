@@ -11,12 +11,14 @@ from ..database import get_db
 from ..models.entities import (
     Attendance, AppSetting, Contract, ContractBranch, Courier, CourierTask, CourierTaskStatus, Country, CourierType, Merchant,
     Order, OrderStatus, Shift, ShiftStatus, SupportTicket, Tenant, User, UserRole, Fleet,
-    Project, DailyLog, BonusPlan, LeaveRequest, SubscriptionPlan,
+    Project, DailyLog, BonusPlan, LeaveRequest, SubscriptionPlan, OperationalImportBatch, AuditLog, AttendanceEvent, PayrollPeriod,
 )
 from .auth import get_current_user
 from .shifts import _assigned_courier_ids, _parse_shift_time, _shift_json, _shift_window
-from ..services.operating_structure import require_active_tenant_city
 from ..services.financial_calculations import calculate_payroll_preview, financial_rows, payroll_rows
+from ..services.rider_management import create_rider_record, apply_branch_assignment
+from ..services.rider_imports import confirm_rider_import, preview_rider_import, rider_template_csv
+from ..services.performance_imports import confirm_performance_import, performance_template_csv, preview_performance_import
 
 router = APIRouter(prefix="/fleet", tags=["fleet"])
 
@@ -53,6 +55,11 @@ def _require_permission(user: User, permission: str):
     permissions = json.loads(user.custom_permissions) if user.custom_permissions else ROLE_PERMISSIONS.get(user.role, [])
     if "*" not in permissions and permission not in permissions:
         raise HTTPException(403, "You do not have permission for this section")
+
+
+def _audit(db: Session, user: User, action: str, entity: str, entity_id: int = None):
+    db.add(AuditLog(tenant_id=user.tenant_id, actor_id=user.id, actor_name=user.name or "—",
+                    actor_role=user.role.value, action=action, entity=entity, entity_id=entity_id))
 
 
 def _tenant_record(db: Session, model, record_id: int, user: User):
@@ -433,6 +440,49 @@ def fleet_overview(user: User = Depends(get_current_user), db: Session = Depends
     }
 
 
+@router.get("/needs-attention")
+def fleet_needs_attention(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """موجز إجراءات تشغيلية من مصادر الخلفية المعتمدة، لا ينشئ أي حدث عند القراءة."""
+    if user.role not in TENANT_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    _require_permission(user, "dashboard")
+    tenant_id = _scope(user, db)
+    managed = json.loads(user.managed_project_ids or "[]") if user.role == UserRole.PROJECT_MANAGER else None
+    ids = _courier_ids(db, tenant_id, user.id if user.role == UserRole.SUPERVISOR else None, managed)
+    today = date.today(); month = today.strftime("%Y-%m"); expiry_limit = today + timedelta(days=30)
+    if not ids:
+        return {"month": month, "items": [], "total": 0}
+    courier_rows = db.query(Courier).filter(Courier.id.in_(ids)).all()
+    expired_or_soon = [c for c in courier_rows if any(value and value <= expiry_limit for value in (
+        c.iqama_expiry, c.license_expiry, c.vehicle_license_expiry, c.passport_expiry,
+        c.insurance_expiry, c.inspection_expiry, c.work_permit_expiry,
+    )) or not c.documents_valid]
+    unassigned = [c for c in courier_rows if not c.supervisor_id or not c.contract_branch_id]
+    events = db.query(AttendanceEvent).filter(
+        AttendanceEvent.tenant_id == tenant_id, AttendanceEvent.courier_id.in_(ids), AttendanceEvent.event_date == today,
+    ).all()
+    items = []
+    def add(code, title, count, route, severity):
+        if count:
+            items.append({"code": code, "title": title, "count": count, "route": route, "severity": severity})
+    add("ABSENT", "مندوبون غائبون بعد تسوية الحضور", sum(event.event_type == "ABSENCE" for event in events), "attendance", "high")
+    add("LATE", "مندوبون متأخرون اليوم", sum(event.event_type == "LATE" for event in events), "attendance", "medium")
+    add("UNASSIGNED", "مناديب بلا مشرف أو فرع تشغيل", len(unassigned), "couriers", "high")
+    add("DOCUMENTS", "مستندات منتهية أو قريبة الانتهاء", len(expired_or_soon), "couriers", "medium")
+    pending_events = db.query(AttendanceEvent).filter(
+        AttendanceEvent.tenant_id == tenant_id, AttendanceEvent.courier_id.in_(ids), AttendanceEvent.status == "PENDING_APPROVAL",
+    ).count()
+    add("DEDUCTION_APPROVALS", "خصومات حضور بانتظار الاعتماد", pending_events, "attendance-events", "medium")
+    if user.role != UserRole.SUPERVISOR:
+        failed_imports = db.query(OperationalImportBatch).filter(
+            OperationalImportBatch.tenant_id == tenant_id, OperationalImportBatch.status == "PREVIEW", OperationalImportBatch.invalid_rows > 0,
+        ).count()
+        add("IMPORT_ERRORS", "دفعات استيراد تتطلب تصحيحاً", failed_imports, "imports", "medium")
+        period = db.query(PayrollPeriod).filter(PayrollPeriod.tenant_id == tenant_id, PayrollPeriod.month == month).first()
+        add("PAYROLL_REVIEW", "رواتب الشهر في المعاينة ولم تُقفل", 1 if not period or period.status != "FINALIZED" else 0, "payroll", "low")
+    return {"month": month, "items": items, "total": sum(item["count"] for item in items)}
+
+
 @router.get("/couriers")
 def fleet_couriers(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in TENANT_ROLES:
@@ -483,90 +533,140 @@ def fleet_couriers(user: User = Depends(get_current_user), db: Session = Depends
     ]
 
 
+@router.get("/couriers/page")
+def paged_couriers(search: str = None, city_id: int = None, branch_id: int = None, supervisor_id: int = None,
+                   project_id: int = None, employment_status: str = None, online: bool = None,
+                   documents_valid: bool = None, page: int = 1, page_size: int = 50,
+                   user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """قائمة تشغيل كبيرة مع تصفية SQL وصفحات؛ لا تستبدل المسار القديم المتوافق."""
+    if user.role not in TENANT_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    _require_permission(user, "drivers")
+    tenant_id = _scope(user, db)
+    q = db.query(Courier)
+    if tenant_id is not None:
+        q = q.filter(Courier.tenant_id == tenant_id)
+    if user.role == UserRole.SUPERVISOR:
+        q = q.filter(_supervisor_courier_scope(db, user.id))
+    elif user.role == UserRole.PROJECT_MANAGER:
+        q = q.filter(Courier.primary_project_id.in_(json.loads(user.managed_project_ids or "[]")))
+    if search:
+        term = "%" + search.strip() + "%"
+        q = q.filter(or_(Courier.name.ilike(term), Courier.phone.ilike(term)))
+    if city_id: q = q.filter(Courier.city_id == city_id)
+    if branch_id: q = q.filter(Courier.contract_branch_id == branch_id)
+    if supervisor_id: q = q.filter(Courier.supervisor_id == supervisor_id)
+    if project_id: q = q.filter(Courier.primary_project_id == project_id)
+    if employment_status: q = q.filter(Courier.employment_status == employment_status.upper())
+    if online is not None: q = q.filter(Courier.is_online.is_(online))
+    if documents_valid is not None: q = q.filter(Courier.documents_valid.is_(documents_valid))
+    total = q.count(); page = max(1, page); page_size = min(max(1, page_size), 200)
+    rows = q.order_by(Courier.name, Courier.id).offset((page - 1) * page_size).limit(page_size).all()
+    branch_map = {row.id: row for row in db.query(ContractBranch).filter(ContractBranch.id.in_([c.contract_branch_id for c in rows if c.contract_branch_id])).all()}
+    supervisor_map = {row.id: row.name for row in db.query(User).filter(User.id.in_([c.supervisor_id for c in rows if c.supervisor_id])).all()}
+    project_map = {row.id: row.name for row in db.query(Project).filter(Project.id.in_([c.primary_project_id for c in rows if c.primary_project_id])).all()}
+    return {"total": total, "page": page, "page_size": page_size, "rows": [{
+        "id": c.id, "name": c.name, "phone": c.phone, "employment_status": c.employment_status or "ACTIVE",
+        "is_online": bool(c.is_online), "documents_valid": bool(c.documents_valid), "city_id": c.city_id,
+        "work_city": c.work_city, "contract_branch_id": c.contract_branch_id,
+        "branch": branch_map.get(c.contract_branch_id).city if c.contract_branch_id in branch_map else None,
+        "supervisor_id": c.supervisor_id, "supervisor": supervisor_map.get(c.supervisor_id),
+        "project_id": c.primary_project_id, "project": project_map.get(c.primary_project_id),
+    } for c in rows]}
+
+
+@router.get("/imports/riders/template")
+def rider_import_template(user: User = Depends(get_current_user)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Company rider-import access required")
+    _require_permission(user, "drivers")
+    return StreamingResponse(iter([rider_template_csv()]), media_type="text/csv; charset=utf-8",
+                             headers={"Content-Disposition": "attachment; filename=rider-import-template.csv"})
+
+
+@router.post("/imports/riders/preview")
+def preview_riders_import(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Company rider-import access required")
+    _require_permission(user, "drivers")
+    try:
+        result = preview_rider_import(db, user, str(payload.get("csv_text") or ""), payload.get("file_name"))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    _audit(db, user, f"عاين استيراد مندوبي الدفعة #{result['id']}", "rider_import", result["id"])
+    db.commit()
+    return result
+
+
+@router.post("/imports/riders/{batch_id}/confirm")
+def confirm_riders_import(batch_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Company admin required to confirm rider import")
+    batch = db.get(OperationalImportBatch, batch_id)
+    if not batch or batch.tenant_id != user.tenant_id or batch.import_type != "RIDERS":
+        raise HTTPException(404, "Rider import batch not found")
+    try:
+        result = confirm_rider_import(db, user, batch)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    _audit(db, user, f"أكد استيراد {result.get('result', {}).get('imported', 0)} مندوب", "rider_import", batch.id)
+    db.commit()
+    return result
+
+
+@router.get("/imports/performance/template")
+def performance_import_template(user: User = Depends(get_current_user)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Company performance-import access required")
+    _require_permission(user, "performance")
+    return StreamingResponse(iter([performance_template_csv()]), media_type="text/csv; charset=utf-8",
+                             headers={"Content-Disposition": "attachment; filename=performance-import-template.csv"})
+
+
+@router.post("/imports/performance/preview")
+def preview_performance_file(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Company performance-import access required")
+    _require_permission(user, "performance")
+    try:
+        result = preview_performance_import(db, user, str(payload.get("csv_text") or ""), payload.get("file_name"))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    _audit(db, user, f"عاين استيراد أداء الدفعة #{result['id']}", "performance_import", result["id"])
+    db.commit()
+    return result
+
+
+@router.post("/imports/performance/{batch_id}/confirm")
+def confirm_performance_file(batch_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Company admin required to confirm performance import")
+    batch = db.get(OperationalImportBatch, batch_id)
+    if not batch or batch.tenant_id != user.tenant_id or batch.import_type != "PERFORMANCE":
+        raise HTTPException(404, "Performance import batch not found")
+    try:
+        result = confirm_performance_import(db, user, batch)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    _audit(db, user, f"أكد استيراد أداء: {result.get('result', {}).get('imported', 0)} جديد و{result.get('result', {}).get('updated', 0)} محدث", "performance_import", batch.id)
+    db.commit()
+    return result
+
+
 @router.post("/couriers")
 def add_courier(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """إضافة مندوب جديد + إنشاء حساب دخول له في تطبيق السواقين.
-    يُرجع كلمة المرور المبدئية (ترسلها الشركة للمندوب)."""
+    """إضافة مندوب وحساب دخوله عبر خدمة التعيين المشتركة مع الاستيراد الجماعي."""
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Not a fleet account")
     _require_permission(user, "drivers")
-    name = (payload.get("name") or "").strip()
-    phone = (payload.get("phone") or "").strip()
-    if not name or not phone:
-        raise HTTPException(400, "Name and phone are required")
-    if db.query(Courier).filter(Courier.phone == phone).first():
-        raise HTTPException(400, "Courier phone already exists")
-    country = Country(payload.get("country") or "SA")
-    ctype = CourierType(payload.get("courier_type") or "COMPANY")
-    tenant_id = user.tenant_id
-    tenant=db.get(Tenant,tenant_id) if tenant_id else None
-    plan=db.query(SubscriptionPlan).filter(SubscriptionPlan.code==tenant.plan).first() if tenant else None
-    if plan and plan.max_couriers and db.query(Courier).filter(Courier.tenant_id==tenant_id).count()>=plan.max_couriers:
-        raise HTTPException(403,"تم الوصول للحد الأقصى من السائقين في الباقة")
-    fleet = db.query(Fleet).filter(Fleet.tenant_id == tenant_id).first() if tenant_id else None
     try:
-        base_salary = float(payload.get("base_salary") or 0)
-        per_delivery_rate = float(payload.get("per_delivery_rate") or 0)
-        bonus_target = float(payload.get("bonus_target") or 0)
-    except (ValueError, TypeError):
-        raise HTTPException(400, "قيم رقمية غير صالحة")
-    supervisor_id = payload.get("supervisor_id")
-    contract_id = payload.get("contract_id"); branch_id=payload.get("contract_branch_id")
-    supervisor = db.get(User, int(supervisor_id)) if supervisor_id else None
-    contract = db.get(Contract, int(contract_id)) if contract_id else None
-    if supervisor and (supervisor.role != UserRole.SUPERVISOR or supervisor.tenant_id != tenant_id):
-        raise HTTPException(400, "المشرف المختار غير تابع للشركة")
-    if contract and contract.tenant_id != tenant_id:
-        raise HTTPException(400, "العقد المختار غير تابع للشركة")
-    branch=db.get(ContractBranch,int(branch_id)) if branch_id else None
-    if not contract or not branch or branch.tenant_id!=tenant_id or branch.contract_id!=contract.id:
-        raise HTTPException(400,"اختر العقد ثم فرع المدينة الصحيح")
-    try:
-        city = require_active_tenant_city(db, tenant_id, branch.city_id)
+        courier, _account = create_rider_record(db, user, payload)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
-    if payload.get("city_id") and int(payload["city_id"]) != city.id:
-        raise HTTPException(400, "المدينة المختارة لا تطابق فرع العقد")
-    if not branch.supervisor_id:
-        raise HTTPException(400,"عيّن مشرفاً مسؤولاً لفرع العقد قبل إضافة المندوب")
-    if not supervisor or supervisor.id!=branch.supervisor_id:
-        raise HTTPException(400,"المشرف المختار غير مسؤول عن فرع العقد")
-    project=db.get(Project,branch.project_id) if branch.project_id else None
-    if not project or project.tenant_id!=tenant_id: raise HTTPException(400,"فرع العقد غير مربوط بمشروع تشغيلي صحيح")
-    courier = Courier(
-        tenant_id=tenant_id, fleet_id=fleet.id if fleet else None,
-        name=name, phone=phone, courier_type=ctype, country=country,
-        lat=payload.get("lat"), lng=payload.get("lng"),
-        base_salary=base_salary,
-        per_delivery_rate=per_delivery_rate,
-        bonus_target=bonus_target,
-        bank_iban=payload.get("bank_iban"),
-        nationality=((payload.get("nationality_other") or "").strip() if payload.get("nationality") == "أخرى" else (payload.get("nationality") or None)),
-        iqama_number=(payload.get("iqama_number") or None), emergency_name=(payload.get("emergency_name") or None),
-        emergency_phone=(payload.get("emergency_phone") or None),
-        supervisor_id=supervisor.id if supervisor else None,
-        primary_project_id=project.id if project else None,
-        contract_id=contract.id, contract_branch_id=branch.id, city_id=city.id, work_city=branch.city or city.name,
-        platform=project.name if project else None,
-        vehicle_type=(payload.get("vehicle_type") or None),
-    )
-    db.add(courier)
-    db.flush()
-    password = str(payload.get("password") or "")
-    if len(password) < 8:
-        raise HTTPException(400, "كلمة مرور المندوب يجب أن تكون 8 أحرف على الأقل")
-    from .auth import hash_password
-    db.add(User(
-        phone="966" + phone.lstrip("0") if not phone.startswith("966") else phone,
-        name=name, password_hash=hash_password(password),
-        role=UserRole.COURIER, courier_id=courier.id,
-        tenant_id=tenant_id, country=country, is_active=True,
-    ))
-    db.commit()
-    db.refresh(courier)
-    login_phone = courier.phone if courier.phone.startswith("966") else "966" + courier.phone.lstrip("0")
-    return {"ok": True, "id": courier.id, "login_phone": login_phone, "password": password,
-            "supervisor": supervisor.name if supervisor else None, "project": project.name if project else None}
+    db.commit(); db.refresh(courier)
+    return {"ok": True, "id": courier.id, "login_phone": courier.phone, "password": payload.get("password"),
+            "supervisor": db.get(User, courier.supervisor_id).name if courier.supervisor_id else None,
+            "project": db.get(Project, courier.primary_project_id).name if courier.primary_project_id else None}
 
 
 @router.patch("/couriers/{cid}")
@@ -593,6 +693,73 @@ def update_courier(cid: int, payload: dict, user: User = Depends(get_current_use
             account.token_version = (account.token_version or 0) + 1
     db.commit()
     return {"ok": True}
+
+
+@router.post("/couriers/bulk")
+def bulk_update_couriers(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """عملية جماعية ذرية؛ تعيين المشرف يتم عبر فرع تشغيلي يملكه المشرف."""
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Company admin required for bulk rider operations")
+    raw_ids = payload.get("courier_ids") or []
+    try:
+        courier_ids = sorted({int(value) for value in raw_ids})
+    except (TypeError, ValueError):
+        raise HTTPException(400, "معرفات المندوبين غير صالحة")
+    if not courier_ids or len(courier_ids) > 1000:
+        raise HTTPException(400, "اختر من 1 إلى 1000 مندوب للعملية الواحدة")
+    action = str(payload.get("action") or "").upper()
+    couriers = db.query(Courier).filter(Courier.tenant_id == user.tenant_id, Courier.id.in_(courier_ids)).order_by(Courier.id).all()
+    if len(couriers) != len(courier_ids):
+        raise HTTPException(400, "تتضمن العملية مندوباً غير تابع للشركة")
+    changed = []
+    try:
+        if action == "ASSIGN_BRANCH":
+            branch_id = int(payload.get("contract_branch_id") or 0)
+            branch = db.get(ContractBranch, branch_id)
+            if not branch or branch.tenant_id != user.tenant_id:
+                raise ValueError("فرع التشغيل غير صالح")
+            assignment_payload = {"contract_id": branch.contract_id, "contract_branch_id": branch.id}
+            # Validate every rider before applying any update.
+            for courier in couriers:
+                apply_branch_assignment(db, courier, assignment_payload)
+                changed.append(courier.id)
+        elif action in {"ACTIVATE", "SUSPEND"}:
+            status = "ACTIVE" if action == "ACTIVATE" else "SUSPENDED"
+            for courier in couriers:
+                courier.employment_status = status
+                if status != "ACTIVE":
+                    courier.is_online = False; courier.shift_active = False
+                account = db.query(User).filter(User.courier_id == courier.id, User.role == UserRole.COURIER).first()
+                if account:
+                    account.is_active = status == "ACTIVE"
+                    account.token_version = (account.token_version or 0) + 1
+                changed.append(courier.id)
+        else:
+            raise ValueError("إجراء جماعي غير مدعوم")
+        _audit(db, user, f"عملية جماعية {action} على {len(changed)} مندوب", "courier_bulk_operation", None)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(400, str(exc))
+    except Exception:
+        db.rollback()
+        raise
+    return {"ok": True, "action": action, "updated": len(changed), "courier_ids": changed, "transaction": "ALL_OR_NOTHING"}
+
+
+@router.get("/couriers/export")
+def export_couriers(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in TENANT_ROLES:
+        raise HTTPException(403, "Company export access required")
+    _require_permission(user, "export")
+    rows = fleet_couriers(user, db)
+    output = io.StringIO(); output.write("\\ufeff")
+    fields = ["id", "name", "phone", "work_city", "branch", "contract", "project", "supervisor", "employment_status", "today_orders", "month_orders"]
+    writer = csv.DictWriter(output, fieldnames=fields); writer.writeheader()
+    for row in rows:
+        writer.writerow({field: row.get(field) for field in fields})
+    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8",
+                             headers={"Content-Disposition": "attachment; filename=couriers-export.csv"})
 
 
 @router.delete("/couriers/{cid}")

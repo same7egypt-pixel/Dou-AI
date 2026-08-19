@@ -10,6 +10,7 @@ from datetime import date, datetime
 import json
 from typing import Optional
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..models.entities import (
@@ -141,6 +142,7 @@ def calculate_payroll_preview(db: Session, courier: Courier, month: str) -> dict
         PayrollAdjustment.tenant_id == courier.tenant_id,
         PayrollAdjustment.courier_id == courier.id,
         PayrollAdjustment.month == month,
+        or_(PayrollAdjustment.status == "APPROVED", PayrollAdjustment.status.is_(None)),
     ).all()
     additions = round(sum(float(item.amount or 0) for item in adjustments if item.kind == "OVERTIME"), 2)
     deductions = round(sum(float(item.amount or 0) for item in adjustments if item.kind != "OVERTIME"), 2)

@@ -616,7 +616,8 @@ async function loadDailyLog(){
     const data = await api("/hr/me/logs");
     document.getElementById("dlogMonthTotal").textContent = data.month_orders+" أوردر هذا الشهر";
     document.getElementById("dlogToday").textContent = "اليوم: "+data.today_orders+" أوردر";
-    document.getElementById("dlogBonus").textContent = "بونص الشهر: "+data.bonus_earned+" ر.س";
+    const payroll=data.payroll||{};
+    document.getElementById("dlogBonus").textContent = "بونص الشهر: "+data.bonus_earned+" ر.س · "+(payroll.finalized?"صافي مقفل: ":"صافي تقديري: ")+(payroll.net_pay||0)+" ر.س";
     document.getElementById("bonusProgress").innerHTML = (data.bonus_details||[]).map(b=>{
       const pct=Math.min(100,Math.round((b.orders/(b.target||1))*100));
       const status=b.achieved?`حقق التارجت · ${b.over_orders} طلب زائد`:`متبقي ${b.remaining_orders} طلب`;

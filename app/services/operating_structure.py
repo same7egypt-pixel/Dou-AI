@@ -13,8 +13,10 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models.entities import (
+    Contract,
     ContractBranch,
     Courier,
+    Project,
     GeoCity,
     GeoCountry,
     Tenant,
@@ -122,6 +124,33 @@ def require_active_tenant_city(db: Session, tenant_id: int, city_id: int) -> Geo
 
 def branch_city(db: Session, branch: ContractBranch) -> Optional[GeoCity]:
     return db.get(GeoCity, branch.city_id) if branch and branch.city_id else None
+
+
+def require_branch_assignment(
+    db: Session, tenant_id: int, contract_id: int, branch_id: int,
+    supervisor_id: Optional[int] = None, city_id: Optional[int] = None,
+) -> tuple[Contract, ContractBranch, GeoCity, Project, User]:
+    """Validate the authoritative operational assignment used everywhere.
+
+    The branch is the single source for contract, city, project, and supervisor.
+    Callers may supply matching IDs for validation, but cannot override the branch.
+    """
+    branch = db.get(ContractBranch, int(branch_id or 0))
+    contract = db.get(Contract, int(contract_id or 0))
+    if not contract or contract.tenant_id != tenant_id or not branch or branch.tenant_id != tenant_id or branch.contract_id != contract.id or not branch.is_active:
+        raise ValueError("اختر العقد ثم فرع التشغيل النشط الصحيح")
+    city = require_active_tenant_city(db, tenant_id, branch.city_id)
+    if city_id and int(city_id) != city.id:
+        raise ValueError("المدينة المختارة لا تطابق فرع التشغيل")
+    project = db.get(Project, branch.project_id) if branch.project_id else None
+    if not project or project.tenant_id != tenant_id:
+        raise ValueError("فرع العقد غير مربوط بمشروع تشغيلي صحيح")
+    supervisor = db.get(User, branch.supervisor_id) if branch.supervisor_id else None
+    if not supervisor or supervisor.tenant_id != tenant_id or supervisor.role != UserRole.SUPERVISOR or not supervisor.is_active:
+        raise ValueError("عيّن مشرفاً مسؤولاً ونشطاً لفرع العقد قبل تعيين المندوب")
+    if supervisor_id and int(supervisor_id) != supervisor.id:
+        raise ValueError("المشرف المختار غير مسؤول عن فرع العقد")
+    return contract, branch, city, project, supervisor
 
 
 def validate_supervisor_for_branch(db: Session, tenant_id: int, supervisor_id: Optional[int], branch: ContractBranch) -> Optional[User]:

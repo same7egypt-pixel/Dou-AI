@@ -2,12 +2,14 @@ from datetime import datetime, timedelta
 import json
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models.entities import Attendance, Courier, Shift, User, UserRole
+from ..models.entities import Attendance, ContractBranch, Courier, Shift, User, UserRole
 from ..schemas.dou import AttendanceIn, ShiftCreate
 from .auth import get_current_user
+from ..services.attendance_policy import record_attendance_event
 
 def _any_user(user: User = Depends(get_current_user)):
     return user
@@ -15,7 +17,7 @@ def _any_user(user: User = Depends(get_current_user)):
 router = APIRouter(prefix="/shifts", tags=["shifts"], dependencies=[Depends(_any_user)])
 
 STAFF_ROLES = (UserRole.COMPANY, UserRole.COMPANY_ADMIN, UserRole.OPERATIONS,
-               UserRole.HR, UserRole.DOU_OPS, UserRole.DOU_ADMIN)
+               UserRole.HR, UserRole.SUPERVISOR, UserRole.DOU_OPS, UserRole.DOU_ADMIN)
 
 
 def _parse_shift_time(value: str):
@@ -86,6 +88,18 @@ def _shift_json(db: Session, shift: Shift, reference: datetime):
     }
 
 
+def _supervisor_courier_ids(db: Session, supervisor_id: int, tenant_id: int) -> set[int]:
+    branch_ids = db.query(ContractBranch.id).filter(
+        ContractBranch.tenant_id == tenant_id, ContractBranch.supervisor_id == supervisor_id,
+    )
+    rows = db.query(Courier.id).filter(
+        Courier.tenant_id == tenant_id,
+        or_(Courier.supervisor_id == supervisor_id,
+            and_(Courier.supervisor_id.is_(None), Courier.contract_branch_id.in_(branch_ids))),
+    ).all()
+    return {row[0] for row in rows}
+
+
 def _courier_for(user: User, courier_id: int, db: Session):
     courier = db.get(Courier, courier_id)
     if not courier:
@@ -93,6 +107,10 @@ def _courier_for(user: User, courier_id: int, db: Session):
     if user.role == UserRole.COURIER and user.courier_id == courier_id:
         return courier
     if user.role in STAFF_ROLES and (user.role in (UserRole.DOU_OPS, UserRole.DOU_ADMIN) or user.tenant_id == courier.tenant_id):
+        if user.role == UserRole.SUPERVISOR:
+            branch = db.get(ContractBranch, courier.contract_branch_id) if courier.contract_branch_id else None
+            if courier.supervisor_id != user.id and not (courier.supervisor_id is None and branch and branch.supervisor_id == user.id):
+                raise HTTPException(404, "Courier not found")
         return courier
     raise HTTPException(404, "Courier not found")
 
@@ -107,8 +125,10 @@ def create_shift(payload: ShiftCreate, user: User = Depends(get_current_user), d
         raise HTTPException(400, "عدد المناديب المطلوب لا يمكن أن يكون سالباً")
     if courier_ids:
         valid = {c.id for c in db.query(Courier).filter(Courier.tenant_id == user.tenant_id).all()}
+        if user.role == UserRole.SUPERVISOR:
+            valid &= _supervisor_courier_ids(db, user.id, user.tenant_id)
         if not courier_ids.issubset(valid):
-            raise HTTPException(400, "يوجد مندوب لا يتبع الشركة")
+            raise HTTPException(400, "يوجد مندوب خارج نطاق الشركة أو فريق المشرف")
     shift = Shift(**payload.model_dump(exclude={"courier_ids"}), tenant_id=user.tenant_id,
                   courier_ids=json.dumps(sorted(courier_ids)))
     db.add(shift)
@@ -124,7 +144,11 @@ def list_shifts(user: User = Depends(get_current_user), db: Session = Depends(ge
     q = db.query(Shift)
     if user.role not in (UserRole.DOU_OPS, UserRole.DOU_ADMIN):
         q = q.filter(Shift.tenant_id == user.tenant_id)
-    return [_shift_json(db, shift, datetime.utcnow()) for shift in q.all()]
+    shifts = q.all()
+    if user.role == UserRole.SUPERVISOR:
+        allowed = _supervisor_courier_ids(db, user.id, user.tenant_id)
+        shifts = [shift for shift in shifts if _assigned_courier_ids(shift) & allowed]
+    return [_shift_json(db, shift, datetime.utcnow()) for shift in shifts]
 
 
 @router.get("/me")
@@ -146,6 +170,8 @@ def start_shift(shift_id: int, user: User = Depends(get_current_user), db: Sessi
     shift = db.get(Shift, shift_id)
     if not shift or (user.role not in (UserRole.DOU_OPS, UserRole.DOU_ADMIN) and shift.tenant_id != user.tenant_id):
         raise HTTPException(404, "Shift not found")
+    if user.role == UserRole.SUPERVISOR and not _assigned_courier_ids(shift).issubset(_supervisor_courier_ids(db, user.id, user.tenant_id)):
+        raise HTTPException(404, "Shift not found")
     shift.status = "ACTIVE"
     db.commit()
     return {"ok": True}
@@ -154,6 +180,8 @@ def start_shift(shift_id: int, user: User = Depends(get_current_user), db: Sessi
 @router.post("/attendance/check-in")
 def check_in(payload: AttendanceIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     courier = _courier_for(user, payload.courier_id, db)
+    if courier.employment_status != "ACTIVE":
+        raise HTTPException(403, "Courier is not active for attendance")
     existing = db.query(Attendance).filter(Attendance.courier_id == courier.id,
                                             Attendance.check_out.is_(None)).order_by(Attendance.id.desc()).first()
     if existing:
@@ -170,6 +198,13 @@ def check_in(payload: AttendanceIn, user: User = Depends(get_current_user), db: 
         is_late=late_minutes > 0,
     )
     db.add(record)
+    db.flush()
+    if late_minutes > 0:
+        record_attendance_event(
+            db, courier, "LATE", now.date(), late_minutes,
+            attendance_id=record.id, shift_id=record.shift_id,
+            actor_id=user.id, note=f"تأخر محسوب من الوردية: {late_minutes} دقيقة",
+        )
     courier.is_online = True
     courier.shift_active = True
     db.commit()
@@ -181,6 +216,8 @@ def check_in(payload: AttendanceIn, user: User = Depends(get_current_user), db: 
 @router.post("/attendance/check-out")
 def check_out(payload: AttendanceIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     courier = _courier_for(user, payload.courier_id, db)
+    if courier.employment_status != "ACTIVE":
+        raise HTTPException(403, "Courier is not active for attendance")
     record = db.query(Attendance).filter(
         Attendance.courier_id == courier.id, Attendance.check_out.is_(None)
     ).order_by(Attendance.id.desc()).first()
@@ -197,6 +234,12 @@ def check_out(payload: AttendanceIn, user: User = Depends(get_current_user), db:
         if shift:
             _, scheduled_end, _ = _shift_window(shift, record.check_in or now)
             early_leave_minutes = max(0, int((scheduled_end - now).total_seconds() // 60))
+    if early_leave_minutes > 0:
+        record_attendance_event(
+            db, courier, "EARLY_LEAVE", (record.check_in or now).date(), early_leave_minutes,
+            attendance_id=record.id, shift_id=record.shift_id,
+            actor_id=user.id, note=f"انصراف مبكر محسوب من الوردية: {early_leave_minutes} دقيقة",
+        )
     courier.is_online = False
     courier.shift_active = False
     db.commit()

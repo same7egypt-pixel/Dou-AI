@@ -23,6 +23,8 @@ def _courier_access(courier_id: int, user: User, db: Session) -> Courier:
     if not courier:
         raise HTTPException(404, "Courier not found")
     if user.role == UserRole.COURIER and user.courier_id == courier_id:
+        if courier.employment_status != "ACTIVE":
+            raise HTTPException(403, "Courier is not active for operational actions")
         return courier
     if user.role in STAFF_ROLES:
         if user.role in (UserRole.DOU_OPS, UserRole.DOU_ADMIN) or user.tenant_id == courier.tenant_id:

@@ -13,6 +13,7 @@ from ..models.entities import (
     Attendance, AuditLog, BonusPlan, BroadcastMessage, Contract, ContractBranch, Courier, CourierRating,
     DailyLog, GeoCity, LeaveRequest, PerformanceNote, Project, Tenant, TenantOperatingCity, User, UserRole,
     SupervisorAssignmentRequest, ProjectTransfer, PayrollAdjustment, EmployeeRequest, CourierDocumentSubmission,
+    AttendanceDeductionPolicy, AttendanceEvent, PayrollPeriod, PayrollSnapshot,
 )
 from .auth import get_current_user, hash_password
 from ..services.operating_structure import (
@@ -21,7 +22,11 @@ from ..services.operating_structure import (
 )
 from ..services.financial_calculations import (
     bonus_plan_for_courier, calculate_target_bonus as _calculate_target_bonus,
-    calculate_courier_bonus, financial_rows, finalize_payroll_period, payroll_rows,
+    calculate_courier_bonus, calculate_payroll_preview, financial_rows, finalize_payroll_period, payroll_rows,
+)
+from ..services.attendance_policy import (
+    CALCULATION_METHODS, EVENT_TYPES, active_policy_for, decide_attendance_event,
+    finalized_period, reconcile_absences_for_date,
 )
 
 router = APIRouter(prefix="/hr", tags=["hr"])
@@ -637,10 +642,218 @@ def adjustments(month:str=None,user:User=Depends(get_current_user),db:Session=De
 
 @router.post("/adjustments")
 def add_adjustment(payload:dict,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
-    if user.role not in COMPANY_ROLES: raise HTTPException(403,"Not allowed")
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403,"Company admin required")
     c=_tenant_couriers(db,user).filter(Courier.id==int(payload.get("courier_id") or 0)).first()
-    if not c:raise HTTPException(404,"Courier not found")
-    x=PayrollAdjustment(tenant_id=user.tenant_id,courier_id=c.id,month=payload.get("month") or date.today().strftime("%Y-%m"),kind=payload.get("kind"),amount=float(payload.get("amount") or 0),note=payload.get("note"),created_by=user.id);db.add(x);db.commit();return {"ok":True}
+    if not c: raise HTTPException(404,"Courier not found")
+    month=str(payload.get("month") or date.today().strftime("%Y-%m"))
+    try:
+        date.fromisoformat(month+"-01")
+        amount=float(payload.get("amount") or 0)
+    except (TypeError, ValueError):
+        raise HTTPException(400,"بيانات التعديل غير صالحة")
+    if amount <= 0 or payload.get("kind") not in {"OVERTIME","ADVANCE","DEDUCTION","VIOLATION"}:
+        raise HTTPException(400,"حدد نوع تعديل مدعوماً ومبلغاً موجباً")
+    if finalized_period(db, user.tenant_id, month):
+        raise HTTPException(409,"فترة الرواتب مقفلة؛ استخدم تصحيحاً في فترة مفتوحة لاحقة")
+    x=PayrollAdjustment(tenant_id=user.tenant_id,courier_id=c.id,month=month,kind=payload.get("kind"),amount=amount,note=payload.get("note"),source_type="MANUAL",status="APPROVED",created_by=user.id)
+    db.add(x);db.commit();db.refresh(x);_log(db,user,f"تعديل راتب يدوي للمندوب {c.name}","payroll_adjustment",x.id)
+    return {"ok":True,"id":x.id}
+
+def _attendance_policy_json(row: AttendanceDeductionPolicy):
+    return {
+        "id": row.id, "name": row.name, "event_type": row.event_type,
+        "grace_minutes": row.grace_minutes or 0, "calculation_method": row.calculation_method,
+        "amount_rate": row.amount_rate, "maximum_deduction": row.maximum_deduction,
+        "requires_approval": bool(row.requires_approval), "effective_from": row.effective_from.isoformat(),
+        "effective_to": row.effective_to.isoformat() if row.effective_to else None,
+        "is_active": bool(row.is_active),
+    }
+
+
+def _attendance_event_json(row: AttendanceEvent, db: Session):
+    courier = db.get(Courier, row.courier_id)
+    policy = db.get(AttendanceDeductionPolicy, row.policy_id) if row.policy_id else None
+    return {
+        "id": row.id, "courier_id": row.courier_id, "courier": courier.name if courier else "—",
+        "event_type": row.event_type, "event_date": row.event_date.isoformat(),
+        "measured_minutes": row.measured_minutes or 0, "status": row.status,
+        "deduction_amount": round(float(row.deduction_amount or 0), 2),
+        "policy_id": row.policy_id, "policy": policy.name if policy else None,
+        "attendance_id": row.attendance_id, "shift_id": row.shift_id,
+        "payroll_adjustment_id": row.payroll_adjustment_id, "note": row.note,
+        "decided_by": row.decided_by, "decided_at": row.decided_at.isoformat() if row.decided_at else None,
+    }
+
+
+@router.get("/attendance-policies")
+def list_attendance_policies(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Company attendance-policy access required")
+    rows = db.query(AttendanceDeductionPolicy).filter(
+        AttendanceDeductionPolicy.tenant_id == user.tenant_id,
+    ).order_by(AttendanceDeductionPolicy.event_type, AttendanceDeductionPolicy.id.desc()).all()
+    return [_attendance_policy_json(row) for row in rows]
+
+
+@router.post("/attendance-policies")
+def create_attendance_policy(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Company admin required")
+    event_type = str(payload.get("event_type") or "").upper()
+    method = str(payload.get("calculation_method") or "").upper()
+    name = str(payload.get("name") or "").strip()
+    if not name or event_type not in EVENT_TYPES or method not in CALCULATION_METHODS:
+        raise HTTPException(400, "راجع الاسم ونوع الحدث وطريقة الحساب")
+    if method == "MANUAL_APPROVAL_ONLY" and not bool(payload.get("requires_approval", True)):
+        raise HTTPException(400, "طريقة الاعتماد اليدوي تتطلب اعتماداً")
+    try:
+        effective_from = date.fromisoformat(str(payload.get("effective_from") or date.today().isoformat()))
+        effective_to = date.fromisoformat(str(payload["effective_to"])) if payload.get("effective_to") else None
+        grace = max(0, int(payload.get("grace_minutes") or 0))
+        rate = float(payload.get("amount_rate")) if payload.get("amount_rate") not in (None, "") else None
+        maximum = float(payload.get("maximum_deduction")) if payload.get("maximum_deduction") not in (None, "") else None
+    except (TypeError, ValueError):
+        raise HTTPException(400, "قيم سياسة الحضور غير صالحة")
+    if effective_to and effective_to < effective_from:
+        raise HTTPException(400, "تاريخ نهاية السياسة يسبق بدايتها")
+    if method != "MANUAL_APPROVAL_ONLY" and (rate is None or rate < 0):
+        raise HTTPException(400, "أدخل مبلغاً أو معدلاً غير سالب")
+    if maximum is not None and maximum < 0:
+        raise HTTPException(400, "الحد الأقصى غير صالح")
+    duplicate = db.query(AttendanceDeductionPolicy).filter(
+        AttendanceDeductionPolicy.tenant_id == user.tenant_id,
+        AttendanceDeductionPolicy.event_type == event_type,
+        AttendanceDeductionPolicy.is_active.is_(True),
+    ).first()
+    if duplicate and bool(payload.get("is_active", True)):
+        raise HTTPException(400, "أوقف السياسة الفعالة لنوع الحدث قبل إنشاء سياسة جديدة")
+    row = AttendanceDeductionPolicy(
+        tenant_id=user.tenant_id, name=name, event_type=event_type, grace_minutes=grace,
+        calculation_method=method, amount_rate=rate, maximum_deduction=maximum,
+        requires_approval=bool(payload.get("requires_approval", method == "MANUAL_APPROVAL_ONLY")),
+        effective_from=effective_from, effective_to=effective_to,
+        is_active=bool(payload.get("is_active", True)),
+    )
+    db.add(row); db.commit(); db.refresh(row)
+    _log(db, user, f"أنشأ سياسة حضور {row.name}", "attendance_policy", row.id)
+    return _attendance_policy_json(row)
+
+
+@router.patch("/attendance-policies/{policy_id}")
+def update_attendance_policy(policy_id: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Company admin required")
+    row = db.get(AttendanceDeductionPolicy, policy_id)
+    if not row or row.tenant_id != user.tenant_id:
+        raise HTTPException(404, "Attendance policy not found")
+    if "is_active" in payload:
+        row.is_active = bool(payload["is_active"])
+    if "name" in payload and str(payload["name"] or "").strip():
+        row.name = str(payload["name"]).strip()
+    if "grace_minutes" in payload:
+        row.grace_minutes = max(0, int(payload["grace_minutes"] or 0))
+    if "maximum_deduction" in payload:
+        row.maximum_deduction = float(payload["maximum_deduction"]) if payload["maximum_deduction"] not in (None, "") else None
+    if "requires_approval" in payload:
+        row.requires_approval = bool(payload["requires_approval"])
+    if "effective_to" in payload:
+        row.effective_to = date.fromisoformat(str(payload["effective_to"])) if payload["effective_to"] else None
+    if row.effective_to and row.effective_to < row.effective_from:
+        raise HTTPException(400, "تاريخ نهاية السياسة يسبق بدايتها")
+    db.commit(); _log(db, user, f"حدّث سياسة حضور {row.name}", "attendance_policy", row.id)
+    return _attendance_policy_json(row)
+
+
+@router.get("/attendance-events")
+def list_attendance_events(month: str = None, status: str = None, limit: int = 100, offset: int = 0,
+                           user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES + (UserRole.SUPERVISOR,):
+        raise HTTPException(403, "Attendance-event access required")
+    q = db.query(AttendanceEvent).filter(AttendanceEvent.tenant_id == user.tenant_id)
+    if user.role == UserRole.SUPERVISOR:
+        q = q.filter(AttendanceEvent.courier_id.in_(_tenant_couriers(db, user).with_entities(Courier.id)))
+    if month:
+        try:
+            start = date.fromisoformat(month + "-01")
+            end = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        except ValueError:
+            raise HTTPException(400, "month غير صالح")
+        q = q.filter(AttendanceEvent.event_date >= start, AttendanceEvent.event_date < end)
+    if status:
+        q = q.filter(AttendanceEvent.status == status)
+    total = q.count()
+    rows = q.order_by(AttendanceEvent.event_date.desc(), AttendanceEvent.id.desc()).offset(max(0, offset)).limit(min(max(limit, 1), 500)).all()
+    return {"total": total, "rows": [_attendance_event_json(row, db) for row in rows]}
+
+
+@router.post("/attendance-events/reconcile-absences")
+def reconcile_absences(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Company admin required")
+    try:
+        event_date = date.fromisoformat(str(payload.get("date") or date.today().isoformat()))
+    except ValueError:
+        raise HTTPException(400, "date غير صالح")
+    from .shifts import _shift_window
+    result = reconcile_absences_for_date(db, user.tenant_id, event_date, _shift_window)
+    db.commit()
+    _log(db, user, f"سوّى أحداث الغياب ليوم {event_date.isoformat()}", "attendance_reconciliation", None)
+    return result
+
+
+@router.post("/attendance-events/{event_id}/decide")
+def decide_event(event_id: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Company admin required")
+    row = db.get(AttendanceEvent, event_id)
+    if not row or row.tenant_id != user.tenant_id:
+        raise HTTPException(404, "Attendance event not found")
+    try:
+        decide_attendance_event(db, row, str(payload.get("action") or "").lower(), user.id, payload.get("note"))
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    db.commit(); _log(db, user, f"قرار على حدث حضور #{row.id}: {payload.get('action')}", "attendance_event", row.id)
+    return _attendance_event_json(row, db)
+
+
+@router.post("/payroll/corrections")
+def create_payroll_correction(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Company admin required")
+    try:
+        courier_id = int(payload.get("courier_id") or 0)
+        original_month = str(payload.get("original_month") or "")
+        target_month = str(payload.get("target_month") or "")
+        amount = float(payload.get("amount") or 0)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "بيانات التصحيح غير صالحة")
+    if amount <= 0 or payload.get("kind") not in {"OVERTIME", "DEDUCTION"}:
+        raise HTTPException(400, "حدد مبلغاً موجباً ونوع تصحيح مدعوماً")
+    original = finalized_period(db, user.tenant_id, original_month)
+    if not original:
+        raise HTTPException(400, "الفترة الأصلية يجب أن تكون مقفلة")
+    if finalized_period(db, user.tenant_id, target_month):
+        raise HTTPException(409, "فترة التصحيح المقصودة مقفلة")
+    if target_month <= original_month:
+        raise HTTPException(400, "يجب تسجيل التصحيح في فترة مفتوحة لاحقة")
+    courier = _tenant_couriers(db, user).filter(Courier.id == courier_id).first()
+    note = str(payload.get("note") or "").strip()
+    if not courier or not note:
+        raise HTTPException(400, "اختر مندوباً تابعاً للشركة وأدخل سبب التصحيح")
+    key = f"payroll-correction:{original.id}:{courier.id}:{target_month}:{payload['kind']}:{amount:.2f}"
+    existing = db.query(PayrollAdjustment).filter(PayrollAdjustment.tenant_id == user.tenant_id, PayrollAdjustment.idempotency_key == key).first()
+    if existing:
+        return {"ok": True, "id": existing.id, "already_exists": True}
+    adjustment = PayrollAdjustment(
+        tenant_id=user.tenant_id, courier_id=courier.id, month=target_month, kind=payload["kind"], amount=amount,
+        note=f"تصحيح فترة {original_month}: {note}", source_type="PAYROLL_CORRECTION", source_id=original.id,
+        idempotency_key=key, status="APPROVED", created_by=user.id,
+    )
+    db.add(adjustment); db.commit(); db.refresh(adjustment)
+    _log(db, user, f"سجل تصحيحاً للفترة {original_month} في {target_month}", "payroll_adjustment", adjustment.id)
+    return {"ok": True, "id": adjustment.id, "already_exists": False}
+
 
 @router.get("/employee-requests")
 def employee_requests(user:User=Depends(get_current_user),db:Session=Depends(get_db)):
@@ -1240,6 +1453,8 @@ def _my_courier(user: User, db: Session) -> Courier:
 @router.post("/me/log")
 def add_daily_log(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     c = _my_courier(user, db)
+    if c.employment_status != "ACTIVE":
+        raise HTTPException(403, "المندوب غير نشط لتسجيل الأداء")
     dc = payload.get("log_date")
     try:
         log_date = date.fromisoformat(dc) if dc else date.today()
@@ -1274,6 +1489,33 @@ def add_daily_log(payload: dict, user: User = Depends(get_current_user), db: Ses
     db.commit()
     db.refresh(row)
     return {"ok": True, "id": row.id, "date": log_date.isoformat(), "orders": orders}
+
+
+def _my_payroll_summary(db: Session, courier: Courier, month: str) -> dict:
+    period = db.query(PayrollPeriod).filter(
+        PayrollPeriod.tenant_id == courier.tenant_id, PayrollPeriod.month == month, PayrollPeriod.status == "FINALIZED",
+    ).first()
+    if period:
+        snapshot = db.query(PayrollSnapshot).filter(
+            PayrollSnapshot.payroll_period_id == period.id, PayrollSnapshot.courier_id == courier.id,
+        ).first()
+        if snapshot:
+            return {
+                "month": month, "finalized": True, "source": "PAYROLL_SNAPSHOT",
+                "base_salary": round(float(snapshot.base_salary or 0), 2),
+                "delivery_pay": round(float(snapshot.delivery_pay or 0), 2),
+                "bonus_pay": round(float(snapshot.bonus_pay or 0), 2),
+                "additions": round(float(snapshot.additions or 0), 2),
+                "deductions": round(float(snapshot.deductions or 0), 2),
+                "net_pay": round(float(snapshot.net_pay or 0), 2),
+            }
+    row = calculate_payroll_preview(db, courier, month)
+    return {
+        "month": month, "finalized": False, "source": "PAYROLL_PREVIEW",
+        "base_salary": row["base_salary"], "delivery_pay": row["delivery_pay"],
+        "bonus_pay": round(float(row["bonus"]["earned"] or 0), 2),
+        "additions": row["additions"], "deductions": row["deductions"], "net_pay": row["net_pay"],
+    }
 
 
 @router.get("/me/logs")
@@ -1323,6 +1565,7 @@ def my_logs(user: User = Depends(get_current_user), db: Session = Depends(get_db
         "days": [{"date": l.log_date.isoformat(), "project": projects.get(l.project_id),
                   "orders": l.orders_count, "notes": l.notes} for l in cur_logs],
         "previous_months": months,
+        "payroll": _my_payroll_summary(db, c, cur),
     }
 
 
