@@ -16,6 +16,7 @@ from ..models.entities import (
 from .auth import get_current_user
 from .shifts import _assigned_courier_ids, _parse_shift_time, _shift_json, _shift_window
 from ..services.financial_calculations import calculate_payroll_preview, financial_rows, payroll_rows
+from ..services.reporting import analytics_report, flat_export_rows, report_filter_options
 from ..services.rider_management import create_rider_record, apply_branch_assignment
 from ..services.rider_imports import confirm_rider_import, preview_rider_import, rider_template_csv
 from ..services.performance_imports import confirm_performance_import, performance_template_csv, preview_performance_import
@@ -148,6 +149,81 @@ def _report_rows(db: Session, user: User, report_type: str,
             "إجمالي الشهر التقديري حتى نهاية الفترة": payroll["net_pay"],
         })
     return rows
+
+
+def _analytics_filters(city_id: int = None, contract_id: int = None, branch_id: int = None,
+                       supervisor_id: int = None, rider_id: int = None, project_id: int = None,
+                       employment_status: str = None, online: bool = None, search: str = None) -> dict:
+    return {"city_id": city_id, "contract_id": contract_id, "branch_id": branch_id,
+            "supervisor_id": supervisor_id, "rider_id": rider_id, "project_id": project_id,
+            "employment_status": employment_status, "online": online, "search": search}
+
+
+@router.get("/analytics/filters")
+def analytics_filters(city_id: int = None, contract_id: int = None, branch_id: int = None,
+                      supervisor_id: int = None, rider_id: int = None, project_id: int = None,
+                      employment_status: str = None, online: bool = None, search: str = None,
+                      user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in TENANT_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    _require_permission(user, "reports")
+    _scope(user, db)
+    filters = _analytics_filters(city_id, contract_id, branch_id, supervisor_id, rider_id, project_id, employment_status, online, search)
+    return report_filter_options(db, user, filters, _supervisor_courier_scope)
+
+
+@router.get("/analytics/{report_type}")
+def analytics_view(report_type: str, date_from: date = None, date_to: date = None,
+                   city_id: int = None, contract_id: int = None, branch_id: int = None,
+                   supervisor_id: int = None, rider_id: int = None, project_id: int = None,
+                   employment_status: str = None, online: bool = None, search: str = None,
+                   page: int = 1, page_size: int = 50,
+                   user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if report_type not in {"executive", "operations", "financial", "workforce"}:
+        raise HTTPException(404, "Unknown analytics report")
+    if user.role not in TENANT_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    _require_permission(user, "reports")
+    _scope(user, db)
+    end = date_to or date.today(); start = date_from or date(end.year, end.month, 1)
+    filters = _analytics_filters(city_id, contract_id, branch_id, supervisor_id, rider_id, project_id, employment_status, online, search)
+    try:
+        return analytics_report(db, user, report_type, filters, start, end, page, page_size, _supervisor_courier_scope, ROLE_PERMISSIONS)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc))
+
+
+@router.get("/analytics/{report_type}/export")
+def analytics_export(report_type: str, date_from: date = None, date_to: date = None,
+                     city_id: int = None, contract_id: int = None, branch_id: int = None,
+                     supervisor_id: int = None, rider_id: int = None, project_id: int = None,
+                     employment_status: str = None, online: bool = None, search: str = None,
+                     user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if report_type not in {"operations", "financial", "workforce"}:
+        raise HTTPException(404, "Unknown analytics report")
+    if user.role not in TENANT_ROLES:
+        raise HTTPException(403, "Not a fleet account")
+    _require_permission(user, "reports"); _require_permission(user, "export")
+    _scope(user, db)
+    end = date_to or date.today(); start = date_from or date(end.year, end.month, 1)
+    filters = _analytics_filters(city_id, contract_id, branch_id, supervisor_id, rider_id, project_id, employment_status, online, search)
+    try:
+        report = analytics_report(db, user, report_type, filters, start, end, 1, 5000, _supervisor_courier_scope, ROLE_PERMISSIONS)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc))
+    permissions = json.loads(user.custom_permissions) if user.custom_permissions else ROLE_PERMISSIONS.get(user.role, [])
+    commercial = user.role in ACCOUNT_ADMIN_ROLES
+    payroll = "*" in permissions or ("payroll" in permissions and user.role != UserRole.SUPERVISOR)
+    rows = flat_export_rows(report, commercial, payroll)
+    output = io.StringIO(); output.write("\ufeff")
+    if rows:
+        writer = csv.DictWriter(output, fieldnames=list(rows[0].keys())); writer.writeheader(); writer.writerows(rows)
+    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv; charset=utf-8",
+                             headers={"Content-Disposition": f'attachment; filename="dou-{report_type}-{start}-{end}.csv"'})
 
 
 @router.get("/reports")

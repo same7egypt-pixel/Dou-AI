@@ -104,7 +104,8 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 .hrTabs{display:flex;gap:7px;overflow:auto;background:#fff;border:1px solid var(--line);padding:7px;border-radius:14px;margin-bottom:16px;position:sticky;top:78px;z-index:12;box-shadow:0 8px 22px rgba(26,42,72,.06)}
 .hrTab{background:transparent;color:var(--muted);white-space:nowrap;padding:9px 14px}.hrTab.active{background:var(--nav);color:#fff}.hrTab .count{display:inline-grid;place-items:center;min-width:19px;height:19px;border-radius:10px;background:var(--red);color:#fff;font-size:9px;margin-right:5px}
 .hrPane{display:none}.hrPane.active{display:block}.hrPaneHead{display:flex;justify-content:space-between;align-items:end;gap:14px;margin:4px 2px 13px}.hrPaneHead h2{font-size:17px;margin:0}.hrPaneHead p{font-size:11px;color:var(--muted);margin:4px 0 0}
-.reportPeriod{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.reportPeriod button{border:1px solid var(--line);background:#f5f7fb;color:var(--text);border-radius:10px;padding:9px 16px;font-family:inherit;font-weight:700;cursor:pointer}.reportPeriod button.active{background:var(--blue);border-color:var(--blue);color:#fff}.reportAdvanced{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}.reportAdvanced summary{cursor:pointer;font-weight:700;color:var(--blue);list-style:none}.reportAdvanced summary:before{content:'⚙ '}.reportAdvanced[open] summary{margin-bottom:12px}.reportRangeLabel{font-size:11px;color:var(--muted);margin-top:4px}
+	.reportPeriod{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.reportPeriod button{border:1px solid var(--line);background:#f5f7fb;color:var(--text);border-radius:10px;padding:9px 16px;font-family:inherit;font-weight:700;cursor:pointer}.reportPeriod button.active{background:var(--blue);border-color:var(--blue);color:#fff}.reportAdvanced{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}.reportAdvanced summary{cursor:pointer;font-weight:700;color:var(--blue);list-style:none}.reportAdvanced summary:before{content:'⚙ '}.reportAdvanced[open] summary{margin-bottom:12px}.reportRangeLabel{font-size:11px;color:var(--muted);margin-top:4px}
+	.analyticsTabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}.analyticsTabs button{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:10px;padding:9px 13px;font:700 12px inherit;cursor:pointer}.analyticsTabs button.active{background:var(--nav);color:#fff;border-color:var(--nav)}.analyticsState{font-size:12px;margin:10px 0;color:var(--muted)}.analyticsState.error{color:#b42318}.analyticsState.ok{color:#067647}.analyticsActive{font-size:11px;color:var(--blue);min-height:16px}.analyticsCharts{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin:16px 0}.analyticsChart{border:1px solid var(--line);border-radius:14px;padding:14px}.analyticsChart h3{font-size:13px;margin:0 0 10px}.analyticsChart .empty{font-size:12px;color:var(--muted);padding:10px 0}.analyticsPagination{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;font-size:12px;color:var(--muted)}.analyticsFinancial{border:1px solid #dce7ff;background:#f7faff;border-radius:10px;padding:7px 10px;font-size:11px;color:#2455a6}.analyticsFilters input,.analyticsFilters select{min-width:135px}.analyticsFilters .wide{min-width:190px}@media(max-width:760px){.analyticsFilters input,.analyticsFilters select{min-width:100%;flex:1}}
 .hrEmptyGuide{border:1px dashed #cfd6e2;background:#fbfcfe;border-radius:14px;padding:18px;color:var(--muted);font-size:12px;margin-bottom:14px}
 @media(max-width:760px){.hrHero{display:block}.hrHeroActions{margin-top:16px}.hrTabs{top:72px}.hrPane .card{overflow-x:auto}.hrPaneHead{display:block}}
 </style>
@@ -474,43 +475,34 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     </section>
 
     <section id="view-reports" style="display:none">
-      <div class="header"><div><div class="kicker">تقارير الشركة المفلترة</div><h1>مركز التقارير</h1></div>
-        <button class="btn blue" onclick="downloadReport()">⬇ تنزيل لبرنامج Excel</button></div>
+      <div class="header"><div><div class="kicker">التحليلات والتقارير</div><h1>مركز التحليلات</h1></div>
+        <button class="btn blue" id="analyticsExportBtn" onclick="downloadAnalyticsReport()">⬇ تصدير CSV</button></div>
       <div class="card">
-        <div class="form-row">
-          <select id="reportType" onchange="setupReportFilters();loadReport()">
-            <option value="daily">إنجاز السائقين اليومي والتارجت</option>
-            <option value="documents">المستندات ومواعيد الانتهاء</option>
-            <option value="bonus">التارجت والبونص والرواتب</option>
-          </select>
-          <select id="reportDocStatus" onchange="loadReport()">
-            <option value="ALL">كل حالات المستندات</option>
-            <option value="EXPIRED">منتهية</option>
-            <option value="SOON">تنتهي خلال 30 يوم</option>
-            <option value="OK">سليمة</option>
-          </select>
-          <select id="reportContract" onchange="reportContractChanged()" style="display:none"><option value="">كل العقود / المشاريع</option></select>
-          <select id="reportBranch" onchange="reportBranchChanged()" style="display:none"><option value="">كل الفروع والمدن</option></select>
-          <select id="reportSupervisorMain" onchange="loadReport()" style="display:none"><option value="">كل المشرفين</option></select>
+        <div class="analyticsTabs" id="analyticsTabs">
+          <button data-report="executive" onclick="setAnalyticsReport('executive')">لوحة الإدارة</button>
+          <button data-report="operations" onclick="setAnalyticsReport('operations')">التشغيل</button>
+          <button data-report="financial" data-financial="1" onclick="setAnalyticsReport('financial')">المالية</button>
+          <button data-report="workforce" onclick="setAnalyticsReport('workforce')">القوى العاملة والأداء</button>
         </div>
-        <div id="dailyReportFilters">
-          <div class="reportPeriod" id="reportPeriod"><button data-period="day" onclick="setReportPeriod('day')">اليوم</button><button data-period="week" onclick="setReportPeriod('week')">هذا الأسبوع</button><button data-period="month" onclick="setReportPeriod('month')">هذا الشهر</button><button data-period="custom" onclick="setReportPeriod('custom')">فترة مخصصة</button></div>
-          <div class="form-row"><input id="reportFrom" type="date" onchange="customReportDates()"><input id="reportTo" type="date" onchange="customReportDates()"></div>
-          <div class="reportRangeLabel" id="reportRangeLabel"></div>
-          <details class="reportAdvanced" id="reportAdvancedFilters"><summary>فلاتر متقدمة (اختياري)</summary><div class="form-row">
-            <select id="reportNationality" onchange="loadReport()"><option value="">كل الجنسيات</option></select>
-            <select id="reportZone" onchange="loadReport()"><option value="">كل المدن والمناطق</option></select>
-            <select id="reportSupervisor" onchange="loadReport()"><option value="">كل المشرفين</option></select>
-            <input id="reportCourierName" placeholder="بحث باسم المندوب" oninput="loadReport()">
-            <select id="reportLogStatus" onchange="loadReport()"><option value="">الكل: سجل ولم يسجل</option><option value="LOGGED">سجل الأوردرات</option><option value="NOT_LOGGED">لم يسجل</option></select>
-            <select id="reportTargetStatus" onchange="loadReport()"><option value="">كل حالات التارجت</option><option value="PENDING">لم يكمل التارجت</option><option value="OVER">وصل أو تخطى التارجت</option><option value="NO_TARGET">بدون تارجت</option></select>
-            <select id="reportAttendance" onchange="loadReport()"><option value="">كل حالات الحضور</option><option value="PRESENT">حاضر</option><option value="ABSENT">لم يسجل حضور</option><option value="LEAVE">إجازة</option></select>
-            <select id="reportEmployment" onchange="loadReport()"><option value="">كل حالات الموظف</option><option value="ACTIVE">نشط</option><option value="SUSPENDED">موقوف</option><option value="TERMINATED">منتهي</option></select>
-          </div></details>
+        <div class="form-row analyticsFilters">
+          <select id="analyticsCity" onchange="analyticsOptionsChanged()"><option value="">كل المدن</option></select>
+          <select id="analyticsContract" onchange="analyticsOptionsChanged()"><option value="">كل العقود</option></select>
+          <select id="analyticsProject" onchange="analyticsOptionsChanged()"><option value="">كل المشاريع</option></select>
+          <select id="analyticsBranch" onchange="analyticsOptionsChanged()"><option value="">كل الفروع</option></select>
+          <select id="analyticsSupervisor" onchange="analyticsOptionsChanged()"><option value="">كل المشرفين</option></select>
+          <select id="analyticsRider" onchange="analyticsApply()"><option value="">كل المندوبين</option></select>
+          <select id="analyticsEmployment" onchange="analyticsApply()"><option value="">كل حالات التوظيف</option><option value="ACTIVE">نشط</option><option value="SUSPENDED">موقوف</option><option value="TERMINATED">منتهي</option></select>
+          <select id="analyticsOnline" onchange="analyticsApply()"><option value="">كل حالات الاتصال</option><option value="true">متصل</option><option value="false">غير متصل</option></select>
+          <input class="wide" id="analyticsSearch" placeholder="بحث باسم أو جوال المندوب" onkeydown="if(event.key==='Enter')analyticsApply()">
         </div>
+        <div class="reportPeriod" id="analyticsPeriod"><button data-period="today" onclick="setAnalyticsPeriod('today')">اليوم</button><button data-period="yesterday" onclick="setAnalyticsPeriod('yesterday')">أمس</button><button data-period="week" onclick="setAnalyticsPeriod('week')">آخر 7 أيام</button><button data-period="month" onclick="setAnalyticsPeriod('month')">هذا الشهر</button><button data-period="previous" onclick="setAnalyticsPeriod('previous')">الشهر السابق</button><button data-period="custom" onclick="setAnalyticsPeriod('custom')">فترة مخصصة</button></div>
+        <div class="form-row"><input id="analyticsFrom" type="date" onchange="analyticsCustomDates()"><input id="analyticsTo" type="date" onchange="analyticsCustomDates()"><button class="btn blue" onclick="analyticsApply()">تطبيق</button><button class="btn ghost" onclick="resetAnalyticsFilters()">إعادة ضبط</button></div>
+        <div id="analyticsActive" class="analyticsActive"></div><div id="analyticsState" class="analyticsState"></div>
       </div>
-      <div class="cards" id="reportSummary"></div>
-      <div class="card" style="overflow:auto"><table><thead id="reportHead"></thead><tbody id="reportBody"></tbody></table></div>
+      <div id="analyticsFinancialState" class="analyticsFinancial" style="display:none"></div>
+      <div class="cards" id="analyticsKpis"></div>
+      <div class="analyticsCharts" id="analyticsCharts"></div>
+      <div class="card" style="overflow:auto"><table><thead id="analyticsHead"></thead><tbody id="analyticsBody"></tbody></table><div class="analyticsPagination"><button class="btn ghost small" onclick="analyticsMovePage(-1)">السابق</button><span id="analyticsPageInfo">—</span><button class="btn ghost small" onclick="analyticsMovePage(1)">التالي</button></div></div>
     </section>
 
     <section id="view-supervision" style="display:none">
@@ -1290,91 +1282,30 @@ async function loadCompliance(){
   }catch(e){ document.getElementById("compDetail").textContent="تعذّر تحميل المستندات"; }
 }
 
-let REPORT_ROWS=[];
-let REPORT_PERIOD="day";
-let REPORT_CONTRACTS=[];
+let ANALYTICS={report:"executive",period:"month",page:1,filtersLoaded:false,total:0};
 function localISO(d){const x=new Date(d.getTime()-d.getTimezoneOffset()*60000);return x.toISOString().slice(0,10)}
-function setReportPeriod(period,refresh=true){
-  REPORT_PERIOD=period;const today=new Date(),from=new Date(today),to=new Date(today);
-  if(period==="week")from.setDate(today.getDate()-((today.getDay()+6)%7));
-  if(period==="month")from.setDate(1);
-  if(period!=="custom"){document.getElementById("reportFrom").value=localISO(from);document.getElementById("reportTo").value=localISO(to)}
-  document.querySelectorAll("#reportPeriod button").forEach(b=>b.classList.toggle("active",b.dataset.period===period));
-  const labels={day:"عرض يومي",week:"عرض أسبوعي",month:"عرض شهري",custom:"فترة مخصصة"};
-  document.getElementById("reportRangeLabel").textContent=`${labels[period]} · من ${document.getElementById("reportFrom").value} إلى ${document.getElementById("reportTo").value}`;
-  if(refresh)loadReport();
-}
-function customReportDates(){REPORT_PERIOD="custom";setReportPeriod("custom")}
-async function initReports(){
-  const permissions=META.permissions||[];
-  const type=document.getElementById("reportType");
-  [...type.options].forEach(o=>{
-    if(o.value==="documents"&&!permissions.includes("hr")&&!permissions.includes("*")) o.remove();
-    if(o.value==="bonus"&&!permissions.includes("payroll")&&!permissions.includes("*")) o.remove();
-  });
-  if(!document.getElementById("reportContract").dataset.loaded){
-    try{
-      const [contracts,couriers,supervisors]=await Promise.all([api("/hr/contracts"),api("/fleet/couriers"),META.role==="SUPERVISOR"?Promise.resolve([]):api("/hr/supervisors")]);
-      REPORT_CONTRACTS=contracts;
-      document.getElementById("reportContract").innerHTML='<option value="">كل العقود / المشاريع</option>'+contracts.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
-      document.getElementById("reportSupervisorMain").innerHTML='<option value="">كل المشرفين</option>'+supervisors.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
-      const unique=x=>[...new Set(x.filter(Boolean))].sort();
-      document.getElementById("reportNationality").innerHTML='<option value="">كل الجنسيات</option>'+unique(couriers.map(c=>c.nationality)).map(x=>`<option>${escapeHtml(x)}</option>`).join("");
-      document.getElementById("reportZone").innerHTML='<option value="">كل المدن والمناطق</option>'+unique(couriers.map(c=>c.work_city||c.zone)).map(x=>`<option>${escapeHtml(x)}</option>`).join("");
-      document.getElementById("reportSupervisor").innerHTML='<option value="">كل المشرفين</option>'+supervisors.map(s=>`<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
-      document.getElementById("reportContract").dataset.loaded="1";reportContractChanged(false);
-    }catch(e){}
-  }
-  if(!document.getElementById("reportFrom").value)setReportPeriod(REPORT_PERIOD,false);
-  setupReportFilters(); loadReport();
-}
-function setupReportFilters(){
-  const type=document.getElementById("reportType").value, daily=type==="daily", bonus=type==="bonus";
-  document.getElementById("reportDocStatus").style.display=type==="documents"?"block":"none";
-  ["reportContract","reportBranch","reportSupervisorMain"].forEach(id=>document.getElementById(id).style.display=(bonus||daily)?"block":"none");
-  document.getElementById("dailyReportFilters").style.display=(daily||bonus)?"block":"none";
-  document.getElementById("reportAdvancedFilters").style.display=daily?"block":"none";
-}
-function reportQuery(){
-  const type=document.getElementById("reportType").value;
-  if(type==="daily"){
-    const p=new URLSearchParams();
-    const fields={date_from:"reportFrom",date_to:"reportTo",contract_id:"reportContract",branch_id:"reportBranch",supervisor_id:"reportSupervisorMain",nationality:"reportNationality",zone:"reportZone",courier_name:"reportCourierName",log_status:"reportLogStatus",target_status:"reportTargetStatus",attendance_status:"reportAttendance",employment_status:"reportEmployment"};
-    Object.entries(fields).forEach(([k,id])=>{const v=document.getElementById(id).value;if(v)p.set(k,v)});
-    return p.toString();
-  }
-  const p=new URLSearchParams({report_type:type});
-  if(type==="documents") p.set("doc_status",document.getElementById("reportDocStatus").value);
-  else if(type==="bonus"){
-    p.set("date_from",document.getElementById("reportFrom").value);p.set("date_to",document.getElementById("reportTo").value);
-    [["contract_id","reportContract"],["branch_id","reportBranch"],["supervisor_id","reportSupervisorMain"]].forEach(([k,id])=>{if(document.getElementById(id).value)p.set(k,document.getElementById(id).value)});
-  }
-  return p.toString();
-}
-function reportContractChanged(refresh=true){const id=+document.getElementById("reportContract").value,c=REPORT_CONTRACTS.find(x=>x.id===id),branches=c?c.branches:REPORT_CONTRACTS.flatMap(x=>x.branches||[]);document.getElementById("reportBranch").innerHTML='<option value="">كل الفروع والمدن</option>'+branches.map(b=>`<option value="${b.id}">${escapeHtml(b.city)}${b.supervisor?' — '+escapeHtml(b.supervisor):''}</option>`).join('');reportBranchChanged(refresh)}
-function reportBranchChanged(refresh=true){const bid=+document.getElementById("reportBranch").value,b=REPORT_CONTRACTS.flatMap(x=>x.branches||[]).find(x=>x.id===bid);if(b?.supervisor_id)document.getElementById("reportSupervisorMain").value=String(b.supervisor_id);if(refresh)loadReport()}
-async function loadReport(){
-  try{
-    const type=document.getElementById("reportType").value;
-    const response=await api((type==="daily"?"/hr/daily-report?":"/fleet/reports?")+reportQuery());
-    REPORT_ROWS=type==="daily"?response.rows:response;
-    const keys=REPORT_ROWS.length?Object.keys(REPORT_ROWS[0]):[];
-    document.getElementById("reportHead").innerHTML=keys.length?'<tr>'+keys.map(k=>`<th>${k}</th>`).join("")+'</tr>':'';
-    const visibleKeys=keys.filter(k=>!k.startsWith("_"));
-    document.getElementById("reportHead").innerHTML=visibleKeys.length?'<tr>'+visibleKeys.map(k=>`<th>${k}</th>`).join("")+'</tr>':'';
-    document.getElementById("reportBody").innerHTML=REPORT_ROWS.map(r=>`<tr class="${r._target_state==="OVER"?"target-green":r._target_state==="PENDING"?"target-red":""}">`+visibleKeys.map(k=>`<td>${escapeHtml(r[k])}</td>`).join("")+'</tr>').join("")||'<tr><td>لا توجد نتائج مطابقة للفلاتر</td></tr>';
-    const totalBonus=type==="bonus"?REPORT_ROWS.reduce((s,r)=>s+(Number(r["البونص المستحق"])||0),0):0;
-    document.getElementById("reportSummary").innerHTML=type==="daily"?`<div class="metric"><b>${response.summary.couriers}</b><span>السائقون</span></div><div class="metric trend"><b>${response.summary.logged}</b><span>سجلوا خلال الفترة</span></div><div class="metric alert"><b>${response.summary.not_logged}</b><span>لم يسجلوا</span></div><div class="metric"><b>${response.summary.orders}</b><span>طلبات الفترة</span></div><div class="metric"><b>${response.summary.average}</b><span>متوسط الطلبات</span></div><div class="metric trend"><b>${escapeHtml(response.summary.top)}</b><span>الأعلى في الفترة</span></div>`:`<div class="metric"><b>${REPORT_ROWS.length}</b><span>عدد النتائج</span></div>`+(type==="bonus"?`<div class="metric trend"><b>${totalBonus.toLocaleString()} ر.س</b><span>البونص الشهري المستحق حتى نهاية الفترة</span></div>`:'');
-  }catch(e){ document.getElementById("reportBody").innerHTML='<tr><td>تعذّر تحميل التقرير</td></tr>'; }
-}
-async function downloadReport(){
-  const daily=document.getElementById("reportType").value==="daily";
-  const r=await fetch((daily?"/hr/daily-report/export?":"/fleet/reports/export?")+reportQuery(),{headers:{Authorization:"Bearer "+TOKEN}});
-  if(!r.ok){alert("تعذّر تنزيل التقرير");return;}
-  const blob=await r.blob(); const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob); a.download=(daily?`تقرير-السائقين-${document.getElementById("reportFrom").value}-${document.getElementById("reportTo").value}`:document.getElementById("reportType").value==="documents"?"تقرير-المستندات":"تقرير-التارجت-والبونص")+".csv";
-  a.click(); URL.revokeObjectURL(a.href);
-}
+function analyticsQuery(extra={}){const p=new URLSearchParams();const fields={city_id:"analyticsCity",contract_id:"analyticsContract",project_id:"analyticsProject",branch_id:"analyticsBranch",supervisor_id:"analyticsSupervisor",rider_id:"analyticsRider",employment_status:"analyticsEmployment",online:"analyticsOnline",search:"analyticsSearch",date_from:"analyticsFrom",date_to:"analyticsTo"};Object.entries(fields).forEach(([key,id])=>{const el=document.getElementById(id),v=el?.value;if(v)p.set(key,v)});Object.entries(extra).forEach(([key,v])=>p.set(key,v));return p.toString()}
+function analyticsSelect(id,rows,placeholder,label="name",preserve=true){const el=document.getElementById(id),selected=preserve?el.value:"";el.innerHTML=`<option value="">${placeholder}</option>`+rows.map(r=>`<option value="${r.id}">${escapeHtml(r[label]||"—")}</option>`).join("");if([...el.options].some(o=>o.value===selected))el.value=selected}
+function setAnalyticsState(text,type=""){const el=document.getElementById("analyticsState");el.className="analyticsState "+type;el.textContent=text||""}
+function setAnalyticsPeriod(period,refresh=true){ANALYTICS.period=period;const today=new Date(),from=new Date(today),to=new Date(today);if(period==="yesterday"){from.setDate(today.getDate()-1);to.setDate(today.getDate()-1)}if(period==="week")from.setDate(today.getDate()-6);if(period==="month")from.setDate(1);if(period==="previous"){from.setMonth(today.getMonth()-1,1);to.setDate(0)}if(period!=="custom"){document.getElementById("analyticsFrom").value=localISO(from);document.getElementById("analyticsTo").value=localISO(to)}document.querySelectorAll("#analyticsPeriod button").forEach(b=>b.classList.toggle("active",b.dataset.period===period));if(refresh)analyticsApply()}
+function analyticsCustomDates(){ANALYTICS.period="custom";setAnalyticsPeriod("custom")}
+function setAnalyticsReport(report){if(report==="financial"&&!analyticsCommercialAccess()){setAnalyticsState("ليس لديك صلاحية التقرير المالي التجاري.","error");return}ANALYTICS.report=report;ANALYTICS.page=1;document.querySelectorAll("#analyticsTabs button").forEach(b=>b.classList.toggle("active",b.dataset.report===report));document.getElementById("analyticsExportBtn").style.display=report==="executive"?"none":"inline-flex";analyticsApply()}
+function analyticsCommercialAccess(){return ["COMPANY","COMPANY_ADMIN"].includes(META.role)}
+async function initReports(){if(!document.getElementById("analyticsFrom").value)setAnalyticsPeriod(ANALYTICS.period,false);document.querySelectorAll("#analyticsTabs [data-financial]").forEach(b=>b.style.display=analyticsCommercialAccess()?"inline-block":"none");if(!analyticsCommercialAccess()&&["executive","financial"].includes(ANALYTICS.report))ANALYTICS.report="operations";document.querySelectorAll("#analyticsTabs button").forEach(b=>b.classList.toggle("active",b.dataset.report===ANALYTICS.report));await loadAnalyticsFilters();await loadAnalyticsReport()}
+async function loadAnalyticsFilters(){try{const data=await api("/fleet/analytics/filters?"+analyticsQuery());analyticsSelect("analyticsCity",data.cities,"كل المدن");analyticsSelect("analyticsContract",data.contracts,"كل العقود");analyticsSelect("analyticsProject",data.projects,"كل المشاريع");analyticsSelect("analyticsBranch",data.branches,"كل الفروع");analyticsSelect("analyticsSupervisor",data.supervisors,"كل المشرفين");analyticsSelect("analyticsRider",data.riders,"كل المندوبين");ANALYTICS.filtersLoaded=true}catch(e){setAnalyticsState(e.message||"تعذّر تحميل الفلاتر.","error")}}
+async function analyticsOptionsChanged(){await loadAnalyticsFilters();ANALYTICS.page=1;await loadAnalyticsReport()}
+async function analyticsApply(){ANALYTICS.page=1;await loadAnalyticsFilters();await loadAnalyticsReport()}
+function resetAnalyticsFilters(){["analyticsCity","analyticsContract","analyticsProject","analyticsBranch","analyticsSupervisor","analyticsRider","analyticsEmployment","analyticsOnline","analyticsSearch"].forEach(id=>document.getElementById(id).value="");setAnalyticsPeriod("month",false);analyticsApply()}
+function analyticsMovePage(delta){const pages=Math.max(1,Math.ceil((ANALYTICS.total||0)/50)),next=ANALYTICS.page+delta;if(next<1||next>pages)return;ANALYTICS.page=next;loadAnalyticsReport()}
+function analyticsNumber(value,money=false){const n=Number(value||0);return money?`${n.toLocaleString()} ر.س`:n.toLocaleString()}
+function renderAnalyticsKpis(kpis){const labels={total_riders:"إجمالي المندوبين",active_riders:"مندوبون نشطون",online_riders:"مندوبون متصلون",suspended_riders:"مندوبون موقوفون",eligible_orders:"الطلبات المؤهلة",orders_per_active_rider:"طلبات لكل مندوب نشط",worked_hours:"ساعات العمل",orders_per_worked_hour:"طلبات لكل ساعة",attendance_rate:"نسبة الحضور",absent_riders:"مندوبون غائبون",late_riders:"مندوبون متأخرون",target_achievement_pct:"تحقيق التارجت",target_achievers:"محققو التارجت",zero_order_riders:"مندوبون بلا طلبات",document_attention:"تنبيه مستندات",total_bonus_cost:"تكلفة البونص",estimated_or_final_payroll_cost:"تكلفة الرواتب",client_revenue:"إيراد العميل",operational_margin:"هامش التشغيل",operational_margin_pct:"نسبة الهامش"};const money=new Set(["total_bonus_cost","estimated_or_final_payroll_cost","client_revenue","operational_margin"]),percent=new Set(["attendance_rate","target_achievement_pct","operational_margin_pct"]);const keys=Object.keys(labels).filter(k=>Object.hasOwn(kpis,k));document.getElementById("analyticsKpis").innerHTML=keys.map(k=>`<div class="metric ${["absent_riders","late_riders","document_attention"].includes(k)&&kpis[k]?"alert":""}"><b>${analyticsNumber(kpis[k],money.has(k))}${percent.has(k)?"%":""}</b><span>${labels[k]}</span></div>`).join("")}
+function analyticsBars(title,rows,label,value){if(!rows?.length)return `<div class="analyticsChart"><h3>${title}</h3><div class="empty">لا توجد بيانات للفلاتر المحددة</div></div>`;const max=Math.max(...rows.map(r=>Number(r[value]||0)),1);return `<div class="analyticsChart"><h3>${title}</h3>${rows.map(r=>`<div class="chartRow"><span>${escapeHtml(r[label]||"—")}</span><div class="bar"><i style="width:${Math.max(3,Number(r[value]||0)/max*100)}%;background:var(--blue)"></i></div><b class="val">${analyticsNumber(r[value])}</b></div>`).join("")}</div>`}
+function renderAnalyticsCharts(charts,report,attention=null){let html=analyticsBars("اتجاه الطلبات",charts.orders_trend,"date","eligible_orders")+analyticsBars("الطلبات حسب المدينة",charts.orders_by_city,"city","eligible_orders")+analyticsBars("أفضل المشاريع",charts.orders_by_project,"project","eligible_orders");if(report!=="financial")html+=analyticsBars("أفضل المندوبين",charts.top_riders,"rider","eligible_orders");if(charts.financial_by_project?.length){html+=`<div class="analyticsChart"><h3>الإيراد مقابل التكلفة والهامش حسب المشروع</h3>${charts.financial_by_project.map(r=>`<div class="lineItem"><b>${escapeHtml(r.project)}</b><span>إيراد ${analyticsNumber(r.client_revenue,true)} · تكلفة ${analyticsNumber(r.rider_cost,true)} · هامش ${analyticsNumber(r.operational_margin,true)}</span></div>`).join("")}</div>`}if(attention){html+=`<div class="analyticsChart"><h3>ما يحتاج انتباهك</h3>${attention.items?.length?attention.items.map(item=>`<div class="lineItem"><b>${escapeHtml(item.title)}</b><span>${analyticsNumber(item.count)}</span></div>`).join(""):'<div class="empty">لا توجد إجراءات معلقة.</div>'}</div>`}document.getElementById("analyticsCharts").innerHTML=html}
+function reportColumns(report,rows){const base={operations:[["rider","المندوب"],["city","المدينة"],["project","المشروع"],["branch","الفرع"],["supervisor","المشرف"],["eligible_orders","الطلبات المؤهلة"],["target","التارجت"],["achievement_pct","تحقيق التارجت %"],["worked_hours","ساعات العمل"],["orders_per_worked_hour","طلبات/ساعة"],["attendance_pct","الحضور %"],["late_count","تأخير"],["absence_count","غياب"],["early_leave_count","انصراف مبكر"],["employment_status","التوظيف"],["online","متصل"]],workforce:[["rider","المندوب"],["city","المدينة"],["project","المشروع"],["branch","الفرع"],["supervisor","المشرف"],["eligible_orders","الطلبات"],["target","التارجت"],["achievement_pct","تحقيق %"],["worked_hours","ساعات"],["orders_per_worked_hour","طلبات/ساعة"],["attendance_pct","الحضور %"],["late_count","تأخير"],["absence_count","غياب"],["bonus","بونص"],["payroll_cost","تكلفة الراتب"],["cost_per_order","تكلفة/طلب"],["employment_status","التوظيف"],["document_status","المستندات"],["segment","الشريحة"]],financial:[["contract","العقد"],["city","المدينة"],["branch","الفرع"],["rider","المندوب"],["eligible_orders","الطلبات المؤهلة"],["base_salary","الراتب الثابت"],["delivery_pay","أجر الطلبات"],["bonus","البونص"],["additions","إضافات"],["deductions","خصومات"],["payroll_cost","تكلفة المندوب"],["client_revenue","إيراد العميل"],["operational_margin","هامش التشغيل"],["cost_per_order","تكلفة/طلب"]]};return base[report]||base.operations}
+function analyticsDisplayValue(key,value){const map={ACTIVE:"نشط",SUSPENDED:"موقوف",TERMINATED:"منتهي",OK:"سليم",CRITICAL:"حرج",ATTENTION:"يحتاج انتباه",ZERO_ORDERS:"بلا طلبات",TARGET_ACHIEVED:"حقق التارجت",BELOW_TARGET:"أقل من التارجت"};return ["employment_status","document_status","segment"].includes(key)?(map[value]||value):value}
+function renderAnalyticsTable(report,rows){const columns=reportColumns(report,rows).filter(([key])=>rows.length?Object.hasOwn(rows[0],key):true),money=new Set(["bonus","payroll_cost","cost_per_order","base_salary","delivery_pay","additions","deductions","client_revenue","operational_margin"]),percent=new Set(["achievement_pct","attendance_pct"]);document.getElementById("analyticsHead").innerHTML="<tr>"+columns.map(([,label])=>`<th>${label}</th>`).join("")+"</tr>";document.getElementById("analyticsBody").innerHTML=rows.map(row=>"<tr>"+columns.map(([key])=>{let value=row[key];if(key==="online")value=value?"نعم":"لا";if(value===null||value===undefined)value="—";value=analyticsDisplayValue(key,value);return `<td>${money.has(key)?analyticsNumber(value,true):percent.has(key)&&value!=="—"?`${analyticsNumber(value)}%`:escapeHtml(String(value))}</td>`}).join("")+"</tr>").join("")||`<tr><td colspan="${columns.length}" style="color:var(--muted)">لا توجد بيانات للفلاتر المحددة</td></tr>`}
+async function loadAnalyticsReport(){setAnalyticsState("جارِ تحميل التقرير…");try{const [data,attention]=await Promise.all([api(`/fleet/analytics/${ANALYTICS.report}?`+analyticsQuery({page:ANALYTICS.page,page_size:50})),ANALYTICS.report==="executive"?api("/fleet/needs-attention"):Promise.resolve(null)]);ANALYTICS.total=data.pagination.total;renderAnalyticsKpis(data.kpis);renderAnalyticsCharts(data.charts,ANALYTICS.report,attention);renderAnalyticsTable(ANALYTICS.report,data.rows);document.getElementById("analyticsPageInfo").textContent=`صفحة ${data.pagination.page} من ${Math.max(data.pagination.pages,1)} · ${data.pagination.total} نتيجة`;const active=[],activeLabels={city_id:"المدينة",contract_id:"العقد",project_id:"المشروع",branch_id:"الفرع",supervisor_id:"المشرف",rider_id:"المندوب",employment_status:"التوظيف",online:"الاتصال"};const currentQuery=new URLSearchParams(analyticsQuery());Object.entries(activeLabels).forEach(([k,label])=>{const v=currentQuery.get(k);if(v)active.push(`${label}: ${v}`)});document.getElementById("analyticsActive").textContent=active.length?`الفلاتر النشطة: ${active.join(" · ")}`:"كل بيانات النطاق المسموح";const status=document.getElementById("analyticsFinancialState");if(["executive","financial"].includes(ANALYTICS.report)){status.style.display="block";status.textContent=data.financial_finalized?"الفترة المالية مغلقة — الأرقام تقرأ من اللقطات النهائية.":"الفترة المالية مفتوحة — الرواتب والإيراد والهامش قيم معاينة شهرية."}else status.style.display="none";setAnalyticsState("تم تحديث التقرير.","ok")}catch(e){document.getElementById("analyticsKpis").innerHTML="";document.getElementById("analyticsCharts").innerHTML="";document.getElementById("analyticsHead").innerHTML="";document.getElementById("analyticsBody").innerHTML='<tr><td>تعذّر تحميل التقرير. لم تُعرض قيم صفرية بديلة.</td></tr>';setAnalyticsState(e.message||"تعذّر تحميل التقرير.","error")}}
+async function downloadAnalyticsReport(){if(ANALYTICS.report==="executive")return;const r=await fetch(`/fleet/analytics/${ANALYTICS.report}/export?`+analyticsQuery(),{headers:{Authorization:"Bearer "+TOKEN}});if(!r.ok){alert("تعذّر تنزيل التقرير");return}const blob=await r.blob(),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`dou-${ANALYTICS.report}-${document.getElementById("analyticsFrom").value}-${document.getElementById("analyticsTo").value}.csv`;a.click();URL.revokeObjectURL(a.href)}
 
 async function loadTickets(){
   try{

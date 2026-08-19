@@ -510,7 +510,10 @@ class Project(Base):
 class DailyLog(Base):
     """سجل يومي للمندوب: تاريخ + مشروع + عدد أوردرات."""
     __tablename__ = "daily_logs"
-    __table_args__ = (UniqueConstraint("courier_id", "log_date", "project_id", name="uq_daily_courier_date_project"),)
+    __table_args__ = (
+        UniqueConstraint("courier_id", "log_date", "project_id", name="uq_daily_courier_date_project"),
+        Index("ix_daily_logs_tenant_date_project", "tenant_id", "log_date", "project_id"),
+    )
 
     id = Column(Integer, primary_key=True)
     courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
@@ -708,7 +711,10 @@ class PayrollPeriod(Base):
 class PayrollSnapshot(Base):
     """لقطة مبلغ مندوب ضمن فترة نهائية؛ تمنع تعديل إعدادات اليوم من تغيير التاريخ."""
     __tablename__ = "payroll_snapshots"
-    __table_args__ = (UniqueConstraint("payroll_period_id", "courier_id", name="uq_payroll_snapshot_period_courier"),)
+    __table_args__ = (
+        UniqueConstraint("payroll_period_id", "courier_id", name="uq_payroll_snapshot_period_courier"),
+        Index("ix_payroll_snapshot_tenant_period_branch", "tenant_id", "payroll_period_id", "contract_branch_id"),
+    )
 
     id = Column(Integer, primary_key=True)
     payroll_period_id = Column(Integer, ForeignKey("payroll_periods.id"), nullable=False, index=True)
@@ -729,7 +735,10 @@ class PayrollSnapshot(Base):
 class OperationalFinancialSnapshot(Base):
     """لقطة الإيراد التجاري والتكلفة المباشرة والهامش التشغيلي لفرع ضمن فترة نهائية."""
     __tablename__ = "operational_financial_snapshots"
-    __table_args__ = (UniqueConstraint("payroll_period_id", "contract_branch_id", name="uq_financial_snapshot_period_branch"),)
+    __table_args__ = (
+        UniqueConstraint("payroll_period_id", "contract_branch_id", name="uq_financial_snapshot_period_branch"),
+        Index("ix_financial_snapshot_tenant_period_project", "tenant_id", "payroll_period_id", "project_id"),
+    )
 
     id = Column(Integer, primary_key=True)
     payroll_period_id = Column(Integer, ForeignKey("payroll_periods.id"), nullable=False, index=True)

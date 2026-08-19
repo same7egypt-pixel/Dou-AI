@@ -159,6 +159,9 @@ def run_migrations(engine):
                 "CREATE UNIQUE INDEX IF NOT EXISTS uq_operational_import_fingerprint ON operational_import_batches (tenant_id, import_type, fingerprint)",
                 "CREATE INDEX IF NOT EXISTS ix_operational_import_tenant_type_status ON operational_import_batches (tenant_id, import_type, status)",
                 "CREATE INDEX IF NOT EXISTS ix_daily_logs_tenant_source_batch ON daily_logs (tenant_id, source_batch_id)",
+                "CREATE INDEX IF NOT EXISTS ix_daily_logs_tenant_date_project ON daily_logs (tenant_id, log_date, project_id)",
+                "CREATE INDEX IF NOT EXISTS ix_payroll_snapshot_tenant_period_branch ON payroll_snapshots (tenant_id, payroll_period_id, contract_branch_id)",
+                "CREATE INDEX IF NOT EXISTS ix_financial_snapshot_tenant_period_project ON operational_financial_snapshots (tenant_id, payroll_period_id, project_id)",
             ):
                 conn.execute(text(ddl))
             print("   ➕ migration: Phase 1 operational relationship indexes")

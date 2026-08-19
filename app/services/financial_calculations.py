@@ -281,3 +281,38 @@ def financial_rows(db: Session, tenant_id: int, month: str) -> tuple[list[dict],
         } for row in rows], True
     branches = db.query(ContractBranch).filter(ContractBranch.tenant_id == tenant_id, ContractBranch.is_active.is_(True)).all()
     return [branch_financial_preview(db, tenant_id, branch, month) for branch in branches], False
+
+
+def courier_financial_rows(db: Session, tenant_id: int, month: str) -> tuple[list[dict], bool]:
+    """Authoritative rider-level reporting rows derived from existing payroll/branch outputs.
+
+    This is intentionally a read composition inside the financial service: payroll
+    values come from ``payroll_rows`` and commercial rate/snapshot state comes
+    from ``financial_rows``.  It does not alter a bonus, payroll, revenue, or
+    margin rule.
+    """
+    payroll, payroll_finalized = payroll_rows(db, tenant_id, month)
+    branch_rows, financial_finalized = financial_rows(db, tenant_id, month)
+    by_branch = {row["contract_branch_id"]: row for row in branch_rows if row.get("contract_branch_id")}
+    rows = []
+    for row in payroll:
+        branch_id = row.get("contract_branch_id")
+        branch = by_branch.get(branch_id, {})
+        orders = int(row.get("eligible_orders") or (row.get("bonus") or {}).get("orders") or 0)
+        rate = float(branch.get("client_rate_per_order") or 0)
+        payroll_cost = round(float(row.get("net_pay") or 0), 2)
+        client_revenue = round(orders * rate, 2)
+        rows.append({
+            "courier_id": row["courier_id"], "project_id": row.get("project_id"),
+            "contract_branch_id": branch_id, "eligible_orders": orders,
+            "base_salary": round(float(row.get("base_salary") or 0), 2),
+            "delivery_pay": round(float(row.get("delivery_pay") or 0), 2),
+            "bonus": round(float((row.get("bonus") or {}).get("earned", 0) or 0), 2),
+            "additions": round(float(row.get("additions") or 0), 2),
+            "deductions": round(float(row.get("deductions") or 0), 2),
+            "payroll_cost": payroll_cost, "client_rate_per_order": round(rate, 2),
+            "client_revenue": client_revenue,
+            "operational_margin": round(client_revenue - payroll_cost, 2),
+            "finalized": bool(payroll_finalized and financial_finalized),
+        })
+    return rows, bool(payroll_finalized and financial_finalized)
