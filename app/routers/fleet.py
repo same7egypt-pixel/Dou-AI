@@ -68,6 +68,10 @@ def _report_rows(db: Session, user: User, report_type: str,
     q = db.query(Courier)
     if tenant_id is not None:
         q = q.filter(Courier.tenant_id == tenant_id)
+    if user.role == UserRole.SUPERVISOR:
+        q = q.filter(_supervisor_courier_scope(db, user.id))
+    elif user.role == UserRole.PROJECT_MANAGER:
+        q = q.filter(Courier.primary_project_id.in_(json.loads(user.managed_project_ids or "[]")))
     if contract_id:
         contract_projects = db.query(ContractBranch.project_id).filter(ContractBranch.contract_id == contract_id)
         q = q.filter(or_(Courier.contract_id == contract_id, Courier.primary_project_id.in_(contract_projects)))
@@ -145,8 +149,7 @@ def fleet_reports(report_type: str = Query("documents", pattern="^(documents|bon
                   user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in TENANT_ROLES:
         raise HTTPException(403, "Not a fleet account")
-    needed = "hr" if report_type == "documents" else "payroll"
-    _require_permission(user, needed)
+    _require_permission(user, "reports")
     return _report_rows(db, user, report_type, project_id, contract_id, branch_id, supervisor_id, doc_status, date_from, date_to)
 
 
@@ -413,7 +416,10 @@ def fleet_overview(user: User = Depends(get_current_user), db: Session = Depends
         "on_time_rate": round(sum(c.on_time_rate for c in couriers) / len(couriers), 1) if couriers else 0,
         "company_couriers": sum(1 for c in couriers if c.courier_type.value == "COMPANY"),
         "freelance_couriers": sum(1 for c in couriers if c.courier_type.value == "FREELANCER"),
-        "shifts_active": db.query(Shift).filter(Shift.tenant_id == user.tenant_id, Shift.status == ShiftStatus.ACTIVE).count() if user.tenant_id else db.query(Shift).count(),
+        "shifts_active": (sum(1 for c in couriers if c.shift_active)
+                          if user.role in (UserRole.SUPERVISOR, UserRole.PROJECT_MANAGER)
+                          else (db.query(Shift).filter(Shift.tenant_id == user.tenant_id, Shift.status == ShiftStatus.ACTIVE).count()
+                                if user.tenant_id else db.query(Shift).count())),
     }
 
 
@@ -696,8 +702,9 @@ def fleet_payouts(user: User = Depends(get_current_user), db: Session = Depends(
 
 @router.get("/orders")
 def fleet_orders(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role not in COMPANY_ROLES:
+    if user.role not in TENANT_ROLES:
         raise HTTPException(403, "Not a fleet account")
+    _require_permission(user, "reports")
     tenant_id = _scope(user, db)
     managed=json.loads(user.managed_project_ids or "[]") if user.role==UserRole.PROJECT_MANAGER else None
     ids = _courier_ids(db, tenant_id, user.id if user.role == UserRole.SUPERVISOR else None,managed)
@@ -719,12 +726,20 @@ def fleet_orders(user: User = Depends(get_current_user), db: Session = Depends(g
 
 @router.get("/shifts")
 def fleet_shifts(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role not in COMPANY_ROLES:
+    if user.role not in TENANT_ROLES:
         raise HTTPException(403, "Not a fleet account")
     _require_permission(user, "attendance")
     q = db.query(Shift)
     if user.tenant_id is not None:
         q = q.filter(Shift.tenant_id == user.tenant_id)
+    if user.role == UserRole.SUPERVISOR:
+        team = _courier_ids(db, user.tenant_id, user.id)
+        zones = {c.zone for c in db.query(Courier).filter(Courier.id.in_(team)).all() if c.zone}
+        q = q.filter(Shift.zone.in_(zones)) if zones else q.filter(text("1=0"))
+    elif user.role == UserRole.PROJECT_MANAGER:
+        managed = json.loads(user.managed_project_ids or "[]")
+        zones = {c.zone for c in db.query(Courier).filter(Courier.tenant_id == user.tenant_id, Courier.primary_project_id.in_(managed)).all() if c.zone}
+        q = q.filter(Shift.zone.in_(zones)) if zones else q.filter(text("1=0"))
     return [
         {
             "id": s.id, "name": s.name, "zone": s.zone or "", "fleet_id": s.fleet_id,

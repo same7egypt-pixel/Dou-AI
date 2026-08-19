@@ -300,6 +300,8 @@ def list_supervisors(user: User = Depends(get_current_user), db: Session = Depen
     q = db.query(User).filter(User.role == UserRole.SUPERVISOR)
     if user.tenant_id is not None:
         q = q.filter(User.tenant_id == user.tenant_id)
+    if user.role == UserRole.SUPERVISOR:
+        q = q.filter(User.id == user.id)
     out = []
     for u in q.all():
         cnt = db.query(Courier).filter(Courier.supervisor_id == u.id).count()
@@ -372,7 +374,8 @@ def assignment_candidates(user: User = Depends(get_current_user), db: Session = 
         raise HTTPException(403, "Supervisor only")
     couriers = db.query(Courier).filter(
         Courier.tenant_id == user.tenant_id,
-        Courier.supervisor_id.is_(None) | (Courier.supervisor_id != user.id),
+        Courier.supervisor_id.is_(None),
+        ~_supervisor_courier_scope(db, user.id),
     ).order_by(Courier.name).all()
     return [{
         "id": c.id, "name": c.name, "phone": c.phone,
@@ -402,7 +405,7 @@ def request_assignment(payload: dict, user: User = Depends(get_current_user), db
     if user.role != UserRole.SUPERVISOR:
         raise HTTPException(403, "Supervisor only")
     courier = db.get(Courier, payload.get("courier_id"))
-    if not courier or courier.tenant_id != user.tenant_id or courier.supervisor_id == user.id:
+    if not courier or courier.tenant_id != user.tenant_id or courier.supervisor_id is not None or _tenant_couriers(db, user).filter(Courier.id == courier.id).first():
         raise HTTPException(404, "Courier not available")
     pending = db.query(SupervisorAssignmentRequest).filter(
         SupervisorAssignmentRequest.supervisor_id == user.id,
@@ -592,6 +595,11 @@ def list_bonus(user: User = Depends(get_current_user), db: Session = Depends(get
     q = db.query(BonusPlan)
     if user.tenant_id is not None:
         q = q.filter(BonusPlan.tenant_id == user.tenant_id)
+    if user.role == UserRole.SUPERVISOR:
+        team = _tenant_couriers(db, user)
+        team_ids = [c.id for c in team.all()]
+        team_projects = [c.primary_project_id for c in _tenant_couriers(db, user).all() if c.primary_project_id]
+        q = q.filter(or_(BonusPlan.courier_id.in_(team_ids), and_(BonusPlan.courier_id.is_(None), BonusPlan.project_id.in_(team_projects)))) if team_ids or team_projects else q.filter(text("1=0"))
     q = q.filter(BonusPlan.contract_branch_id.isnot(None))
     out = []
     for p in q.all():
@@ -791,6 +799,8 @@ def hr_update_courier(cid: int, payload: dict, user: User = Depends(get_current_
         raise HTTPException(403, "This courier is not in your group")
     if "employment_status" in payload and user.role not in ACCOUNT_ADMIN_ROLES:
         raise HTTPException(403, "Only the company admin can activate or deactivate couriers")
+    if user.role == UserRole.SUPERVISOR and "supervisor_id" in payload:
+        raise HTTPException(403, "Only the company admin can reassign a courier")
     if "primary_project_id" in payload:
         project_id = payload.get("primary_project_id")
         project = db.get(Project, int(project_id)) if project_id else None
@@ -862,7 +872,10 @@ def add_note(cid: int, payload: dict, user: User = Depends(get_current_user), db
 def courier_notes(cid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in (COMPANY_ROLES + (UserRole.SUPERVISOR,)):
         raise HTTPException(403, "Not allowed")
-    notes = db.query(PerformanceNote).filter(PerformanceNote.courier_id == cid).order_by(PerformanceNote.id.desc()).all()
+    courier = _tenant_couriers(db, user).filter(Courier.id == cid).first()
+    if not courier:
+        raise HTTPException(404, "Courier not found")
+    notes = db.query(PerformanceNote).filter(PerformanceNote.courier_id == courier.id).order_by(PerformanceNote.id.desc()).all()
     return [{"id": n.id, "author_name": n.author_name, "note": n.note,
              "created_at": n.created_at.isoformat() if n.created_at else None} for n in notes]
 
@@ -897,8 +910,11 @@ def rate_courier(cid: int, payload: dict, user: User = Depends(get_current_user)
 def courier_logs(cid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role not in (COMPANY_ROLES + (UserRole.SUPERVISOR,)):
         raise HTTPException(403, "Not allowed")
-    logs = db.query(DailyLog).filter(DailyLog.courier_id == cid).order_by(DailyLog.log_date.desc()).all()
-    projects = {p.id: p.name for p in db.query(Project).all()}
+    courier = _tenant_couriers(db, user).filter(Courier.id == cid).first()
+    if not courier:
+        raise HTTPException(404, "Courier not found")
+    logs = db.query(DailyLog).filter(DailyLog.courier_id == courier.id).order_by(DailyLog.log_date.desc()).all()
+    projects = {p.id: p.name for p in db.query(Project).filter(Project.tenant_id == courier.tenant_id).all()}
     return [{"id": l.id, "date": l.log_date.isoformat(), "project": projects.get(l.project_id),
              "orders": l.orders_count, "notes": l.notes} for l in logs]
 
