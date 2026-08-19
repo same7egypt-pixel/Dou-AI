@@ -901,7 +901,10 @@ def decide_employee_request(rid:int,payload:dict,user:User=Depends(get_current_u
 
 @router.post("/me/documents")
 def upload_my_document(payload:dict,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
-    c=_my_courier(user,db);data=str(payload.get("file_data") or "")
+    c=_my_courier(user,db)
+    if c.employment_status != "ACTIVE":
+        raise HTTPException(403, "المندوب غير نشط لرفع المستندات")
+    data=str(payload.get("file_data") or "")
     if not data.startswith("data:") or len(data)>1_500_000:raise HTTPException(400,"الملف غير صالح أو أكبر من 1 ميجابايت")
     typ=payload.get("document_type")
     if typ not in ("IQAMA","DRIVING_LICENSE","VEHICLE_LICENSE","PASSPORT","INSURANCE","WORK_PERMIT"):raise HTTPException(400,"نوع المستند غير صحيح")

@@ -20,32 +20,50 @@ from .operating_structure import resolve_active_tenant_city_by_name, require_bra
 from .rider_management import canonical_phone, create_rider_record
 
 RIDER_IMPORT_HEADERS = [
-    "name", "phone", "initial_password", "city", "contract", "branch", "supervisor",
-    "supervisor_phone", "nationality", "iqama_number", "base_salary", "per_delivery_rate",
-    "status", "vehicle_type", "vehicle_plate",
+    "name", "mobile", "initial_password", "national_id_or_iqama", "nationality",
+    "city", "branch", "contract_or_project", "supervisor", "base_salary",
+    "employment_status", "rider_rate_per_order", "vehicle_type", "vehicle_plate",
 ]
+
+# The aliases preserve existing exported templates while the downloaded template stays clear.
+RIDER_IMPORT_ALIASES = {
+    "phone": "mobile", "iqama_number": "national_id_or_iqama", "contract": "contract_or_project",
+    "status": "employment_status", "per_delivery_rate": "rider_rate_per_order",
+}
+REQUIRED_RIDER_IMPORT_HEADERS = {
+    "name", "mobile", "initial_password", "city", "branch", "contract_or_project", "supervisor",
+}
 
 
 def _text(row: dict, key: str) -> str:
     return str(row.get(key) or "").strip()
 
 
-def _field_error(row_number: int, field: str, reason: str) -> dict:
-    return {"row": row_number, "field": field, "reason": reason}
+def _field_error(row_number: int, field: str, reason: str, value: Any = None) -> dict:
+    return {"row": row_number, "field": field, "value": "" if value is None else str(value), "reason": reason}
+
+
+def _canonical_row(row: dict) -> dict:
+    """Map legacy headers only; values remain input data until relationship resolution."""
+    canonical = {}
+    for key, value in row.items():
+        canonical[RIDER_IMPORT_ALIASES.get((key or "").strip(), (key or "").strip())] = value
+    return canonical
 
 
 def rider_template_csv() -> str:
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=RIDER_IMPORT_HEADERS)
+    """UTF-8 with BOM, one header row, and a non-personal QA example row."""
+    output = io.StringIO(newline="")
+    writer = csv.DictWriter(output, fieldnames=RIDER_IMPORT_HEADERS, lineterminator="\r\n")
     writer.writeheader()
     writer.writerow({
-        "name": "Example Rider", "phone": "966500000001", "initial_password": "ChangeMe123",
-        "city": "Riyadh", "contract": "Commercial Contract Name", "branch": "Riyadh",
-        "supervisor": "Supervisor Name", "supervisor_phone": "966500000010", "nationality": "Egyptian",
-        "iqama_number": "", "base_salary": "0", "per_delivery_rate": "0", "status": "ACTIVE",
-        "vehicle_type": "Bike", "vehicle_plate": "",
+        "name": "Example Rider", "mobile": "966500000001", "initial_password": "TempPass123",
+        "national_id_or_iqama": "2450000000", "nationality": "Egyptian", "city": "Riyadh",
+        "branch": "Riyadh", "contract_or_project": "HungerStation Riyadh", "supervisor": "Example Supervisor",
+        "base_salary": "2000", "employment_status": "ACTIVE", "rider_rate_per_order": "0",
+        "vehicle_type": "Motorcycle", "vehicle_plate": "QA-1234",
     })
-    return output.getvalue()
+    return "\ufeff" + output.getvalue()
 
 
 def _resolve_contract(db: Session, tenant_id: int, value: str) -> Contract:
@@ -73,82 +91,77 @@ def _resolve_branch(db: Session, tenant_id: int, contract: Contract, city_id: in
     return rows[0]
 
 
-def _resolve_supervisor(db: Session, tenant_id: int, name: str, phone: str) -> User:
-    query = db.query(User).filter(
+def _resolve_supervisor(db: Session, tenant_id: int, name: str) -> User:
+    if not name:
+        raise ValueError("اسم المشرف مطلوب")
+    rows = db.query(User).filter(
         User.tenant_id == tenant_id, User.role == UserRole.SUPERVISOR, User.is_active.is_(True),
-    )
-    if phone:
-        normalized = canonical_phone(phone)
-        query = query.filter(User.phone == normalized)
-    elif name:
-        query = query.filter(func.lower(User.name) == name.casefold())
-    else:
-        raise ValueError("اسم المشرف أو جواله مطلوب")
-    rows = query.all()
+        func.lower(User.name) == name.casefold(),
+    ).all()
     if len(rows) != 1:
-        raise ValueError("المشرف غير معروف أو غير فريد داخل الشركة")
+        raise ValueError("المشرف غير معروف أو غير فريد داخل الشركة؛ استخدم الاسم المسجل بالكامل")
     return rows[0]
 
 
 def normalize_rider_row(db: Session, tenant_id: int, row: dict, row_number: int) -> tuple[dict | None, list[dict], list[dict]]:
     errors: list[dict] = []
     warnings: list[dict] = []
-    name, raw_phone, password = _text(row, "name"), _text(row, "phone"), _text(row, "initial_password")
+    name, raw_phone, password = _text(row, "name"), _text(row, "mobile"), _text(row, "initial_password")
     if not name:
-        errors.append(_field_error(row_number, "name", "اسم المندوب مطلوب"))
+        errors.append(_field_error(row_number, "name", "اسم المندوب مطلوب", name))
     try:
         phone = canonical_phone(raw_phone)
     except ValueError as exc:
-        errors.append(_field_error(row_number, "phone", str(exc))); phone = ""
+        errors.append(_field_error(row_number, "mobile", str(exc), raw_phone)); phone = ""
     if password and len(password) < 8:
-        errors.append(_field_error(row_number, "initial_password", "كلمة المرور يجب ألا تقل عن 8 أحرف"))
+        errors.append(_field_error(row_number, "initial_password", "كلمة المرور يجب ألا تقل عن 8 أحرف", password))
     if not password:
-        errors.append(_field_error(row_number, "initial_password", "كلمة المرور الأولية مطلوبة"))
+        errors.append(_field_error(row_number, "initial_password", "كلمة المرور الأولية مطلوبة", password))
     if phone and db.query(Courier).filter(Courier.phone == phone).first():
-        errors.append(_field_error(row_number, "phone", "رقم الجوال مستخدم بالفعل"))
+        errors.append(_field_error(row_number, "mobile", "رقم الجوال مستخدم بالفعل", raw_phone))
     city = contract = branch = supervisor = None
     try:
         city = resolve_active_tenant_city_by_name(db, tenant_id, _text(row, "city"))
     except ValueError as exc:
-        errors.append(_field_error(row_number, "city", str(exc)))
+        errors.append(_field_error(row_number, "city", str(exc), _text(row, "city")))
     try:
-        contract = _resolve_contract(db, tenant_id, _text(row, "contract"))
+        contract = _resolve_contract(db, tenant_id, _text(row, "contract_or_project"))
     except ValueError as exc:
-        errors.append(_field_error(row_number, "contract", str(exc)))
+        errors.append(_field_error(row_number, "contract_or_project", str(exc), _text(row, "contract_or_project")))
     if city and contract:
         try:
             branch = _resolve_branch(db, tenant_id, contract, city.id, _text(row, "branch"))
         except ValueError as exc:
-            errors.append(_field_error(row_number, "branch", str(exc)))
+            errors.append(_field_error(row_number, "branch", str(exc), _text(row, "branch")))
     try:
-        supervisor = _resolve_supervisor(db, tenant_id, _text(row, "supervisor"), _text(row, "supervisor_phone"))
+        supervisor = _resolve_supervisor(db, tenant_id, _text(row, "supervisor"))
     except ValueError as exc:
-        errors.append(_field_error(row_number, "supervisor", str(exc)))
+        errors.append(_field_error(row_number, "supervisor", str(exc), _text(row, "supervisor")))
     if branch and supervisor and branch.supervisor_id != supervisor.id:
-        errors.append(_field_error(row_number, "supervisor", "المشرف لا يطابق نطاق الفرع والمدينة"))
-    status = (_text(row, "status") or "ACTIVE").upper()
+        errors.append(_field_error(row_number, "supervisor", "المشرف لا يطابق نطاق الفرع والمدينة", _text(row, "supervisor")))
+    status = (_text(row, "employment_status") or "ACTIVE").upper()
     if status not in {"ACTIVE", "SUSPENDED"}:
-        errors.append(_field_error(row_number, "status", "الحالة يجب أن تكون ACTIVE أو SUSPENDED"))
-    for numeric in ("base_salary", "per_delivery_rate"):
+        errors.append(_field_error(row_number, "employment_status", "الحالة يجب أن تكون ACTIVE أو SUSPENDED", status))
+    for numeric in ("base_salary", "rider_rate_per_order"):
         raw = _text(row, numeric)
         if raw:
             try:
                 if float(raw) < 0:
                     raise ValueError
             except ValueError:
-                errors.append(_field_error(row_number, numeric, "القيمة يجب أن تكون رقماً غير سالب"))
+                errors.append(_field_error(row_number, numeric, "القيمة يجب أن تكون رقماً غير سالب", raw))
     if errors:
         return None, errors, warnings
     try:
         # A final shared validation prevents preview and creation from drifting.
         require_branch_assignment(db, tenant_id, contract.id, branch.id, supervisor.id, city.id)
     except ValueError as exc:
-        return None, [_field_error(row_number, "assignment", str(exc))], warnings
+        return None, [_field_error(row_number, "assignment", str(exc), _text(row, "branch"))], warnings
     return {
         "row": row_number, "name": name, "phone": phone, "password": password, "city_id": city.id,
         "contract_id": contract.id, "contract_branch_id": branch.id, "supervisor_id": supervisor.id,
-        "nationality": _text(row, "nationality") or None, "iqama_number": _text(row, "iqama_number") or None,
-        "base_salary": _text(row, "base_salary") or 0, "per_delivery_rate": _text(row, "per_delivery_rate") or 0,
+        "nationality": _text(row, "nationality") or None, "iqama_number": _text(row, "national_id_or_iqama") or None,
+        "base_salary": _text(row, "base_salary") or 0, "per_delivery_rate": _text(row, "rider_rate_per_order") or 0,
         "employment_status": status, "vehicle_type": _text(row, "vehicle_type") or None,
         "vehicle_plate": _text(row, "vehicle_plate") or None, "country": "SA", "courier_type": "COMPANY",
     }, errors, warnings
@@ -167,18 +180,18 @@ def preview_rider_import(db: Session, user: User, csv_text: str, file_name: str 
     if previous and previous.status == "COMMITTED":
         raise ValueError("تم استيراد هذا الملف سابقاً؛ لن يعاد إدخال المناديب")
     try:
-        rows = list(csv.DictReader(io.StringIO(content)))
+        rows = [_canonical_row(row) for row in csv.DictReader(io.StringIO(content))]
     except csv.Error as exc:
         raise ValueError(f"ملف CSV غير صالح: {exc}")
     if not rows:
         raise ValueError("ملف CSV لا يحتوي صفوفاً")
-    if not set(RIDER_IMPORT_HEADERS[:7]).issubset(set(rows[0].keys() if rows else [])):
-        raise ValueError("رؤوس CSV المطلوبة: " + ", ".join(RIDER_IMPORT_HEADERS[:7]))
+    if not REQUIRED_RIDER_IMPORT_HEADERS.issubset(set(rows[0].keys() if rows else [])):
+        raise ValueError("رؤوس CSV المطلوبة: " + ", ".join(["name", "mobile", "initial_password", "city", "branch", "contract_or_project", "supervisor"]))
     valid, errors, warnings, seen = [], [], [], set()
     for number, row in enumerate(rows, 2):
         normalized, row_errors, row_warnings = normalize_rider_row(db, user.tenant_id, row, number)
         if normalized and normalized["phone"] in seen:
-            row_errors.append(_field_error(number, "phone", "رقم الجوال مكرر داخل الملف")); normalized = None
+            row_errors.append(_field_error(number, "mobile", "رقم الجوال مكرر داخل الملف", _text(row, "mobile"))); normalized = None
         if normalized:
             seen.add(normalized["phone"]); valid.append(normalized)
         errors.extend(row_errors); warnings.extend(row_warnings)

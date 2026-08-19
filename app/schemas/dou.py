@@ -91,6 +91,7 @@ class CourierOut(CourierCreate):
     documents_valid: Optional[bool] = True
     lat: Optional[float] = None
     lng: Optional[float] = None
+    bank_iban: Optional[str] = None
 
     class Config:
         from_attributes = True
