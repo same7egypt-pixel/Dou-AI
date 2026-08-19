@@ -11,10 +11,18 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models.entities import (
     Attendance, AuditLog, BonusPlan, BroadcastMessage, Contract, ContractBranch, Courier, CourierRating,
-    DailyLog, LeaveRequest, PerformanceNote, Project, Tenant, User, UserRole,
+    DailyLog, GeoCity, LeaveRequest, PerformanceNote, Project, Tenant, TenantOperatingCity, User, UserRole,
     SupervisorAssignmentRequest, ProjectTransfer, PayrollAdjustment, EmployeeRequest, CourierDocumentSubmission,
 )
 from .auth import get_current_user, hash_password
+from ..services.operating_structure import (
+    ensure_tenant_operating_city, find_or_create_city, operating_city_counts,
+    require_active_tenant_city, resolve_active_tenant_city_by_name, validate_supervisor_for_branch,
+)
+from ..services.financial_calculations import (
+    bonus_plan_for_courier, calculate_target_bonus as _calculate_target_bonus,
+    calculate_courier_bonus, financial_rows, finalize_payroll_period, payroll_rows,
+)
 
 router = APIRouter(prefix="/hr", tags=["hr"])
 
@@ -46,24 +54,8 @@ def _supervisor_courier_scope(db: Session, supervisor_id: int):
 
 def calculate_target_bonus(orders: int, target: int, target_bonus: float,
                            over_target_rate: float) -> dict:
-    """حساب بونص مشروع شهري.
-
-    أقل من التارجت = صفر. عند بلوغ التارجت يستحق المبلغ الأساسي كاملًا،
-    ثم يضاف سعر كل طلب منفذ فوق التارجت.
-    """
-    orders = max(int(orders or 0), 0)
-    target = max(int(target or 0), 0)
-    target_bonus = max(float(target_bonus or 0), 0.0)
-    over_target_rate = max(float(over_target_rate or 0), 0.0)
-    achieved = target > 0 and orders >= target
-    over_orders = max(orders - target, 0) if achieved else 0
-    earned = target_bonus + over_orders * over_target_rate if achieved else 0.0
-    return {
-        "achieved": achieved,
-        "remaining_orders": max(target - orders, 0),
-        "over_orders": over_orders,
-        "earned": round(earned, 2),
-    }
+    """واجهة متوافقة لمسارات HR؛ المصدر المرجعي هو الخدمة المالية."""
+    return _calculate_target_bonus(orders, target, target_bonus, over_target_rate)
 
 
 def _daily_report_data(db: Session, user: User, selected: date, project_id=None, contract_id=None, branch_id=None,
@@ -119,13 +111,8 @@ def _daily_report_data(db: Session, user: User, selected: date, project_id=None,
         if attendance_status == "PRESENT" and not attendances: continue
         if attendance_status == "ABSENT" and (attendances or c.is_on_leave): continue
         if attendance_status == "LEAVE" and not c.is_on_leave: continue
-        plan = None
-        if pid:
-            plan = db.query(BonusPlan).filter(BonusPlan.tenant_id == c.tenant_id,
-                BonusPlan.project_id == pid, BonusPlan.courier_id == c.id).first()
-            if not plan:
-                plan = db.query(BonusPlan).filter(BonusPlan.tenant_id == c.tenant_id,
-                    BonusPlan.project_id == pid, BonusPlan.courier_id.is_(None)).first()
+        # خطط البونص تُختار حصراً من المحرك الموحد: خطة المندوب أولاً ثم خطة الفرع الفعالة.
+        plan = bonus_plan_for_courier(db, c, period_end) if pid and pid == c.primary_project_id else None
         target = plan.target_orders if plan else 0
         result = calculate_target_bonus(month_orders, target, plan.bonus_amount if plan else 0,
                                         plan.over_target_rate if plan else 0)
@@ -228,29 +215,20 @@ def _courier_json(c: Courier, db: Session, month: str = None):
     logs = db.query(DailyLog).filter(
         DailyLog.courier_id == c.id, DailyLog.log_date >= start, DailyLog.log_date < end
     ).all()
+    # العدّ التشغيلي العام للتوافق مع الشاشات القديمة؛ البونص نفسه يعتمد فقط على مشروع المندوب الحالي.
     month_orders = sum(l.orders_count or 0 for l in logs)
-    plans = db.query(BonusPlan).filter(
-        BonusPlan.tenant_id == c.tenant_id,
-        (BonusPlan.courier_id == c.id) | (BonusPlan.courier_id.is_(None))
-    ).all()
-    bonus = {"total": 0.0, "details": []}
-    # خطط المندوب الخاصة تتفوق على العامة لنفس المشروع
-    covered = set()
-    for p in sorted(plans, key=lambda x: 1 if x.courier_id is None else 0):
-        po = sum(l.orders_count or 0 for l in logs if l.project_id == p.project_id)
-        pj = db.get(Project, p.project_id)
-        result = calculate_target_bonus(po, p.target_orders, p.bonus_amount, p.over_target_rate)
-        b = result["earned"]
-        if p.project_id in covered:
-            continue
-        covered.add(p.project_id)
-        bonus["total"] += b
-        bonus["details"].append({
-            "project": pj.name if pj else "—", "target": p.target_orders, "orders": po,
-            "earned": b, "scope": "courier" if p.courier_id else "project",
-            "achieved": result["achieved"], "remaining_orders": result["remaining_orders"],
-            "over_orders": result["over_orders"], "over_target_rate": p.over_target_rate,
-        })
+    calculated_bonus = calculate_courier_bonus(db, c, month)
+    project = db.get(Project, c.primary_project_id) if c.primary_project_id else None
+    bonus = {
+        "total": calculated_bonus["earned"],
+        "details": ([{
+            "project": project.name if project else "—", "target": calculated_bonus["target"],
+            "orders": calculated_bonus["orders"], "earned": calculated_bonus["earned"],
+            "scope": calculated_bonus["source"], "achieved": calculated_bonus["achieved"],
+            "remaining_orders": calculated_bonus["remaining_orders"], "over_orders": calculated_bonus["over_orders"],
+            "over_target_rate": calculated_bonus["over_target_rate"], "plan_id": calculated_bonus["plan_id"],
+        }] if calculated_bonus["plan_id"] else []),
+    }
     ratings = db.query(CourierRating).filter(CourierRating.courier_id == c.id).all()
     avg_rating = round(sum(r.score for r in ratings) / len(ratings), 1) if ratings else None
     risks = []
@@ -265,6 +243,7 @@ def _courier_json(c: Courier, db: Session, month: str = None):
         risks.append("موقوف")
     return {
         "id": c.id, "name": c.name, "phone": c.phone,
+        "city_id": c.city_id, "work_city": c.work_city,
         "supervisor_id": c.supervisor_id,
         "platform": c.platform, "platform_courier_id": c.platform_courier_id,
         "iqama_expiry": c.iqama_expiry.isoformat() if c.iqama_expiry else None,
@@ -289,6 +268,75 @@ def _courier_json(c: Courier, db: Session, month: str = None):
         "bonus": bonus, "risks": risks,
         "shift_started_at": c.shift_started_at.isoformat() if c.shift_started_at else None,
     }
+
+
+# ===================== الشركة: مدن التشغيل =====================
+
+@router.get("/operating-cities")
+def list_operating_cities(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Company management required")
+    rows = db.query(TenantOperatingCity).filter(
+        TenantOperatingCity.tenant_id == user.tenant_id,
+    ).order_by(TenantOperatingCity.is_active.desc(), TenantOperatingCity.id).all()
+    out = []
+    for row in rows:
+        city = db.get(GeoCity, row.geo_city_id)
+        if not city:
+            continue
+        out.append({
+            "id": city.id,
+            "name": row.display_name or city.name,
+            "reference_name": city.name,
+            "active": bool(row.is_active and city.active),
+            "counts": operating_city_counts(db, user.tenant_id, city.id),
+        })
+    return out
+
+
+@router.post("/operating-cities")
+def create_operating_city(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Company management required")
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "اسم المدينة مطلوب")
+    tenant = db.get(Tenant, user.tenant_id)
+    if not tenant:
+        raise HTTPException(404, "Company not found")
+    try:
+        city = find_or_create_city(db, tenant, name)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    link = ensure_tenant_operating_city(db, tenant, city, active=True)
+    if payload.get("display_name"):
+        link.display_name = str(payload["display_name"]).strip() or None
+    db.commit()
+    _log(db, user, f"فعّل مدينة تشغيل {link.display_name or city.name}", "operating_city", city.id)
+    return {"ok": True, "id": city.id, "name": link.display_name or city.name, "active": True}
+
+
+@router.patch("/operating-cities/{city_id}")
+def update_operating_city(city_id: int, payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Company management required")
+    link = db.query(TenantOperatingCity).filter(
+        TenantOperatingCity.tenant_id == user.tenant_id,
+        TenantOperatingCity.geo_city_id == city_id,
+    ).first()
+    city = db.get(GeoCity, city_id)
+    if not link or not city:
+        raise HTTPException(404, "Operating city not found")
+    if "name" in payload:
+        display = str(payload.get("name") or "").strip()
+        if not display:
+            raise HTTPException(400, "اسم المدينة مطلوب")
+        link.display_name = display
+    if "active" in payload:
+        link.is_active = bool(payload["active"])
+    db.commit()
+    _log(db, user, f"عدّل مدينة التشغيل {link.display_name or city.name}", "operating_city", city.id)
+    return {"ok": True, "id": city.id, "name": link.display_name or city.name, "active": bool(link.is_active and city.active)}
 
 
 # ===================== الأدمن: مشرفون =====================
@@ -688,6 +736,7 @@ def list_bonus(user: User = Depends(get_current_user), db: Session = Depends(get
     if user.tenant_id is not None:
         q = q.filter(BonusPlan.tenant_id == user.tenant_id)
     if user.role == UserRole.SUPERVISOR:
+        q = q.filter(BonusPlan.is_active.is_(True))
         team = _tenant_couriers(db, user)
         team_ids = [c.id for c in team.all()]
         team_projects = [c.primary_project_id for c in _tenant_couriers(db, user).all() if c.primary_project_id]
@@ -706,6 +755,9 @@ def list_bonus(user: User = Depends(get_current_user), db: Session = Depends(get
             "is_project_plan": p.courier_id is None,
             "target_orders": p.target_orders, "bonus_amount": p.bonus_amount,
             "over_target_rate": p.over_target_rate,
+            "is_active": bool(p.is_active),
+            "effective_from": p.effective_from.isoformat() if p.effective_from else None,
+            "effective_to": p.effective_to.isoformat() if p.effective_to else None,
         })
     return out
 
@@ -749,11 +801,23 @@ def create_bonus(payload: dict, user: User = Depends(get_current_user), db: Sess
         dup = db.query(BonusPlan).filter(BonusPlan.courier_id.is_(None), BonusPlan.contract_branch_id == branch.id).first()
         if dup:
             raise HTTPException(400, "هناك خطة بونص عامة لهذا المشروع")
+    def _bonus_date(value, label):
+        if not value:
+            return None
+        try:
+            return date.fromisoformat(str(value))
+        except (TypeError, ValueError):
+            raise HTTPException(400, f"{label} غير صالح — استخدم YYYY-MM-DD")
+    effective_from = _bonus_date(payload.get("effective_from"), "effective_from") or date.today()
+    effective_to = _bonus_date(payload.get("effective_to"), "effective_to")
+    if effective_to and effective_to < effective_from:
+        raise HTTPException(400, "تاريخ انتهاء الخطة يسبق تاريخ بدايتها")
     p = BonusPlan(
         tenant_id=user.tenant_id, courier_id=cid, project_id=pid, contract_branch_id=branch.id,
         target_orders=target_orders,
         bonus_amount=bonus_amount,
         over_target_rate=over_target_rate,
+        is_active=bool(payload.get("is_active", True)), effective_from=effective_from, effective_to=effective_to,
     )
     db.add(p)
     db.commit()
@@ -778,7 +842,20 @@ def update_bonus(bid: int, payload: dict, user: User = Depends(get_current_user)
     if target <= 0 or amount < 0 or rate < 0:
         raise HTTPException(400, "راجع التارجت ومبالغ البونص")
     p.target_orders, p.bonus_amount, p.over_target_rate = target, amount, rate
+    if "is_active" in payload:
+        p.is_active = bool(payload["is_active"])
+    for key in ("effective_from", "effective_to"):
+        if key in payload:
+            raw = payload.get(key)
+            try:
+                value = date.fromisoformat(str(raw)) if raw else None
+            except (TypeError, ValueError):
+                raise HTTPException(400, f"{key} غير صالح — استخدم YYYY-MM-DD")
+            setattr(p, key, value)
+    if p.effective_from and p.effective_to and p.effective_to < p.effective_from:
+        raise HTTPException(400, "تاريخ انتهاء الخطة يسبق تاريخ بدايتها")
     db.commit()
+    _log(db, user, f"عدّل خطة بونص #{p.id}", "bonus", p.id)
     return {"ok": True}
 
 
@@ -789,10 +866,12 @@ def delete_bonus(bid: int, user: User = Depends(get_current_user), db: Session =
     p = db.get(BonusPlan, bid)
     if not p or (user.tenant_id is not None and p.tenant_id != user.tenant_id):
         raise HTTPException(404, "Bonus plan not found")
-    db.delete(p)
+    p.is_active = False
+    if not p.effective_to:
+        p.effective_to = date.today()
     db.commit()
-    _log(db, user, f"حذف خطة بونص #{bid}", "bonus", bid)
-    return {"ok": True}
+    _log(db, user, f"عطّل خطة بونص #{bid}", "bonus", bid)
+    return {"ok": True, "status": "INACTIVE"}
 
 
 # ===================== الأدمن/المشرف: إجازات =====================
@@ -908,11 +987,18 @@ def hr_update_courier(cid: int, payload: dict, user: User = Depends(get_current_
                 account.phone = phone
 
     selected_branch = None
+    assignment_fields = {"city_id", "work_city", "contract_id", "contract_branch_id", "primary_project_id", "supervisor_id"}
     if "contract_branch_id" in payload:
         branch_id = payload.get("contract_branch_id")
         selected_branch = db.get(ContractBranch, int(branch_id)) if branch_id else None
         if not selected_branch or selected_branch.tenant_id != user.tenant_id or not selected_branch.is_active:
             raise HTTPException(400, "اختر فرع تشغيل نشط تابعاً للشركة")
+        try:
+            city = require_active_tenant_city(db, user.tenant_id, selected_branch.city_id)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc))
+        if payload.get("city_id") and int(payload["city_id"]) != city.id:
+            raise HTTPException(400, "المدينة المختارة لا تطابق فرع التشغيل")
         contract = db.get(Contract, selected_branch.contract_id)
         project = db.get(Project, selected_branch.project_id) if selected_branch.project_id else None
         if not contract or contract.tenant_id != user.tenant_id or not project or project.tenant_id != user.tenant_id:
@@ -923,49 +1009,18 @@ def hr_update_courier(cid: int, payload: dict, user: User = Depends(get_current_
         c.contract_id = contract.id
         c.primary_project_id = project.id
         c.platform = project.name
-        c.work_city = selected_branch.city
+        c.city_id = city.id
+        c.work_city = selected_branch.city or city.name
         c.supervisor_id = selected_branch.supervisor_id
         if old_project_id != project.id:
             db.add(ProjectTransfer(tenant_id=user.tenant_id, courier_id=c.id,
                                    from_project_id=old_project_id, to_project_id=project.id,
                                    changed_by=user.id, note="تعديل فرع/مشرف من ملف السائق"))
-    else:
-        if "contract_id" in payload:
-            contract_id = payload.get("contract_id")
-            contract = db.get(Contract, int(contract_id)) if contract_id else None
-            if contract and contract.tenant_id != user.tenant_id:
-                raise HTTPException(400, "العقد غير تابع للشركة")
-            c.contract_id = contract.id if contract else None
-            changes.append("العقد")
-        if "primary_project_id" in payload:
-            project_id = payload.get("primary_project_id")
-            project = db.get(Project, int(project_id)) if project_id else None
-            if project and project.tenant_id != user.tenant_id:
-                raise HTTPException(400, "المشروع غير تابع للشركة")
-            if user.role == UserRole.SUPERVISOR and project_id:
-                raise HTTPException(403, "تغيير مشروع السائق يحتاج موافقة إدارة الشركة")
-            old_project_id = c.primary_project_id
-            if project and old_project_id != project.id:
-                db.add(ProjectTransfer(tenant_id=user.tenant_id, courier_id=c.id,
-                                       from_project_id=old_project_id, to_project_id=project.id,
-                                       changed_by=user.id, note="تعديل من ملف السائق"))
-            c.primary_project_id = project.id if project else None
-            c.platform = project.name if project else None
-            changes.append("المشروع")
-        if "supervisor_id" in payload:
-            supervisor_id = payload.get("supervisor_id")
-            supervisor = db.get(User, int(supervisor_id)) if supervisor_id else None
-            if supervisor and (supervisor.tenant_id != user.tenant_id or supervisor.role != UserRole.SUPERVISOR):
-                raise HTTPException(400, "المشرف المختار غير تابع للشركة")
-            if c.supervisor_id != (supervisor.id if supervisor else None):
-                changes.append(f"المشرف: {c.supervisor_id or '—'} → {supervisor.id if supervisor else '—'}")
-                c.supervisor_id = supervisor.id if supervisor else None
-        if "work_city" in payload:
-            c.work_city = str(payload.get("work_city") or "").strip() or None
-            changes.append("المدينة")
+    elif any(field in payload for field in assignment_fields):
+        raise HTTPException(400, "حدّد فرع التشغيل لتغيير المدينة أو العقد أو المشروع أو المشرف")
 
     allowed = {
-        "platform", "platform_courier_id", "iqama_expiry", "license_expiry",
+        "platform_courier_id", "iqama_expiry", "license_expiry",
         "vehicle_license_expiry", "passport_expiry", "insurance_expiry", "inspection_expiry", "work_permit_expiry",
         "vehicle_type", "vehicle_plate", "zone", "nationality", "iqama_number", "passport_number",
         "emergency_name", "emergency_phone", "photo_url", "is_on_leave", "employment_status",
@@ -1233,24 +1288,20 @@ def my_logs(user: User = Depends(get_current_user), db: Session = Depends(get_db
     projects = {p.id: p.name for p in db.query(Project).all()}
     month_orders = sum(l.orders_count or 0 for l in cur_logs)
     today_orders = sum(l.orders_count or 0 for l in cur_logs if l.log_date == today)
-    plans = db.query(BonusPlan).filter(
-        BonusPlan.tenant_id == c.tenant_id,
-        (BonusPlan.courier_id == c.id) | (BonusPlan.courier_id.is_(None))
-    ).all()
-    bonus = 0.0
+    calculated_bonus = calculate_courier_bonus(db, c, cur)
+    bonus = calculated_bonus["earned"]
     bonus_details = []
-    covered = set()
-    for p in sorted(plans, key=lambda x: 1 if x.courier_id is None else 0):
-        if p.project_id in covered:
-            continue
-        covered.add(p.project_id)
-        po = sum(l.orders_count or 0 for l in cur_logs if l.project_id == p.project_id)
-        result = calculate_target_bonus(po, p.target_orders, p.bonus_amount, p.over_target_rate)
-        bonus += result["earned"]
+    if calculated_bonus["plan_id"]:
         bonus_details.append({
-            "project": projects.get(p.project_id, "—"), "orders": po,
-            "target": p.target_orders, "target_bonus": p.bonus_amount,
-            "over_target_rate": p.over_target_rate, **result,
+            "project": projects.get(c.primary_project_id, "—"),
+            "orders": calculated_bonus["orders"],
+            "target": calculated_bonus["target"],
+            "target_bonus": calculated_bonus["bonus_amount"],
+            "over_target_rate": calculated_bonus["over_target_rate"],
+            "achieved": calculated_bonus["achieved"],
+            "remaining_orders": calculated_bonus["remaining_orders"],
+            "over_orders": calculated_bonus["over_orders"],
+            "earned": calculated_bonus["earned"],
         })
     # الشهور السابقة (آخر 6)
     months = []
@@ -1403,32 +1454,81 @@ def _effective_contract(courier, contracts, db):
     return max(matches,key=lambda x:(priority.get(x.scope_type or "LEGACY",0),x.created_at or datetime.min),default=None)
 
 @router.get("/payroll")
-def hr_payroll(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """كشف رواتب شهر محدد: راتب ثابت + (أوردرات × أجر التوصيلة) + بونص."""
+def hr_payroll(month: str = None, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """كشف الرواتب من محرك واحد؛ الفترة النهائية تُقرأ من اللقطات المحفوظة."""
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Admin only")
+    selected_month = month or date.today().strftime("%Y-%m")
+    try:
+        calculated, finalized = payroll_rows(db, user.tenant_id, selected_month)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    couriers = {row.id: row for row in db.query(Courier).filter(Courier.tenant_id == user.tenant_id).all()}
     rows = []
-    grand = {"fixed": 0.0, "delivery": 0.0, "bonus": 0.0, "total": 0.0}
-    contracts=db.query(Contract).filter(Contract.tenant_id==user.tenant_id,Contract.status=="ACTIVE").all()
-    for c in _tenant_couriers(db, user).all():
-        j = _courier_json(c, db)
-        ct=_effective_contract(c,contracts,db)
-        fixed = (ct.base_salary if ct else c.base_salary) or 0
-        rate = (ct.per_delivery_rate if ct else c.per_delivery_rate) or 0
-        delivery = (j["month_orders"] * rate)
-        bonus = j["bonus"]["total"]
-        adjs=db.query(PayrollAdjustment).filter(PayrollAdjustment.courier_id==c.id,PayrollAdjustment.month==date.today().strftime("%Y-%m")).all()
-        additions=sum(x.amount or 0 for x in adjs if x.kind=="OVERTIME"); deductions=sum(x.amount or 0 for x in adjs if x.kind!="OVERTIME")
-        total = round(fixed + delivery + bonus + additions - deductions, 2)
-        rows.append({"id": c.id, "name": c.name, "phone": c.phone, "platform": c.platform or "—",
-                     "zone": c.zone, "orders": j["month_orders"], "fixed": round(fixed, 2), "contract":ct.name if ct else "—",
-                     "delivery": round(delivery, 2), "bonus": round(bonus, 2), "additions":round(additions,2),"deductions":round(deductions,2), "total": total,
-                     "average_per_order": round(delivery / j["month_orders"], 2) if j["month_orders"] else 0,
-                     "bank_iban": c.bank_iban or "—"})
-        grand["fixed"] += fixed; grand["delivery"] += delivery
-        grand["bonus"] += bonus; grand["total"] += total
-    return {"month": date.today().strftime("%Y-%m"), "rows": rows, "totals": {k: round(v, 2) for k, v in grand.items()},
-            "couriers_count": len(rows)}
+    totals = {"fixed": 0.0, "delivery": 0.0, "bonus": 0.0, "additions": 0.0, "deductions": 0.0, "total": 0.0}
+    for row in calculated:
+        courier = couriers.get(row["courier_id"])
+        if not courier:
+            continue
+        bonus = float((row.get("bonus") or {}).get("earned", row.get("bonus_pay", 0)) or 0)
+        fixed = float(row["base_salary"] or 0)
+        delivery = float(row["delivery_pay"] or 0)
+        additions = float(row["additions"] or 0)
+        deductions = float(row["deductions"] or 0)
+        total = float(row["net_pay"] or 0)
+        orders = int(row.get("eligible_orders", (row.get("bonus") or {}).get("orders", 0)) or 0)
+        rows.append({
+            "id": courier.id, "name": courier.name, "phone": courier.phone, "platform": courier.platform or "—",
+            "zone": courier.zone, "orders": orders, "fixed": round(fixed, 2),
+            "delivery": round(delivery, 2), "bonus": round(bonus, 2), "additions": round(additions, 2),
+            "deductions": round(deductions, 2), "total": round(total, 2),
+            "average_per_order": round(delivery / orders, 2) if orders else 0,
+            "bank_iban": courier.bank_iban or "—", "finalized": finalized,
+        })
+        for key, value in (("fixed", fixed), ("delivery", delivery), ("bonus", bonus), ("additions", additions), ("deductions", deductions), ("total", total)):
+            totals[key] += value
+    return {"month": selected_month, "finalized": finalized, "rows": rows,
+            "totals": {key: round(value, 2) for key, value in totals.items()}, "couriers_count": len(rows)}
+
+
+@router.post("/payroll/finalize")
+def finalize_payroll(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in ACCOUNT_ADMIN_ROLES:
+        raise HTTPException(403, "Company admin required")
+    selected_month = str(payload.get("month") or date.today().strftime("%Y-%m"))
+    try:
+        result = finalize_payroll_period(db, user.tenant_id, selected_month, user.id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    _log(db, user, f"أقفل فترة الرواتب {selected_month}", "payroll_period", result["period_id"])
+    return result
+
+
+@router.get("/financial/branches")
+def branch_financial_report(month: str = None, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Company financial access required")
+    selected_month = month or date.today().strftime("%Y-%m")
+    try:
+        rows, finalized = financial_rows(db, user.tenant_id, selected_month)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    contracts = {row.id: row for row in db.query(Contract).filter(Contract.tenant_id == user.tenant_id).all()}
+    branches = {row.id: row for row in db.query(ContractBranch).filter(ContractBranch.tenant_id == user.tenant_id).all()}
+    for row in rows:
+        contract = contracts.get(row["contract_id"])
+        branch = branches.get(row["contract_branch_id"])
+        row["contract"] = contract.name if contract else "—"
+        row["client"] = (contract.client_name if contract and contract.client_name else (contract.name if contract else "—"))
+        row["city"] = branch.city if branch else "—"
+    totals = {
+        "eligible_orders": sum(int(row["eligible_orders"] or 0) for row in rows),
+        "client_revenue": round(sum(float(row["client_revenue"] or 0) for row in rows), 2),
+        "direct_rider_cost": round(sum(float(row["direct_rider_cost"] or 0) for row in rows), 2),
+        "operational_margin": round(sum(float(row["operational_margin"] or 0) for row in rows), 2),
+    }
+    return {"month": selected_month, "finalized": finalized, "rows": rows, "totals": totals,
+            "label": "Operational Margin"}
 
 
 # ===================== الأدمن: عقود التعاقد + التجديد =====================
@@ -1457,10 +1557,13 @@ def hr_contracts(user: User = Depends(get_current_user), db: Session = Depends(g
                      "scope_type":ct.scope_type or "LEGACY","project_id":ct.project_id,"project":project.name if project else None,
                      "courier_ids":ids,"courier_names":names,"duration_months": ct.duration_months, "couriers_count": len(ids),
                      "base_salary": ct.base_salary or 0, "per_delivery_rate": ct.per_delivery_rate or 0,
+                     "client_name": ct.client_name or ct.name,
+                     "client_rate_per_order": ct.client_rate_per_order,
+                     "client_rate_effective_from": ct.client_rate_effective_from.isoformat() if ct.client_rate_effective_from else None,
                      "status": status, "days_left": days,
                      "start_date": ct.start_date.isoformat() if ct.start_date else None,
                      "end_date": ct.end_date.isoformat() if ct.end_date else None})
-        rows[-1]["branches"]=[{"id":b.id,"city":b.city,"project_id":b.project_id,"project":db.get(Project,b.project_id).name if b.project_id and db.get(Project,b.project_id) else None,"supervisor_id":b.supervisor_id,"supervisor":db.get(User,b.supervisor_id).name if b.supervisor_id and db.get(User,b.supervisor_id) else None,"couriers_count":db.query(Courier).filter(Courier.contract_branch_id==b.id).count()} for b in branches]
+        rows[-1]["branches"]=[{"id":b.id,"city_id":b.city_id,"city":b.city,"project_id":b.project_id,"project":db.get(Project,b.project_id).name if b.project_id and db.get(Project,b.project_id) else None,"supervisor_id":b.supervisor_id,"supervisor":db.get(User,b.supervisor_id).name if b.supervisor_id and db.get(User,b.supervisor_id) else None,"couriers_count":db.query(Courier).filter(Courier.contract_branch_id==b.id).count()} for b in branches]
     rows.sort(key=lambda r: (r["days_left"] or 999))
     return {"rows": rows, "expiring_soon": sum(1 for r in rows if r["status"] in ("EXPIRING", "EXPIRED"))}
 
@@ -1488,13 +1591,15 @@ def create_contract(payload: dict, user: User = Depends(get_current_user), db: S
             raise HTTPException(400, "end_date غير صالح — استخدم YYYY-MM-DD")
     else:
         end_dt = date.today() + timedelta(days=365)
+    # حقول التعويض القديمة تبقى للتوافق فقط؛ العقد التجاري لا يحدد راتب أو أجر مندوب.
     try:
         base_salary = float(payload.get("base_salary") or 0)
         per_delivery_rate = float(payload.get("per_delivery_rate") or 0)
+        client_rate = float(payload["client_rate_per_order"]) if payload.get("client_rate_per_order") not in (None, "") else None
     except (ValueError, TypeError):
-        raise HTTPException(400, "قيم التعويض غير صالحة")
-    if base_salary < 0 or per_delivery_rate < 0:
-        raise HTTPException(400, "قيم التعويض لا يمكن أن تكون سالبة")
+        raise HTTPException(400, "قيم العقد غير صالحة")
+    if base_salary < 0 or per_delivery_rate < 0 or (client_rate is not None and client_rate < 0):
+        raise HTTPException(400, "قيم العقد لا يمكن أن تكون سالبة")
     contract_type = str(payload.get("contract_type") or "COMMERCIAL").upper()
     if contract_type not in ("COMMERCIAL", "FIXED", "PER_DELIVERY"):
         raise HTTPException(400, "نوع العقد غير صالح")
@@ -1505,24 +1610,31 @@ def create_contract(payload: dict, user: User = Depends(get_current_user), db: S
     if not isinstance(cities,list) or not cities: raise HTTPException(400,"أضف مدينة واحدة على الأقل للعقد")
     clean=[]
     for item in cities:
-        city=(item.get("city") if isinstance(item,dict) else item or "").strip()
-        sid=item.get("supervisor_id") if isinstance(item,dict) else None
-        if not city: continue
+        item = item if isinstance(item, dict) else {"city": item}
+        raw_city = str(item.get("city") or "").strip()
+        city_id = item.get("city_id")
+        try:
+            city = require_active_tenant_city(db, user.tenant_id, int(city_id)) if city_id else resolve_active_tenant_city_by_name(db, user.tenant_id, raw_city)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(400, str(exc))
+        sid=item.get("supervisor_id")
         sup=db.get(User,int(sid)) if sid else None
-        if sup and (sup.tenant_id!=user.tenant_id or sup.role!=UserRole.SUPERVISOR): raise HTTPException(400,"مشرف الفرع غير صالح")
+        if sup and (sup.tenant_id!=user.tenant_id or sup.role!=UserRole.SUPERVISOR or not sup.is_active): raise HTTPException(400,"مشرف الفرع غير صالح")
         clean.append((city,sup.id if sup else None))
     if not clean: raise HTTPException(400,"أضف مدينة صحيحة")
     ct = Contract(
         tenant_id=user.tenant_id, name=name,
         scope_type="COMMERCIAL", contract_type=contract_type, duration_months=0,
         couriers_count=0, base_salary=base_salary, per_delivery_rate=per_delivery_rate,
+        client_name=(str(payload.get("client_name") or name).strip() or name),
+        client_rate_per_order=client_rate, client_rate_effective_from=(start_dt.date() if client_rate is not None else None),
         status=status, start_date=start_dt, end_date=end_dt,
     )
     db.add(ct);db.flush()
     for city,sid in clean:
         supervisor_name=db.get(User,sid).name if sid else "بدون مشرف"
-        project=Project(tenant_id=user.tenant_id,name=f"{name} — {city} — {supervisor_name}",is_active=True,manager_id=sid);db.add(project);db.flush()
-        db.add(ContractBranch(tenant_id=user.tenant_id,contract_id=ct.id,city=city,project_id=project.id,supervisor_id=sid,is_active=True))
+        project=Project(tenant_id=user.tenant_id,name=f"{name} — {city.name} — {supervisor_name}",is_active=True,manager_id=sid);db.add(project);db.flush()
+        db.add(ContractBranch(tenant_id=user.tenant_id,contract_id=ct.id,city_id=city.id,city=city.name,project_id=project.id,supervisor_id=sid,is_active=True))
     db.commit(); db.refresh(ct)
     _log(db, user, f"أنشأ عقد {name} حتى {end_dt}", "contract", ct.id)
     return {"ok": True, "id": ct.id}
@@ -1549,17 +1661,39 @@ def update_contract(cid: int, payload: dict, user: User = Depends(get_current_us
         if value != ct.contract_type:
             changes.append(f"النوع: {ct.contract_type} → {value}")
             ct.contract_type = value
-    for key in ("base_salary", "per_delivery_rate"):
-        if key in payload:
-            try:
-                value = float(payload[key] or 0)
-            except (ValueError, TypeError):
-                raise HTTPException(400, f"{key} يجب أن يكون رقماً")
-            if value < 0:
-                raise HTTPException(400, f"{key} لا يمكن أن يكون سالباً")
-            if getattr(ct, key) != value:
-                changes.append(key)
-                setattr(ct, key, value)
+    # عقود العميل لا تعدل تعويضات المناديب؛ تظل الحقول القديمة قابلة للقراءة فقط.
+    if ct.scope_type != "COMMERCIAL":
+        for key in ("base_salary", "per_delivery_rate"):
+            if key in payload:
+                try:
+                    value = float(payload[key] or 0)
+                except (ValueError, TypeError):
+                    raise HTTPException(400, f"{key} يجب أن يكون رقماً")
+                if value < 0:
+                    raise HTTPException(400, f"{key} لا يمكن أن يكون سالباً")
+                if getattr(ct, key) != value:
+                    changes.append(key)
+                    setattr(ct, key, value)
+    elif any(key in payload for key in ("base_salary", "per_delivery_rate")):
+        raise HTTPException(400, "تعويض المندوب يُدار من ملف المندوب أو عقد تعويض مستقل، وليس من عقد العميل")
+    if "client_name" in payload:
+        value = str(payload.get("client_name") or "").strip()
+        if not value:
+            raise HTTPException(400, "اسم العميل مطلوب")
+        if ct.client_name != value:
+            ct.client_name = value
+            changes.append("العميل")
+    if "client_rate_per_order" in payload:
+        try:
+            value = float(payload.get("client_rate_per_order"))
+        except (ValueError, TypeError):
+            raise HTTPException(400, "سعر الطلب من العميل يجب أن يكون رقماً")
+        if value < 0:
+            raise HTTPException(400, "سعر الطلب من العميل لا يمكن أن يكون سالباً")
+        if ct.client_rate_per_order != value:
+            ct.client_rate_per_order = value
+            ct.client_rate_effective_from = date.today()
+            changes.append("سعر الطلب من العميل")
     if "status" in payload:
         value = str(payload["status"] or "").upper()
         if value not in ("ACTIVE", "EXPIRED", "SUSPENDED"):
@@ -1595,9 +1729,12 @@ def update_contract(cid: int, payload: dict, user: User = Depends(get_current_us
         for item in rows:
             if not isinstance(item, dict):
                 raise HTTPException(400, "بيانات الفرع غير صالحة")
-            city = str(item.get("city") or "").strip()
-            if not city:
-                raise HTTPException(400, "اسم المدينة مطلوب")
+            raw_city = str(item.get("city") or "").strip()
+            city_id = item.get("city_id")
+            try:
+                city_ref = require_active_tenant_city(db, user.tenant_id, int(city_id)) if city_id else resolve_active_tenant_city_by_name(db, user.tenant_id, raw_city)
+            except (ValueError, TypeError) as exc:
+                raise HTTPException(400, str(exc))
             branch_id = item.get("id")
             branch = existing.get(int(branch_id)) if branch_id else None
             if branch_id and not branch:
@@ -1608,27 +1745,29 @@ def update_contract(cid: int, payload: dict, user: User = Depends(get_current_us
                 raise HTTPException(400, "مشرف الفرع غير صالح")
             if not branch:
                 supervisor_name = supervisor.name if supervisor else "بدون مشرف"
-                project = Project(tenant_id=user.tenant_id, name=f"{ct.name} — {city} — {supervisor_name}", is_active=True, manager_id=supervisor.id if supervisor else None)
+                project = Project(tenant_id=user.tenant_id, name=f"{ct.name} — {city_ref.name} — {supervisor_name}", is_active=True, manager_id=supervisor.id if supervisor else None)
                 db.add(project); db.flush()
-                branch = ContractBranch(tenant_id=user.tenant_id, contract_id=ct.id, city=city, project_id=project.id, supervisor_id=supervisor.id if supervisor else None, is_active=True)
+                branch = ContractBranch(tenant_id=user.tenant_id, contract_id=ct.id, city_id=city_ref.id, city=city_ref.name, project_id=project.id, supervisor_id=supervisor.id if supervisor else None, is_active=True)
                 db.add(branch); db.flush()
-                changes.append(f"إضافة فرع {city}")
+                changes.append(f"إضافة فرع {city_ref.name}")
             else:
                 old_city, old_supervisor = branch.city, branch.supervisor_id
-                branch.city = city
+                branch.city_id = city_ref.id
+                branch.city = city_ref.name
                 branch.supervisor_id = supervisor.id if supervisor else None
                 branch.is_active = True
-                if old_city != city or old_supervisor != branch.supervisor_id:
-                    changes.append(f"فرع {old_city} → {city}")
+                if old_city != city_ref.name or old_supervisor != branch.supervisor_id:
+                    changes.append(f"فرع {old_city} → {city_ref.name}")
             handled.add(branch.id)
             project = db.get(Project, branch.project_id) if branch.project_id else None
             if project:
                 supervisor_name = supervisor.name if supervisor else "بدون مشرف"
-                project.name = f"{ct.name} — {city} — {supervisor_name}"
+                project.name = f"{ct.name} — {city_ref.name} — {supervisor_name}"
                 project.manager_id = supervisor.id if supervisor else None
             for courier in db.query(Courier).filter(Courier.contract_branch_id == branch.id).all():
                 courier.contract_id = ct.id
-                courier.work_city = city
+                courier.city_id = city_ref.id
+                courier.work_city = city_ref.name
                 courier.supervisor_id = supervisor.id if supervisor else None
                 if project:
                     courier.primary_project_id = project.id
@@ -1674,14 +1813,13 @@ def contract_structure(user: User = Depends(get_current_user), db: Session = Dep
     contracts=db.query(Contract).filter(Contract.tenant_id==user.tenant_id,Contract.status=="ACTIVE").order_by(Contract.name).all()
     rows=[]
     for ct in contracts:
-        if not db.query(ContractBranch).filter(ContractBranch.contract_id==ct.id).first() and ct.project_id:
-            db.add(ContractBranch(tenant_id=user.tenant_id,contract_id=ct.id,city="غير محدد",project_id=ct.project_id,is_active=True));db.flush()
+        # القراءة لا تنشئ فروعاً افتراضية؛ العقود القديمة بلا فرع تظل ظاهرة في شاشة العقود لحين ربط نطاقها صراحة.
         branches=[]
         for b in db.query(ContractBranch).filter(ContractBranch.contract_id==ct.id,ContractBranch.is_active==True).order_by(ContractBranch.city).all():
             sup=db.get(User,b.supervisor_id) if b.supervisor_id else None
-            branches.append({"id":b.id,"city":b.city,"project_id":b.project_id,"supervisor_id":b.supervisor_id,"supervisor":sup.name if sup else None})
+            branches.append({"id":b.id,"city_id":b.city_id,"city":b.city,"project_id":b.project_id,"supervisor_id":b.supervisor_id,"supervisor":sup.name if sup else None})
         if branches: rows.append({"id":ct.id,"name":ct.name,"branches":branches})
-    db.commit();return rows
+    return rows
 
 
 # ===================== الأدمن/المشرف: كشف التجاوزات =====================

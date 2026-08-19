@@ -15,6 +15,8 @@ from ..models.entities import (
 )
 from .auth import get_current_user
 from .shifts import _assigned_courier_ids, _parse_shift_time, _shift_json, _shift_window
+from ..services.operating_structure import require_active_tenant_city
+from ..services.financial_calculations import calculate_payroll_preview, financial_rows, payroll_rows
 
 router = APIRouter(prefix="/fleet", tags=["fleet"])
 
@@ -112,35 +114,32 @@ def _report_rows(db: Session, user: User, report_type: str,
         Project.tenant_id == tenant_id if tenant_id is not None else text("1=1")
     ).all()}
     rows = []
-    from .hr import calculate_target_bonus
+    calculation_month = period_end.strftime("%Y-%m")
     for c in couriers:
+        if project_id and c.primary_project_id != project_id:
+            continue
+        payroll = calculate_payroll_preview(db, c, calculation_month)
+        bonus = payroll["bonus"]
+        if not bonus.get("plan_id"):
+            continue
         logs = db.query(DailyLog).filter(
-            DailyLog.courier_id == c.id, DailyLog.log_date >= min(period_start, month_start), DailyLog.log_date <= period_end
-        ).all()
-        plans = db.query(BonusPlan).filter(
-            BonusPlan.tenant_id == c.tenant_id,
-            (BonusPlan.courier_id == c.id) | (BonusPlan.courier_id.is_(None)),
+            DailyLog.courier_id == c.id,
+            DailyLog.log_date >= period_start,
+            DailyLog.log_date <= period_end,
         )
-        plans = plans.filter(BonusPlan.contract_branch_id == c.contract_branch_id) if c.contract_branch_id else plans.filter(BonusPlan.contract_branch_id.is_(None))
-        plans = plans.all()
-        covered = set()
-        for plan in sorted(plans, key=lambda x: 1 if x.courier_id is None else 0):
-            if plan.project_id in covered or (project_id and plan.project_id != project_id):
-                continue
-            covered.add(plan.project_id)
-            month_orders = sum(l.orders_count or 0 for l in logs if l.project_id == plan.project_id and l.log_date >= month_start)
-            period_orders = sum(l.orders_count or 0 for l in logs if l.project_id == plan.project_id and period_start <= l.log_date <= period_end)
-            result = calculate_target_bonus(month_orders, plan.target_orders, plan.bonus_amount, plan.over_target_rate)
-            project = projects.get(plan.project_id)
-            rows.append({
-                "السائق": c.name, "المشروع": project.name if project else c.platform or "—",
-                "طلبات الفترة": period_orders, "طلبات الشهر حتى نهاية الفترة": month_orders, "التارجت الشهري": plan.target_orders,
-                "المتبقي": result["remaining_orders"], "الطلبات الزائدة": result["over_orders"],
-                "بونص التارجت": plan.bonus_amount, "سعر الطلب الزائد": plan.over_target_rate,
-                "البونص المستحق": result["earned"],
-                "الراتب الأساسي": c.base_salary or 0,
-                "إجمالي الشهر التقديري حتى نهاية الفترة": round((c.base_salary or 0) + month_orders * (c.per_delivery_rate or 0) + result["earned"], 2),
-            })
+        if c.primary_project_id:
+            logs = logs.filter(DailyLog.project_id == c.primary_project_id)
+        period_orders = sum(max(int(item.orders_count or 0), 0) for item in logs.all())
+        project = projects.get(c.primary_project_id)
+        rows.append({
+            "السائق": c.name, "المشروع": project.name if project else c.platform or "—",
+            "طلبات الفترة": period_orders, "طلبات الشهر حتى نهاية الفترة": bonus["orders"], "التارجت الشهري": bonus["target"],
+            "المتبقي": bonus["remaining_orders"], "الطلبات الزائدة": bonus["over_orders"],
+            "بونص التارجت": bonus["bonus_amount"], "سعر الطلب الزائد": bonus["over_target_rate"],
+            "البونص المستحق": bonus["earned"],
+            "الراتب الأساسي": payroll["base_salary"],
+            "إجمالي الشهر التقديري حتى نهاية الفترة": payroll["net_pay"],
+        })
     return rows
 
 
@@ -387,6 +386,10 @@ def fleet_overview(user: User = Depends(get_current_user), db: Session = Depends
     today_att=db.query(Attendance).filter(Attendance.courier_id.in_(ids),Attendance.check_in>=day_start,Attendance.check_in<day_end).all() if ids else []
     month_start=date(today.year,today.month,1)
     logs=db.query(DailyLog).filter(DailyLog.courier_id.in_(ids),DailyLog.log_date>=month_start,DailyLog.log_date<=today).all() if ids else []
+    selected_month = today.strftime("%Y-%m")
+    payroll_preview, payroll_finalized = payroll_rows(db, tenant_id, selected_month) if tenant_id is not None else ([], False)
+    payroll_preview = [row for row in payroll_preview if row.get("courier_id") in ids]
+    financial_preview, financial_finalized = financial_rows(db, tenant_id, selected_month) if tenant_id is not None and user.role != UserRole.SUPERVISOR else ([], False)
 
     delivered = [t for t in tasks if t.status == CourierTaskStatus.DELIVERED]
     active_st = {OrderStatus.READY, OrderStatus.ACCEPTED, OrderStatus.ASSIGNED, OrderStatus.IN_TRANSIT, OrderStatus.PICKED_UP}
@@ -406,12 +409,18 @@ def fleet_overview(user: User = Depends(get_current_user), db: Session = Depends
         "orders_today":sum(x.orders_count or 0 for x in logs if x.log_date==today), "orders_month":sum(x.orders_count or 0 for x in logs),
         "pending_leaves":db.query(LeaveRequest).filter(LeaveRequest.courier_id.in_(ids),LeaveRequest.status.in_(["PENDING","SUPERVISOR_APPROVED"])).count() if ids else 0,
         "shifts_running": sum(1 for c in couriers if c.shift_active),
-        "payroll_total": round(sum((c.base_salary or 0) for c in couriers), 2),
+        "payroll_total": round(sum(float(row.get("net_pay") or 0) for row in payroll_preview), 2),
+        "payroll_finalized": payroll_finalized,
+        "client_revenue": round(sum(float(row.get("client_revenue") or 0) for row in financial_preview), 2),
+        "operational_margin": round(sum(float(row.get("operational_margin") or 0) for row in financial_preview), 2),
+        "financial_finalized": financial_finalized,
         "orders_total": len(orders),
         "orders_active": sum(1 for o in orders if o.status in active_st),
         "orders_unassigned": unassigned,
         "deliveries_done": len(delivered),
-        "revenue_total": round(sum(o.total for o in orders), 2),
+        # لا نستخدم قيمة طلب العميل النهائية كإيراد عقد؛ الإيراد التجاري يأتي من سعر عقد العميل × الطلبات المؤهلة.
+        "revenue_total": round(sum(float(row.get("client_revenue") or 0) for row in financial_preview), 2),
+        "legacy_order_value": round(sum(o.total for o in orders), 2),
         "avg_acceptance": round(sum(c.acceptance_rate for c in couriers) / len(couriers), 1) if couriers else 0,
         "avg_score": round(sum(c.score for c in couriers) / len(couriers), 2) if couriers else 0,
         "on_time_rate": round(sum(c.on_time_rate for c in couriers) / len(couriers), 1) if couriers else 0,
@@ -454,6 +463,7 @@ def fleet_couriers(user: User = Depends(get_current_user), db: Session = Depends
             "bank_iban": c.bank_iban,
             "nationality": c.nationality,
             "zone": c.zone,
+            "city_id": c.city_id,
             "work_city": c.work_city,
             "contract_id": c.contract_id,
             "contract": (db.get(Contract, c.contract_id).name if c.contract_id else None),
@@ -511,6 +521,12 @@ def add_courier(payload: dict, user: User = Depends(get_current_user), db: Sessi
     branch=db.get(ContractBranch,int(branch_id)) if branch_id else None
     if not contract or not branch or branch.tenant_id!=tenant_id or branch.contract_id!=contract.id:
         raise HTTPException(400,"اختر العقد ثم فرع المدينة الصحيح")
+    try:
+        city = require_active_tenant_city(db, tenant_id, branch.city_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    if payload.get("city_id") and int(payload["city_id"]) != city.id:
+        raise HTTPException(400, "المدينة المختارة لا تطابق فرع العقد")
     if not branch.supervisor_id:
         raise HTTPException(400,"عيّن مشرفاً مسؤولاً لفرع العقد قبل إضافة المندوب")
     if not supervisor or supervisor.id!=branch.supervisor_id:
@@ -530,7 +546,7 @@ def add_courier(payload: dict, user: User = Depends(get_current_user), db: Sessi
         emergency_phone=(payload.get("emergency_phone") or None),
         supervisor_id=supervisor.id if supervisor else None,
         primary_project_id=project.id if project else None,
-        contract_id=contract.id, contract_branch_id=branch.id, work_city=branch.city,
+        contract_id=contract.id, contract_branch_id=branch.id, city_id=city.id, work_city=branch.city or city.name,
         platform=project.name if project else None,
         vehicle_type=(payload.get("vehicle_type") or None),
     )
@@ -626,10 +642,9 @@ def courier_profile(cid: int, user: User = Depends(get_current_user), db: Sessio
     for a in attendances:
         if a.check_in and a.check_out:
             hours += (a.check_out - a.check_in).total_seconds() / 3600
-    per_delivery = courier.per_delivery_rate or 0
-    bonus = courier.bonus_target or 0
-    if bonus and delivered and courier.score and courier.score >= 4.7:
-        bonus = round(bonus * 0.8, 2)
+    payroll = calculate_payroll_preview(db, courier, today.strftime("%Y-%m"))
+    per_delivery = payroll["per_delivery_rate"]
+    bonus = payroll["bonus"]["earned"]
     return {
         "id": courier.id, "name": courier.name, "phone": courier.phone,
         "courier_type": courier.courier_type.value, "country": courier.country.value,
@@ -638,8 +653,9 @@ def courier_profile(cid: int, user: User = Depends(get_current_user), db: Sessio
         "on_time_rate": courier.on_time_rate, "completion_rate": courier.completion_rate,
         "score": courier.score, "documents_valid": courier.documents_valid,
         "shift_active": courier.shift_active, "lat": courier.lat, "lng": courier.lng,
-        "base_salary": courier.base_salary or 0, "per_delivery_rate": per_delivery,
-        "bonus_target": courier.bonus_target or 0, "bonus_earned": bonus,
+        "base_salary": payroll["base_salary"], "per_delivery_rate": per_delivery,
+        "bonus_target": payroll["bonus"]["target"], "bonus_earned": bonus,
+        "bonus_source": payroll["bonus"]["source"], "bonus_plan_id": payroll["bonus"]["plan_id"],
         "employment_status": courier.employment_status or "ACTIVE",
         "hired_at": courier.hired_at.isoformat() if courier.hired_at else None,
         "bank_iban": courier.bank_iban,
@@ -654,7 +670,7 @@ def courier_profile(cid: int, user: User = Depends(get_current_user), db: Sessio
         "inspection_expiry": courier.inspection_expiry.isoformat() if courier.inspection_expiry else None,
         "work_permit_expiry": courier.work_permit_expiry.isoformat() if courier.work_permit_expiry else None,
         "platform": courier.platform, "platform_courier_id": courier.platform_courier_id,
-        "zone": courier.zone, "work_city": courier.work_city, "shift_preference": courier.shift_preference,
+        "zone": courier.zone, "city_id": courier.city_id, "work_city": courier.work_city, "shift_preference": courier.shift_preference,
         "primary_project_id": courier.primary_project_id, "supervisor_id": courier.supervisor_id,
         "contract_id": courier.contract_id, "contract_branch_id": courier.contract_branch_id,
         "nationality": courier.nationality,
@@ -663,42 +679,42 @@ def courier_profile(cid: int, user: User = Depends(get_current_user), db: Sessio
         "deliveries_total": len(tasks),
         "hours_worked": round(hours, 1),
         "attendance_days": len(attendances),
-        "estimated_monthly": round((courier.base_salary or 0) + len(delivered) * per_delivery + bonus, 2),
+        "estimated_monthly": payroll["net_pay"],
     }
 
 
 @router.get("/payouts")
-def fleet_payouts(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """الرواتب والبونص لكل مندوب في الشركة — بتفصيل (HR Payroll)."""
+def fleet_payouts(month: str = None, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """عرض الرواتب من خدمة الحساب الموحدة؛ لا ينشئ أي تسوية عند القراءة."""
     if user.role not in TENANT_ROLES:
         raise HTTPException(403, "Not a fleet account")
     _require_permission(user, "payroll")
     tenant_id = _scope(user, db)
-    q = db.query(Courier)
-    if tenant_id is not None:
-        q = q.filter(Courier.tenant_id == tenant_id)
+    selected_month = month or date.today().strftime("%Y-%m")
+    if tenant_id is None:
+        return []
+    try:
+        calculated, finalized = payroll_rows(db, tenant_id, selected_month)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+    couriers = {courier.id: courier for courier in db.query(Courier).filter(Courier.tenant_id == tenant_id).all()}
     rows = []
-    for c in q.all():
-        done = db.query(CourierTask).filter(
-            CourierTask.courier_id == c.id,
-            CourierTask.status == CourierTaskStatus.DELIVERED,
-        ).count()
-        per_delivery = c.per_delivery_rate or 6.0
-        fixed = c.base_salary or 0.0
-        bonus = c.bonus_target or 0.0
-        if bonus and c.score and c.score >= 4.7 and done > 0:
-            bonus = round(bonus * 0.8, 2)
+    for row in calculated:
+        courier = couriers.get(row["courier_id"])
+        if not courier:
+            continue
+        bonus = row.get("bonus") or {}
+        orders = int(row.get("eligible_orders", bonus.get("orders", 0)) or 0)
         rows.append({
-            "id": c.id, "name": c.name,
-            "courier_type": c.courier_type.value,
-            "employment_status": c.employment_status or "ACTIVE",
-            "deliveries": done,
-            "fixed": round(fixed, 2),
-            "per_delivery_rate": per_delivery,
-            "per_delivery_earned": round(done * per_delivery, 2),
-            "incentive": round(bonus, 2),
-            "estimated_total": round(fixed + done * per_delivery + bonus, 2),
-            "bank_iban": c.bank_iban,
+            "id": courier.id, "name": courier.name, "courier_type": courier.courier_type.value,
+            "employment_status": courier.employment_status or "ACTIVE", "deliveries": orders,
+            "fixed": round(float(row["base_salary"] or 0), 2),
+            "per_delivery_rate": round(float(row.get("per_delivery_rate", 0) or 0), 2),
+            "per_delivery_earned": round(float(row["delivery_pay"] or 0), 2),
+            "incentive": round(float(bonus.get("earned", row.get("bonus_pay", 0)) or 0), 2),
+            "deductions": round(float(row["deductions"] or 0), 2),
+            "estimated_total": round(float(row["net_pay"] or 0), 2),
+            "bank_iban": courier.bank_iban, "finalized": finalized,
         })
     return rows
 

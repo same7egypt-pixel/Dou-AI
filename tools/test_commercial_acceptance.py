@@ -6,9 +6,10 @@ from fastapi import HTTPException
 
 from app.database import Base, SessionLocal, engine
 from app.models.entities import BonusPlan, ContractBranch, Courier, DailyLog, Project, User
+import app.routers.auth as auth_router
 from app.routers.auth import company_register, get_current_user, login, logout_current
 from app.routers.fleet import _report_rows, add_courier, fleet_couriers, fleet_reports_export
-from app.routers.hr import (contract_structure, create_bonus, create_contract, create_supervisor,
+from app.routers.hr import (contract_structure, create_bonus, create_contract, create_operating_city, create_supervisor,
                             daily_report, daily_report_export, decide_leave, list_bonus, list_leaves,
                             request_leave, transfer_project)
 from app.routers.shifts import check_in, check_out
@@ -23,6 +24,9 @@ def body_text(response):
         return "".join(chunks)
     return asyncio.run(collect())
 
+
+# Public company registration is disabled in the product; enable it only for this direct acceptance fixture.
+auth_router.ENABLE_PUBLIC_COMPANY_SIGNUP = True
 
 Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
@@ -41,6 +45,8 @@ admin_login = login(LoginIn(phone="966500100000", password="AdminPass9!"), db)
 admin = get_current_user(admin_login.access_token, db)
 ok("دخول أدمن الشركة", f"role={admin.role.value}, tenant={registered.company_id}")
 
+riyadh_city = create_operating_city({"name": "الرياض"}, admin, db)
+
 sup1_data = create_supervisor({"name": "مشرف الرياض أ", "phone": "0500100001", "password": "SupervisorA9!"}, admin, db)
 sup2_data = create_supervisor({"name": "مشرف الرياض ب", "phone": "0500100002", "password": "SupervisorB9!"}, admin, db)
 sup1 = db.get(User, sup1_data["id"]); sup2 = db.get(User, sup2_data["id"])
@@ -48,8 +54,8 @@ ok("إضافة مشرفين", f"{sup1.name}, {sup2.name}")
 
 contract_result = create_contract({
     "name": "HungerStation", "end_date": "2027-12-31",
-    "cities": [{"city": "الرياض", "supervisor_id": sup1.id},
-               {"city": "الرياض", "supervisor_id": sup2.id}],
+    "cities": [{"city_id": riyadh_city["id"], "supervisor_id": sup1.id},
+               {"city_id": riyadh_city["id"], "supervisor_id": sup2.id}],
 }, admin, db)
 structure = contract_structure(admin, db)
 branches = structure[0]["branches"]

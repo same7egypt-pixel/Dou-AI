@@ -2,7 +2,7 @@ import enum
 from datetime import datetime, date
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean, Text, DateTime, Date, ForeignKey,
-    Enum, UniqueConstraint,
+    Enum, UniqueConstraint, Index,
 )
 from sqlalchemy.orm import relationship
 from ..database import Base
@@ -157,7 +157,8 @@ class Courier(Base):
     primary_project_id = Column(Integer, ForeignKey("projects.id"))  # المشروع الأساسي
     contract_id = Column(Integer, ForeignKey("contracts.id"))
     contract_branch_id = Column(Integer, ForeignKey("contract_branches.id"))
-    work_city = Column(String(120))
+    city_id = Column(Integer, ForeignKey("geo_cities.id"))  # المدينة التشغيلية المعتمدة
+    work_city = Column(String(120))  # عرض/بيانات قديمة؛ تُشتق من city_id أو الفرع عند توفرهما
     platform = Column(String(60))                    # المنصة/المشروع الرئيسي (هنقرستيشن/جاهز/...)
     platform_courier_id = Column(String(60))         # كود/ID المندوب داخل المنصة الخارجية
     iqama_expiry = Column(Date)                      # موعد انتهاء الإقامة
@@ -374,6 +375,22 @@ class GeoCity(Base):
                              cascade="all, delete-orphan", order_by="GeoDistrict.id")
 
 
+class TenantOperatingCity(Base):
+    """تفعيل مدينة مرجعية ضمن نطاق شركة محددة؛ مصدر حقيقة التشغيل للمدينة."""
+    __tablename__ = "tenant_operating_cities"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "geo_city_id", name="uq_tenant_operating_city"),
+        Index("ix_tenant_operating_city_active", "tenant_id", "is_active"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    geo_city_id = Column(Integer, ForeignKey("geo_cities.id"), nullable=False, index=True)
+    display_name = Column(String(120))  # تسمية الشركة للمدينة؛ لا تغيّر المرجع العالمي
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class GeoDistrict(Base):
     """حي/منطقة ضمن مدينة."""
     __tablename__ = "geo_districts"
@@ -394,9 +411,12 @@ class Contract(Base):
     tenant_id = Column(Integer, ForeignKey("tenants.id"))
     fleet_id = Column(Integer, ForeignKey("fleets.id"))
     project_id = Column(Integer, ForeignKey("projects.id"))
-    scope_type = Column(String(20), default="PROJECT")  # COURIER / PROJECT / MANUAL / LEGACY
+    scope_type = Column(String(20), default="PROJECT")  # COURIER / PROJECT / MANUAL / COMMERCIAL / LEGACY
     courier_ids = Column(Text)                           # JSON list for direct/manual assignment
     name = Column(String(120), nullable=False)
+    client_name = Column(String(120))                    # العميل/المنصة التجارية
+    client_rate_per_order = Column(Float)                # سعر الطلب من العميل، لا يمثل أجر المندوب
+    client_rate_effective_from = Column(Date)            # تاريخ نفاذ السعر التجاري
     contract_type = Column(String(20), default="FIXED")   # FIXED / PER_DELIVERY
     duration_months = Column(Integer, default=12)
     couriers_count = Column(Integer, default=0)
@@ -414,7 +434,8 @@ class ContractBranch(Base):
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False)
-    city = Column(String(120), nullable=False)
+    city_id = Column(Integer, ForeignKey("geo_cities.id"))
+    city = Column(String(120), nullable=False)  # حقل عرض/تراث يُرحّل بأمان إلى city_id
     project_id = Column(Integer, ForeignKey("projects.id"))
     supervisor_id = Column(Integer, ForeignKey("users.id"))
     is_active = Column(Boolean, default=True)
@@ -514,6 +535,9 @@ class BonusPlan(Base):
     target_orders = Column(Integer, default=0)        # 460
     bonus_amount = Column(Float, default=0.0)         # 2000 ر.س
     over_target_rate = Column(Float, default=0.0)     # 5 ر.س/طلب زائد
+    is_active = Column(Boolean, default=True, nullable=False)
+    effective_from = Column(Date, default=date.today)
+    effective_to = Column(Date)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -664,6 +688,61 @@ class ProjectTransfer(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class PayrollPeriod(Base):
+    """فترة رواتب شهرية: المسودة تحسب من المصادر الحية، والنهائية تُثبت لقطات المندوبين."""
+    __tablename__ = "payroll_periods"
+    __table_args__ = (UniqueConstraint("tenant_id", "month", name="uq_payroll_period_tenant_month"),)
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    month = Column(String(7), nullable=False)
+    status = Column(String(20), default="DRAFT", nullable=False)  # DRAFT / FINALIZED
+    finalized_by = Column(Integer, ForeignKey("users.id"))
+    finalized_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class PayrollSnapshot(Base):
+    """لقطة مبلغ مندوب ضمن فترة نهائية؛ تمنع تعديل إعدادات اليوم من تغيير التاريخ."""
+    __tablename__ = "payroll_snapshots"
+    __table_args__ = (UniqueConstraint("payroll_period_id", "courier_id", name="uq_payroll_snapshot_period_courier"),)
+
+    id = Column(Integer, primary_key=True)
+    payroll_period_id = Column(Integer, ForeignKey("payroll_periods.id"), nullable=False, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"))
+    contract_branch_id = Column(Integer, ForeignKey("contract_branches.id"))
+    base_salary = Column(Float, default=0)
+    delivery_pay = Column(Float, default=0)
+    bonus_pay = Column(Float, default=0)
+    additions = Column(Float, default=0)
+    deductions = Column(Float, default=0)
+    net_pay = Column(Float, default=0)
+    calculation_data = Column(Text)  # JSON للمراجعة والتتبع
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class OperationalFinancialSnapshot(Base):
+    """لقطة الإيراد التجاري والتكلفة المباشرة والهامش التشغيلي لفرع ضمن فترة نهائية."""
+    __tablename__ = "operational_financial_snapshots"
+    __table_args__ = (UniqueConstraint("payroll_period_id", "contract_branch_id", name="uq_financial_snapshot_period_branch"),)
+
+    id = Column(Integer, primary_key=True)
+    payroll_period_id = Column(Integer, ForeignKey("payroll_periods.id"), nullable=False, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False)
+    contract_branch_id = Column(Integer, ForeignKey("contract_branches.id"), nullable=False, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"))
+    eligible_orders = Column(Integer, default=0)
+    client_rate_per_order = Column(Float, default=0)
+    client_revenue = Column(Float, default=0)
+    direct_rider_cost = Column(Float, default=0)
+    operational_margin = Column(Float, default=0)
+    calculation_data = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class PayrollAdjustment(Base):
     __tablename__ = "payroll_adjustments"
     id = Column(Integer, primary_key=True)
@@ -673,6 +752,9 @@ class PayrollAdjustment(Base):
     kind = Column(String(30), nullable=False)  # ABSENCE/LATE/ADVANCE/DEDUCTION/VIOLATION/OVERTIME
     amount = Column(Float, default=0)
     note = Column(String(300))
+    source_type = Column(String(40))  # ATTENDANCE / MANUAL / EMPLOYEE_REQUEST
+    source_id = Column(Integer)
+    idempotency_key = Column(String(180))
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
 

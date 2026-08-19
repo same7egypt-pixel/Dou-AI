@@ -6,6 +6,7 @@ from .database import Base, engine
 from .routers import merchants, couriers, orders, auth, shifts, shipping, analytics, geo, admin, fleet, billing, hr
 from .models import entities  # noqa: F401 — يسجّل الجداول على Base
 from .migrations import run_migrations
+from .services.operating_structure import backfill_operating_cities
 from .config import ENABLE_LEGACY_DELIVERY, CORS_ORIGINS, GOOGLE_ANALYTICS_ID
 from .database import SessionLocal
 from .models.entities import Country, User, UserRole
@@ -14,6 +15,11 @@ import os
 
 Base.metadata.create_all(bind=engine)
 run_migrations(engine)
+# ترحيل علاقات المدينة من النصوص القديمة بمطابقة آمنة قابلة لإعادة التشغيل.
+with SessionLocal() as migration_db:
+    city_backfill = backfill_operating_cities(migration_db)
+    if city_backfill:
+        print(f"   ➕ operating-city backfill: {city_backfill}")
 
 
 def bootstrap_admin_from_environment():

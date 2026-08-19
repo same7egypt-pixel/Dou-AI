@@ -30,6 +30,7 @@ MIGRATIONS = {
         "primary_project_id": "INTEGER",
         "contract_id": "INTEGER",
         "contract_branch_id": "INTEGER",
+        "city_id": "INTEGER",
         "work_city": "VARCHAR(120)",
         "platform": "VARCHAR(60)",
         "platform_courier_id": "VARCHAR(60)",
@@ -44,18 +45,24 @@ MIGRATIONS = {
         "shift_started_at": "TIMESTAMP",
         "shift_preference": "VARCHAR(120)",
     },
-    "bonus_plans": {"contract_branch_id": "INTEGER"},
+    "bonus_plans": {"contract_branch_id": "INTEGER", "is_active": "BOOLEAN DEFAULT TRUE", "effective_from": "DATE", "effective_to": "DATE"},
+    "contract_branches": {"city_id": "INTEGER"},
+    "tenant_operating_cities": {"display_name": "VARCHAR(120)"},
     "contracts": {
         "start_date": "TIMESTAMP",
         "end_date": "TIMESTAMP",
         "project_id": "INTEGER",
         "scope_type": "VARCHAR(20) DEFAULT 'PROJECT'",
         "courier_ids": "TEXT",
+        "client_name": "VARCHAR(120)",
+        "client_rate_per_order": "FLOAT",
+        "client_rate_effective_from": "DATE",
     },
     "projects": {"manager_id": "INTEGER"},
     "shifts": {
         "courier_ids": "TEXT",
     },
+    "payroll_adjustments": {"source_type": "VARCHAR(40)", "source_id": "INTEGER", "idempotency_key": "VARCHAR(180)"},
     "attendances": {
         "check_out_lat": "FLOAT",
         "check_out_lng": "FLOAT",
@@ -135,4 +142,16 @@ def run_migrations(engine):
                 "CREATE UNIQUE INDEX IF NOT EXISTS uq_bonus_project "
                 "ON bonus_plans (tenant_id, project_id) WHERE courier_id IS NULL"
             ))
-            print("   ➕ migration: uq_bonus_project index")
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_payroll_adjustment_idempotency "
+                "ON payroll_adjustments (tenant_id, idempotency_key) WHERE idempotency_key IS NOT NULL"
+            ))
+            for ddl in (
+                "CREATE INDEX IF NOT EXISTS ix_couriers_tenant_city ON couriers (tenant_id, city_id)",
+                "CREATE INDEX IF NOT EXISTS ix_couriers_tenant_supervisor ON couriers (tenant_id, supervisor_id)",
+                "CREATE INDEX IF NOT EXISTS ix_branches_tenant_city ON contract_branches (tenant_id, city_id)",
+                "CREATE INDEX IF NOT EXISTS ix_daily_logs_courier_date_project ON daily_logs (courier_id, log_date, project_id)",
+                "CREATE INDEX IF NOT EXISTS ix_attendances_courier_checkin ON attendances (courier_id, check_in)",
+            ):
+                conn.execute(text(ddl))
+            print("   ➕ migration: Phase 1 operational relationship indexes")
