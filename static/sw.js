@@ -1,43 +1,33 @@
-const CACHE = "dou-pages-v2";
+const CACHE = "dou-rider-pwa-v3";
 const CORE = [
+  "/driver",
   "/static/manifest.json",
   "/static/icons/icon-192.png",
-  "/static/icons/icon-512.png"
+  "/static/icons/icon-512.png",
+  "/static/dou-logo-white.png",
+  "/static/offline.html"
 ];
 
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)));
+self.addEventListener("install", (event) => {
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(CORE)));
   self.skipWaiting();
 });
 
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
-  );
+self.addEventListener("activate", (event) => {
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("dou-rider-pwa-") && key !== CACHE).map((key) => caches.delete(key)))));
   self.clients.claim();
 });
 
-self.addEventListener("fetch", (e) => {
-  const url = new URL(e.request.url);
-  if (e.request.method !== "GET" || url.origin !== location.origin) return;
-  if (url.pathname.startsWith("/api/")) return;
-  // HTML = دائماً من الشبكة (لا نسخ قديمة عند الإصلاحات)
-  if (e.request.mode === "navigate" || url.pathname.endsWith(".html")) {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
+  if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
+  if (event.request.mode === "navigate") {
+    event.respondWith(fetch(event.request).catch(() => caches.match("/static/offline.html")));
     return;
   }
-  // باقي الأصول (صور/أيقونات/manifest) = كاش network-first سريع
-  e.respondWith(
-    fetch(e.request)
-      .then((res) => {
-        if (res.ok && url.pathname.startsWith("/static/")) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy));
-        }
-        return res;
-      })
-      .catch(() => caches.match(e.request))
-  );
+  if (!url.pathname.startsWith("/static/")) return;
+  event.respondWith(fetch(event.request).then((response) => {
+    if (response.ok) caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
+    return response;
+  }).catch(() => caches.match(event.request)));
 });

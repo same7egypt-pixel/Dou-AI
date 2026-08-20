@@ -1,743 +1,106 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DOU | تطبيق السائق</title>
-<meta name="description" content="الحضور والإنتاجية والمستندات والمستحقات للسائق">
-<meta name="theme-color" content="#11161d">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="manifest" href="/static/manifest.json">
-<link rel="icon" type="image/png" href="/static/icons/icon-192.png">
-<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="/static/i18n.js?v=20260813qc3" defer></script>
-<style>
-:root{--ink:#171b22;--muted:#757b86;--line:#e9e9ec;--orange:#ff5a13;--warm:#fff2eb;--green:#149467;--green2:#eaf8f0;--blue:#246bfd;--blue2:#eaf1ff;--soft:#f7f7f8;--nav:#11161d}
-*{box-sizing:border-box}body{margin:0;background:var(--soft);font-family:Alexandria,sans-serif;color:var(--ink)}
-.stage{max-width:420px;margin:0 auto;min-height:100vh;background:#fff;display:flex;flex-direction:column;box-shadow:0 0 40px rgba(0,0,0,.08)}
-.head{background:var(--nav);color:#fff;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
-.logo{font-size:22px;font-weight:800;letter-spacing:-2px}.logo i{display:inline-block;background:var(--orange);height:8px;width:20px;border-radius:6px;margin:0 2px 8px 0}
-.status{font-size:11px;color:#8b94a3}
-.status b{color:#5be0a3}
-.bell{position:relative;background:none;border:0;color:#fff;font-size:18px;cursor:pointer}
-.bell .badge{position:absolute;top:-6px;left:-6px;background:var(--orange);color:#fff;font-size:9px;border-radius:20px;padding:1px 6px}
-.tabs{display:flex;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:62px;z-index:9}
-.tabs button{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:13px;font-family:inherit;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer}
-.tabs button.active{color:var(--orange);border-color:var(--orange)}
-.content{flex:1;padding:18px}
-.view{display:none}.view.active{display:block}
-.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
-.card h3{margin:0 0 10px;font-size:14px}
-.btn{width:100%;border:0;border-radius:12px;padding:13px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
-.btn.primary{background:var(--orange);color:#fff}
-.btn.green{background:var(--green);color:#fff}
-.btn.ghost{background:var(--soft);color:var(--ink)}
-.btn.danger{background:#fdebeb;color:#ef5d67}
-.btn.small{padding:8px 12px;font-size:11px;border-radius:9px;width:auto}
-.btn-group{display:flex;gap:8px;margin-top:10px}
-.btn-group .btn{flex:1}
-.task{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
-.task .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.task b{font-size:14px}
-.tag{padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700}
-.tag.blue{background:var(--blue2);color:var(--blue)}.tag.green{background:var(--green2);color:var(--green)}
-.tag.orange{background:var(--warm);color:var(--orange)}.tag.gray{background:#f1f2f4;color:var(--muted)}
-.row{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin:3px 0}
-.row b{color:var(--ink)}
-.earn{display:flex;gap:12px;margin-bottom:14px}
-.earn .e{flex:1;background:var(--green2);border-radius:14px;padding:12px;text-align:center}
-.earn .e b{display:block;font-size:18px;color:var(--green)}
-.earn .e span{font-size:10px;color:var(--muted)}
-.bar{height:8px;background:#eee;border-radius:10px;overflow:hidden;margin-top:6px}
-.bar i{display:block;height:100%;background:var(--green);border-radius:10px}
-.toggle{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)}
-.toggle:last-child{border-bottom:0}
-.switch{width:46px;height:26px;background:#d3d7de;border-radius:20px;position:relative;cursor:pointer;transition:.2s}
-.switch.on{background:var(--green)}.switch:after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.2s}
-.switch.on:after{transform:translateX(-20px)}
-.shiftBanner{background:linear-gradient(115deg,#1b2330,#2a3548);border-radius:16px;padding:16px;color:#fff;margin-bottom:14px}
-.shiftBanner small{color:#8b94a3;font-size:10px;letter-spacing:.5px}
-.shiftBanner b{display:block;font-size:15px;margin:4px 0}
-.shiftBanner .row{color:#b9c1cd}
-.mapPh{height:140px;border-radius:12px;background:linear-gradient(135deg,#eef2f7,#dfe6ef);display:grid;place-items:center;color:var(--muted);font-size:11px;position:relative;overflow:hidden;margin-bottom:10px}
-.mapPh .pin{position:absolute;font-size:20px}
-.steps{display:flex;gap:4px;margin-top:10px}
-.steps .st{flex:1;text-align:center}
-.steps .st .dot{width:24px;height:24px;margin:0 auto;border-radius:50%;background:#f1f2f4;color:var(--muted);display:grid;place-items:center;font-size:10px}
-.steps .st.done .dot{background:var(--green);color:#fff}
-.steps .st.now .dot{background:var(--blue);color:#fff}
-.steps .st small{display:block;font-size:9px;color:var(--muted);margin-top:4px}
-.steps .st.done small,.steps .st.now small{color:var(--ink)}
-.payout{display:flex;gap:10px;margin-bottom:14px}
-.payout .p{flex:1;background:var(--warm);border-radius:14px;padding:12px;text-align:center}
-.payout .p b{display:block;font-size:17px;color:var(--orange)}
-.payout .p span{font-size:10px;color:var(--muted)}
-.lineItem{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}
-.lineItem:last-child{border-bottom:0}
-.lineItem b{font-size:13px}
-.historyBox{max-height:310px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:0 10px}
-.historyToggle{margin-top:10px;background:var(--soft);border:0;border-radius:10px;padding:10px;width:100%;font-family:inherit;font-weight:700;cursor:pointer}
-.monthSummary{border:1px solid var(--line);border-radius:11px;margin-bottom:8px;padding:0 10px}
-.monthSummary summary{cursor:pointer;padding:11px 0;font-size:12px;font-weight:700}
-.dlogNav{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;position:sticky;top:111px;z-index:8;background:#fff;padding:8px 0;margin-bottom:10px}
-.dlogNav button{border:0;background:var(--soft);border-radius:10px;padding:9px 3px;font:700 10px Alexandria;color:var(--muted);cursor:pointer}
-.dlogNav button.active{background:var(--nav);color:#fff}
-.dlogPane{display:none}.dlogPane.active{display:block}
-.notifItem{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
-.notifItem:last-child{border-bottom:0}
-.notifItem .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:14px;flex-shrink:0}
-.notifItem b{font-size:12px;display:block}.notifItem small{font-size:10px;color:var(--muted)}
-.docRow{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
-.docRow b{font-size:12px}.docRow small{font-size:10px;color:var(--muted)}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#11161d">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DOU Rider">
+  <meta name="description" content="DOU Rider — shifts, attendance, performance, earnings and profile">
+  <title>DOU Rider</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="/static/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{--navy:#11161d;--navy2:#1c2635;--orange:#ff5a13;--orange-soft:#fff0e8;--green:#12966a;--green-soft:#e8f8f0;--blue:#2866e5;--blue-soft:#edf3ff;--ink:#17202d;--muted:#6f7988;--line:#e8ebef;--canvas:#f4f6f9;--danger:#d94a55;--danger-soft:#fff0f1;--radius:18px;--shadow:0 14px 36px rgba(22,32,45,.08)}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{min-height:100%;margin:0;background:var(--canvas);color:var(--ink);font-family:Alexandria,Arial,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.58}a{color:inherit}.app-shell{min-height:100dvh;max-width:600px;margin:0 auto;background:#fff;position:relative;padding-top:max(0px,env(safe-area-inset-top));padding-bottom:max(84px,calc(72px + env(safe-area-inset-bottom)));box-shadow:0 0 44px rgba(17,22,29,.07)}
+    .topbar{min-height:70px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;background:var(--navy);color:#fff;position:sticky;top:0;z-index:20}.brand{display:flex;gap:10px;align-items:center}.brand-mark{font-size:23px;font-weight:800;letter-spacing:-1.8px}.brand-mark i{display:inline-block;width:18px;height:7px;background:var(--orange);border-radius:99px;margin:0 2px 7px}.brand-sub{font-size:9px;color:#ff9a70;letter-spacing:1px;font-weight:800}.identity{font-size:11px;color:#c7d0dc;max-width:168px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.top-actions{display:flex;align-items:center;gap:8px}.icon-btn,.lang-btn{border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);color:#fff;min-height:38px;border-radius:12px;padding:0 10px;font-size:12px;font-weight:700}.lang-btn{font-size:10px;letter-spacing:.3px}.connection{display:none;align-items:center;gap:8px;background:#fff4d9;color:#8d5c00;font-size:11px;font-weight:700;padding:9px 18px}.connection.show{display:flex}.connection.online{background:var(--green-soft);color:#08704d}
+    main{padding:18px}.view{display:none;animation:enter .2s cubic-bezier(.2,.8,.2,1)}.view.active{display:block}@keyframes enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}.eyebrow{margin:0 0 5px;color:var(--orange);font-size:10px;font-weight:800;letter-spacing:.8px}.page-title{margin:0;font-size:24px;line-height:1.25;letter-spacing:-.7px}.page-lead{margin:6px 0 18px;color:var(--muted);font-size:12px;line-height:1.7}.section-title{font-size:13px;margin:20px 0 10px}.card{border:1px solid var(--line);background:#fff;border-radius:var(--radius);padding:15px;margin-bottom:12px;box-shadow:0 2px 6px rgba(18,27,39,.02)}.card.dark{background:linear-gradient(135deg,var(--navy),var(--navy2));border:0;color:#fff;box-shadow:none}.card.subtle{background:#fafbfc}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.muted{color:var(--muted)}.tiny{font-size:10px}.small{font-size:11px}.strong{font-weight:800}.status-pill{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:5px 9px;font-size:10px;font-weight:800;white-space:nowrap}.status-pill.green{background:var(--green-soft);color:#08704d}.status-pill.orange{background:var(--orange-soft);color:#bd4106}.status-pill.blue{background:var(--blue-soft);color:#1f5cc7}.status-pill.gray{background:#eff1f4;color:#66707e}.status-pill.red{background:var(--danger-soft);color:var(--danger)}
+    .shift-hero{padding:18px;background:linear-gradient(135deg,#121a25,#263852);border-radius:22px;color:#fff;margin-bottom:12px;overflow:hidden;position:relative}.shift-hero:after{content:"";position:absolute;width:160px;height:160px;border:1px solid rgba(255,255,255,.09);border-radius:50%;left:-54px;bottom:-80px}.shift-hero>*{position:relative;z-index:1}.shift-title{font-size:18px;margin:5px 0 9px;line-height:1.4}.shift-meta{font-size:11px;color:#b8c5d4;line-height:1.7}.hero-action{margin-top:16px}.btn{border:0;min-height:48px;border-radius:14px;padding:10px 14px;font-size:13px;font-weight:800;transition:transform .16s cubic-bezier(.23,1,.32,1),box-shadow .16s}.btn:active{transform:scale(.97)}.btn.primary{background:var(--orange);color:#fff;box-shadow:0 8px 20px rgba(255,90,19,.25)}.btn.success{background:var(--green);color:#fff;box-shadow:0 8px 20px rgba(18,150,106,.2)}.btn.ghost{background:#f1f3f6;color:var(--ink)}.btn.outline{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.danger{background:var(--danger-soft);color:var(--danger)}.btn.full{width:100%}.btn.compact{min-height:40px;padding:8px 12px;font-size:11px}.btn-row{display:flex;gap:9px;flex-wrap:wrap}.btn-row .btn{flex:1;min-width:128px}.metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}.metric{background:#fff;border:1px solid var(--line);padding:13px;border-radius:15px}.metric-label{display:block;color:var(--muted);font-size:10px;margin-bottom:6px}.metric-value{font-size:20px;line-height:1;font-weight:800;letter-spacing:-.5px}.metric-value.orange{color:var(--orange)}.metric-value.green{color:var(--green)}.metric-value.blue{color:var(--blue)}.progress-track{height:9px;background:#edf0f3;border-radius:99px;overflow:hidden;margin-top:9px}.progress-fill{height:100%;border-radius:inherit;background:var(--orange);transition:width .28s cubic-bezier(.23,1,.32,1)}.progress-fill.green{background:var(--green)}.alert-item{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}.alert-item:last-child{border-bottom:0}.alert-icon{height:33px;width:33px;border-radius:11px;display:grid;place-items:center;background:var(--orange-soft);flex:0 0 auto}.data-list{display:grid;gap:0}.data-row{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line);font-size:12px}.data-row:last-child{border-bottom:0}.data-row b{text-align:end;max-width:58%;word-break:break-word}.form-grid{display:grid;gap:11px}.field{display:grid;gap:6px}.field label{font-size:11px;font-weight:800;color:#465262}.field input,.field select,.field textarea{width:100%;border:1px solid #dfe4e9;background:#fff;border-radius:12px;padding:12px;font-size:13px;color:var(--ink);outline:none;transition:border .15s,box-shadow .15s}.field textarea{min-height:92px;resize:vertical}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,90,19,.12)}.form-note{font-size:10px;color:var(--muted);line-height:1.6}.divider{height:1px;background:var(--line);margin:16px 0}.empty{text-align:center;padding:23px 10px;color:var(--muted);font-size:12px;line-height:1.7}.empty-icon{font-size:26px;display:block;margin-bottom:6px}.skeleton{border-radius:12px;background:linear-gradient(90deg,#f0f2f5 25%,#fafbfc 38%,#f0f2f5 63%);background-size:400% 100%;animation:shimmer 1.4s infinite;height:68px;margin-bottom:10px}@keyframes shimmer{0%{background-position:100% 0}100%{background-position:0 0}}details{border-top:1px solid var(--line)}details summary{cursor:pointer;font-weight:800;font-size:12px;padding:13px 0;list-style:none}details summary::-webkit-details-marker{display:none}details summary:after{content:"＋";float:left;color:var(--orange);font-size:16px}details[open] summary:after{content:"−"}.history-table{width:100%;border-collapse:collapse;font-size:11px}.history-table th{color:var(--muted);font-weight:700;text-align:start;padding:8px 4px;border-bottom:1px solid var(--line)}.history-table td{padding:9px 4px;border-bottom:1px solid #f1f2f4}.bottom-nav{position:fixed;z-index:30;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,600px);padding:8px 10px max(8px,env(safe-area-inset-bottom));background:rgba(255,255,255,.94);backdrop-filter:blur(18px);border-top:1px solid rgba(224,228,233,.9);display:grid;grid-template-columns:repeat(5,1fr);gap:2px}.nav-btn{border:0;background:transparent;color:#727c89;padding:7px 2px 5px;min-height:51px;border-radius:12px;font-size:9px;font-weight:700;display:grid;place-items:center;gap:2px}.nav-btn span:first-child{font-size:18px;line-height:1}.nav-btn.active{color:var(--orange);background:var(--orange-soft)}.toast{position:fixed;z-index:80;bottom:calc(82px + env(safe-area-inset-bottom));left:50%;transform:translate(-50%,15px);width:min(calc(100% - 32px),420px);padding:12px 14px;border-radius:14px;background:var(--navy);color:#fff;font-size:12px;font-weight:700;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.22s cubic-bezier(.23,1,.32,1)}.toast.show{opacity:1;transform:translate(-50%,0)}.toast.success{background:var(--green)}.toast.error{background:#a9323c}.install-helper{border:1px solid #ffd6c2;background:#fff8f4;border-radius:14px;padding:12px;margin-top:13px;font-size:11px;line-height:1.7}.install-helper b{color:#9c3509}.login-page{min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:max(26px,env(safe-area-inset-top)) 20px max(26px,env(safe-area-inset-bottom));background:radial-gradient(circle at 18% 10%,#263b56 0,#11161d 46%,#0c1016 100%)}.login-wrap{width:min(100%,430px);margin:auto}.login-brand{text-align:center;color:#fff;margin-bottom:25px}.login-brand h1{font-size:29px;margin:10px 0 5px;letter-spacing:-1.5px}.login-brand p{margin:0;color:#a9b7c6;font-size:12px;line-height:1.7}.login-card{background:#fff;border-radius:23px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)}.login-language{position:absolute;top:max(14px,env(safe-area-inset-top));left:16px}.blocked{min-height:100dvh;background:var(--navy);padding:30px 20px;display:grid;place-items:center;text-align:center;color:#fff}.blocked-card{max-width:390px}.blocked-icon{font-size:48px;margin-bottom:14px}.safe-gap{height:5px}@media (min-width:680px){body{padding:22px}.app-shell{border-radius:28px;overflow:hidden;min-height:calc(100dvh - 44px)}.bottom-nav{bottom:22px;border-radius:0 0 28px 28px}}
+    @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  </style>
 </head>
 <body>
-<button onclick="setDouLanguage(localStorage.getItem('dou_lang')==='en'?'ar':'en')" style="position:fixed;left:14px;bottom:14px;z-index:100;background:#111827;color:#fff;border:1px solid #374151;border-radius:20px;padding:8px 13px;font:700 11px Alexandria;cursor:pointer">AR / EN</button>
-<div class="stage">
-  <div class="head">
-    <div class="logo">D<i></i>ou <span style="font-size:10px;color:#ff7a42;letter-spacing:1px">COURIER</span></div>
-    <div style="display:flex;gap:14px;align-items:center">
-      <div class="status"><b id="statusDot">●</b> <span id="statusText">غير متصل</span></div>
-      <button class="bell" onclick="toggleNotifPanel(event)">🔔<span class="badge">2</span></button>
-    </div>
-  </div>
+  <div id="app"></div>
+  <script>
+  const API = "";
+  const COPY = {
+    ar:{brand:"تطبيق السائق",loginTitle:"ابدأ يومك التشغيلي من مكان واحد",loginLead:"تابع ورديتك وأدائك ومستحقاتك من بيانات DOU المعتمدة.",phone:"رقم الجوال بمفتاح الدولة",password:"كلمة المرور",login:"دخول",loggingIn:"جارِ الدخول…",home:"الرئيسية",shifts:"الورديات",performance:"الأداء",earnings:"المستحقات",profile:"حسابي",refresh:"تحديث",offline:"لا يوجد اتصال. تتطلب الإجراءات التشغيلية اتصالاً بالإنترنت.",reconnected:"عاد الاتصال. حدّث بياناتك عند الحاجة.",currentShift:"وردية اليوم",noShift:"لا توجد وردية مسندة",askSupervisor:"تواصل مع مشرفك لإسناد وردية.",checkIn:"تسجيل حضور",checkOut:"تسجيل انصراف",checkingIn:"جارِ تسجيل الحضور…",checkingOut:"جارِ تسجيل الانصراف…",checkedIn:"تم تسجيل الحضور",attendance:"الحضور",todayOrders:"طلبات اليوم",monthOrders:"طلبات الشهر",target:"التارجت",bonus:"البونص",workedHours:"ساعات العمل",late:"تأخير",earlyLeave:"انصراف مبكر",notAvailable:"غير متاح",today:"اليوم",month:"هذا الشهر",viewDetails:"عرض التفاصيل",shiftDetails:"تفاصيل الوردية",start:"البداية",end:"النهاية",status:"الحالة",overnight:"تنتهي في اليوم التالي",performanceLead:"سجّل أداءك اليومي وراجع التارجت من الحساب المعتمد.",dailyLog:"سجل اليوم",project:"المشروع",orders:"عدد الطلبات",notes:"ملاحظة اختيارية",save:"حفظ السجل",saving:"جارِ الحفظ…",history:"سجل الشهر",previousMonths:"الشهور السابقة",earningsLead:"مستحقاتك الشخصية فقط، محسوبة من DOU.",payrollPreview:"صافي تقديري",payrollClosed:"صافي مقفل",baseSalary:"الراتب الأساسي",deliveryPay:"أجر الطلبات",additions:"إضافات معتمدة",deductions:"استقطاعات معتمدة",netPay:"الصافي",finalized:"مقفل",estimated:"تقديري",profileLead:"بياناتك وخدماتك الذاتية المسموح بها.",city:"مدينة العمل",supervisor:"المشرف",platform:"منصة العمل",employment:"الحالة الوظيفية",iban:"IBAN",documents:"المستندات",uploadDocument:"رفع مستند",camera:"الكاميرا",files:"الصور أو الملفات",documentType:"نوع المستند",leave:"طلب إجازة",from:"من",to:"إلى",reason:"السبب",sendLeave:"إرسال الطلب",support:"الدعم",ticketSubject:"موضوع التذكرة",ticketMessage:"اشرح طلبك",sendTicket:"إرسال تذكرة",companyMessages:"رسائل الشركة",employeeRequest:"طلب موظف",requestType:"نوع الطلب",requestTitle:"عنوان الطلب",requestDetails:"التفاصيل",sendRequest:"إرسال الطلب",security:"الأمان",currentPassword:"كلمة المرور الحالية",newPassword:"كلمة المرور الجديدة",changePassword:"تغيير كلمة المرور",logout:"تسجيل الخروج",install:"تثبيت التطبيق",installAndroid:"ثبّت التطبيق للوصول السريع",installIOS:"ثبّت DOU Rider على iPhone",installIOSHelp:"من Safari، اضغط مشاركة ثم «إضافة إلى الشاشة الرئيسية».",dismiss:"لاحقاً",sessionExpired:"انتهت جلستك. سجّل الدخول مرة أخرى.",suspended:"هذا الحساب غير متاح حالياً. تواصل مع مشرفك أو الشركة.",networkError:"تعذر الاتصال. تحقق من الإنترنت ثم أعد المحاولة.",genericError:"تعذر إتمام العملية. حاول مرة أخرى.",successCheckin:"تم تسجيل الحضور بنجاح.",successCheckout:"تم تسجيل الانصراف بنجاح.",alreadyCheckin:"الحضور مسجل بالفعل.",saved:"تم الحفظ بنجاح.",uploaded:"تم رفع المستند. حالته بانتظار المراجعة.",sent:"تم الإرسال بنجاح.",noData:"لا توجد بيانات لعرضها الآن.",online:"متصل",offlineStatus:"غير متصل",active:"نشط",suspendedStatus:"موقوف",onLeave:"في إجازة",approved:"معتمد",rejected:"مرفوض",pending:"قيد المراجعة",replied:"تم الرد",waiting:"بانتظار الرد",open:"فتح",details:"تفاصيل",language:"EN",attention:"تنبيهات مهمة",noMessages:"لا توجد رسائل جديدة",iosOnly:"إرشادات iPhone",documentSize:"الحد الأقصى لحجم المستند 1 ميجابايت.",noProject:"لا يوجد مشروع مسند لك",retry:"إعادة المحاولة",homeLead:"كل ما تحتاجه لوردية اليوم.",showMore:"عرض المزيد",close:"إغلاق"},
+    en:{brand:"Rider App",loginTitle:"Start your operating day in one place",loginLead:"Follow your shift, performance and earnings from verified DOU data.",phone:"Mobile number with country code",password:"Password",login:"Sign in",loggingIn:"Signing in…",home:"Home",shifts:"Shifts",performance:"Performance",earnings:"Earnings",profile:"Profile",refresh:"Refresh",offline:"You are offline. Operational actions require an internet connection.",reconnected:"You are back online. Refresh data when needed.",currentShift:"Today's shift",noShift:"No assigned shift",askSupervisor:"Ask your supervisor to assign a shift.",checkIn:"Check in",checkOut:"Check out",checkingIn:"Checking in…",checkingOut:"Checking out…",checkedIn:"Checked in",attendance:"Attendance",todayOrders:"Today orders",monthOrders:"Month-to-date orders",target:"Target",bonus:"Bonus",workedHours:"Worked hours",late:"Late",earlyLeave:"Early leave",notAvailable:"Not available",today:"Today",month:"This month",viewDetails:"View details",shiftDetails:"Shift details",start:"Start",end:"End",status:"Status",overnight:"Ends the next day",performanceLead:"Record daily performance and review the verified target.",dailyLog:"Daily log",project:"Project",orders:"Orders",notes:"Optional note",save:"Save log",saving:"Saving…",history:"This month",previousMonths:"Previous months",earningsLead:"Your permitted personal earnings, calculated by DOU.",payrollPreview:"Estimated net",payrollClosed:"Closed net",baseSalary:"Base salary",deliveryPay:"Delivery pay",additions:"Approved additions",deductions:"Deductions",netPay:"Net pay",finalized:"Closed",estimated:"Estimated",profileLead:"Your permitted details and self-service actions.",city:"Work city",supervisor:"Supervisor",platform:"Work platform",employment:"Employment status",iban:"IBAN",documents:"Documents",uploadDocument:"Upload document",camera:"Camera",files:"Photo library or files",documentType:"Document type",leave:"Leave request",from:"From",to:"To",reason:"Reason",sendLeave:"Send leave request",support:"Support",ticketSubject:"Ticket subject",ticketMessage:"Describe your request",sendTicket:"Send ticket",companyMessages:"Company messages",employeeRequest:"Employee request",requestType:"Request type",requestTitle:"Request title",requestDetails:"Details",sendRequest:"Send request",security:"Security",currentPassword:"Current password",newPassword:"New password",changePassword:"Change password",logout:"Sign out",install:"Install app",installAndroid:"Install for faster access",installIOS:"Install DOU Rider on iPhone",installIOSHelp:"In Safari, tap Share then Add to Home Screen.",dismiss:"Not now",sessionExpired:"Your session has expired. Please sign in again.",suspended:"This account is currently unavailable. Contact your supervisor or company.",networkError:"Unable to connect. Check your internet and try again.",genericError:"Unable to complete this action. Please try again.",successCheckin:"Check-in recorded successfully.",successCheckout:"Check-out recorded successfully.",alreadyCheckin:"Attendance is already recorded.",saved:"Saved successfully.",uploaded:"Document uploaded and awaiting review.",sent:"Sent successfully.",noData:"No data to show yet.",online:"Online",offlineStatus:"Offline",active:"Active",suspendedStatus:"Suspended",onLeave:"On leave",approved:"Approved",rejected:"Rejected",pending:"Pending review",replied:"Replied",waiting:"Waiting for reply",open:"Open",details:"Details",language:"العربية",attention:"Important alerts",noMessages:"No new messages",iosOnly:"iPhone guidance",documentSize:"Maximum document size is 1 MB.",noProject:"No assigned project",retry:"Retry",homeLead:"Everything needed for today's shift.",showMore:"Show more",close:"Close"}
+  };
+  let lang = new URLSearchParams(location.search).get("lang") || localStorage.getItem("dou_lang") || "ar";
+  if(!["ar","en"].includes(lang)) lang="ar";
+  let TOKEN = localStorage.getItem("dou_token_courier");
+  const state = {view:"home",core:null,extras:null,extrasPromise:null,projects:null,projectsPromise:null,busy:new Set(),deferredInstall:null,accessBlocked:false,toastTimer:null,toast:null};
+  const $ = (id)=>document.getElementById(id);
+  const t = (key)=>COPY[lang][key] || key;
+  const esc = (value)=>String(value ?? "").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  const money = (value)=>new Intl.NumberFormat(lang==="ar"?"ar-SA":"en-SA",{style:"currency",currency:"SAR",maximumFractionDigits:2}).format(Number(value||0));
+  const dateText = (value)=>value ? new Intl.DateTimeFormat(lang==="ar"?"ar-SA":"en-GB",{dateStyle:"medium"}).format(new Date(value)) : "—";
+  const isIOS = ()=>/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+  const standalone = ()=>window.matchMedia("(display-mode: standalone)").matches || navigator.standalone===true;
 
-  <div class="tabs">
-    <button class="active" onclick="go('home')">🏠 الرئيسية</button>
-    <button onclick="go('earnings')">💰 مستحقاتي</button>
-    <button onclick="go('dlog')">📆 سجلي اليومي</button>
-    <button onclick="go('profile')">👤 حسابي</button>
-    <button onclick="go('notifs')">🔔 تنبيهات</button>
-  </div>
-
-  <div class="content">
-
-    <!-- الرئيسية -->
-    <div class="view active" id="view-home">
-      <div class="shiftBanner" id="shiftBanner">
-        <small id="shiftTitle">الوردية الحالية</small>
-        <b id="shiftInfo">غير مسجّل الحضور</b>
-        <div class="row"><span id="shiftZone">المنطقة: —</span><span id="shiftClock">—</span></div>
-      </div>
-
-      <div class="earn">
-        <div class="e"><b id="doneCount">0</b><span>إنتاجية الشهر</span></div>
-        <div class="e"><b id="acceptRate">100%</b><span>نسبة الالتزام</span></div>
-        <div class="e"><b id="score">5.0</b><span>نقاط الأداء</span></div>
-      </div>
-
-      <div class="card" style="display:none">
-        <h3>🎯 المهام الحالية</h3>
-        <div id="tasks"><p style="color:var(--muted);font-size:12px">لا مهام حالياً</p></div>
-      </div>
-
-      <div class="card">
-        <h3>حالة التوفر</h3>
-        <div class="toggle">
-          <div><b style="font-size:13px">حالة العمل</b><div style="font-size:11px;color:var(--muted)">فعّل عند بدء العمل اليوم</div></div>
-          <div id="switch" class="switch" onclick="toggleOnline()"></div>
-        </div>
-        <p style="font-size:10px;color:var(--muted);margin:8px 0 0">⚠️ سيتم إيقافك تلقائياً إذا: لم تسجّل حضورك، أو انتهت ورديتك.</p>
-      </div>
-
-      <div class="card">
-        <h3>تسجيل الحضور</h3>
-        <button class="btn green" id="checkinBtn" onclick="checkIn()">تسجيل دخول (حضور GPS)</button>
-        <div style="height:8px"></div>
-        <button class="btn ghost" id="checkoutBtn" onclick="checkOut()" disabled>تسجيل خروج (إنهاء الوردية)</button>
-      </div>
-
-      <div class="card" style="display:none">
-        <h3>📍 التنقل الحالي</h3>
-        <div class="mapPh">🗺 خريطة GPS — تحسين المسار تلقائياً
-          <span class="pin" style="right:30%;top:36%">🛵</span>
-          <span class="pin" style="right:64%;top:52%">🏪</span>
-          <span class="pin" style="right:80%;top:26%">📍</span>
-        </div>
-        <div class="row"><span>الوجهة القادمة</span><b>مقهى بن القهوة — الملقا</b></div>
-        <div class="row"><span>المسار الأمثل</span><b>✓ مفعّل (توفير 4 دقائق)</b></div>
-        <button class="btn ghost small" style="width:100%;margin-top:10px" onclick="openNavigation()">🧭 افتح الملاحة</button>
-      </div>
-    </div>
-
-    <!-- الأرباح -->
-    <div class="view" id="view-earnings">
-      <div class="payout">
-        <div class="p"><b id="todayEarn">0</b><span>مستحق اليوم</span></div>
-        <div class="p"><b id="weekEarn">0</b><span>مستحق الأسبوع</span></div>
-        <div class="p"><b id="incentiveEarn">0</b><span>الحوافز</span></div>
-      </div>
-
-      <div class="card">
-        <h3>مستحقات الإنتاجية اليوم</h3>
-        <div id="earningList"></div>
-      </div>
-
-      <div class="card">
-        <h3>🧮 تفاصيل مستحقاتي</h3>
-        <div class="lineItem"><span>الحساب البنكي</span><b dir="ltr" id="profIban">—</b></div>
-        <div class="lineItem"><span>التحويل الدوري</span><b>كل أسبوعين</b></div>
-        <div class="lineItem"><span>الحالة</span><b style="color:var(--green)">مفعّل ✓</b></div>
-        <button class="btn ghost small" style="margin-top:10px" onclick="editPayment()">تعديل بيانات الدفع</button>
-      </div>
-
-      <div class="card">
-        <h3>🏆 الحوافز</h3>
-        <div class="lineItem"><span>أساس الالتزام</span><b>إنجاز 95%+ هذا الأسبوع</b></div>
-        <div class="lineItem"><span>أساس الحضور</span><b>حضور كامل للورديات المخصصة</b></div>
-        <div class="lineItem"><span>أساس الأداء</span><b>نقاط 4.7+</b></div>
-        <div class="bar"><i style="width:82%"></i></div>
-        <p style="font-size:10px;color:var(--muted);margin:8px 0 0">تقدمك نحو حافز الأسبوع: <b style="color:var(--green)">82%</b></p>
-      </div>
-    </div>
-
-    <!-- حسابي -->
-    <div class="view" id="view-profile">
-      <div class="card">
-        <h3>الملف الشخصي</h3>
-        <div class="lineItem"><span>الاسم</span><b id="profName2">—</b></div>
-        <div class="lineItem"><span>الهاتف</span><b id="profPhone2" dir="ltr">—</b></div>
-        <div class="lineItem"><span>النوع</span><b><span class="tag blue" id="profType">Dedicated</span> <span id="profFleet">—</span></b></div>
-        <div class="lineItem"><span>المنطقة</span><b>الرياض — الملقا</b></div>
-        <button class="btn ghost small" style="margin-top:10px" onclick="editProfile()">تعديل الملف</button>
-      </div>
-
-      <div class="card">
-        <h3>📄 المستندات والمواعيد</h3>
-        <div id="profDocs"><div class="docRow"><div><b>جارِ التحميل...</b></div></div></div>
-        <button class="btn ghost small" style="margin-top:10px" onclick="uploadDoc()">📎 رفع مستند</button>
-        <div id="myUploadedDocs" style="margin-top:10px"></div>
-      </div>
-
-      <div class="card">
-        <h3>التوفر والحضور</h3>
-        <div class="lineItem"><span>الحالة</span><b id="profOnline">غير متصل</b></div>
-        <div class="lineItem"><span>ساعات العمل اليوم</span><b>0 ساعة</b></div>
-        <button class="btn ghost" style="margin-top:10px" onclick="changeMyPassword()">🔐 تغيير كلمة المرور</button>
-        <button class="btn danger" style="margin-top:10px" onclick="logout()">🚪 تسجيل الخروج</button>
-        <button class="btn danger" style="margin-top:8px" onclick="raiseSupport()">🛟 رفع تذكرة (دعم)</button>
-      </div>
-
-      <div class="card">
-        <h3>🎫 تذاكري وردود الشركة</h3>
-        <div id="myTickets"><p style="color:var(--muted);font-size:12px">جارِ تحميل التذاكر...</p></div>
-        <button class="btn ghost small" style="margin-top:10px" onclick="loadMyTickets()">↻ تحديث الردود</button>
-      </div>
-    </div>
-
-    <!-- التنبيهات -->
-    <div class="view" id="view-notifs">
-      <div class="card" id="notifList"></div>
-    </div>
-
-    <!-- سجلي اليومي -->
-    <div class="view" id="view-dlog">
-      <div class="shiftBanner" id="shiftBanner2">
-        <small>سجلي اليومي — يتجمع شهرياً ويشوفه مشرفي</small>
-        <b id="dlogMonthTotal">—</b>
-        <div class="row"><span id="dlogToday">اليوم: —</span><span id="dlogBonus">بونص الشهر: —</span></div>
-      </div>
-
-      <div class="dlogNav"><button class="active" data-dpane="today" onclick="showDlogPane('today')">📝 اليوم</button><button data-dpane="target" onclick="showDlogPane('target')">🎯 التارجت</button><button data-dpane="requests" onclick="showDlogPane('requests')">📨 طلباتي</button><button data-dpane="history" onclick="showDlogPane('history')">📆 السجل</button></div>
-
-      <div class="dlogPane active" id="dlogPane-today">
-      <div class="card">
-        <h3>📝 تسجيل اليوم</h3>
-        <div class="row" style="margin-bottom:8px"><span>تاريخ اليوم</span><b><input type="date" id="dlDate" style="width:auto"></b></div>
-        <div class="row" style="margin-bottom:8px"><span>المشروع/المنصة</span><b><select id="dlProject" style="width:100%"></select></b></div>
-        <div class="row" style="margin-bottom:8px"><span>عدد الأوردرات</span><b><input type="number" id="dlCount" min="0" style="width:100%" placeholder="مثال: 25"></b></div>
-        <div class="row" style="margin-bottom:10px"><span>ملاحظة (اختياري)</span><b><input id="dlNote" style="width:100%" placeholder="مثال: شفت مسائي"></b></div>
-        <button class="btn green" style="width:100%" onclick="saveDailyLog()">💾 حفظ سجل اليوم</button>
-        <div class="msg" id="dlMsg"></div>
-      </div>
-      </div>
-
-      <div class="dlogPane" id="dlogPane-target">
-      <div class="card">
-        <h3>🎯 التارجت والبونص الشهري</h3>
-        <div id="bonusProgress"><p style="color:var(--muted);font-size:12px">جارِ حساب التارجت...</p></div>
-      </div>
-      </div>
-
-      <div class="dlogPane" id="dlogPane-requests">
-      <div class="card">
-        <h3>🌴 طلب إجازة</h3>
-        <div class="row" style="margin-bottom:8px"><span>من</span><b><input type="date" id="lvFrom" style="width:100%"></b></div>
-        <div class="row" style="margin-bottom:8px"><span>إلى</span><b><input type="date" id="lvTo" style="width:100%"></b></div>
-        <div class="row" style="margin-bottom:8px"><span>السبب</span><b><input id="lvReason" style="width:100%" placeholder="سفر / ظرف عائلي..."></b></div>
-        <button class="btn" style="width:100%" onclick="requestLeave()">📨 إرسال طلب الإجازة</button>
-        <div class="msg" id="lvMsg"></div>
-        <div id="leaveStatus" style="margin-top:12px"></div>
-      </div>
-      <div class="card"><h3>طلبات الموظف</h3><select id="erType" style="width:100%;margin-bottom:8px"><option value="ADVANCE">طلب سلفة</option><option value="SHIFT_CHANGE">تغيير وردية</option><option value="PROJECT_TRANSFER">نقل مشروع</option><option value="MAINTENANCE">صيانة مركبة</option><option value="INCIDENT">بلاغ حادث</option></select><select id="erProject" style="width:100%;margin-bottom:8px"><option value="">المشروع المطلوب عند طلب النقل</option></select><input id="erTitle" style="width:100%;margin-bottom:8px" placeholder="عنوان الطلب"><textarea id="erDetails" style="width:100%;margin-bottom:8px" placeholder="التفاصيل"></textarea><input id="erAmount" type="number" style="width:100%;margin-bottom:8px" placeholder="المبلغ إن وجد"><button class="btn" style="width:100%" onclick="sendEmployeeRequest()">إرسال الطلب</button><div id="erMsg" class="msg"></div></div>
-      </div>
-
-      <div class="dlogPane" id="dlogPane-history">
-      <div class="card">
-        <h3>📆 آخر سجلات هذا الشهر</h3>
-        <div id="dlMonth"></div>
-      </div>
-      <div class="card">
-        <h3>🗓 الشهور السابقة</h3>
-        <div id="dlPrev"></div>
-      </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-const API = "";
-let TOKEN = localStorage.getItem("dou_token_courier");
-let COURIER = null;
-let online = false;
-let checkedIn = false;
-let CURRENT_SHIFT = null;
-function escapeHtml(value){return String(value||"").replace(/[&<>\"]/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;"}[char]));}
-
-async function api(path, opts={}){
-  const headers = {"Content-Type":"application/json"};
-  if(TOKEN) headers["Authorization"] = "Bearer "+TOKEN;
-  let r;try{r=await fetch(API+path, Object.assign({headers}, opts))}catch(_e){const err=new Error("تعذر الاتصال بالخادم. تحقق من الإنترنت ثم أعد المحاولة");err.status=0;throw err}
-  if(!r.ok){let message="تعذر تنفيذ الطلب";try{const data=await r.json();message=data.detail||message}catch(_e){}if(path==="/auth/login"&&r.status===401)message="رقم الجوال أو كلمة المرور غير صحيحة";const err=new Error(message);err.status=r.status;throw err;}
-  return r.json();
-}
-
-function loginView(){
-  const stage = document.querySelector(".stage");
-  stage.innerHTML = `
-    <button onclick="setDouLanguage(localStorage.getItem('dou_lang')==='en'?'ar':'en')" style="position:fixed;left:14px;bottom:14px;z-index:100;background:#111827;color:#fff;border:1px solid #374151;border-radius:20px;padding:8px 13px;font:700 11px Alexandria;cursor:pointer">AR / EN</button>
-    <div style="display:flex;flex-direction:column;justify-content:center;min-height:100vh;padding:24px;background:linear-gradient(160deg,#141a24,#1f2a3a)">
-      <div style="text-align:center;margin-bottom:22px">
-        <div class="logo" style="color:#fff;font-size:28px">D<i></i>ou <span style="font-size:11px;color:#ff7a42;letter-spacing:1px">COURIER</span></div>
-        <p style="color:#8b94a3;font-size:12px;margin:8px 0 0">سجّل دخولك لمتابعة ورديتك ومستنداتك ومستحقاتك</p>
-      </div>
-      <div style="background:#fff;border-radius:18px;padding:20px">
-        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">رقم الجوال (بمفتاح الدولة)</label>
-        <input id="loginPhone" type="tel" dir="ltr" placeholder="966551112233" value="966551112233"
-          style="width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:12px">
-        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:6px">كلمة المرور</label>
-        <input id="loginPass" type="password" dir="ltr" placeholder="••••••••"
-          style="width:100%;padding:13px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:14px;margin-bottom:16px">
-        <button class="btn primary" id="loginBtn" onclick="doLogin()">دخول</button>
-        <div id="installBar" style="display:none;margin-top:12px;text-align:center">
-          <button class="btn ghost" id="installBtn" onclick="installApp()">📲 ثبّت التطبيق على جوالك</button>
-        </div>
-      </div>
-    </div>`;
-}
-
-let deferredInstall = null;
-window.addEventListener("beforeinstallprompt", (e) => {
-  e.preventDefault();
-  deferredInstall = e;
-  const bar = document.getElementById("installBar");
-  if (bar) bar.style.display = "block";
-});
-window.addEventListener("appinstalled", () => {
-  const bar = document.getElementById("installBar");
-  if (bar) bar.style.display = "none";
-});
-function installApp(){
-  if (!deferredInstall) { alert("استخدم قائمة المتصفح → أضف إلى الشاشة الرئيسية"); return; }
-  deferredInstall.prompt();
-  deferredInstall.userChoice.then(() => { deferredInstall = null; });
-}
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/static/sw.js").catch(() => {});
-}
-
-async function doLogin(){
-  const btn = document.getElementById("loginBtn");
-  btn.disabled = true; btn.textContent = "جاري الدخول...";
-  try{
-    const res = await api("/auth/login", {method:"POST", body:JSON.stringify({
-      phone: document.getElementById("loginPhone").value.trim(),
-      password: document.getElementById("loginPass").value
-    })});
-    TOKEN = res.access_token;
-    localStorage.setItem("dou_token_courier", TOKEN); localStorage.setItem("dou_role_courier", res.role);
-    location.reload();
-  }catch(e){ btn.disabled=false; btn.textContent="دخول"; alert("❌ "+e.message); }
-}
-
-async function logout(){
-  const old=TOKEN;TOKEN=null;try{if(old)await fetch('/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+old}})}catch(_e){}
-  localStorage.removeItem("dou_token_courier"); localStorage.removeItem("dou_role_courier"); COURIER = null; loginView();
-}
-async function changeMyPassword(){
-  const current=prompt("كلمة المرور الحالية:");if(current===null)return;const next=prompt("كلمة المرور الجديدة (8 أحرف على الأقل):");if(!next)return;
-  await api("/auth/change-password",{method:"POST",body:JSON.stringify({current_password:current,new_password:next})});alert("✅ تم التغيير. سجل الدخول بكلمة المرور الجديدة");logout();
-}
-async function sendEmployeeRequest(){try{await api("/hr/employee-requests",{method:"POST",body:JSON.stringify({request_type:document.getElementById("erType").value,title:document.getElementById("erTitle").value,details:document.getElementById("erDetails").value,amount:+document.getElementById("erAmount").value||null,project_id:+document.getElementById("erProject").value||null})});document.getElementById("erMsg").textContent="✅ تم إرسال الطلب للإدارة"}catch(e){document.getElementById("erMsg").textContent="❌ "+e.message}}
-
-async function init(){
-  if(!TOKEN){ loginView(); return; }
-  const storedRole=localStorage.getItem("dou_role_courier");
-  if(storedRole && storedRole!=="COURIER"){
-    localStorage.removeItem("dou_token_courier"); TOKEN=null; loginView(); return;
-  }
-  try{
-    const courierRequest=api("/couriers/me"),preferencesRequest=api("/couriers/me/preferences").catch(()=>null);
-    COURIER = await courierRequest;
-    document.querySelectorAll(".tabs").forEach(t=>t.style.display="flex");
-    fillProfile();
-    renderCourierState();
-    preferencesRequest.then(p=>{if(p&&window.setDouTenantPreferences)setDouTenantPreferences(p.language,p.currency)});
-    Promise.allSettled([loadTasks(),loadHRWarnings(),loadMyDocuments(),loadMyTickets()]);
-  }catch(e){
-    if(e.status===401){localStorage.removeItem("dou_token_courier");localStorage.removeItem("dou_role_courier");TOKEN=null;loginView();return}
-    document.querySelector(".content").innerHTML=`<div class="card" style="margin-top:30px;text-align:center"><h3>تعذر تحميل التطبيق</h3><p>${escapeHtml(e.message||"خطأ مؤقت")}</p><button class="btn primary" onclick="location.reload()">إعادة المحاولة</button></div>`;
-  }
-}
-
-function renderCourierState(){
-  if(!COURIER)return;
-  document.getElementById("acceptRate").textContent=COURIER.acceptance_rate+"%";
-  document.getElementById("score").textContent=COURIER.score;
-  online=COURIER.is_online;
-  document.getElementById("switch").classList.toggle("on",online);
-  document.getElementById("statusText").textContent=online?"متصل":"غير متصل";
-  document.getElementById("statusDot").style.color=online?"#5be0a3":"#8b94a3";
-  document.getElementById("profOnline").textContent=online?"متصل":"غير متصل";
-  document.getElementById("doneCount").textContent=COURIER.current_load||0;
-}
-
-function fillProfile(){
-  if(!COURIER) return;
-  document.querySelectorAll(".lineItem").forEach(el=>{
-    const span = el.querySelector("span");
-    if(span && span.textContent==="الاسم") el.querySelector("b").textContent = COURIER.name || "—";
-    if(span && span.textContent==="الهاتف") el.querySelector("b").textContent = COURIER.phone || "—";
-  });
-  const n2 = document.getElementById("profName2"); if(n2) n2.textContent = COURIER.name||"—";
-  const p2 = document.getElementById("profPhone2"); if(p2) p2.textContent = COURIER.phone||"—";
-  const ib = document.getElementById("profIban"); if(ib) ib.textContent = COURIER.bank_iban||"—";
-  const ft = document.getElementById("profFleet"); if(ft) ft.textContent = COURIER.courier_type==="COMPANY"?"أسطول شركة":"فريلانسر";
-  document.querySelector(".head .logo").insertAdjacentHTML("beforeend",
-    `<div style="font-size:9px;color:#5be0a3;margin-top:2px">${COURIER.name||""}</div>`);
-}
-
-const NOTIFS = [
-  {ic:"📆", c:"#eaf1ff", t:"سجّل إنتاجيتك اليومية قبل نهاية الوردية", s:"اليوم"},
-  {ic:"🔔", c:"#fff2eb", t:"تذكير: ورديتك تبدأ 16:00 اليوم", s:"قبل 30 دقيقة"},
-  {ic:"⚠️", c:"#fff0f1", t:"راجع موعد انتهاء مستنداتك", s:"أمس"},
-  {ic:"💰", c:"#eaf8f0", t:"تم تحديث مستحقات الأسبوع الماضي", s:"الأحد"}
-];
-
-async function loadTasks(){
-  if(!COURIER) return;
-  const tasks = await api("/couriers/"+COURIER.id+"/tasks");
-  document.getElementById("tasks").innerHTML = tasks.length ? tasks.map(t=>{
-    return `
-    <div class="task">
-      <div class="top"><b>مهمة #${t.id}</b> ${tag(t.status)}</div>
-      <div class="row"><span>الطلب</span><b>#${t.order_id}</b></div>
-      <div class="row"><span>من</span><b>${t.merchant_name||"—"} · ${t.merchant_district||""}</b></div>
-      <div class="row"><span>العميل</span><b>${t.customer_name||"—"}</b></div>
-      <div class="row"><span>العنوان</span><b>${t.customer_address||"—"}</b></div>
-      <div class="row"><span>المسافة</span><b>${t.distance_km||0} كم</b></div>
-      <div class="row"><span>قيمة الطلب</span><b style="color:var(--green)">${t.total||0} ر.س</b></div>
-      ${t.status==="OFFERED" ? `<div class="btn-group">
-        <button class="btn green" onclick="act(${t.id},'accept')">قبول</button>
-        <button class="btn ghost" onclick="act(${t.id},'reject')">رفض</button>
-      </div>` : ""}
-      ${renderTaskSteps(t)}
-      ${t.status==="ACCEPTED" ? `<div class="btn-group">
-        <button class="btn" onclick="act(${t.id},'pickup')">📍 وصلت المتجر — استلمت</button>
-      </div>` : ""}
-      ${t.status==="PICKED_UP" ? `<div class="btn-group">
-        <button class="btn primary" onclick="act(${t.id},'transit')">🚚 في الطريق للعميل</button>
-      </div>` : ""}
-      ${t.status==="IN_TRANSIT" ? `<div class="btn-group">
-        <button class="btn green" onclick="act(${t.id},'deliver')">تم التسليم ✓</button>
-      </div>` : ""}
-    </div>`;
-  }).join("") : '<p style="color:var(--muted);font-size:12px">لا مهام حالياً</p>';
-}
-function renderTaskSteps(t){
-  const map = {ACCEPTED:0, PICKED_UP:1, IN_TRANSIT:2, DELIVERED:3};
-  const cur = map[t.status];
-  if(cur==null) return "";
-  const steps = ["الاستلام","استلمت","في الطريق","سُلّم"];
-  return `<div class="steps">${steps.map((s,i)=>`
-    <div class="st ${i<cur?"done":i===cur?"now":""}"><div class="dot">${i<cur?"✓":i+1}</div><small>${s}</small></div>`).join("")}</div>`;
-}
-
-async function act(taskId, action){
-  try{
-    await api(`/couriers/${COURIER.id}/tasks/${taskId}/${action}`,
-      action==="reject" ? {method:"POST",body:JSON.stringify({courier_id:COURIER.id,task_id:taskId})} : {method:"POST"});
-    await Promise.all([loadTasks(), loadProfile()]);
-  }catch(e){ alert("❌ "+e.message); }
-}
-
-async function loadProfile(){
-  if(!COURIER) return;
-  COURIER = await api("/couriers/me");
-  checkedIn=Boolean(COURIER.shift_active);
-  renderCourierState();
-  const tasks = await api("/couriers/"+COURIER.id+"/tasks");
-  document.getElementById("doneCount").textContent = tasks.filter(t=>t.status==="DELIVERED").length || COURIER.current_load||0;
-  await loadAssignedShift();
-}
-async function loadAssignedShift(){
-  try{
-    const data=await api("/shifts/me");CURRENT_SHIFT=data.current||(data.shifts||[])[0]||null;
-    const title=document.getElementById("shiftTitle"),info=document.getElementById("shiftInfo"),zone=document.getElementById("shiftZone");
-    if(!CURRENT_SHIFT){title.textContent="لا توجد وردية مسندة";info.textContent="اطلب من مشرفك إسناد وردية لك";zone.textContent="المنطقة: —";return;}
-    title.textContent="ورديتي المسندة — "+CURRENT_SHIFT.name;info.textContent=`${CURRENT_SHIFT.start_time} - ${CURRENT_SHIFT.end_time}${CURRENT_SHIFT.overnight?' (لليوم التالي)':''} · ${CURRENT_SHIFT.duration_hours} ساعة`;zone.textContent="المنطقة: "+(CURRENT_SHIFT.zone||"غير محددة");
-  }catch(_e){CURRENT_SHIFT=null;}
-}
-
-function updateShiftClock(){
-  if(!checkedIn){ return; }
-  const now = new Date();
-  document.getElementById("shiftClock").textContent = now.toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"});
-}
-
-async function toggleOnline(){
-  if(!COURIER) return;
-  try{
-    if(!online){ await api("/couriers/"+COURIER.id+"/online",{method:"POST"}); }
-    else{ await api("/couriers/"+COURIER.id+"/offline",{method:"POST"}); }
-    loadProfile();
-  }catch(e){ alert("❌ "+e.message); }
-}
-
-function getLocation(){
-  return new Promise(resolve=>{
-    if(!navigator.geolocation){ resolve({lat:null,lng:null}); return; }
-    navigator.geolocation.getCurrentPosition(
-      p=>resolve({lat:+(p.coords.latitude.toFixed(6)), lng:+(p.coords.longitude.toFixed(6))}),
-      ()=>resolve({lat:null,lng:null}),
-      {enableHighAccuracy:true, timeout:8000, maximumAge:30000}
-    );
-  });
-}
-
-async function openNavigation(){
-  const tasks = await api("/couriers/"+COURIER.id+"/tasks");
-  const active = tasks.find(t=>t.status==="ACCEPTED"||t.status==="PICKED_UP"||t.status==="IN_TRANSIT");
-  const loc = await getLocation();
-  const dest = active ? (active.merchant_name||"الوجهة") : "الوجهة";
-  const q = active && active.customer_address ? active.customer_address : dest;
-  window.open("https://maps.google.com/?q="+encodeURIComponent(q), "_blank");
-}
-
-async function editPayment(){
-  const iban = prompt("أدخل رقم IBAN (يُستخدم لتحويل أرباحك):", COURIER.bank_iban||"SA");
-  if(!iban) return;
-  try{
-    const r = await api("/couriers/me", {method:"PATCH", body:JSON.stringify({bank_iban:iban})});
-    document.getElementById("profIban").textContent = r.bank_iban||"—";
-    COURIER = await api("/couriers/me");
-    alert("✅ حُدّث الحساب البنكي بنجاح");
-  }catch(e){ alert("❌ "+e.message); }
-}
-
-async function editProfile(){
-  const name = prompt("الاسم الجديد:", COURIER.name||"");
-  if(!name) return;
-  try{
-    const r = await api("/couriers/me", {method:"PATCH", body:JSON.stringify({name})});
-    COURIER = await api("/couriers/me");
-    fillProfile();
-    loadProfile();
-    const el = document.getElementById("profName2"); if(el) el.textContent = COURIER.name;
-    alert("✅ حُدّث الملف — "+r.name);
-  }catch(e){ alert("❌ "+e.message); }
-}
-
-async function uploadDoc(){
-  const labels={IQAMA:"الإقامة",DRIVING_LICENSE:"رخصة القيادة",VEHICLE_LICENSE:"رخصة المركبة",PASSPORT:"جواز السفر",INSURANCE:"التأمين",WORK_PERMIT:"تصريح العمل"};
-  const typ=prompt("اكتب كود نوع المستند:\n"+Object.entries(labels).map(x=>x[0]+" — "+x[1]).join("\n"),"IQAMA");if(!labels[typ])return alert("نوع المستند غير صحيح");
-  const input=document.createElement("input");input.type="file";input.accept="image/jpeg,image/png,application/pdf";input.onchange=()=>{const f=input.files[0];if(!f)return;if(f.size>1024*1024)return alert("حجم الملف يجب ألا يزيد عن 1 ميجابايت");const reader=new FileReader();reader.onload=async()=>{try{await api("/hr/me/documents",{method:"POST",body:JSON.stringify({document_type:typ,filename:f.name,mime_type:f.type,file_data:reader.result})});alert("✅ تم رفع المستند وحالته: بانتظار مراجعة الشركة");loadMyDocuments()}catch(e){alert("❌ "+e.message)}};reader.readAsDataURL(f)};input.click();
-}
-async function loadMyDocuments(){try{const rows=await api('/hr/me/documents'),box=document.getElementById('myUploadedDocs');if(box)box.innerHTML=rows.map(x=>`<div class="lineItem"><span>${x.filename}</span><b>${x.status==='APPROVED'?'✅ معتمد':x.status==='REJECTED'?'❌ مرفوض':'⏳ قيد المراجعة'}</b></div>`).join('')||'<small>لم ترفع مستندات بعد</small>'}catch(e){}}
-
-async function raiseSupport(){
-  const subject = prompt("موضوع التذكرة:", "مشكلة في احتساب الأرباح");
-  if(!subject) return;
-  const message = prompt("اشرح المشكلة:", "");
-  if(!message) return;
-  try{
-    const r = await api("/couriers/me/tickets", {method:"POST", body:JSON.stringify({subject, message})});
-    alert("✅ رُفعت التذكرة #"+r.id+" — سيرد عليك فريق الشركة");
-    loadMyTickets();
-  }catch(e){ alert("❌ "+e.message); }
-}
-
-async function loadMyTickets(){
-  const box=document.getElementById("myTickets");
-  if(!box)return;
-  try{
-    const rows=await api("/couriers/me/tickets");
-    box.innerHTML=rows.map(t=>`<div class="lineItem" style="display:block">
-      <div style="display:flex;justify-content:space-between;gap:8px"><b>#${t.id} · ${escapeHtml(t.subject)}</b><span class="tag ${t.status==='REPLIED'?'green':'amber'}">${t.status==='REPLIED'?'تم الرد':'بانتظار الرد'}</span></div>
-      <small style="display:block;color:var(--muted);margin-top:5px">${escapeHtml(t.message)}</small>
-      ${t.reply?`<div style="margin-top:8px;padding:9px;border-radius:9px;background:#ecfdf5;color:#047857"><b>رد الشركة:</b> ${escapeHtml(t.reply)}</div>`:''}
-      <small style="display:block;color:var(--muted);margin-top:5px">${t.created_at?new Date(t.created_at).toLocaleString('ar-SA'):''}</small>
-    </div>`).join('')||'<small style="color:var(--muted)">لا توجد تذاكر حتى الآن</small>';
-  }catch(e){box.innerHTML='<small style="color:var(--red)">تعذر تحميل التذاكر</small>'}
-}
-
-async function checkIn(){
-  try{
-    const loc = await getLocation();
-    const result=await api("/shifts/attendance/check-in",{method:"POST",body:JSON.stringify({courier_id:COURIER.id, lat:loc.lat, lng:loc.lng})});
-    checkedIn = true;
-    document.getElementById("checkinBtn").textContent = "✓ مسجّل الحضور";document.getElementById("checkinBtn").disabled = true;document.getElementById("checkoutBtn").disabled = false;document.getElementById("statusText").textContent = "متصل";
-    await loadAssignedShift();
-    const late=result.late_minutes?` · تأخير ${result.late_minutes} دقيقة`:'';
-    alert((loc.lat?"✅ تم تسجيل الحضور بالموقع — ظهر للشركة":"✅ تم تسجيل الحضور — الموقع غير متاح")+late);
-    loadProfile();
-  }catch(e){ alert("❌ "+e.message); }
-}
-async function checkOut(){
-  try{
-    const loc = await getLocation();
-    const result=await api("/shifts/attendance/check-out",{method:"POST",body:JSON.stringify({courier_id:COURIER.id, lat:loc.lat, lng:loc.lng})});
-    checkedIn = false;document.getElementById("checkinBtn").textContent = "تسجيل دخول (حضور GPS)";document.getElementById("checkinBtn").disabled = false;document.getElementById("checkoutBtn").disabled = true;
-    await loadAssignedShift();
-    alert("✅ تم تسجيل الخروج"+(result.early_leave_minutes?` · انصراف مبكر ${result.early_leave_minutes} دقيقة`:''));
-    loadProfile();
-  }catch(e){ alert("❌ "+e.message); }
-}
-
-async function loadDailyLog(){
-  try{
-    const el = document.getElementById("dlDate");
-    if(!el.value) el.value = new Date().toISOString().slice(0,10);
-    const data = await api("/hr/me/logs");
-    document.getElementById("dlogMonthTotal").textContent = data.month_orders+" أوردر هذا الشهر";
-    document.getElementById("dlogToday").textContent = "اليوم: "+data.today_orders+" أوردر";
-    const payroll=data.payroll||{};
-    document.getElementById("dlogBonus").textContent = "بونص الشهر: "+data.bonus_earned+" ر.س · "+(payroll.finalized?"صافي مقفل: ":"صافي تقديري: ")+(payroll.net_pay||0)+" ر.س";
-    document.getElementById("bonusProgress").innerHTML = (data.bonus_details||[]).map(b=>{
-      const pct=Math.min(100,Math.round((b.orders/(b.target||1))*100));
-      const status=b.achieved?`حقق التارجت · ${b.over_orders} طلب زائد`:`متبقي ${b.remaining_orders} طلب`;
-      return `<div style="margin-bottom:14px"><div class="lineItem"><span><b>${b.project}</b></span><b>${b.orders} / ${b.target}</b></div>
-        <div style="height:8px;background:#edf0f4;border-radius:8px;overflow:hidden;margin:8px 0"><i style="display:block;height:100%;width:${pct}%;background:${b.achieved?'var(--green)':'var(--orange)'}"></i></div>
-        <div class="row"><span>${status}</span><b style="color:var(--green)">${b.earned} ر.س</b></div>
-        <small style="color:var(--muted)">${b.target_bonus} ر.س عند التارجت + ${b.over_target_rate} ر.س لكل طلب زائد</small></div>`;
-    }).join("")||'<p style="color:var(--muted);font-size:12px">لم تحدد الشركة خطة بونص لك بعد</p>';
-    const projSel = document.getElementById("dlProject");
-    if(!projSel.dataset.loaded){
-      const projects = await api("/hr/projects");
-      const current=projects.filter(p=>p.is_current);
-      projSel.innerHTML = current.map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join("") || '<option value="">لا يوجد مشروع مسند لك</option>';
-      document.getElementById("erProject").innerHTML='<option value="">المشروع المطلوب عند طلب النقل</option>'+projects.filter(p=>!p.is_current&&p.is_active).map(p=>'<option value="'+p.id+'">'+p.name+'</option>').join('');
-      projSel.dataset.loaded = "1";
-    }
-    const monthRows=days=>'<div class="historyBox"><table><thead><tr><th>التاريخ</th><th>المشروع</th><th>الأوردرات</th><th>ملاحظات</th></tr></thead><tbody>'+days.map(d=>`<tr><td>${d.date}</td><td>${d.project||"—"}</td><td><b>${d.orders}</b></td><td>${d.notes||""}</td></tr>`).join("")+"</tbody></table></div>";
-    document.getElementById("dlMonth").innerHTML = data.days.length
-      ? monthRows(data.days.slice(-7))+(data.days.length>7?`<details><summary class="historyToggle">عرض كل سجل الشهر (${data.days.length} يوم)</summary>${monthRows(data.days)}</details>`:'')
-      : '<p style="color:var(--muted);font-size:12px">لم تسجّل أي يوم هذا الشهر بعد</p>';
-    const previous=(data.previous_months||[]).filter(m=>m.days.length);
-    document.getElementById("dlPrev").innerHTML = previous.map(m=>`<details class="monthSummary"><summary>${m.month} — ${m.total} أوردر · ${m.days.length} يوم</summary>${monthRows(m.days)}</details>`).join("")||'<p style="color:var(--muted);font-size:12px">لا توجد سجلات في الشهور السابقة</p>';
-    loadLeaveStatus();
-  }catch(e){}
-}
-function showDlogPane(name){document.querySelectorAll('.dlogPane').forEach(x=>x.classList.toggle('active',x.id==='dlogPane-'+name));document.querySelectorAll('.dlogNav button').forEach(x=>x.classList.toggle('active',x.dataset.dpane===name));sessionStorage.setItem('dou_driver_daily_pane',name)}
-
-async function saveDailyLog(){
-  try{
-    await api("/hr/me/log",{method:"POST",body:JSON.stringify({
-      log_date: document.getElementById("dlDate").value,
-      project_id: parseInt(document.getElementById("dlProject").value),
-      orders_count: parseInt(document.getElementById("dlCount").value||0),
-      notes: document.getElementById("dlNote").value
-    })});
-    const msg = document.getElementById("dlMsg");
-    msg.style.color="var(--green)"; msg.textContent="✅ حُفظ سجل اليوم";
-    setTimeout(()=>{msg.textContent="";loadDailyLog();},1200);
-  }catch(e){ const m=document.getElementById("dlMsg"); m.style.color="var(--red)"; m.textContent="❌ "+e.message; }
-}
-
-async function requestLeave(){
-  try{
-    const r = await api("/hr/me/leave",{method:"POST",body:JSON.stringify({
-      from_date: document.getElementById("lvFrom").value,
-      to_date: document.getElementById("lvTo").value,
-      reason: document.getElementById("lvReason").value
-    })});
-    const m = document.getElementById("lvMsg");
-    m.style.color="var(--green)";
-    m.textContent="✅ أُرسل طلب الإجازة #"+r.id+" — بانتظار موافقة المشرف ثم الأدمن";
-    loadLeaveStatus();
-  }catch(e){ const m=document.getElementById("lvMsg"); m.style.color="var(--red)"; m.textContent="❌ "+e.message; }
-}
-
-async function loadLeaveStatus(){
-  try{
-    const leaves = await api("/hr/me/leaves");
-    const map = {PENDING:'<span class="tag" style="background:#fef4e2;color:#d97706">بانتظار المشرف</span>',SUPERVISOR_APPROVED:'<span class="tag" style="background:#eaf1ff;color:#246bfd">وافق عليها المشرف — بانتظار الأدمن</span>',APPROVED:'<span class="tag" style="background:#e8f8f1;color:#16a46b">✔ موافق عليها نهائياً</span>',REJECTED:'<span class="tag" style="background:#fdebeb;color:#ef5d67">مرفوضة</span>'};
-    document.getElementById("leaveStatus").innerHTML = leaves.length
-      ? leaves.slice(0,3).map(l=>`<div class="lineItem"><span>${l.from_date} ← ${l.to_date} ${map[l.status]||l.status}</span></div>`).join("")
-      : '<p style="color:var(--muted);font-size:12px">لا طلبات إجازة سابقة</p>';
-  }catch(e){}
-}
-
-function go(v){
-  const map = {home:"الرئيسية",earnings:"مستحقاتي",dlog:"سجلي اليومي",profile:"حسابي",notifs:"تنبيهات"};
-  ["home","earnings","dlog","profile","notifs"].forEach(x=>document.getElementById("view-"+x).classList.toggle("active",x===v));
-  document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active", b.textContent.includes(map[v])));
-  if(v==="notifs") renderNotifs();
-  if(v==="dlog"){showDlogPane(sessionStorage.getItem('dou_driver_daily_pane')||'today');loadDailyLog()}
-}
-function tag(s){ s=String(s); return `<span class="tag ${/DELIVER/i.test(s)?"green":/ACCEPT/i.test(s)?"blue":/OFFER/i.test(s)?"orange":"gray"}">${s.replace(/_/g," ")}</span>`; }
-function toggleNotifPanel(e){ e.stopPropagation(); }
-document.addEventListener("click",()=>{});
-
-async function loadHRWarnings(){
-  try{
-    const hr = await api("/hr/me/hr");
-    const warns = (hr.risks||[]).filter(r=>/منتهية|قرب/.test(r));
-    const docEl = document.getElementById("profDocs");
-    if(docEl){
-      const b = (name, days, date) => {
-        const cls = (days===null||days===undefined)?"gray":(days<0?"red":(days<=7?"amber":"green"));
-        return `<div class="docRow"><div><b>${name}</b><small> · تنتهي ${date||'—'}</small></div><span class="tag ${cls}">${(days===null||days===undefined)?'غير محددة':(days<0?'منتهية':days+' يوم')}</span></div>`;
-      };
-      docEl.innerHTML = b("الإقامة", hr.doc_days_left.iqama, hr.iqama_expiry) + b("رخصة القيادة", hr.doc_days_left.license, hr.license_expiry) + b("رخصة المركبة", hr.doc_days_left.vehicle, hr.vehicle_license_expiry)
-        + `<div class="lineItem"><span>منصّة العمل</span><b>${hr.platform||'—'} ${hr.platform_courier_id?'('+hr.platform_courier_id+')':''}</b></div>
-           <div class="lineItem"><span>مشرفي</span><b>${hr.supervisor_name||'—'}</b></div>
-           <div class="lineItem"><span>ورديتي المعتمدة</span><b>${hr.shift_preference||'غير محددة'}</b></div>
-           <div class="lineItem"><span>تقييمي</span><b>${hr.avg_rating||'—'}</b></div>
-           <div class="lineItem"><span>طلبات الشهر</span><b>${hr.month_orders||0}</b></div>
-           <div class="lineItem"><span>الراتب الأساسي</span><b>${hr.base_salary||0} ر.س</b></div>
-           <div class="lineItem"><span>أجر الطلبات هذا الشهر</span><b>${hr.orders_earnings||0} ر.س</b></div>
-           <div class="lineItem"><span>البونص المستحق</span><b>${hr.bonus&&hr.bonus.total||0} ر.س</b></div>
-           <div class="lineItem"><span>إجمالي مستحق الشهر (تقديري)</span><b class="earn">${hr.monthly_estimated||0} ر.س</b></div>`;
-    }
-    const alerts = [];
-    (hr.notes||[]).slice(0,2).forEach(n=>alerts.push({ic:"📝",c:"#fff2eb",t:"ملاحظة من "+n.author_name+": "+n.note,s:"ملاحظة أداء"}));
-    const msgs = await api("/hr/me/messages");
-    msgs.slice(0,3).forEach(m=>alerts.push({ic:"📢",c:"#eaf1ff",t:m.message,s:"رسالة من "+m.sender_name}));
-    warns.forEach(w=>alerts.push({ic:"⚠️",c:"#fff0f1",t:"تنبيه مستند: "+w,s:"مهم"}));
-    if(alerts.length) window.__hrAlerts = alerts;
-  }catch(e){}
-}
-function renderNotifs(){
-  const extra = window.__hrAlerts||[];
-  const list = [...extra, ...NOTIFS];
-  document.getElementById("notifList").innerHTML = list.map(n=>`
-    <div class="notifItem"><div class="ic" style="background:${n.c}">${n.ic}</div>
-      <div><b>${n.t}</b><small>${n.s}</small></div></div>`).join("");
-}
-
-document.querySelectorAll(".tabs").forEach(t=>t.style.display="none");
-document.getElementById("view-home").classList.remove("active");
-renderNotifs();
-init();
-setInterval(()=>{ fetch("/health").catch(()=>{}); }, 10*60*1000);
-setInterval(()=>{ if(TOKEN&&COURIER) loadTasks(); }, 8000);
-setInterval(()=>{ updateShiftClock(); }, 30000);
-</script>
+  function setLang(next){lang=next;localStorage.setItem("dou_lang",lang);const url=new URL(location.href);url.searchParams.set("lang",lang);history.replaceState(history.state,"",url);document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";render();}
+  function toggleLang(){setLang(lang==="ar"?"en":"ar")}
+  function paintToast(){const box=$("toast");if(!box||!state.toast)return;box.textContent=state.toast.message;box.className="toast show "+state.toast.type;clearTimeout(state.toastTimer);state.toastTimer=setTimeout(()=>{state.toast=null;if(box.isConnected)box.className="toast"},3400)}
+  function showToast(message,type="") {state.toast={message,type};paintToast()}
+  function setBusy(key,on){on?state.busy.add(key):state.busy.delete(key);render();wireEmployeeRequestFields();wireDocumentBusy()}
+  function statusPill(label,type="gray"){return `<span class="status-pill ${type}">${esc(label)}</span>`}
+  function actionError(error){if(error?.status===401){clearSession(t("sessionExpired"));return}if(error?.status===403){state.accessBlocked=true;render();return}showToast(error?.status===0?t("networkError"):(lang==="ar"&&error?.message?error.message:t("genericError")),"error")}
+  async function api(path,opts={}){if(!navigator.onLine){const e=new Error(t("networkError"));e.status=0;throw e}const headers={...(opts.headers||{})};if(opts.body&&!headers["Content-Type"])headers["Content-Type"]="application/json";if(TOKEN)headers.Authorization="Bearer "+TOKEN;let response;try{response=await fetch(API+path,{...opts,headers})}catch(_){const e=new Error(t("networkError"));e.status=0;throw e}if(!response.ok){let detail="";try{detail=(await response.json()).detail||""}catch(_){}const e=new Error(detail);e.status=response.status;throw e}if(response.status===204)return null;return response.json()}
+  function clearSession(message=""){TOKEN=null;state.core=null;state.extras=null;state.extrasPromise=null;state.projects=null;state.projectsPromise=null;state.accessBlocked=false;localStorage.removeItem("dou_token_courier");localStorage.removeItem("dou_role_courier");renderLogin(message)}
+  function appLogo(){return `<div class="brand"><div><div class="brand-mark">D<i></i>ou</div><div class="brand-sub">RIDER</div></div>${state.core?`<div class="identity">${esc(state.core.courier.name||"")}</div>`:""}</div>`}
+  function renderLogin(message=""){document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";$('app').innerHTML=`<section class="login-page"><button class="lang-btn login-language" onclick="toggleLang()">${t("language")}</button><div class="login-wrap"><div class="login-brand"><div class="brand-mark">D<i></i>ou</div><div class="brand-sub">RIDER</div><h1>${t("loginTitle")}</h1><p>${t("loginLead")}</p></div><div class="login-card"><div class="form-grid"><div class="field"><label for="loginPhone">${t("phone")}</label><input id="loginPhone" type="tel" inputmode="tel" autocomplete="username" dir="ltr" placeholder="9665…"></div><div class="field"><label for="loginPassword">${t("password")}</label><input id="loginPassword" type="password" autocomplete="current-password" dir="ltr" placeholder="••••••••"></div><button id="loginButton" class="btn primary full" onclick="doLogin()">${t("login")}</button></div>${message?`<p class="small" style="color:var(--danger);margin:13px 0 0">${esc(message)}</p>`:""}<div id="installLogin"></div></div></div><div id="toast" class="toast"></div></section>`;renderInstallHelper("installLogin")}
+  function blockedView(){document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";$('app').innerHTML=`<section class="blocked"><div class="blocked-card"><div class="blocked-icon">🔒</div><h1>${t("suspended")}</h1><p>${lang==="ar"?"لا يمكن متابعة الإجراءات أو عرض البيانات التشغيلية من هذا الحساب الآن.":"Operational actions and data cannot be accessed from this account at this time."}</p><button class="btn outline" onclick="clearSession()">${t("logout")}</button></div></section>`}
+  async function doLogin(){const phone=$('loginPhone').value.trim(),password=$('loginPassword').value;const btn=$('loginButton');if(!phone||!password){showToast(t("genericError"),"error");return}btn.disabled=true;btn.textContent=t("loggingIn");try{const result=await api('/auth/login',{method:'POST',body:JSON.stringify({phone,password})});if(result.role!=="COURIER"){throw new Error(lang==="ar"?"هذا الحساب ليس حساب سائق.":"This is not a rider account.")}TOKEN=result.access_token;localStorage.setItem("dou_token_courier",TOKEN);localStorage.setItem("dou_role_courier",result.role);await loadCore();render()}catch(error){btn.disabled=false;btn.textContent=t("login");actionError(error)}}
+  async function loadCore(){const [courier,shift,logs,hr,preferences]=await Promise.all([api('/couriers/me'),api('/shifts/me'),api('/hr/me/logs'),api('/hr/me/hr'),api('/couriers/me/preferences').catch(()=>null)]);state.core={courier,shift,logs,hr,preferences};if(preferences?.language&&["ar","en"].includes(preferences.language)&&!new URLSearchParams(location.search).get("lang")){lang=preferences.language;localStorage.setItem("dou_lang",lang)}}
+  async function refreshCore(){try{await loadCore();render();showToast(lang==="ar"?"تم تحديث البيانات.":"Data refreshed.","success")}catch(error){actionError(error)}}
+  async function ensureProjects(){if(state.projects)return state.projects;if(state.projectsPromise)return state.projectsPromise;state.projectsPromise=(async()=>{try{state.projects=await api('/hr/projects');render();wireEmployeeRequestFields();return state.projects}catch(error){actionError(error);return null}finally{state.projectsPromise=null}})();return state.projectsPromise}
+  async function ensureExtras(){if(state.extras)return state.extras;if(state.extrasPromise)return state.extrasPromise;state.extrasPromise=(async()=>{try{const [documents,tickets,leaves,messages]=await Promise.all([api('/hr/me/documents'),api('/couriers/me/tickets'),api('/hr/me/leaves'),api('/hr/me/messages')]);state.extras={documents,tickets,leaves,messages};render();wireEmployeeRequestFields();return state.extras}catch(error){actionError(error);return null}finally{state.extrasPromise=null}})();return state.extrasPromise}
+  function render(){if(state.accessBlocked){blockedView();return}if(!TOKEN){renderLogin();return}if(!state.core){$('app').innerHTML=`<div class="app-shell"><main>${[1,2,3,4].map(()=>'<div class="skeleton"></div>').join('')}</main></div>`;return}document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";const c=state.core.courier;$('app').innerHTML=`<div class="app-shell"><header class="topbar">${appLogo()}<div class="top-actions"><button class="icon-btn" aria-label="${t("refresh")}" onclick="refreshCore()">↻</button><button class="lang-btn" onclick="toggleLang()">${t("language")}</button></div></header><div id="connection" class="connection ${navigator.onLine?'':'show'}">${navigator.onLine?'':`◌ ${t("offline")}`}</div><main>${renderHome()}${renderShifts()}${renderPerformance()}${renderEarnings()}${renderProfile()}</main>${renderNav()}<div id="toast" class="toast"></div></div>`;paintToast();if(state.view==='profile'){ensureExtras();ensureProjects()}if(state.view==='performance')ensureProjects();}
+  function active(name){return state.view===name?'active':''}
+  function currentShift(){const data=state.core.shift||{};return data.current||(state.core.courier.shift_active?{name:t('noShift'),start_time:'—',end_time:'—',zone:'—',duration_hours:'—',attendance_only:true}:null)}
+  function attendanceMode(){const c=state.core.courier;const shift=currentShift();if(c.shift_active)return 'out';return shift?'in':'none'}
+  function renderHome(){const {courier:c,logs,hr}=state.core,shift=currentShift(),mode=attendanceMode(),bonus=logs.bonus_details?.[0],target=Number(bonus?.target||0),orders=Number((bonus?.orders ?? logs.month_orders) || 0),pct=target?Math.min(100,Math.round(orders/target*100)):0;const alerts=[];(hr.risks||[]).forEach(x=>alerts.push({icon:'⚠️',text:x,type:'orange'}));(hr.notes||[]).slice(0,1).forEach(x=>alerts.push({icon:'📝',text:x.note,type:'blue'}));return `<section class="view ${active('home')}" id="view-home"><p class="eyebrow">${t("home")}</p><h1 class="page-title">${esc(c.name||t("home"))}</h1><p class="page-lead">${t("homeLead")}</p><article class="shift-hero"><div class="row"><span class="status-pill ${c.shift_active?'green':'gray'}">${c.shift_active?t("checkedIn"):t("attendance")}</span>${shift?.overnight?statusPill(t("overnight"),'orange'):''}</div><p class="small" style="margin:15px 0 0;color:#aebfd0">${t("currentShift")}</p><h2 class="shift-title">${shift?esc(shift.name):t("noShift")}</h2><p class="shift-meta">${shift?`${esc(shift.start_time||'—')} — ${esc(shift.end_time||'—')} · ${esc(shift.zone||'—')}`:t("askSupervisor")}</p><div class="hero-action">${shift?`<button class="btn ${mode==='out'?'outline':'primary'} full" id="attendanceAction" onclick="attendanceAction()" ${state.busy.has('attendance')?'disabled':''}>${state.busy.has('attendance')?(mode==='out'?t('checkingOut'):t('checkingIn')):(mode==='out'?t('checkOut'):t('checkIn'))}</button>`:`<button class="btn outline full" onclick="go('shifts')">${t("viewDetails")}</button>`}</div></article><div class="metric-grid"><article class="metric"><span class="metric-label">${t("todayOrders")}</span><b class="metric-value orange">${Number(logs.today_orders||0)}</b></article><article class="metric"><span class="metric-label">${t("monthOrders")}</span><b class="metric-value green">${Number(logs.month_orders||0)}</b></article><article class="metric"><span class="metric-label">${t("target")}</span><b class="metric-value blue">${target||'—'}</b></article><article class="metric"><span class="metric-label">${t("bonus")}</span><b class="metric-value">${money(logs.bonus_earned||0)}</b></article></div><article class="card"><div class="row"><b>${t("target")}</b><span class="small muted">${orders} / ${target||'—'}</span></div><div class="progress-track"><div class="progress-fill ${bonus?.achieved?'green':''}" style="width:${pct}%"></div></div><p class="small muted" style="margin:9px 0 0">${bonus?(bonus.achieved?`${t("bonus")}: ${money(bonus.earned)}`:`${bonus.remaining_orders||0} ${lang==='ar'?'طلب متبقٍ':'orders remaining'}`):t("notAvailable")}</p></article><article class="card"><div class="row"><b>${t("attention")}</b><button class="btn ghost compact" onclick="go('profile')">${t("viewDetails")}</button></div>${alerts.length?alerts.map(a=>`<div class="alert-item"><span class="alert-icon">${a.icon}</span><div class="small">${esc(a.text)}</div></div>`).join(''):`<div class="empty"><span class="empty-icon">✓</span>${t("noMessages")}</div>`}</article></section>`}
+  function renderShifts(){const {courier:c}=state.core,shift=currentShift(),mode=attendanceMode();return `<section class="view ${active('shifts')}" id="view-shifts"><p class="eyebrow">${t("shifts")}</p><h1 class="page-title">${t("shiftDetails")}</h1><p class="page-lead">${lang==='ar'?'التوقيت والحضور من الوردية المسندة لك.':'Your assigned shift and attendance status.'}</p>${shift?`<article class="card dark"><div class="row"><b>${esc(shift.name)}</b>${statusPill(c.shift_active?t('checkedIn'):t('open'),c.shift_active?'green':'gray')}</div><div class="divider" style="background:rgba(255,255,255,.13)"></div><div class="data-list"><div class="data-row"><span>${t("start")}</span><b>${esc(shift.start_time||'—')}</b></div><div class="data-row"><span>${t("end")}</span><b>${esc(shift.end_time||'—')}</b></div><div class="data-row"><span>${lang==='ar'?'المنطقة':'Zone'}</span><b>${esc(shift.zone||'—')}</b></div><div class="data-row"><span>${lang==='ar'?'المدة':'Duration'}</span><b>${esc(shift.duration_hours||'—')} ${lang==='ar'?'ساعة':'hours'}</b></div></div>${shift.overnight?`<p class="small" style="color:#ffb292;margin:12px 0 0">${t("overnight")}</p>`:''}</article><article class="card"><h3 class="section-title" style="margin-top:0">${t("attendance")}</h3><div class="row"><div><b>${c.shift_active?t("checkedIn"):t("notAvailable")}</b><p class="tiny muted" style="margin:5px 0 0">${c.shift_active?(lang==='ar'?'استخدم زر الانصراف عند نهاية الوردية.':'Use check out when your shift ends.'):t("checkIn")}</p></div>${statusPill(c.is_online?t('online'):t('offlineStatus'),c.is_online?'green':'gray')}</div><div class="safe-gap"></div><button class="btn ${mode==='out'?'success':'primary'} full" onclick="attendanceAction()" ${state.busy.has('attendance')?'disabled':''}>${state.busy.has('attendance')?(mode==='out'?t('checkingOut'):t('checkingIn')):(mode==='out'?t('checkOut'):t('checkIn'))}</button></article>`:`<article class="card"><div class="empty"><span class="empty-icon">◷</span><b>${t("noShift")}</b><p>${t("askSupervisor")}</p></div></article>`}</section>`}
+  function projectOptions(){if(!state.projects)return `<option value="">${lang==='ar'?'جارِ تحميل المشاريع…':'Loading projects…'}</option>`;const rows=state.projects.filter(p=>p.is_current);return rows.length?rows.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(''):`<option value="">${t("noProject")}</option>`}
+  function renderBonus(){const details=state.core.logs.bonus_details||[];if(!details.length)return `<div class="empty"><span class="empty-icon">◎</span>${t("notAvailable")}</div>`;return details.map(b=>{const pct=Math.min(100,Math.round(Number(b.orders||0)/Math.max(1,Number(b.target||1))*100));return `<article class="card"><div class="row"><b>${esc(b.project||'—')}</b>${statusPill(b.achieved?t('approved'):t('target'),b.achieved?'green':'orange')}</div><div class="row" style="margin-top:13px"><span class="small muted">${Number(b.orders||0)} / ${Number(b.target||0)}</span><b>${money(b.earned||0)}</b></div><div class="progress-track"><div class="progress-fill ${b.achieved?'green':''}" style="width:${pct}%"></div></div><p class="tiny muted" style="margin:9px 0 0">${b.achieved?(lang==='ar'?`${b.over_orders||0} طلب فوق التارجت`:`${b.over_orders||0} orders above target`):(lang==='ar'?`${b.remaining_orders||0} طلب متبقٍ`:`${b.remaining_orders||0} orders remaining`)}</p></article>`}).join('')}
+  function renderHistory(){const logs=state.core.logs;const rows=logs.days||[];const table=(items)=>`<table class="history-table"><thead><tr><th>${t('today')}</th><th>${t('project')}</th><th>${t('orders')}</th></tr></thead><tbody>${items.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.project||'—')}</td><td><b>${Number(r.orders||0)}</b></td></tr>`).join('')}</tbody></table>`;return `<article class="card"><h3 class="section-title" style="margin-top:0">${t("history")}</h3>${rows.length?table(rows.slice(-7).reverse()):`<div class="empty">${t("noData")}</div>`}</article>${(logs.previous_months||[]).filter(m=>m.days?.length).length?`<article class="card"><h3 class="section-title" style="margin-top:0">${t("previousMonths")}</h3>${logs.previous_months.filter(m=>m.days?.length).map(m=>`<details><summary>${esc(m.month)} · ${Number(m.total||0)} ${t('orders')}</summary>${table(m.days)}</details>`).join('')}</article>`:''}`}
+  function renderPerformance(){return `<section class="view ${active('performance')}" id="view-performance"><p class="eyebrow">${t("performance")}</p><h1 class="page-title">${t("performance")}</h1><p class="page-lead">${t("performanceLead")}</p><article class="card"><h3 class="section-title" style="margin-top:0">${t("dailyLog")}</h3><div class="form-grid"><div class="field"><label for="logDate">${t("today")}</label><input id="logDate" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="field"><label for="logProject">${t("project")}</label><select id="logProject">${projectOptions()}</select></div><div class="field"><label for="logOrders">${t("orders")}</label><input id="logOrders" type="number" min="0" inputmode="numeric" placeholder="0"></div><div class="field"><label for="logNote">${t("notes")}</label><input id="logNote" type="text"></div><button class="btn primary full" onclick="saveLog()" ${state.busy.has('log')||!state.projects?'disabled':''}>${state.busy.has('log')?t('saving'):t('save')}</button><p class="form-note">${lang==='ar'?'القيم المعروضة بعد الحفظ تُجلب من المنصة ولا تُحسب داخل التطبيق.':'Values shown after saving are refreshed from DOU and are not calculated in the app.'}</p></div></article><h2 class="section-title">${t("target")}</h2>${renderBonus()}${renderHistory()}</section>`}
+  function payrollRow(label,value){return `<div class="data-row"><span>${label}</span><b>${money(value)}</b></div>`}
+  function renderEarnings(){const {logs,hr}=state.core,p=logs.payroll||{};return `<section class="view ${active('earnings')}" id="view-earnings"><p class="eyebrow">${t("earnings")}</p><h1 class="page-title">${t("earnings")}</h1><p class="page-lead">${t("earningsLead")}</p><article class="card dark"><div class="row"><span class="small" style="color:#c7d1de">${p.finalized?t('payrollClosed'):t('payrollPreview')}</span>${statusPill(p.finalized?t('finalized'):t('estimated'),p.finalized?'green':'orange')}</div><div style="font-size:29px;font-weight:800;margin-top:13px">${money(p.net_pay||0)}</div><p class="small" style="color:#b8c5d4;margin:7px 0 0">${esc(p.month||state.core.logs.month||'—')}</p></article><article class="card"><h3 class="section-title" style="margin-top:0">${t("details")}</h3>${payrollRow(t('baseSalary'),p.base_salary)}${payrollRow(t('deliveryPay'),p.delivery_pay)}${payrollRow(t('bonus'),p.bonus_pay)}${payrollRow(t('additions'),p.additions)}${payrollRow(t('deductions'),-(Number(p.deductions||0)))}<div class="divider"></div>${payrollRow(t('netPay'),p.net_pay)}</article><article class="card subtle"><div class="row"><div><b>${t("monthOrders")}</b><p class="tiny muted" style="margin:4px 0 0">${lang==='ar'?'أجر الطلبات يعرض ضمن تفصيل الشهر.':'Delivery pay is included in the monthly breakdown.'}</p></div><b class="metric-value green">${Number(logs.month_orders||0)}</b></div></article></section>`}
+  function documentLabel(type){const map={IQAMA:lang==='ar'?'الإقامة':'Iqama',DRIVING_LICENSE:lang==='ar'?'رخصة القيادة':'Driving licence',VEHICLE_LICENSE:lang==='ar'?'رخصة المركبة':'Vehicle licence',PASSPORT:lang==='ar'?'جواز السفر':'Passport',INSURANCE:lang==='ar'?'التأمين':'Insurance',WORK_PERMIT:lang==='ar'?'تصريح العمل':'Work permit'};return map[type]||type}
+  function docStatus(value){const map={APPROVED:[t('approved'),'green'],REJECTED:[t('rejected'),'red'],PENDING:[t('pending'),'orange']};return map[value]||[esc(value||t('pending')),'gray']}
+  function statusEmployment(value){if(value==='SUSPENDED')return statusPill(t('suspendedStatus'),'red');if(value==='ACTIVE')return statusPill(t('active'),'green');return statusPill(value||'—','gray')}
+  function renderProfile(){const core=state.core,{courier:c,hr}=core,x=state.extras,docs=x?.documents||[],tickets=x?.tickets||[],leaves=x?.leaves||[],messages=x?.messages||[];return `<section class="view ${active('profile')}" id="view-profile"><p class="eyebrow">${t("profile")}</p><h1 class="page-title">${t("profile")}</h1><p class="page-lead">${t("profileLead")}</p><article class="card"><div class="data-list"><div class="data-row"><span>${lang==='ar'?'الاسم':'Name'}</span><b>${esc(c.name||'—')}</b></div><div class="data-row"><span>${t("phone")}</span><b dir="ltr">${esc(c.phone||'—')}</b></div><div class="data-row"><span>${t("city")}</span><b>${esc(hr.work_city||c.work_city||'—')}</b></div><div class="data-row"><span>${t("supervisor")}</span><b>${esc(hr.supervisor_name||'—')}</b></div><div class="data-row"><span>${t("platform")}</span><b>${esc(hr.platform||'—')}</b></div><div class="data-row"><span>${t("employment")}</span>${statusEmployment(hr.employment_status)}</div><div class="data-row"><span>${t("iban")}</span><b dir="ltr">${esc(c.bank_iban||'—')}</b></div></div></article>${x?renderProfileExtras(docs,tickets,leaves,messages):'<div class="skeleton"></div><div class="skeleton"></div>'}</section>`}
+  function renderProfileExtras(docs,tickets,leaves,messages){const types=['IQAMA','DRIVING_LICENSE','VEHICLE_LICENSE','PASSPORT','INSURANCE','WORK_PERMIT'];return `<article class="card"><div class="row"><h3 class="section-title" style="margin:0">${t("documents")}</h3>${statusPill(`${docs.length}`,'blue')}</div><div class="divider"></div><div class="form-grid"><div class="field"><label for="documentType">${t("documentType")}</label><select id="documentType">${types.map(x=>`<option value="${x}">${documentLabel(x)}</option>`).join('')}</select></div><div class="btn-row"><button class="btn outline compact" onclick="pickDocument('camera')">${t("camera")}</button><button class="btn ghost compact" onclick="pickDocument('files')">${t("files")}</button></div><p class="form-note">${t("documentSize")}</p></div><div class="divider"></div>${docs.length?docs.map(d=>{const s=docStatus(d.status);return `<div class="data-row"><span>${esc(d.filename||documentLabel(d.document_type))}</span>${statusPill(s[0],s[1])}</div>`}).join(''):`<div class="empty">${t("noData")}</div>`}</article><article class="card"><h3 class="section-title" style="margin-top:0">${t("leave")}</h3><div class="form-grid"><div class="field"><label for="leaveFrom">${t("from")}</label><input id="leaveFrom" type="date"></div><div class="field"><label for="leaveTo">${t("to")}</label><input id="leaveTo" type="date"></div><div class="field"><label for="leaveReason">${t("reason")}</label><input id="leaveReason" type="text"></div><button class="btn outline full" onclick="sendLeave()" ${state.busy.has('leave')?'disabled':''}>${state.busy.has('leave')?t('saving'):t('sendLeave')}</button></div>${leaves.length?`<div class="divider"></div>${leaves.slice(0,4).map(l=>`<div class="data-row"><span>${esc(l.from_date)} — ${esc(l.to_date)}</span>${statusPill(l.status==='APPROVED'?t('approved'):l.status==='REJECTED'?t('rejected'):t('pending'),l.status==='APPROVED'?'green':l.status==='REJECTED'?'red':'orange')}</div>`).join('')}`:''}</article><article class="card"><h3 class="section-title" style="margin-top:0">${t("support")}</h3><div class="form-grid"><div class="field"><label for="ticketSubject">${t("ticketSubject")}</label><input id="ticketSubject" type="text"></div><div class="field"><label for="ticketMessage">${t("ticketMessage")}</label><textarea id="ticketMessage"></textarea></div><button class="btn outline full" onclick="sendTicket()" ${state.busy.has('ticket')?'disabled':''}>${state.busy.has('ticket')?t('saving'):t('sendTicket')}</button></div>${tickets.length?`<div class="divider"></div>${tickets.slice(0,4).map(ticket=>`<div class="data-row"><span><b>${esc(ticket.subject||'—')}</b><br><small class="muted">${esc(ticket.reply||ticket.message||'')}</small></span>${statusPill(ticket.status==='REPLIED'?t('replied'):t('waiting'),ticket.status==='REPLIED'?'green':'orange')}</div>`).join('')}`:''}</article><article class="card"><h3 class="section-title" style="margin-top:0">${t("companyMessages")}</h3>${messages.length?messages.slice(0,5).map(m=>`<div class="alert-item"><span class="alert-icon">✉</span><div class="small"><b>${esc(m.sender_name||'DOU')}</b><br>${esc(m.message||'')}</div></div>`).join(''):`<div class="empty">${t("noMessages")}</div>`}</article><article class="card"><h3 class="section-title" style="margin-top:0">${t("employeeRequest")}</h3><div class="form-grid"><div class="field"><label for="employeeRequestType">${t("requestType")}</label><select id="employeeRequestType"><option value="ADVANCE">${lang==='ar'?'طلب سلفة':'Advance'}</option><option value="SHIFT_CHANGE">${lang==='ar'?'تغيير وردية':'Shift change'}</option><option value="PROJECT_TRANSFER">${lang==='ar'?'نقل مشروع':'Project transfer'}</option><option value="MAINTENANCE">${lang==='ar'?'صيانة مركبة':'Vehicle maintenance'}</option><option value="INCIDENT">${lang==='ar'?'بلاغ حادث':'Incident'}</option></select></div><div class="field"><label for="employeeRequestTitle">${t("requestTitle")}</label><input id="employeeRequestTitle" type="text"></div><div class="field"><label for="employeeRequestDetails">${t("requestDetails")}</label><textarea id="employeeRequestDetails"></textarea></div><button class="btn outline full" onclick="sendEmployeeRequest()" ${state.busy.has('employee')?'disabled':''}>${state.busy.has('employee')?t('saving'):t('sendRequest')}</button></div></article><article class="card"><h3 class="section-title" style="margin-top:0">${t("security")}</h3><div class="form-grid"><div class="field"><label for="currentPassword">${t("currentPassword")}</label><input id="currentPassword" type="password" autocomplete="current-password"></div><div class="field"><label for="newPassword">${t("newPassword")}</label><input id="newPassword" type="password" autocomplete="new-password"></div><button class="btn ghost full" onclick="changePassword()" ${state.busy.has('password')?'disabled':''}>${state.busy.has('password')?t('saving'):t('changePassword')}</button><button class="btn danger full" onclick="logout()">${t("logout")}</button></div></article>`}
+  function renderNav(){const items=[['home','⌂',t('home')],['shifts','◷',t('shifts')],['performance','◉',t('performance')],['earnings','₪',t('earnings')],['profile','◌',t('profile')]];return `<nav class="bottom-nav" aria-label="${t('brand')}">${items.map(([key,icon,label])=>`<button class="nav-btn ${state.view===key?'active':''}" onclick="go('${key}')" aria-current="${state.view===key?'page':'false'}"><span>${icon}</span><span>${label}</span></button>`).join('')}</nav>`}
+  function wireEmployeeRequestFields(){const type=$('employeeRequestType');if(!type||$('employeeProject'))return;const projects=(state.projects||[]).filter(p=>!p.is_current&&p.is_active);type.closest('.field').insertAdjacentHTML('afterend',`<div class="field" id="employeeProjectField"><label for="employeeProject">${lang==='ar'?'المشروع المطلوب':'Requested project'}</label><select id="employeeProject"><option value="">${lang==='ar'?'اختر المشروع':'Select project'}</option>${projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div><div class="field" id="employeeAmountField"><label for="employeeAmount">${lang==='ar'?'المبلغ المطلوب':'Requested amount'}</label><input id="employeeAmount" type="number" min="0" step="0.01" inputmode="decimal"></div>`);const sync=()=>{$('employeeProjectField').style.display=type.value==='PROJECT_TRANSFER'?'grid':'none';$('employeeAmountField').style.display=type.value==='ADVANCE'?'grid':'none'};type.addEventListener('change',sync);sync()}
+  function wireDocumentBusy(){if(!state.busy.has('document'))return;document.querySelectorAll("button[onclick^=\"pickDocument\"]").forEach(button=>{button.disabled=true;button.textContent=lang==='ar'?'جارِ رفع المستند…':'Uploading document…'})}
+  function go(view,push=true){state.view=view;render();wireEmployeeRequestFields();if(push){history.pushState({view},'',location.href)}if(view==='profile'){ensureExtras();ensureProjects()}if(view==='performance')ensureProjects()}
+  async function attendanceAction(){const mode=attendanceMode();if(mode==='none'){go('shifts');return}setBusy('attendance',true);try{const locationData=await getLocation();const result=await api(mode==='out'?'/shifts/attendance/check-out':'/shifts/attendance/check-in',{method:'POST',body:JSON.stringify({courier_id:state.core.courier.id,lat:locationData.lat,lng:locationData.lng})});await loadCore();render();showToast(mode==='out'?t('successCheckout'):(result.already_checked_in?t('alreadyCheckin'):t('successCheckin')),'success')}catch(error){actionError(error)}finally{state.busy.delete('attendance');render()}}
+  function getLocation(){return new Promise(resolve=>{if(!navigator.geolocation)return resolve({lat:null,lng:null});navigator.geolocation.getCurrentPosition(p=>resolve({lat:+p.coords.latitude.toFixed(6),lng:+p.coords.longitude.toFixed(6)}),()=>resolve({lat:null,lng:null}),{enableHighAccuracy:true,timeout:8000,maximumAge:30000})})}
+  async function saveLog(){const projectId=Number($('logProject')?.value),orders=Number($('logOrders')?.value||0),logDate=$('logDate')?.value;if(!projectId||!logDate||orders<0){showToast(t('genericError'),'error');return}setBusy('log',true);try{await api('/hr/me/log',{method:'POST',body:JSON.stringify({log_date:logDate,project_id:projectId,orders_count:orders,notes:$('logNote')?.value||''})});await loadCore();render();showToast(t('saved'),'success')}catch(error){actionError(error)}finally{state.busy.delete('log');render()}}
+  async function sendLeave(){const from=$('leaveFrom')?.value,to=$('leaveTo')?.value,reason=$('leaveReason')?.value?.trim();if(!from||!to||!reason){showToast(t('genericError'),'error');return}setBusy('leave',true);try{await api('/hr/me/leave',{method:'POST',body:JSON.stringify({from_date:from,to_date:to,reason})});state.extras=null;await ensureExtras();showToast(t('sent'),'success')}catch(error){actionError(error)}finally{state.busy.delete('leave');render()}}
+  async function sendTicket(){const subject=$('ticketSubject')?.value?.trim(),message=$('ticketMessage')?.value?.trim();if(!subject||!message){showToast(t('genericError'),'error');return}setBusy('ticket',true);try{await api('/couriers/me/tickets',{method:'POST',body:JSON.stringify({subject,message})});state.extras=null;await ensureExtras();showToast(t('sent'),'success')}catch(error){actionError(error)}finally{state.busy.delete('ticket');render()}}
+  async function sendEmployeeRequest(){const request_type=$('employeeRequestType')?.value,title=$('employeeRequestTitle')?.value?.trim(),details=$('employeeRequestDetails')?.value?.trim(),project_id=Number($('employeeProject')?.value||0)||null,amount=Number($('employeeAmount')?.value||0)||null;if(!title||!details||(request_type==='PROJECT_TRANSFER'&&!project_id)){showToast(t('genericError'),'error');return}setBusy('employee',true);try{await api('/hr/employee-requests',{method:'POST',body:JSON.stringify({request_type,title,details,project_id,amount})});showToast(t('sent'),'success')}catch(error){actionError(error)}finally{state.busy.delete('employee');render();wireEmployeeRequestFields()}}
+  async function pickDocument(source){if(state.busy.has('document'))return;const type=$('documentType')?.value||'IQAMA';const input=document.createElement('input');input.type='file';input.accept=source==='camera'?'image/*':'image/jpeg,image/png,application/pdf';if(source==='camera')input.capture='environment';input.onchange=async()=>{const file=input.files?.[0];if(!file)return;if(file.size>1024*1024){showToast(t('documentSize'),'error');return}setBusy('document',true);try{const data=await readFile(file);await api('/hr/me/documents',{method:'POST',body:JSON.stringify({document_type:type,filename:file.name,mime_type:file.type,file_data:data})});state.extras=null;await ensureExtras();showToast(t('uploaded'),'success')}catch(error){actionError(error)}finally{state.busy.delete('document');render();wireEmployeeRequestFields()}};input.click()}
+  function readFile(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)})}
+  async function changePassword(){const current_password=$('currentPassword')?.value,new_password=$('newPassword')?.value;if(!current_password||!new_password||new_password.length<8){showToast(t('genericError'),'error');return}setBusy('password',true);try{await api('/auth/change-password',{method:'POST',body:JSON.stringify({current_password,new_password})});clearSession(lang==='ar'?'تم تغيير كلمة المرور. سجّل الدخول مجدداً.':'Password changed. Sign in again.')}catch(error){actionError(error)}finally{state.busy.delete('password');render()}}
+  async function logout(){const old=TOKEN;try{if(old)await fetch('/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+old}})}catch(_){}clearSession()}
+  function renderInstallHelper(id){const mount=$(id);if(!mount||standalone())return;if(isIOS()){if(localStorage.getItem('dou_ios_install_dismissed'))return;mount.innerHTML=`<div class="install-helper"><b>${t('installIOS')}</b><br>${t('installIOSHelp')}<div class="btn-row" style="margin-top:9px"><button class="btn ghost compact" onclick="dismissIOSInstall()">${t('dismiss')}</button></div></div>`;return}if(state.deferredInstall){mount.innerHTML=`<div class="install-helper"><b>${t('installAndroid')}</b><div class="btn-row" style="margin-top:9px"><button class="btn ghost compact" onclick="installApp()">${t('install')}</button></div></div>`}}
+  function dismissIOSInstall(){localStorage.setItem('dou_ios_install_dismissed','1');render()}
+  async function installApp(){if(!state.deferredInstall)return;state.deferredInstall.prompt();try{await state.deferredInstall.userChoice}catch(_){}state.deferredInstall=null;render()}
+  window.addEventListener('beforeinstallprompt',(event)=>{event.preventDefault();state.deferredInstall=event;render()});window.addEventListener('appinstalled',()=>{state.deferredInstall=null;render()});window.addEventListener('online',()=>{const bar=$('connection');if(bar){bar.textContent='✓ '+t('reconnected');bar.className='connection show online';setTimeout(()=>bar.className='connection',2500)}showToast(t('reconnected'),'success')});window.addEventListener('offline',()=>{const bar=$('connection');if(bar){bar.textContent='◌ '+t('offline');bar.className='connection show'}});window.addEventListener('popstate',(event)=>{if(event.state?.view){state.view=event.state.view;render()}});
+  if('serviceWorker' in navigator){window.addEventListener('load',async()=>{try{await navigator.serviceWorker.register('/sw.js',{scope:'/driver'});const registrations=await navigator.serviceWorker.getRegistrations();await Promise.all(registrations.filter(registration=>new URL(registration.scope).pathname==='/static/').map(registration=>registration.unregister()))}catch(_){}})}
+  async function boot(){document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';if(!TOKEN){renderLogin();return}const role=localStorage.getItem('dou_role_courier');if(role&&role!=='COURIER'){clearSession();return}try{await loadCore();history.replaceState({view:state.view},'',location.href);render()}catch(error){if(error.status===401){clearSession(t('sessionExpired'))}else if(error.status===403){state.accessBlocked=true;blockedView()}else{renderLogin(error.status===0?t('networkError'):t('genericError'))}}}
+  Object.assign(window,{toggleLang,doLogin,go,refreshCore,attendanceAction,saveLog,sendLeave,sendTicket,sendEmployeeRequest,pickDocument,changePassword,logout,installApp,dismissIOSInstall,clearSession});
+  boot();
+  </script>
 </body>
 </html>

@@ -1,17 +1,18 @@
 {
-  "name": "DOU — تطبيق المندوب",
-  "short_name": "DOU",
-  "description": "حضور، مهام وأرباح مندوبي التوصيل على منصة DOU",
-  "start_url": "/driver",
-  "scope": "/",
+  "name": "DOU Rider | تطبيق السائق",
+  "short_name": "DOU Rider",
+  "description": "Shift, attendance, performance and permitted rider earnings on DOU.",
+  "start_url": "/driver?source=pwa",
+  "scope": "/driver",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "portrait",
   "background_color": "#11161d",
   "theme_color": "#11161d",
-  "dir": "rtl",
-  "lang": "ar",
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
-    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
   ]
 }

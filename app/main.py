@@ -153,6 +153,15 @@ def driver_app():
     return FileResponse(os.path.join(STATIC_DIR, "courier.html"))
 
 
+@app.api_route("/sw.js", methods=["GET", "HEAD"])
+def rider_service_worker():
+    return FileResponse(
+        os.path.join(STATIC_DIR, "sw.js"),
+        media_type="application/javascript",
+        headers={"Service-Worker-Allowed": "/driver", "Cache-Control": "no-cache"},
+    )
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "dou-api"}
