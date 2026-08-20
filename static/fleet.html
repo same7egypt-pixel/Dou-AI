@@ -228,7 +228,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
     <section id="view-couriers" style="display:none">
       <div class="header"><div><div class="kicker">إدارة المناديب</div><h1>المناديب</h1></div>
-        <button class="btn blue" data-company-only onclick="toggleAddCourier()">+ إضافة مندوب</button></div>
+        <div style="display:flex;gap:8px;align-items:center"><input id="courierSearch" class="fInput" style="min-width:220px" placeholder="بحث بالاسم أو الجوال" oninput="queueCourierSearch()"><button class="btn blue" data-company-only onclick="toggleAddCourier()">+ إضافة مندوب</button></div></div>
       <div class="card" id="addCourierBox" style="display:none">
         <div class="form-row"><input id="cName" placeholder="الاسم"><input id="cPhone" placeholder="الجوال 05xxxxxxxx"></div>
         <div class="form-row"><select id="cType" style="font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:10px">
@@ -249,7 +249,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <span id="courierMsg" class="msg"></span>
       </div>
       <div class="card"><table><thead><tr><th>الاسم</th><th>الجنسية</th><th>الحالة</th><th>التبعية التشغيلية</th><th>طلبات اليوم</th><th>طلبات الشهر</th><th>السياسة المالية</th><th>التحقق</th><th>إجراء</th></tr></thead>
-        <tbody id="couriersBody"></tbody></table></div>
+        <tbody id="couriersBody"></tbody></table><div id="courierPagination" style="display:flex;justify-content:space-between;align-items:center;padding:14px 4px 4px"></div></div>
     </section>
 
     <section id="view-orders" style="display:none">
@@ -867,9 +867,14 @@ async function loadOverview(){
     renderOverview(ov);
   }catch(e){}
 }
-async function loadCouriers(){
+let COURIER_PAGE=1, COURIER_PAGE_SIZE=50, courierSearchTimer=null;
+function queueCourierSearch(){clearTimeout(courierSearchTimer);courierSearchTimer=setTimeout(()=>{COURIER_PAGE=1;loadCouriers();},220)}
+async function loadCouriers(page=COURIER_PAGE){
   try{
-    const couriers = await api("/fleet/couriers");
+    COURIER_PAGE=page;
+    const query=new URLSearchParams({page:String(COURIER_PAGE),page_size:String(COURIER_PAGE_SIZE)});
+    const search=(document.getElementById("courierSearch")?.value||"").trim();if(search)query.set("search",search);
+    const result = await api("/fleet/couriers/page?"+query.toString()), couriers=result.rows||[];
     document.getElementById("couriersBody").innerHTML = couriers.map(c=>`
       <tr><td>${c.name}</td><td>${c.nationality||"—"}</td>
       <td>${c.is_online?'<span class="tag green">متصل</span>':'<span class="tag gray">غير متصل</span>'}</td>
@@ -880,6 +885,8 @@ async function loadCouriers(){
         <button class="btn blue small" onclick="openCourier(${c.id})">👤 ملف</button>
         ${isAccountAdmin()?`<button class="btn ${c.employment_status==="ACTIVE"?"red":"green"} small" onclick="setCourierStatus(${c.id},'${c.employment_status==="ACTIVE"?"SUSPENDED":"ACTIVE"}')">${c.employment_status==="ACTIVE"?"غير نشط":"تفعيل"}</button> <button class="btn red small" onclick="deleteCourierRecord(${c.id})">حذف</button>`:""}
       </td></tr>`).join("") || '<tr><td colspan="9" style="color:var(--muted)">لا مناديب</td></tr>';
+    const pages=Math.max(1,Math.ceil((result.total||0)/COURIER_PAGE_SIZE));
+    document.getElementById("courierPagination").innerHTML=`<button class="btn ghost small" ${COURIER_PAGE<=1?'disabled':''} onclick="loadCouriers(${COURIER_PAGE-1})">السابق</button><small style="color:var(--muted)">صفحة ${COURIER_PAGE} من ${pages} — ${result.total||0} مندوب</small><button class="btn ghost small" ${COURIER_PAGE>=pages?'disabled':''} onclick="loadCouriers(${COURIER_PAGE+1})">التالي</button>`;
   }catch(e){ /* الصفرة تعرض بياناتها الثابتة */ }
 }
 async function loadOrders(){

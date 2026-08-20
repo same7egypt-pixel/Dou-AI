@@ -27,7 +27,7 @@ from ..models.entities import (
     User,
     UserRole,
 )
-from .financial_calculations import calculate_courier_bonus, courier_financial_rows
+from .financial_calculations import calculate_courier_bonuses, courier_financial_rows
 
 
 COMMERCIAL_ROLES = (UserRole.COMPANY, UserRole.COMPANY_ADMIN)
@@ -250,7 +250,7 @@ def analytics_report(
     financial_by_courier, financial_finalized = _financial_maps(db, user.tenant_id, month, set(ids)) if (allow_payroll or allow_commercial) else ({}, False)
 
     # Bonus target is defined monthly.  We expose its MTD status as of the report end date.
-    bonuses = {row.id: calculate_courier_bonus(db, row, month) for row in couriers}
+    bonuses = calculate_courier_bonuses(db, couriers, month)
     today = date.today()
     day_count = (end - start).days + 1
     detail = []

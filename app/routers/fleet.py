@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from fastapi import Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, text, select, func
+from collections import defaultdict
 import csv, io
 import json
 from datetime import date, datetime, timedelta
@@ -472,7 +473,7 @@ def fleet_overview(user: User = Depends(get_current_user), db: Session = Depends
     selected_month = today.strftime("%Y-%m")
     payroll_preview, payroll_finalized = payroll_rows(db, tenant_id, selected_month) if tenant_id is not None else ([], False)
     payroll_preview = [row for row in payroll_preview if row.get("courier_id") in ids]
-    financial_preview, financial_finalized = financial_rows(db, tenant_id, selected_month) if tenant_id is not None and user.role != UserRole.SUPERVISOR else ([], False)
+    financial_preview, financial_finalized = financial_rows(db, tenant_id, selected_month, payroll_preview) if tenant_id is not None and user.role != UserRole.SUPERVISOR else ([], False)
 
     delivered = [t for t in tasks if t.status == CourierTaskStatus.DELIVERED]
     active_st = {OrderStatus.READY, OrderStatus.ACCEPTED, OrderStatus.ASSIGNED, OrderStatus.IN_TRANSIT, OrderStatus.PICKED_UP}
@@ -528,12 +529,23 @@ def fleet_needs_attention(user: User = Depends(get_current_user), db: Session = 
     today = date.today(); month = today.strftime("%Y-%m"); expiry_limit = today + timedelta(days=30)
     if not ids:
         return {"month": month, "items": [], "total": 0}
-    courier_rows = db.query(Courier).filter(Courier.id.in_(ids)).all()
-    expired_or_soon = [c for c in courier_rows if any(value and value <= expiry_limit for value in (
-        c.iqama_expiry, c.license_expiry, c.vehicle_license_expiry, c.passport_expiry,
-        c.insurance_expiry, c.inspection_expiry, c.work_permit_expiry,
-    )) or not c.documents_valid]
-    unassigned = [c for c in courier_rows if not c.supervisor_id or not c.contract_branch_id]
+    expired_or_soon = db.query(Courier).filter(
+        Courier.id.in_(ids),
+        or_(
+            Courier.documents_valid.isnot(True),
+            Courier.iqama_expiry <= expiry_limit,
+            Courier.license_expiry <= expiry_limit,
+            Courier.vehicle_license_expiry <= expiry_limit,
+            Courier.passport_expiry <= expiry_limit,
+            Courier.insurance_expiry <= expiry_limit,
+            Courier.inspection_expiry <= expiry_limit,
+            Courier.work_permit_expiry <= expiry_limit,
+        ),
+    ).count()
+    unassigned = db.query(Courier).filter(
+        Courier.id.in_(ids),
+        or_(Courier.supervisor_id.is_(None), Courier.contract_branch_id.is_(None)),
+    ).count()
     events = db.query(AttendanceEvent).filter(
         AttendanceEvent.tenant_id == tenant_id, AttendanceEvent.courier_id.in_(ids), AttendanceEvent.event_date == today,
     ).all()
@@ -543,8 +555,8 @@ def fleet_needs_attention(user: User = Depends(get_current_user), db: Session = 
             items.append({"code": code, "title": title, "count": count, "route": route, "severity": severity})
     add("ABSENT", "مندوبون غائبون بعد تسوية الحضور", sum(event.event_type == "ABSENCE" for event in events), "attendance", "high")
     add("LATE", "مندوبون متأخرون اليوم", sum(event.event_type == "LATE" for event in events), "attendance", "medium")
-    add("UNASSIGNED", "مناديب بلا مشرف أو فرع تشغيل", len(unassigned), "couriers", "high")
-    add("DOCUMENTS", "مستندات منتهية أو قريبة الانتهاء", len(expired_or_soon), "couriers", "medium")
+    add("UNASSIGNED", "مناديب بلا مشرف أو فرع تشغيل", unassigned, "couriers", "high")
+    add("DOCUMENTS", "مستندات منتهية أو قريبة الانتهاء", expired_or_soon, "couriers", "medium")
     pending_events = db.query(AttendanceEvent).filter(
         AttendanceEvent.tenant_id == tenant_id, AttendanceEvent.courier_id.in_(ids), AttendanceEvent.status == "PENDING_APPROVAL",
     ).count()
@@ -574,6 +586,30 @@ def fleet_couriers(user: User = Depends(get_current_user), db: Session = Depends
     couriers = q.all()
     today = date.today()
     month_start = date(today.year, today.month, 1)
+    ids = [courier.id for courier in couriers]
+    contract_ids = {courier.contract_id for courier in couriers if courier.contract_id}
+    branch_ids = {courier.contract_branch_id for courier in couriers if courier.contract_branch_id}
+    fleet_ids = {courier.fleet_id for courier in couriers if courier.fleet_id}
+    supervisor_ids = {courier.supervisor_id for courier in couriers if courier.supervisor_id}
+    project_ids = {courier.primary_project_id for courier in couriers if courier.primary_project_id}
+    contracts = {row.id: row.name for row in db.query(Contract).filter(Contract.tenant_id == tenant_id, Contract.id.in_(contract_ids)).all()} if contract_ids else {}
+    branches = {row.id: row.city for row in db.query(ContractBranch).filter(ContractBranch.tenant_id == tenant_id, ContractBranch.id.in_(branch_ids)).all()} if branch_ids else {}
+    fleets = {row.id: row.name for row in db.query(Fleet).filter(Fleet.tenant_id == tenant_id, Fleet.id.in_(fleet_ids)).all()} if fleet_ids else {}
+    supervisors = {row.id: row.name for row in db.query(User).filter(User.tenant_id == tenant_id, User.id.in_(supervisor_ids)).all()} if supervisor_ids else {}
+    projects = {row.id: row.name for row in db.query(Project).filter(Project.tenant_id == tenant_id, Project.id.in_(project_ids)).all()} if project_ids else {}
+    today_orders, month_orders = defaultdict(int), defaultdict(int)
+    if ids:
+        for log in db.query(DailyLog).filter(
+            DailyLog.courier_id.in_(ids), DailyLog.log_date >= month_start, DailyLog.log_date <= today,
+        ).all():
+            amount = int(log.orders_count or 0)
+            month_orders[log.courier_id] += amount
+            if log.log_date == today:
+                today_orders[log.courier_id] += amount
+    courier_accounts = {
+        row.courier_id: bool(row.is_active)
+        for row in db.query(User).filter(User.courier_id.in_(ids), User.role == UserRole.COURIER).all()
+    } if ids else {}
     return [
         {
             "id": c.id, "name": c.name, "phone": c.phone,
@@ -592,18 +628,17 @@ def fleet_couriers(user: User = Depends(get_current_user), db: Session = Depends
             "city_id": c.city_id,
             "work_city": c.work_city,
             "contract_id": c.contract_id,
-            "contract": (db.get(Contract, c.contract_id).name if c.contract_id else None),
+            "contract": contracts.get(c.contract_id),
             "contract_branch_id": c.contract_branch_id,
-            "branch": (db.get(ContractBranch, c.contract_branch_id).city if c.contract_branch_id else None),
-            "today_orders": sum(x.orders_count or 0 for x in db.query(DailyLog).filter(DailyLog.courier_id == c.id, DailyLog.log_date == today).all()),
-            "month_orders": sum(x.orders_count or 0 for x in db.query(DailyLog).filter(DailyLog.courier_id == c.id, DailyLog.log_date >= month_start, DailyLog.log_date <= today).all()),
-            "fleet": (db.get(Fleet, c.fleet_id).name if c.fleet_id else None),
+            "branch": branches.get(c.contract_branch_id),
+            "today_orders": today_orders[c.id],
+            "month_orders": month_orders[c.id],
+            "fleet": fleets.get(c.fleet_id),
             "supervisor_id": c.supervisor_id,
-            "supervisor": (db.get(User, c.supervisor_id).name if c.supervisor_id else None),
+            "supervisor": supervisors.get(c.supervisor_id),
             "primary_project_id": c.primary_project_id,
-            "project": (db.get(Project, c.primary_project_id).name if c.primary_project_id else c.platform),
-            "account_active": (db.query(User).filter(User.courier_id == c.id, User.role == UserRole.COURIER).first().is_active
-                               if db.query(User).filter(User.courier_id == c.id, User.role == UserRole.COURIER).first() else False),
+            "project": projects.get(c.primary_project_id, c.platform),
+            "account_active": courier_accounts.get(c.id, False),
         }
         for c in couriers
     ]
@@ -641,13 +676,23 @@ def paged_couriers(search: str = None, city_id: int = None, branch_id: int = Non
     branch_map = {row.id: row for row in db.query(ContractBranch).filter(ContractBranch.id.in_([c.contract_branch_id for c in rows if c.contract_branch_id])).all()}
     supervisor_map = {row.id: row.name for row in db.query(User).filter(User.id.in_([c.supervisor_id for c in rows if c.supervisor_id])).all()}
     project_map = {row.id: row.name for row in db.query(Project).filter(Project.id.in_([c.primary_project_id for c in rows if c.primary_project_id])).all()}
+    contract_map = {row.id: row.name for row in db.query(Contract).filter(Contract.id.in_([c.contract_id for c in rows if c.contract_id])).all()}
+    today = date.today(); month_start = date(today.year, today.month, 1)
+    today_orders, month_orders = defaultdict(int), defaultdict(int)
+    if rows:
+        for log in db.query(DailyLog).filter(DailyLog.courier_id.in_([c.id for c in rows]), DailyLog.log_date >= month_start, DailyLog.log_date <= today).all():
+            amount = int(log.orders_count or 0); month_orders[log.courier_id] += amount
+            if log.log_date == today: today_orders[log.courier_id] += amount
     return {"total": total, "page": page, "page_size": page_size, "rows": [{
         "id": c.id, "name": c.name, "phone": c.phone, "employment_status": c.employment_status or "ACTIVE",
         "is_online": bool(c.is_online), "documents_valid": bool(c.documents_valid), "city_id": c.city_id,
+        "nationality": c.nationality,
         "work_city": c.work_city, "contract_branch_id": c.contract_branch_id,
+        "contract_id": c.contract_id, "contract": contract_map.get(c.contract_id),
         "branch": branch_map.get(c.contract_branch_id).city if c.contract_branch_id in branch_map else None,
         "supervisor_id": c.supervisor_id, "supervisor": supervisor_map.get(c.supervisor_id),
         "project_id": c.primary_project_id, "project": project_map.get(c.primary_project_id),
+        "today_orders": today_orders[c.id], "month_orders": month_orders[c.id],
     } for c in rows]}
 
 

@@ -6,6 +6,7 @@ attendance deductions because no company deduction policy exists yet.
 """
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import date, datetime
 import json
 from typing import Optional
@@ -93,23 +94,55 @@ def eligible_orders_for_courier(db: Session, courier: Courier, month: str) -> in
     return sum(max(int(row.orders_count or 0), 0) for row in query.all())
 
 
-def calculate_courier_bonus(db: Session, courier: Courier, month: str) -> dict:
-    _, period_end = month_bounds(month)
+def calculate_courier_bonuses(db: Session, couriers: list[Courier], month: str) -> dict[int, dict]:
+    """Apply the existing bonus rules with shared reads for one tenant/month."""
+    if not couriers:
+        return {}
+    start, period_end = month_bounds(month)
     as_of = period_end.fromordinal(period_end.toordinal() - 1)
-    plan = bonus_plan_for_courier(db, courier, as_of)
-    orders = eligible_orders_for_courier(db, courier, month)
-    if not plan:
-        return {"plan_id": None, "source": None, "orders": orders, "target": 0, "earned": 0.0, "achieved": False, "remaining_orders": 0, "over_orders": 0, "over_target_rate": 0.0}
-    result = calculate_target_bonus(orders, plan.target_orders, plan.bonus_amount, plan.over_target_rate)
-    return {
-        "plan_id": plan.id,
-        "source": "override" if plan.courier_id else "inherited",
-        "orders": orders,
-        "target": plan.target_orders,
-        "bonus_amount": round(float(plan.bonus_amount or 0), 2),
-        "over_target_rate": round(float(plan.over_target_rate or 0), 2),
-        **result,
-    }
+    tenant_id = couriers[0].tenant_id
+    if any(courier.tenant_id != tenant_id for courier in couriers):
+        raise ValueError("Batch bonus calculation requires one tenant")
+    ids = [courier.id for courier in couriers]
+    plans_by_scope: dict[tuple[int | None, int | None], list[BonusPlan]] = defaultdict(list)
+    for plan in db.query(BonusPlan).filter(BonusPlan.tenant_id == tenant_id, BonusPlan.is_active.is_(True)).all():
+        if _plan_is_effective(plan, as_of):
+            plans_by_scope[(plan.project_id, plan.contract_branch_id)].append(plan)
+    logs_by_courier: dict[int, list[DailyLog]] = defaultdict(list)
+    for row in db.query(DailyLog).filter(
+        DailyLog.courier_id.in_(ids), DailyLog.log_date >= start, DailyLog.log_date < period_end,
+    ).all():
+        logs_by_courier[row.courier_id].append(row)
+    results: dict[int, dict] = {}
+    for courier in couriers:
+        plans = plans_by_scope.get((courier.primary_project_id, courier.contract_branch_id if courier.contract_branch_id else None), [])
+        overrides = [plan for plan in plans if plan.courier_id == courier.id]
+        inherited = [plan for plan in plans if plan.courier_id is None]
+        key = lambda plan: (plan.effective_from or date.min, plan.id)
+        plan = max(overrides, key=key) if overrides else (max(inherited, key=key) if inherited else None)
+        orders = sum(
+            max(int(row.orders_count or 0), 0)
+            for row in logs_by_courier.get(courier.id, [])
+            if not courier.primary_project_id or row.project_id == courier.primary_project_id
+        )
+        if not plan:
+            results[courier.id] = {"plan_id": None, "source": None, "orders": orders, "target": 0, "earned": 0.0, "achieved": False, "remaining_orders": 0, "over_orders": 0, "over_target_rate": 0.0}
+            continue
+        result = calculate_target_bonus(orders, plan.target_orders, plan.bonus_amount, plan.over_target_rate)
+        results[courier.id] = {
+            "plan_id": plan.id,
+            "source": "override" if plan.courier_id else "inherited",
+            "orders": orders,
+            "target": plan.target_orders,
+            "bonus_amount": round(float(plan.bonus_amount or 0), 2),
+            "over_target_rate": round(float(plan.over_target_rate or 0), 2),
+            **result,
+        }
+    return results
+
+
+def calculate_courier_bonus(db: Session, courier: Courier, month: str) -> dict:
+    return calculate_courier_bonuses(db, [courier], month)[courier.id]
 
 
 def _legacy_compensation_contract(db: Session, courier: Courier) -> Optional[Contract]:
@@ -163,6 +196,62 @@ def calculate_payroll_preview(db: Session, courier: Courier, month: str) -> dict
     }
 
 
+def calculate_payroll_previews(db: Session, couriers: list[Courier], month: str) -> list[dict]:
+    """Batch existing preview calculations without changing payroll rules or outputs."""
+    if not couriers:
+        return []
+    month_bounds(month)
+    tenant_id = couriers[0].tenant_id
+    if any(courier.tenant_id != tenant_id for courier in couriers):
+        raise ValueError("Batch payroll calculation requires one tenant")
+    candidates = db.query(Contract).filter(
+        Contract.tenant_id == tenant_id,
+        Contract.status == "ACTIVE",
+        Contract.scope_type.in_(("COURIER", "MANUAL", "PROJECT")),
+    ).all()
+    members: dict[int, set[int]] = {}
+    for contract in candidates:
+        if contract.scope_type in ("COURIER", "MANUAL"):
+            try:
+                members[contract.id] = {int(value) for value in json.loads(contract.courier_ids or "[]")}
+            except (TypeError, ValueError, json.JSONDecodeError):
+                members[contract.id] = set()
+    ids = [courier.id for courier in couriers]
+    adjustments_by_courier: dict[int, list[PayrollAdjustment]] = defaultdict(list)
+    for adjustment in db.query(PayrollAdjustment).filter(
+        PayrollAdjustment.tenant_id == tenant_id,
+        PayrollAdjustment.courier_id.in_(ids),
+        PayrollAdjustment.month == month,
+        or_(PayrollAdjustment.status == "APPROVED", PayrollAdjustment.status.is_(None)),
+    ).all():
+        adjustments_by_courier[adjustment.courier_id].append(adjustment)
+    bonuses = calculate_courier_bonuses(db, couriers, month)
+    rows = []
+    for courier in couriers:
+        compensation = next((contract for contract in candidates if (
+            contract.scope_type == "PROJECT" and contract.project_id == courier.primary_project_id
+        ) or (
+            contract.scope_type in ("COURIER", "MANUAL") and courier.id in members.get(contract.id, set())
+        )), None)
+        base_salary = float((compensation.base_salary if compensation else courier.base_salary) or 0)
+        per_delivery_rate = float((compensation.per_delivery_rate if compensation else courier.per_delivery_rate) or 0)
+        bonus = bonuses[courier.id]
+        adjustments = adjustments_by_courier.get(courier.id, [])
+        additions = round(sum(float(item.amount or 0) for item in adjustments if item.kind == "OVERTIME"), 2)
+        deductions = round(sum(float(item.amount or 0) for item in adjustments if item.kind != "OVERTIME"), 2)
+        delivery_pay = round(bonus["orders"] * per_delivery_rate, 2)
+        rows.append({
+            "courier_id": courier.id, "project_id": courier.primary_project_id,
+            "contract_branch_id": courier.contract_branch_id, "base_salary": round(base_salary, 2),
+            "per_delivery_rate": round(per_delivery_rate, 2), "eligible_orders": bonus["orders"],
+            "delivery_pay": delivery_pay, "bonus": bonus, "additions": additions,
+            "deductions": deductions,
+            "net_pay": round(base_salary + delivery_pay + float(bonus["earned"]) + additions - deductions, 2),
+            "compensation_source": "legacy_rider_contract" if compensation else "rider_profile",
+        })
+    return rows
+
+
 def branch_financial_preview(db: Session, tenant_id: int, branch: ContractBranch, month: str, payroll_rows: Optional[list[dict]] = None) -> dict:
     month_bounds(month)
     contract = db.get(Contract, branch.contract_id)
@@ -208,7 +297,7 @@ def payroll_rows(db: Session, tenant_id: int, month: str) -> tuple[list[dict], b
             "finalized": True,
         } for item in snapshots], True
     couriers = db.query(Courier).filter(Courier.tenant_id == tenant_id).order_by(Courier.name).all()
-    return [calculate_payroll_preview(db, courier, month) for courier in couriers], False
+    return calculate_payroll_previews(db, couriers, month), False
 
 
 def finalize_payroll_period(db: Session, tenant_id: int, month: str, actor_id: int) -> dict:
@@ -263,7 +352,7 @@ def finalize_payroll_period(db: Session, tenant_id: int, month: str, actor_id: i
     return {"period_id": period.id, "month": month, "status": "FINALIZED", "snapshots": len(rows), "already_finalized": False}
 
 
-def financial_rows(db: Session, tenant_id: int, month: str) -> tuple[list[dict], bool]:
+def financial_rows(db: Session, tenant_id: int, month: str, payroll_data: Optional[list[dict]] = None) -> tuple[list[dict], bool]:
     period = db.query(PayrollPeriod).filter(PayrollPeriod.tenant_id == tenant_id, PayrollPeriod.month == month).first()
     if period and period.status == "FINALIZED":
         rows = db.query(OperationalFinancialSnapshot).filter(OperationalFinancialSnapshot.payroll_period_id == period.id).all()
@@ -280,7 +369,7 @@ def financial_rows(db: Session, tenant_id: int, month: str) -> tuple[list[dict],
             "finalized": True,
         } for row in rows], True
     branches = db.query(ContractBranch).filter(ContractBranch.tenant_id == tenant_id, ContractBranch.is_active.is_(True)).all()
-    return [branch_financial_preview(db, tenant_id, branch, month) for branch in branches], False
+    return [branch_financial_preview(db, tenant_id, branch, month, payroll_data) for branch in branches], False
 
 
 def courier_financial_rows(db: Session, tenant_id: int, month: str) -> tuple[list[dict], bool]:
@@ -292,7 +381,7 @@ def courier_financial_rows(db: Session, tenant_id: int, month: str) -> tuple[lis
     margin rule.
     """
     payroll, payroll_finalized = payroll_rows(db, tenant_id, month)
-    branch_rows, financial_finalized = financial_rows(db, tenant_id, month)
+    branch_rows, financial_finalized = financial_rows(db, tenant_id, month, payroll)
     by_branch = {row["contract_branch_id"]: row for row in branch_rows if row.get("contract_branch_id")}
     rows = []
     for row in payroll:
