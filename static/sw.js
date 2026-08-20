@@ -1,4 +1,4 @@
-const CACHE = "dou-rider-pwa-v3";
+const CACHE = "dou-rider-pwa-v4";
 const CORE = [
   "/driver",
   "/static/manifest.json",
