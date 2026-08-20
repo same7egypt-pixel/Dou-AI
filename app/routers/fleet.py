@@ -1060,7 +1060,7 @@ def fleet_shifts(user: User = Depends(get_current_user), db: Session = Depends(g
 
 @router.post("/shifts")
 def fleet_create_shift(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role not in COMPANY_ROLES:
+    if user.role not in COMPANY_ROLES + (UserRole.SUPERVISOR,):
         raise HTTPException(403, "Not a fleet account")
     _require_permission(user, "attendance")
     name = (payload.get("name") or "").strip()
@@ -1080,9 +1080,9 @@ def fleet_create_shift(payload: dict, user: User = Depends(get_current_user), db
         raise HTTPException(400, "أدخل عدد المناديب المطلوب")
     if len(courier_ids) > required_couriers:
         raise HTTPException(400, "عدد المناديب المسندين لا يمكن أن يتجاوز السعة المطلوبة")
-    valid_ids = _courier_ids(db, user.tenant_id)
+    valid_ids = _courier_ids(db, user.tenant_id, user.id if user.role == UserRole.SUPERVISOR else None)
     if not courier_ids.issubset(valid_ids):
-        raise HTTPException(400, "يوجد مندوب لا يتبع الشركة")
+        raise HTTPException(400, "يوجد مندوب لا يتبع الشركة أو فريق المشرف")
     fleet = db.query(Fleet).filter(Fleet.tenant_id == user.tenant_id).first() if user.tenant_id else None
     shift = Shift(
         tenant_id=user.tenant_id, fleet_id=fleet.id if fleet else None,

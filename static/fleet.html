@@ -264,7 +264,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
     <section id="view-shifts" style="display:none">
       <div class="header"><div><div class="kicker">تخطيط القوى</div><h1>الورديات والحضور</h1></div>
-        <button class="btn blue" data-company-only onclick="toggleAddShift()">+ إنشاء وردية</button></div>
+        <button class="btn blue" data-company-only data-supervisor-allowed onclick="toggleAddShift()">+ إنشاء وردية</button></div>
       <div class="card" id="addShiftBox" style="display:none">
         <div class="form-row"><input id="sName" placeholder="اسم الوردية"><input id="sZone" placeholder="المنطقة"></div>
         <div class="form-row"><div><label class="fLabel">من</label><input id="sStart" type="time" value="09:00"></div><div><label class="fLabel">إلى</label><input id="sEnd" type="time" value="17:00"></div><input id="sReq" type="number" min="1" placeholder="عدد مطلوب"></div>
@@ -770,7 +770,7 @@ async function init(){
     document.getElementById("roleDesc").textContent = tenant || "حساب الشركة";
     if(META.role==="SUPERVISOR"){
       document.getElementById("roleDesc").textContent="مشرف — "+tenant;
-      document.querySelectorAll("[data-company-only]").forEach(x=>x.style.display="none");
+      document.querySelectorAll("[data-company-only]:not([data-supervisor-allowed])").forEach(x=>x.style.display="none");
       document.querySelector(".rolebar button").textContent="حساب مشرف";
     }
     const permissions=META.permissions||[];
