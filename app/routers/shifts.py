@@ -20,6 +20,13 @@ STAFF_ROLES = (UserRole.COMPANY, UserRole.COMPANY_ADMIN, UserRole.OPERATIONS,
                UserRole.HR, UserRole.SUPERVISOR, UserRole.DOU_OPS, UserRole.DOU_ADMIN)
 
 
+def _require_attendance_location(payload: AttendanceIn):
+    if payload.lat is None or payload.lng is None:
+        raise HTTPException(422, "لا يمكن تسجيل الحضور أو الانصراف بدون موقع GPS")
+    if not (-90 <= payload.lat <= 90 and -180 <= payload.lng <= 180):
+        raise HTTPException(422, "إحداثيات GPS غير صالحة")
+
+
 def _parse_shift_time(value: str):
     try:
         return datetime.strptime((value or "").strip(), "%H:%M").time()
@@ -179,6 +186,7 @@ def start_shift(shift_id: int, user: User = Depends(get_current_user), db: Sessi
 
 @router.post("/attendance/check-in")
 def check_in(payload: AttendanceIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_attendance_location(payload)
     courier = _courier_for(user, payload.courier_id, db)
     if courier.employment_status != "ACTIVE":
         raise HTTPException(403, "Courier is not active for attendance")
@@ -215,6 +223,7 @@ def check_in(payload: AttendanceIn, user: User = Depends(get_current_user), db: 
 
 @router.post("/attendance/check-out")
 def check_out(payload: AttendanceIn, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_attendance_location(payload)
     courier = _courier_for(user, payload.courier_id, db)
     if courier.employment_status != "ACTIVE":
         raise HTTPException(403, "Courier is not active for attendance")
