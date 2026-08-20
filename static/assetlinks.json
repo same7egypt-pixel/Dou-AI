@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.dou.rider",
+      "sha256_cert_fingerprints": [
+        "1A:F5:FE:34:C1:58:FD:85:A9:4E:2C:2C:C0:FD:D7:B0:89:6C:46:89:BE:90:DA:46:FC:22:11:51:E6:65:2A:0E"
+      ]
+    }
+  }
+]

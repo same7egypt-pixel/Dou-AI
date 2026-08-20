@@ -167,6 +167,15 @@ def health():
     return {"status": "ok", "service": "dou-api"}
 
 
+@app.api_route("/.well-known/assetlinks.json", methods=["GET", "HEAD"], include_in_schema=False)
+def android_asset_links():
+    return FileResponse(
+        os.path.join(STATIC_DIR, "assetlinks.json"),
+        media_type="application/json",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
+
+
 @app.get("/download/driver-apk")
 def download_driver_apk():
     return FileResponse(
