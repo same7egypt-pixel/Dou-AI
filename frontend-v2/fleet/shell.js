@@ -154,6 +154,12 @@ export const CONTEXTUAL_PROMPTS_EN = {
   ],
 };
 
+export function getViewLabel(view) {
+  const isAr = getLang() === 'ar';
+  const labels = isAr ? VIEW_LABELS_AR : VIEW_LABELS_EN;
+  return labels[view] || view;
+}
+
 export const CONTEXTUAL_PROMPTS = CONTEXTUAL_PROMPTS_AR;
 
 export function registerViewLoaders(loaders) {
@@ -329,7 +335,7 @@ function renderTopBar() {
       onclick: () => openAIDrawer()
     }, [
       el('span', { text: '✨' }),
-      el('span', { text: t('مساعد DOU') })
+      el('span', { text: isAr ? 'مساعد DOU' : 'DOU Assistant' })
     ]),
     el('button', {
       class: 'btn btn-ghost btn-small',
@@ -344,7 +350,7 @@ function renderTopBar() {
   return el('header', { class: 'top-bar' }, [
     el('div', { class: 'breadcrumb' }, [
       el('span', { style: 'color:var(--muted)' }, 'DOU Fleet OS / '),
-      el('b', { id: 'crumb', text: t(VIEW_LABELS[currentView]) })
+      el('b', { id: 'crumb', text: getViewLabel(currentView) })
     ]),
     el('div', { class: 'top-actions' }, topActions),
   ]);
@@ -364,7 +370,7 @@ export function go(view) {
 
   // Update breadcrumb
   const crumb = document.getElementById('crumb');
-  if (crumb) crumb.textContent = t(VIEW_LABELS[view]) || view;
+  if (crumb) crumb.textContent = getViewLabel(view);
 
   // Render view
   const content = document.getElementById('content-area');
@@ -398,7 +404,7 @@ function renderAIDrawer() {
   const sendBtn = el('button', {
     class: 'btn btn-primary btn-small',
     onclick: () => sendAIMessage()
-  }, t('إرسال'));
+  }, isAr ? 'إرسال' : 'Send');
 
   const drawer = el('div', { class: 'ai-drawer', id: 'ai-drawer' }, [
     el('div', { class: 'ai-drawer-header' }, [
@@ -408,7 +414,7 @@ function renderAIDrawer() {
           el('b', { text: isAr ? 'مساعد DOU الذكي' : 'DOU Smart AI Assistant' }),
           el('span', { class: 'badge badge-green', style: 'font-size:10px;' }, isAr ? 'متصل بالبيانات' : 'Live Connected'),
         ]),
-        el('small', { id: 'ai-drawer-context', style: 'color:var(--muted);font-size:11px;' }, `${isAr ? 'السياق:' : 'Context:'} ${t(VIEW_LABELS[currentView])}`),
+        el('small', { id: 'ai-drawer-context', style: 'color:var(--muted);font-size:11px;' }, `${isAr ? 'السياق:' : 'Context:'} ${getViewLabel(currentView)}`),
       ]),
       el('button', { class: 'btn-close', onclick: () => closeAIDrawer() }, '✕'),
     ]),
@@ -420,7 +426,7 @@ function renderAIDrawer() {
   return drawer;
 }
 
-export function openAIDrawer(initialPrompt = null) {
+export function openAIDrawer(initialPrompt = '') {
   const drawer = document.getElementById('ai-drawer');
   if (drawer) {
     drawer.classList.add('open');
@@ -449,7 +455,7 @@ export function getContextualPrompts(view) {
 function updateAIDrawerContext(view) {
   const label = document.getElementById('ai-drawer-context') || document.getElementById('ai-drawer-context-label');
   const isAr = getLang() === 'ar';
-  if (label) label.textContent = `${isAr ? '📍 السياق الحالي: ' : '📍 Current Context: '}${t(VIEW_LABELS[view]) || view}`;
+  if (label) label.textContent = `${isAr ? '📍 السياق الحالي: ' : '📍 Current Context: '}${getViewLabel(view)}`;
 
   const promptsContainer = document.getElementById('ai-drawer-prompts-wrap') || document.getElementById('ai-drawer-prompts');
   if (promptsContainer) {
@@ -471,6 +477,7 @@ function updateAIDrawerContext(view) {
 }
 
 async function sendAIMessage() {
+  const isAr = getLang() === 'ar';
   const input = document.getElementById('ai-drawer-input');
   const msgs = document.getElementById('ai-drawer-messages') || document.getElementById('ai-drawer-msgs');
   if (!input || !msgs) return;
@@ -484,7 +491,7 @@ async function sendAIMessage() {
   input.value = '';
 
   const loadingBubble = el('div', { class: 'ai-bubble assistant ai-msg' }, [
-    el('div', { class: 'ai-bubble-text', style: 'color:var(--muted);' }, 'جاري تحليل البيانات التشغيلية...'),
+    el('div', { class: 'ai-bubble-text', style: 'color:var(--muted);' }, isAr ? 'جاري تحليل البيانات التشغيلية...' : 'Analyzing operational data...'),
   ]);
   msgs.append(loadingBubble);
   msgs.scrollTop = msgs.scrollHeight;
@@ -497,16 +504,17 @@ async function sendAIMessage() {
 
     loadingBubble.innerHTML = '';
     loadingBubble.append(
-      el('div', { class: 'ai-bubble-text', text: res.answer || res.response || 'تم تحليل البيانات.' }),
+      el('div', { class: 'ai-bubble-text', text: res.answer || res.response || (isAr ? 'تم تحليل البيانات.' : 'Data analysis completed.') }),
       el('div', { class: 'ai-bubble-meta' }, [
-        el('span', { text: `المصدر: ${res.source || 'DOU AI'}` }),
-        res.latency_ms ? el('span', { text: ` · زمن الاستجابة: ${res.latency_ms}ms` }) : null,
+        el('span', { text: `${isAr ? 'المصدر: ' : 'Source: '}${res.source || 'DOU AI'}` }),
+        res.latency_ms ? el('span', { text: `${isAr ? ' · زمن الاستجابة: ' : ' · Latency: '}${res.latency_ms}ms` }) : null,
       ].filter(Boolean))
     );
   } catch (err) {
     loadingBubble.innerHTML = '';
-    loadingBubble.append(el('div', { class: 'ai-bubble-text', style: 'color:var(--red);', text: 'تعذر الاتصال بالمساعد: ' + err.message }));
+    loadingBubble.append(el('div', { class: 'ai-bubble-text', style: 'color:var(--red);', text: (isAr ? 'تعذر الاتصال بالمساعد: ' : 'Failed to connect to AI Assistant: ') + err.message }));
   }
 
   msgs.scrollTop = msgs.scrollHeight;
 }
+

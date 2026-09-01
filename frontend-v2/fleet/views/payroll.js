@@ -79,7 +79,8 @@ function loadPayrollTabContent(contentArea, mainContainer) {
 // TAB 1: كشف الرواتب والتسوية الشهرية للمناديب (MONTHLY RIDER SETTLEMENT & PAYROLL)
 // ─────────────────────────────────────────────────────────────────────────────
 async function renderPayrollLedger(container, mainContainer) {
-  container.append(loadingState('جاري تجميع واحتساب مسير الرواتب وتسوية حسابات المناديب...'));
+  const isAr = getLang() === 'ar';
+  container.append(loadingState(isAr ? 'جاري تجميع واحتساب مسير الرواتب وتسوية حسابات المناديب...' : 'Calculating monthly payroll ledger and rider settlements...'));
 
   try {
     const data = await api.get(`/hr/payroll?month=${selectedPayrollMonth}`).catch(async () => {
@@ -97,27 +98,29 @@ async function renderPayrollLedger(container, mainContainer) {
       el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px' }, [
         el('div', {}, [
           el('h3', { style: 'margin:0;font-size:15px;color:var(--text);display:flex;align-items:center;gap:8px' }, [
-            el('span', {}, '📊 دورة إقفال مسير الشهر التشغيلي:'),
+            el('span', {}, isAr ? '📊 دورة إقفال مسير الشهر التشغيلي:' : '📊 Monthly Payroll Close Cycle:'),
             el('span', { style: 'font-family:monospace;font-size:14px;color:var(--primary)' }, selectedPayrollMonth)
           ]),
-          el('p', { style: 'margin:2px 0 0 0;font-size:11px;color:var(--muted)' }, 'التحول من المسودة الحية ➔ المراجعة ➔ الاعتماد ➔ الإقفال باللقطة المالية (Snapshot)')
+          el('p', { style: 'margin:2px 0 0 0;font-size:11px;color:var(--muted)' }, isAr ? 'التحول من المسودة الحية ➔ المراجعة ➔ الاعتماد ➔ الإقفال باللقطة المالية (Snapshot)' : 'Live Draft ➔ Review & Audit ➔ Approval ➔ Finalized Financial Snapshot')
         ]),
         el('div', { style: 'display:flex;align-items:center;gap:8px' }, [
           el('span', { class: `badge badge-${status === 'FINALIZED' ? 'green' : (status === 'APPROVED' ? 'green' : (status === 'UNDER_REVIEW' ? 'blue' : 'amber'))}`, style: 'font-size:12px;padding:4px 10px;font-weight:700' },
-            status === 'FINALIZED' ? '🔒 مقفل ومحفوظ بلقطة نهائية' : (status === 'APPROVED' ? '✅ معتمد من الإدارة' : (status === 'UNDER_REVIEW' ? '⏳ قيد المراجعة والتدقيق' : '✏️ مسودة تشغيلية حية'))
+            status === 'FINALIZED' 
+              ? (isAr ? '🔒 مقفل ومحفوظ بلقطة نهائية' : '🔒 Finalized & Locked Snapshot') 
+              : (status === 'APPROVED' ? (isAr ? '✅ معتمد من الإدارة' : '✅ Management Approved') : (status === 'UNDER_REVIEW' ? (isAr ? '⏳ قيد المراجعة والتدقيق' : '⏳ Under Review & Audit') : (isAr ? '✏️ مسودة تشغيلية حية' : '✏️ Live Operational Draft')))
           )
         ])
       ]),
 
       // Visual Stepper
       el('div', { style: 'display:flex;align-items:center;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px' }, [
-        renderStepBadge('1. مسودة الحساب (DRAFT)', status === 'DRAFT' || status === 'UNDER_REVIEW' || status === 'APPROVED' || status === 'FINALIZED', status === 'DRAFT'),
+        renderStepBadge(isAr ? '1. مسودة الحساب (DRAFT)' : '1. Draft Ledger', status === 'DRAFT' || status === 'UNDER_REVIEW' || status === 'APPROVED' || status === 'FINALIZED', status === 'DRAFT'),
         el('span', { style: 'color:var(--muted)' }, '➔'),
-        renderStepBadge('2. مراجعة وتدقيق (REVIEW)', status === 'UNDER_REVIEW' || status === 'APPROVED' || status === 'FINALIZED', status === 'UNDER_REVIEW'),
+        renderStepBadge(isAr ? '2. مراجعة وتدقيق (REVIEW)' : '2. Audit & Review', status === 'UNDER_REVIEW' || status === 'APPROVED' || status === 'FINALIZED', status === 'UNDER_REVIEW'),
         el('span', { style: 'color:var(--muted)' }, '➔'),
-        renderStepBadge('3. اعتماد الإدارة (APPROVED)', status === 'APPROVED' || status === 'FINALIZED', status === 'APPROVED'),
+        renderStepBadge(isAr ? '3. اعتماد الإدارة (APPROVED)' : '3. Final Approval', status === 'APPROVED' || status === 'FINALIZED', status === 'APPROVED'),
         el('span', { style: 'color:var(--muted)' }, '➔'),
-        renderStepBadge('4. إقفال وحفظ اللقطة (LOCKED)', status === 'FINALIZED', status === 'FINALIZED'),
+        renderStepBadge(isAr ? '4. إقفال وحفظ اللقطة (LOCKED)' : '4. Locked Snapshot', status === 'FINALIZED', status === 'FINALIZED'),
       ])
     ]);
     container.append(stepperCard);
@@ -125,7 +128,7 @@ async function renderPayrollLedger(container, mainContainer) {
     // 2. Toolbar Actions
     const toolbar = el('div', { class: 'card', style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 18px;margin-bottom:16px;background:var(--card);border:1px solid var(--border)' }, [
       el('div', { style: 'display:flex;align-items:center;gap:12px' }, [
-        el('label', { style: 'font-size:13px;font-weight:700;color:var(--text)' }, '📅 اختيار الفترة:'),
+        el('label', { style: 'font-size:13px;font-weight:700;color:var(--text)' }, isAr ? '📅 اختيار الفترة:' : '📅 Select Period:'),
         el('input', {
           type: 'month',
           id: 'payroll-month-input',
@@ -141,46 +144,46 @@ async function renderPayrollLedger(container, mainContainer) {
         !isFinalized ? el('button', {
           class: 'btn btn-primary btn-small',
           onclick: () => renderPayrollLedger(container, mainContainer)
-        }, '⚡ احتساب وتجميع المسير') : null,
+        }, isAr ? '⚡ احتساب وتجميع المسير' : '⚡ Calculate & Refresh Ledger') : null,
         
         (!isFinalized && status === 'DRAFT' && appStore.get().role !== 'SUPERVISOR') ? el('button', {
           class: 'btn btn-small',
           style: 'background:#0284c7;color:#fff',
           onclick: () => changePayrollStatus(selectedPayrollMonth, 'UNDER_REVIEW', container, mainContainer)
-        }, '📤 إرسال للمراجعة والتدقيق') : null,
+        }, isAr ? '📤 إرسال للمراجعة والتدقيق' : '📤 Submit for Review') : null,
 
         (!isFinalized && status === 'UNDER_REVIEW' && appStore.get().role !== 'SUPERVISOR') ? el('button', {
           class: 'btn btn-small',
           style: 'background:#16a34a;color:#fff',
           onclick: () => changePayrollStatus(selectedPayrollMonth, 'APPROVED', container, mainContainer)
-        }, '✅ اعتماد المسير') : null,
+        }, isAr ? '✅ اعتماد المسير' : '✅ Approve Payroll') : null,
 
         (!isFinalized && (status === 'APPROVED' || status === 'UNDER_REVIEW' || status === 'DRAFT') && appStore.get().role !== 'SUPERVISOR') ? el('button', {
           class: 'btn btn-small',
           style: 'background:#0f172a;color:#38bdf8;border:1px solid #38bdf8;font-weight:700',
           onclick: () => finalizePayroll(selectedPayrollMonth, container, mainContainer)
-        }, '🔒 إقفال المسير وحفظ اللقطة (Snapshot)') : null,
+        }, isAr ? '🔒 إقفال المسير وحفظ اللقطة (Snapshot)' : '🔒 Finalize & Lock Snapshot') : null,
 
         el('button', {
           class: 'btn btn-ghost btn-small',
           onclick: () => exportPayrollCsv(selectedPayrollMonth, rows)
-        }, '⬇ تصدير Excel / CSV'),
+        }, isAr ? '⬇ تصدير Excel / CSV' : '⬇ Export Excel / CSV'),
 
         el('button', {
           class: 'btn btn-ghost btn-small',
           style: 'color:#0284c7;font-weight:700',
           onclick: () => exportWpsFile(selectedPayrollMonth)
-        }, '🏦 ملف التحضير البنكي'),
+        }, isAr ? '🏦 ملف التحضير البنكي' : '🏦 Bank WPS File'),
 
         appStore.get().role !== 'SUPERVISOR' ? el('button', {
           class: 'btn btn-ghost btn-small',
           onclick: () => openSalaryStructuresListModal()
-        }, '📑 هياكل الرواتب') : null,
+        }, isAr ? '📑 هياكل الرواتب' : '📑 Salary Structures') : null,
 
         appStore.get().role !== 'SUPERVISOR' ? el('button', {
           class: 'btn btn-primary btn-small',
           onclick: () => openCreateSalaryStructureModal()
-        }, '➕ هيكل رواتب جديد') : null,
+        }, isAr ? '➕ هيكل رواتب جديد' : '➕ New Salary Structure') : null,
       ].filter(Boolean))
     ]);
     container.append(toolbar);
@@ -189,61 +192,62 @@ async function renderPayrollLedger(container, mainContainer) {
     const grossTotal = totals.gross || totals.total || (totals.fixed || 0) + (totals.delivery || 0) + (totals.bonus || 0) + (totals.additions || 0) || 0;
     const deductionsTotal = totals.deductions || (totals.absences || 0) + (totals.late || 0) + (totals.advances || 0) + (totals.other_deductions || 0) || 0;
     const netTotal = totals.total || grossTotal - deductionsTotal;
+    const curr = isAr ? ' ر.س' : ' SAR';
 
     container.append(el('div', { class: 'cards' }, [
-      metricCard(`${(grossTotal || 0).toLocaleString('ar-SA')} ر.س`, 'إجمالي الاستحقاقات (Gross)', 'blue', null, 'أساسي + إنتاجية طلبات + بونص'),
-      metricCard(data.couriers_count || rows.length || 0, 'مناديب المسير المكتمل', 'blue', null, 'كافة السائقين المسجلين'),
-      metricCard(`${(deductionsTotal || 0).toLocaleString('ar-SA')} ر.س`, 'إجمالي الاستقطاعات', deductionsTotal > 0 ? 'alert' : 'blue', null, 'غياب + تأخير + سلف + مخالفات'),
-      metricCard(`${(netTotal || 0).toLocaleString('ar-SA')} ر.س`, 'صافي حساب المسير (Net)', 'trend', null, 'جاهز للتحويل والصرف البنكي'),
+      metricCard(`${(grossTotal || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`, isAr ? 'إجمالي الاستحقاقات (Gross)' : 'Gross Earnings', 'blue', null, isAr ? 'أساسي + إنتاجية طلبات + بونص' : 'Base + Delivery Pay + Bonus'),
+      metricCard(data.couriers_count || rows.length || 0, isAr ? 'مناديب المسير المكتمل' : 'Total Eligible Drivers', 'blue', null, isAr ? 'كافة السائقين المسجلين' : 'All active registered drivers'),
+      metricCard(`${(deductionsTotal || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`, isAr ? 'إجمالي الاستقطاعات' : 'Total Deductions', deductionsTotal > 0 ? 'alert' : 'blue', null, isAr ? 'غياب + تأخير + سلف + مخالفات' : 'Absence + Late + Advances + Penalties'),
+      metricCard(`${(netTotal || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`, isAr ? 'صافي حساب المسير (Net)' : 'Net Payable', 'trend', null, isAr ? 'جاهز للتحويل والصرف البنكي' : 'Ready for bank disbursement'),
     ]));
 
     if (!rows.length) {
-      container.append(emptyState('لا توجد قيود رواتب مسجلة لهذا الشهر. اضغط "⚡ احتساب وتجميع المسير" لتوليد المستحقات من الحضور والإنتاجية.'));
+      container.append(emptyState(isAr ? 'لا توجد قيود رواتب مسجلة لهذا الشهر. اضغط "⚡ احتساب وتجميع المسير" لتوليد المستحقات من الحضور والإنتاجية.' : 'No payroll records for this period. Click "⚡ Calculate & Refresh Ledger" to compute.'));
       return;
     }
 
     // 4. Itemized Rider Settlement Table
     const columns = [
-      { key: 'name', label: 'السائق والبيانات', render: (v, r) => el('div', {}, [
+      { key: 'name', label: isAr ? 'السائق والبيانات' : 'Driver Details', render: (v, r) => el('div', {}, [
         el('b', { style: 'display:block;color:var(--text);font-size:13px' }, v || '—'),
         el('div', { style: 'color:var(--muted);font-size:11px;display:flex;gap:6px' }, [
           el('span', {}, r.phone || ''),
           el('span', {}, '•'),
-          el('span', {}, r.city || r.zone || 'الرياض')
+          el('span', {}, r.city || r.zone || (isAr ? 'الرياض' : 'Riyadh'))
         ])
       ]) },
-      { key: 'fixed', label: 'الأساسي والبدلات', render: (v) => `${(v || 0).toLocaleString('ar-SA')} ر.س` },
-      { key: 'delivery', label: 'إنتاجية الطلبات', render: (v, r) => el('div', {}, [
-        el('b', { style: 'color:var(--primary)' }, `${(v || 0).toLocaleString('ar-SA')} ر.س`),
-        el('small', { style: 'display:block;color:var(--muted);font-size:10px' }, `${(r.orders || 0)} طلب × ${r.per_delivery_rate || r.average_per_order || 0} ر.س`)
+      { key: 'fixed', label: isAr ? 'الأساسي والبدلات' : 'Base & Allowances', render: (v) => `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}` },
+      { key: 'delivery', label: isAr ? 'إنتاجية الطلبات' : 'Delivery Earnings', render: (v, r) => el('div', {}, [
+        el('b', { style: 'color:var(--primary)' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`),
+        el('small', { style: 'display:block;color:var(--muted);font-size:10px' }, `${(r.orders || 0)} ${isAr ? 'طلب' : 'orders'} × ${r.per_delivery_rate || r.average_per_order || 0}${curr}`)
       ]) },
-      { key: 'bonus', label: 'حافز التارجت', render: (v) => (v > 0 ? el('span', { style: 'color:#16a34a;font-weight:700' }, `+${(v || 0).toLocaleString('ar-SA')} ر.س`) : '0 ر.س') },
-      { key: 'gross', label: 'إجمالي الاستحقاق', render: (v, r) => {
+      { key: 'bonus', label: isAr ? 'حافز التارجت' : 'Target Bonus', render: (v) => (v > 0 ? el('span', { style: 'color:#16a34a;font-weight:700' }, `+${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`) : `0${curr}`) },
+      { key: 'gross', label: isAr ? 'إجمالي الاستحقاق' : 'Gross Total', render: (v, r) => {
         const val = v || (r.fixed || 0) + (r.delivery || 0) + (r.bonus || 0) + (r.additions || 0);
-        return el('b', { style: 'color:#059669;font-size:12px' }, `${val.toLocaleString('ar-SA')} ر.س`);
+        return el('b', { style: 'color:#059669;font-size:12px' }, `${val.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`);
       }},
-      { key: 'absences_late', label: 'خصم حضور (غياب/تأخير)', render: (_, r) => {
+      { key: 'absences_late', label: isAr ? 'خصم حضور (غياب/تأخير)' : 'Attendance Deductions', render: (_, r) => {
         const abs = (r.absence_deduction || 0) + (r.late_deduction || 0);
-        return abs > 0 ? el('span', { style: 'color:#dc2626;font-weight:600' }, `-${abs.toLocaleString('ar-SA')} ر.س`) : '0 ر.س';
+        return abs > 0 ? el('span', { style: 'color:#dc2626;font-weight:600' }, `-${abs.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`) : `0${curr}`;
       }},
-      { key: 'advances_other', label: 'سلف وخصومات', render: (_, r) => {
+      { key: 'advances_other', label: isAr ? 'سلف وخصومات' : 'Advances & Penalties', render: (_, r) => {
         const adv = (r.advance_deduction || 0) + (r.other_deductions || 0);
-        return adv > 0 ? el('span', { style: 'color:#e11d48;font-weight:600' }, `-${adv.toLocaleString('ar-SA')} ر.س`) : '0 ر.س';
+        return adv > 0 ? el('span', { style: 'color:#e11d48;font-weight:600' }, `-${adv.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`) : `0${curr}`;
       }},
-      { key: 'total', label: 'صافي حساب المندوب', render: (v) => el('div', { style: 'background:rgba(2,132,199,0.08);padding:4px 8px;border-radius:6px;display:inline-block' }, [
-        el('b', { style: 'color:#0284c7;font-size:13px' }, `${(v || 0).toLocaleString('ar-SA')} ر.س`)
+      { key: 'total', label: isAr ? 'صافي حساب المندوب' : 'Net Settlement', render: (v) => el('div', { style: 'background:rgba(2,132,199,0.08);padding:4px 8px;border-radius:6px;display:inline-block' }, [
+        el('b', { style: 'color:#0284c7;font-size:13px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`)
       ]) },
-      { key: 'actions', label: 'كشف الحساب', render: (_, r) => el('button', {
+      { key: 'actions', label: isAr ? 'كشف الحساب' : 'Statement', render: (_, r) => el('button', {
         class: 'btn btn-ghost btn-small',
         style: 'color:#0284c7;font-weight:700',
         onclick: () => openRiderStatementModal(r.id, selectedPayrollMonth)
-      }, '📄 كشف مفصل') }
+      }, isAr ? '📄 كشف مفصل' : '📄 Statement') }
     ];
 
     container.append(el('div', { class: 'card', style: 'padding:16px;background:var(--card);border:1px solid var(--border);border-radius:12px' }, [
       el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px' }, [
-        el('h3', { style: 'margin:0;font-size:15px;color:var(--text)' }, `مسير رواتب وتسوية حسابات المناديب لشهر (${selectedPayrollMonth})`),
-        el('span', { style: 'font-size:12px;color:var(--muted)' }, `إجمالي المناديب المشمولين: ${rows.length}`)
+        el('h3', { style: 'margin:0;font-size:15px;color:var(--text)' }, isAr ? `مسير رواتب وتسوية حسابات المناديب لشهر (${selectedPayrollMonth})` : `Monthly Driver Payroll Ledger & Settlement (${selectedPayrollMonth})`),
+        el('span', { style: 'font-size:12px;color:var(--muted)' }, isAr ? `إجمالي المناديب المشمولين: ${rows.length}` : `Total Drivers: ${rows.length}`)
       ]),
       table(columns, rows)
     ]));

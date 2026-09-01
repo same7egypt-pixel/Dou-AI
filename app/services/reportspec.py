@@ -95,6 +95,8 @@ class ReportSpec:
     output: OutputPreference = "SUMMARY"
     report_key: str | None = None
     source: ReportSource | None = None
+    raw_question: str | None = None
+    lang: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)

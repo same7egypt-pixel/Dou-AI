@@ -377,6 +377,7 @@ def parse_question(text: str, current_spec: ReportSpec | None = None) -> ReportS
         limit=limit[0] if limit else None,
         report_key=definition.report_key if definition else None,
         source=definition.source if definition else None,
+        raw_question=text,
     )
 
 

@@ -116,9 +116,21 @@ def execute_count(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict
     raise HTTPException(422, f"Unsupported metric for COUNT: {spec.metric}")
 
 
+def _is_english(spec: ReportSpec) -> bool:
+    if spec.lang == "en":
+        return True
+    raw = spec.raw_question or ""
+    if not raw:
+        return False
+    en_chars = sum(1 for c in raw if c.isascii() and c.isalpha())
+    ar_chars = sum(1 for c in raw if "\u0600" <= c <= "\u06FF")
+    return en_chars > ar_chars
+
+
 def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
-    """Execute LIST operations with full table generation for export."""
+    """Execute LIST operations with full table generation for export in AR and EN."""
     cq = courier_query(db, scope)
+    en = _is_english(spec)
 
     if spec.metric in ("ABSENCE", "SHORTAGE"):
         rows = (
@@ -132,23 +144,40 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
             .all()
         )
         if not rows:
-            # If no inactive, show riders who are flagged or off shift
             rows = cq.limit(spec.limit or 20).all()
 
-        data = [
-            {
-                "السائق": r.name,
-                "الجوال": r.phone,
-                "الفرع": getattr(r, "branch_name", None) or "الفرع الرئيسي",
-                "الحالة": "غائب / غير نشط" if r.employment_status != "ACTIVE" else "نشط",
-            }
-            for r in rows
-        ]
+        if en:
+            data = [
+                {
+                    "Driver": r.name,
+                    "Mobile": r.phone,
+                    "Branch": getattr(r, "branch_name", None) or "Main Branch",
+                    "Status": "Absent / Inactive" if r.employment_status != "ACTIVE" else "Active",
+                }
+                for r in rows
+            ]
+            cols = ["Driver", "Mobile", "Branch", "Status"]
+            ans = f"Extracted absence & readiness report ({len(data)} drivers). Ready to download as Excel/CSV:"
+            kpi_lbl = "Absent / Not Ready Drivers"
+        else:
+            data = [
+                {
+                    "السائق": r.name,
+                    "الجوال": r.phone,
+                    "الفرع": getattr(r, "branch_name", None) or "الفرع الرئيسي",
+                    "الحالة": "غائب / غير نشط" if r.employment_status != "ACTIVE" else "نشط",
+                }
+                for r in rows
+            ]
+            cols = ["السائق", "الجوال", "الفرع", "الحالة"]
+            ans = f"تم استخراج كشف الغياب والجاهزية ({len(data)} سائق). يمكنك تنزيل الملف المولد مباشرة كـ Excel/CSV:"
+            kpi_lbl = "السائقون الغائبون / غير الجاهزين"
+
         return _base_response(
-            f"تم استخراج كشف الغياب والجاهزية ({len(data)} سائق). يمكنك تنزيل الملف المولد مباشرة كـ Excel/CSV:",
+            ans,
             "DOU AI Live Fleet Data",
-            kpis=[{"label": "السائقون الغائبون / غير الجاهزين", "value": len(data)}],
-            table={"name": "Absent_Drivers_Report", "columns": ["السائق", "الجوال", "الفرع", "الحالة"], "rows": data},
+            kpis=[{"label": kpi_lbl, "value": len(data)}],
+            table={"name": "Absent_Drivers_Report", "columns": cols, "rows": data},
             report_link="/app/v2/?view=shifts",
         )
 
@@ -158,20 +187,38 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
             .limit(spec.limit or 100)
             .all()
         )
-        data = [
-            {
-                "السائق": r.name,
-                "الجوال": r.phone,
-                "الفرع": getattr(r, "branch_name", None) or "الفرع الرئيسي",
-                "حالة التشغيل": "حاضر / على رأس العمل",
-            }
-            for r in rows
-        ]
+        if en:
+            data = [
+                {
+                    "Driver": r.name,
+                    "Mobile": r.phone,
+                    "Branch": getattr(r, "branch_name", None) or "Main Branch",
+                    "Shift Status": "Present / On Shift",
+                }
+                for r in rows
+            ]
+            cols = ["Driver", "Mobile", "Branch", "Shift Status"]
+            ans = f"Extracted active drivers attendance report ({len(data)} active drivers). Ready for download:"
+            kpi_lbl = "Present Drivers"
+        else:
+            data = [
+                {
+                    "السائق": r.name,
+                    "الجوال": r.phone,
+                    "الفرع": getattr(r, "branch_name", None) or "الفرع الرئيسي",
+                    "حالة التشغيل": "حاضر / على رأس العمل",
+                }
+                for r in rows
+            ]
+            cols = ["السائق", "الجوال", "الفرع", "حالة التشغيل"]
+            ans = f"تم استخراج كشف حضور وتشغيل السائقين ({len(data)} سائق نشط). الملف جاهز للتنزيل والحفظ:"
+            kpi_lbl = "السائقون الحاضرون"
+
         return _base_response(
-            f"تم استخراج كشف حضور وتشغيل السائقين ({len(data)} سائق نشط). الملف جاهز للتنزيل والحفظ:",
+            ans,
             "DOU AI Live Fleet Data",
-            kpis=[{"label": "السائقون الحاضرون", "value": len(data)}],
-            table={"name": "Attendance_Report", "columns": ["السائق", "الجوال", "الفرع", "حالة التشغيل"], "rows": data},
+            kpis=[{"label": kpi_lbl, "value": len(data)}],
+            table={"name": "Attendance_Report", "columns": cols, "rows": data},
             report_link="/app/v2/?view=shifts",
         )
 
@@ -179,20 +226,39 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
         rows = cq.filter(ent.Courier.documents_valid.is_(False)).limit(spec.limit or 100).all()
         if not rows:
             rows = cq.limit(spec.limit or 20).all()
-        data = [
-            {
-                "السائق": r.name,
-                "الجوال": r.phone,
-                "رقم الإقامة / الهوية": r.iqama_number or "غير مسجل",
-                "حالة المستندات": "تحتاج تجديد / منتهية" if not r.documents_valid else "سارية",
-            }
-            for r in rows
-        ]
+
+        if en:
+            data = [
+                {
+                    "Driver": r.name,
+                    "Mobile": r.phone,
+                    "National ID / Iqama": r.iqama_number or "Not registered",
+                    "Documents Status": "Expired / Action Required" if not r.documents_valid else "Valid",
+                }
+                for r in rows
+            ]
+            cols = ["Driver", "Mobile", "National ID / Iqama", "Documents Status"]
+            ans = f"Extracted expiring documents report ({len(data)} records). Ready for Excel download:"
+            kpi_lbl = "Document Records"
+        else:
+            data = [
+                {
+                    "السائق": r.name,
+                    "الجوال": r.phone,
+                    "رقم الإقامة / الهوية": r.iqama_number or "غير مسجل",
+                    "حالة المستندات": "تحتاج تجديد / منتهية" if not r.documents_valid else "سارية",
+                }
+                for r in rows
+            ]
+            cols = ["السائق", "الجوال", "رقم الإقامة / الهوية", "حالة المستندات"]
+            ans = f"تم استخراج كشف الوثائق المنتهية وقرب الانتهاء ({len(data)} سجل). الملف جاهز للتنزيل كـ Excel:"
+            kpi_lbl = "سجلات الوثائق"
+
         return _base_response(
-            f"تم استخراج كشف الوثائق المنتهية وقرب الانتهاء ({len(data)} سجل). الملف جاهز للتنزيل كـ Excel:",
+            ans,
             "DOU AI Live Fleet Data",
-            kpis=[{"label": "سجلات الوثائق", "value": len(data)}],
-            table={"name": "Expiring_Documents_Report", "columns": ["السائق", "الجوال", "رقم الإقامة / الهوية", "حالة المستندات"], "rows": data},
+            kpis=[{"label": kpi_lbl, "value": len(data)}],
+            table={"name": "Expiring_Documents_Report", "columns": cols, "rows": data},
             report_link="/app/v2/?view=needsAttention",
         )
 
@@ -201,44 +267,86 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
         if scope.role not in financial_roles:
             raise HTTPException(403, "Financial data requires an authorized finance role")
         rows = cq.limit(spec.limit or 100).all()
-        data = [
-            {
-                "السائق": r.name,
-                "الراتب الأساسي": f"{getattr(r, 'base_salary', 2500) or 2500} ر.س",
-                "البونص المستحق": f"{getattr(r, 'bonus_amount', 450) or 450} ر.س",
-                "الاستقطاعات والسلف": f"{getattr(r, 'deductions', 100) or 100} ر.س",
-                "صافي المستحق": f"{getattr(r, 'net_pay', 2850) or 2850} ر.س",
-            }
-            for r in rows
-        ]
-        return _base_response(
-            f"تم استخراج مسير الرواتب والبدلات ({len(data)} سائق). يمكنك تنزيل الشيت المالي المعتمد كـ Excel/CSV:",
-            "DOU AI Live Fleet Data",
-            kpis=[
+
+        if en:
+            data = [
+                {
+                    "Driver": r.name,
+                    "Base Salary": f"{getattr(r, 'base_salary', 2500) or 2500} SAR",
+                    "Bonus": f"{getattr(r, 'bonus_amount', 450) or 450} SAR",
+                    "Deductions & Advances": f"{getattr(r, 'deductions', 100) or 100} SAR",
+                    "Net Pay": f"{getattr(r, 'net_pay', 2850) or 2850} SAR",
+                }
+                for r in rows
+            ]
+            cols = ["Driver", "Base Salary", "Bonus", "Deductions & Advances", "Net Pay"]
+            ans = f"Extracted payroll ledger and settlements sheet ({len(data)} drivers). Approved financial sheet ready for Excel/CSV export:"
+            kpis = [
+                {"label": "Total Records", "value": len(data)},
+                {"label": "Average Net Pay", "value": "2,850 SAR"},
+            ]
+        else:
+            data = [
+                {
+                    "السائق": r.name,
+                    "الراتب الأساسي": f"{getattr(r, 'base_salary', 2500) or 2500} ر.س",
+                    "البونص المستحق": f"{getattr(r, 'bonus_amount', 450) or 450} ر.س",
+                    "الاستقطاعات والسلف": f"{getattr(r, 'deductions', 100) or 100} ر.س",
+                    "صافي المستحق": f"{getattr(r, 'net_pay', 2850) or 2850} ر.س",
+                }
+                for r in rows
+            ]
+            cols = ["السائق", "الراتب الأساسي", "البونص المستحق", "الاستقطاعات والسلف", "صافي المستحق"]
+            ans = f"تم استخراج مسير الرواتب والبدلات ({len(data)} سائق). يمكنك تنزيل الشيت المالي المعتمد كـ Excel/CSV:"
+            kpis = [
                 {"label": "إجمالي السجلات", "value": len(data)},
                 {"label": "متوسط الصافي للسائق", "value": "2,850 ر.س"},
-            ],
-            table={"name": "Payroll_Settlement_Sheet", "columns": ["السائق", "الراتب الأساسي", "البونص المستحق", "الاستقطاعات والسلف", "صافي المستحق"], "rows": data},
+            ]
+
+        return _base_response(
+            ans,
+            "DOU AI Live Fleet Data",
+            kpis=kpis,
+            table={"name": "Payroll_Settlement_Sheet", "columns": cols, "rows": data},
             report_link="/app/v2/?view=payroll",
         )
 
     if spec.metric in ("PERFORMANCE", "TARGET_ACHIEVEMENT", "COMPLETED_ORDERS"):
         rows = cq.limit(spec.limit or 100).all()
-        data = [
-            {
-                "السائق": r.name,
-                "الطلبات المكتملة": getattr(r, "completed_orders", 320) or 320,
-                "التارجت المستهدف": getattr(r, "target_orders", 400) or 400,
-                "نسبة الإنجاز": f"{int((getattr(r, 'completed_orders', 320) or 320) / (getattr(r, 'target_orders', 400) or 400) * 100)}%",
-                "فئة البونص": "الفئة الذهبية" if (getattr(r, "completed_orders", 320) or 320) >= 300 else "الفئة الفضية",
-            }
-            for r in rows
-        ]
+        if en:
+            data = [
+                {
+                    "Driver": r.name,
+                    "Completed Orders": getattr(r, "completed_orders", 320) or 320,
+                    "Target Orders": getattr(r, "target_orders", 400) or 400,
+                    "Achievement Rate": f"{int((getattr(r, 'completed_orders', 320) or 320) / (getattr(r, 'target_orders', 400) or 400) * 100)}%",
+                    "Bonus Tier": "Gold Tier" if (getattr(r, "completed_orders", 320) or 320) >= 300 else "Silver Tier",
+                }
+                for r in rows
+            ]
+            cols = ["Driver", "Completed Orders", "Target Orders", "Achievement Rate", "Bonus Tier"]
+            ans = f"Extracted driver orders performance and target achievement report ({len(data)} drivers). Ready for export:"
+            kpi_lbl = "Performance Records"
+        else:
+            data = [
+                {
+                    "السائق": r.name,
+                    "الطلبات المكتملة": getattr(r, "completed_orders", 320) or 320,
+                    "التارجت المستهدف": getattr(r, "target_orders", 400) or 400,
+                    "نسبة الإنجاز": f"{int((getattr(r, 'completed_orders', 320) or 320) / (getattr(r, 'target_orders', 400) or 400) * 100)}%",
+                    "فئة البونص": "الفئة الذهبية" if (getattr(r, "completed_orders", 320) or 320) >= 300 else "الفئة الفضية",
+                }
+                for r in rows
+            ]
+            cols = ["السائق", "الطلبات المكتملة", "التارجت المستهدف", "نسبة الإنجاز", "فئة البونص"]
+            ans = f"تم استخراج كشف أداء السائقين وتارجت التوصيل ({len(data)} سائق). الملف جاهز للحفظ والتصدير:"
+            kpi_lbl = "سجلات الأداء"
+
         return _base_response(
-            f"تم استخراج كشف أداء السائقين وتارجت التوصيل ({len(data)} سائق). الملف جاهز للحفظ والتصدير:",
+            ans,
             "DOU AI Live Fleet Data",
-            kpis=[{"label": "سجلات الأداء", "value": len(data)}],
-            table={"name": "Driver_Performance_Report", "columns": ["السائق", "الطلبات المكتملة", "التارجت المستهدف", "نسبة الإنجاز", "فئة البونص"], "rows": data},
+            kpis=[{"label": kpi_lbl, "value": len(data)}],
+            table={"name": "Driver_Performance_Report", "columns": cols, "rows": data},
             report_link="/app/v2/?view=reports",
         )
 
@@ -253,30 +361,57 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
             .limit(spec.limit or 50)
             .all()
         )
-        data = []
-        for row in rows:
-            reasons = []
-            if row.employment_status != "ACTIVE":
-                reasons.append("غير نشط")
-            if row.documents_valid is False:
-                reasons.append("مشكلة وثائق")
-            data.append({"السائق": row.name, "سبب التنبيه": ", ".join(reasons) or "مراجعة تشغيلية"})
+        if en:
+            data = []
+            for row in rows:
+                reasons = []
+                if row.employment_status != "ACTIVE":
+                    reasons.append("Inactive")
+                if row.documents_valid is False:
+                    reasons.append("Document issue")
+                data.append({"Driver": row.name, "Reason": ", ".join(reasons) or "Operational Review"})
+            cols = ["Driver", "Reason"]
+            ans = f"Extracted cases requiring operational attention ({len(data)} items). Download ready:"
+            kpi_lbl = "Needs Attention Cases"
+        else:
+            data = []
+            for row in rows:
+                reasons = []
+                if row.employment_status != "ACTIVE":
+                    reasons.append("غير نشط")
+                if row.documents_valid is False:
+                    reasons.append("مشكلة وثائق")
+                data.append({"السائق": row.name, "سبب التنبيه": ", ".join(reasons) or "مراجعة تشغيلية"})
+            cols = ["السائق", "سبب التنبيه"]
+            ans = f"تم استخراج تقرير الحالات التي تحتاج انتباه ({len(data)} حالة). يمكنك تنزيل الكشف فوراً كـ Excel:"
+            kpi_lbl = "حالات تحتاج انتباه"
+
         return _base_response(
-            f"تم استخراج تقرير الحالات التي تحتاج انتباه ({len(data)} حالة). يمكنك تنزيل الكشف فوراً كـ Excel:",
+            ans,
             "DOU AI Live Fleet Data",
-            kpis=[{"label": "حالات تحتاج انتباه", "value": len(data)}],
-            table={"name": "Needs_Attention_Report", "columns": ["السائق", "سبب التنبيه"], "rows": data},
+            kpis=[{"label": kpi_lbl, "value": len(data)}],
+            table={"name": "Needs_Attention_Report", "columns": cols, "rows": data},
             report_link="/app/v2/?view=needsAttention",
         )
 
     # Fallback to active couriers list
     rows = cq.limit(spec.limit or 50).all()
-    data = [{"السائق": r.name, "الجوال": r.phone, "الحالة": r.employment_status} for r in rows]
+    if en:
+        data = [{"Driver": r.name, "Mobile": r.phone, "Status": r.employment_status} for r in rows]
+        cols = ["Driver", "Mobile", "Status"]
+        ans = f"Extracted requested fleet records ({len(data)} records):"
+        kpi_lbl = "Total Records"
+    else:
+        data = [{"السائق": r.name, "الجوال": r.phone, "الحالة": r.employment_status} for r in rows]
+        cols = ["السائق", "الجوال", "الحالة"]
+        ans = f"تم استخراج قائمة السجلات المطلوبة ({len(data)} سجل):"
+        kpi_lbl = "إجمالي السجلات"
+
     return _base_response(
-        f"تم استخراج قائمة السجلات المطلوبة ({len(data)} سجل):",
+        ans,
         "DOU AI Live Fleet Data",
-        kpis=[{"label": "إجمالي السجلات", "value": len(data)}],
-        table={"name": "Fleet_Export", "columns": ["السائق", "الجوال", "الحالة"], "rows": data},
+        kpis=[{"label": kpi_lbl, "value": len(data)}],
+        table={"name": "Fleet_Export", "columns": cols, "rows": data},
         report_link="/app/v2/?view=reports",
     )
 
