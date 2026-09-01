@@ -1,10 +1,9 @@
-// Reports screen — Catalog, Metabase Interactive Dashboards, Platform Raw Facts (19 KPIs), Live AI BI & Full Exports
+// Reports screen — Catalog, Metabase Interactive Dashboards, Platform Raw Facts (19 KPIs) & Full Exports
 import { api } from '../../shared/api/client.js';
-import { el, loadingState, emptyState, errorState, metricCard, badge, aiPromptBar, table, modal } from '../../shared/components/ui.js';
-import { openAIDrawer, getContextualPrompts } from '../shell.js';
+import { el, loadingState, emptyState, errorState, metricCard, badge, table, modal } from '../../shared/components/ui.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
 
-let activeSubTab = 'overview'; // 'overview' | 'catalog' | 'platform_facts' | 'dashboards' | 'ai_queries'
+let activeSubTab = 'overview'; // 'overview' | 'catalog' | 'platform_facts' | 'dashboards'
 let currentReport = null;
 let currentDashboard = null;
 let platformContractFilter = '';
@@ -20,10 +19,6 @@ export async function loadReports(container) {
     ]),
     el('div', { class: 'header-actions', id: 'reports-header-actions' }, [
       el('button', { class: 'btn btn-ghost', onclick: () => loadReports(container) }, `↻ ${t('تحديث البيانات')}`),
-      el('button', { class: 'btn-ai', onclick: () => openAIDrawer(isAr ? 'تقرير الأداء الأسبوعي' : 'Weekly performance report') }, [
-        el('span', { text: '✨' }),
-        el('span', { text: isAr ? 'مساعد التحليلات' : 'Analytics Assistant' })
-      ]),
     ]),
   ]);
 
@@ -48,11 +43,6 @@ export async function loadReports(container) {
       'data-tab': 'dashboards',
       onclick: () => switchTab('dashboards', container)
     }, isAr ? 'لوحات التحليل' : 'Analytics Dashboards'),
-    el('button', {
-      class: `tab ${activeSubTab === 'ai_queries' ? 'active' : ''}`,
-      'data-tab': 'ai_queries',
-      onclick: () => switchTab('ai_queries', container)
-    }, isAr ? 'استعلامات DOU AI' : 'DOU AI Queries'),
   ]);
 
   const contentArea = el('div', { id: 'reports-content-area' });
@@ -86,8 +76,6 @@ function renderSubTab(contentArea) {
     renderCatalogTab(contentArea);
   } else if (activeSubTab === 'dashboards') {
     renderMetabaseDashboardsTab(contentArea);
-  } else if (activeSubTab === 'ai_queries') {
-    renderAIQueriesTab(contentArea);
   }
 }
 
@@ -771,51 +759,4 @@ function renderNativeDashboardContent(dashboard, factsData, overviewData) {
   ]));
 
   return wrap;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TAB 4: DOU AI BI QUERIES
-// ─────────────────────────────────────────────────────────────────────────────
-function renderAIQueriesTab(container) {
-  const target = document.getElementById('reports-content-area') || container;
-  target.innerHTML = '';
-  const wrap = el('div', {});
-
-  wrap.append(el('div', { class: 'card', style: 'padding:20px;margin-bottom:18px;' }, [
-    el('h3', { style: 'margin:0 0 8px 0;' }, '✨ استعلامات الذكاء الاصطناعي الفورية (Conversational BI)'),
-    el('p', { style: 'margin:0 0 16px 0;color:var(--muted);font-size:13px;' }, 'اطرح أي سؤال تشغيلي أو مالي باللغة العربية واحصل على إجابة تحليلية فورية ودقيقة مدعمة ببيانات المنظومة المعتمدة.'),
-    el('div', { class: 'ai-prompt-bar' }, [
-      el('span', { style: 'font-weight:700;font-size:12px;color:var(--primary);' }, '💡 استعلامات شائعة:'),
-      el('button', { class: 'ai-prompt-chip', onclick: () => openAIDrawer('ما هو معدل التوصيل في أوقات الذروة هذا الأسبوع؟') }, 'معدل الذروة الأسبوعي'),
-      el('button', { class: 'ai-prompt-chip', onclick: () => openAIDrawer('من هم السائقون الأكثر تحقيقاً للأهداف في الرياض؟') }, 'أفضل السائقين في الرياض'),
-      el('button', { class: 'ai-prompt-chip', onclick: () => openAIDrawer('ما هي عقود المشغلين التي تحتوي على أعلى نسبة غرامات؟') }, 'عقود المشغلين والغرامات'),
-      el('button', { class: 'ai-prompt-chip', onclick: () => openAIDrawer('ملخص التكاليف التشغيلية والأجور للشهر الماضي') }, 'ملخص التكاليف والأجور'),
-    ]),
-  ]));
-
-  const queriesGrid = el('div', { class: 'cards' });
-  const queries = [
-    { title: 'معدل التوصيل في أوقات الذروة', query: 'ما هو معدل التوصيل في أوقات الذروة هذا الأسبوع؟', desc: 'تحليل حجم الطلبات وسرعة الاستجابة أثناء ساعات الذروة المسائية' },
-    { title: 'أفضل السائقين تحقيقاً للأهداف', query: 'من هم السائقون الأكثر تحقيقاً للأهداف في الرياض؟', desc: 'استعراض المناديب الأعلى إنتاجية والتزاماً بالورديات' },
-    { title: 'مستحقات عقود المشغلين 3PL', query: 'ما هي عقود المشغلين التي تحتوي على أعلى نسبة غرامات؟', desc: 'مقارنة غرامات SLA والتسويات الصافية لشركات التشغيل' },
-    { title: 'ملخص التكاليف التشغيلية والأجور', query: 'ملخص التكاليف التشغيلية والأجور للشهر الماضي', desc: 'تحليل توزيع الرواتب والعمولات والسلف الشهرية' },
-  ];
-  queries.forEach((q) => {
-    queriesGrid.append(el('div', {
-      class: 'card report-card',
-      style: 'cursor:pointer;padding:18px;',
-      onclick: () => openAIDrawer(q.query)
-    }, [
-      el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;' }, [
-        el('span', { style: 'font-size:22px;' }, '✨'),
-        badge('استعلام ذكي', 'blue'),
-      ]),
-      el('h3', { class: 'report-card-title', style: 'margin:0 0 6px 0;font-size:15px;', text: q.title }),
-      el('p', { style: 'margin:0;font-size:12px;color:var(--muted);', text: q.desc }),
-      el('div', { style: 'margin-top:12px;font-size:11px;font-weight:700;color:var(--blue);' }, 'طرح الاستعلام الآن ←'),
-    ]));
-  });
-
-  wrap.append(queriesGrid);
-  target.append(wrap);
 }

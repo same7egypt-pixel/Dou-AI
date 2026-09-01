@@ -45,3 +45,12 @@ def test_platform_upload_and_dashboard_are_contract_scoped():
     assert "platform-upload-contract" in source
     assert "contract_id: Number(contractId)" in source
     assert "?contract_id=${encodeURIComponent(platformContractFilter)}" in source
+
+
+def test_reports_do_not_route_analytics_to_chat():
+    source = REPORTS_JS.read_text(encoding="utf-8")
+    assert "ai_queries" not in source
+    assert "renderAIQueriesTab" not in source
+    assert "openAIDrawer" not in source
+    assert "مساعد التحليلات" not in source
+    assert "Analytics Assistant" not in source
