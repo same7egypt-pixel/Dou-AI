@@ -121,10 +121,10 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 class NoCacheHtml(StaticFiles):
     async def get_response(self, path, scope):
         response = await super().get_response(path, scope)
-        if path.endswith(".html") and response.status_code == 200:
+        if (path.endswith(".html") or path.endswith(".js") or path.endswith(".css")) and response.status_code == 200:
             response.headers["Cache-Control"] = "no-cache, must-revalidate"
-        elif any(path.endswith(ext) for ext in [".js", ".css", ".svg", ".png", ".jpg", ".woff2", ".woff"]) and response.status_code == 200:
-            response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=3600"
+        elif any(path.endswith(ext) for ext in [".svg", ".png", ".jpg", ".woff2", ".woff"]) and response.status_code == 200:
+            response.headers["Cache-Control"] = "public, max-age=86400"
         return response
 
 
