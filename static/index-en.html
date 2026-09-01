@@ -61,39 +61,35 @@
 
   <!-- 2. Header & Navigation -->
   <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
       
       <!-- Brand Logo -->
-      <div class="flex items-center gap-8">
-        <a href="#top" class="flex items-center gap-3 group">
-          <img src="/static/dou-official-logo.png" alt="Dou" class="h-10 w-auto object-contain group-hover:scale-105 transition-transform">
-          <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-[#20252b] text-[10px] font-bold text-[#ff7733] tracking-wider">Fleet OS 2.0</span>
-        </a>
+      <a href="#top" class="flex items-center gap-3 group shrink-0">
+        <img src="/static/dou-official-logo.png" alt="Dou" class="h-10 w-auto object-contain group-hover:scale-105 transition-transform">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-[#20252b] text-[10px] font-bold text-[#ff7733] tracking-wider shrink-0">Fleet OS 2.0</span>
+      </a>
 
-        <!-- Main Links -->
-        <nav class="hidden md:flex items-center gap-6 text-xs font-bold text-slate-600">
-          <a href="#why-dou" class="hover:text-[#ff5500] transition-colors">Why Dou?</a>
-          <a href="#structure" class="hover:text-[#ff5500] transition-colors">How it Works</a>
-          <a href="#product-gallery" class="hover:text-[#ff5500] transition-colors">System Views</a>
-          <a href="#dou-ai-section" class="hover:text-purple-600 flex items-center gap-1 transition-colors">
-            <span class="text-purple-600">✨</span> DOU AI
-          </a>
-          <a href="#payroll" class="hover:text-[#ff5500] transition-colors">Payroll & Bonuses</a>
-          <a href="#driver-app" class="hover:text-[#ff5500] transition-colors">Rider App</a>
-          <a href="#faq-section" class="hover:text-[#ff5500] transition-colors">FAQ</a>
-          <a href="#pricing" class="hover:text-[#ff5500] transition-colors">Pricing</a>
-        </nav>
-      </div>
+      <!-- Main Links (No Wrap, Clean Spacing) -->
+      <nav class="hidden lg:flex items-center gap-6 xl:gap-8 text-xs xl:text-[13px] font-bold text-slate-600">
+        <a href="#why-dou" class="hover:text-[#ff5500] whitespace-nowrap transition-colors">Why Dou?</a>
+        <a href="#structure" class="hover:text-[#ff5500] whitespace-nowrap transition-colors">How it Works</a>
+        <a href="#dou-ai-section" class="hover:text-purple-600 flex items-center gap-1 whitespace-nowrap transition-colors">
+          <span class="text-purple-600">✨</span> DOU AI
+        </a>
+        <a href="#payroll" class="hover:text-[#ff5500] whitespace-nowrap transition-colors">Payroll & Bonuses</a>
+        <a href="#driver-app" class="hover:text-[#ff5500] whitespace-nowrap transition-colors">Rider App</a>
+        <a href="#pricing" class="hover:text-[#ff5500] whitespace-nowrap transition-colors">Pricing</a>
+      </nav>
 
       <!-- Actions -->
-      <div class="flex items-center gap-3">
-        <a href="/" class="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors">
+      <div class="flex items-center gap-2.5 sm:gap-3 shrink-0">
+        <a href="/" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 whitespace-nowrap transition-colors">
           🌐 العربية
         </a>
-        <a href="http://127.0.0.1:8123/app/v2/?lang=en" target="_blank" class="hidden sm:inline-flex px-4 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300 transition-all">
+        <a href="http://127.0.0.1:8123/app/v2/?lang=en" target="_blank" class="hidden sm:inline-flex px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300 whitespace-nowrap transition-all">
           Client Login
         </a>
-        <button onclick="openDemoModal()" class="px-5 py-2.5 rounded-xl bg-[#ff5500] hover:bg-[#e04b00] text-white text-xs font-bold shadow-lg shadow-[#ff5500]/25 hover:shadow-[#ff5500]/40 hover:-translate-y-0.5 transition-all cursor-pointer">
+        <button onclick="openDemoModal()" class="px-4 sm:px-5 py-2.5 rounded-xl bg-[#ff5500] hover:bg-[#e04b00] text-white text-xs font-bold shadow-lg shadow-[#ff5500]/25 hover:shadow-[#ff5500]/40 hover:-translate-y-0.5 whitespace-nowrap transition-all cursor-pointer">
           Book a Live Demo ➜
         </button>
       </div>
