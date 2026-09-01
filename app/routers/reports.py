@@ -716,7 +716,6 @@ def platform_fact_contracts(
 
 
 # Generic Dispatcher for all catalog reports with safe entity extraction
-@router.get("/{group}/{report_id}")
 def get_report_data(
     group: str,
     report_id: str,
@@ -1378,3 +1377,14 @@ def upload_platform_delivery_facts(
         "imported": imported,
         "updated": updated,
     }
+
+
+@router.get("/{group}/{report_id}")
+def get_report_data_endpoint(
+    group: str,
+    report_id: str,
+    user: ent.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Generic catch-all route for domain reports data."""
+    return get_report_data(group, report_id, user=user, db=db)
