@@ -355,7 +355,7 @@ async function openAddRider(container) {
       ])
     ]);
 
-    const m = modal('➕ إضافة سائق جديد وربطه بالهيكل التشغيلي', content);
+    m = modal('➕ إضافة سائق جديد وربطه بالهيكل التشغيلي', content);
   } catch (err) {
     alert('تعذر فتح نموذج الإضافة: ' + err.message);
   }
