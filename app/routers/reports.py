@@ -667,6 +667,28 @@ def financial_payroll_ledger(
     }
 
 
+@router.get("/download/csv")
+def download_csv(
+    report_type: str = Query(...),
+    group: Optional[str] = None,
+    user: ent.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Stable CSV download route declared before the generic report route."""
+    return export_csv(report_type=report_type, group=group, user=user, db=db)
+
+
+@router.get("/download/xlsx")
+def download_xlsx(
+    report_type: str = Query(...),
+    group: Optional[str] = None,
+    user: ent.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Stable XLSX download route declared before the generic report route."""
+    return export_xlsx(report_type=report_type, group=group, user=user, db=db)
+
+
 # Generic Dispatcher for all catalog reports with safe entity extraction
 @router.get("/{group}/{report_id}")
 def get_report_data(

@@ -4,7 +4,7 @@ import { el, loadingState, emptyState, errorState, metricCard, badge, aiPromptBa
 import { openAIDrawer, getContextualPrompts } from '../shell.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
 
-let activeSubTab = 'catalog'; // 'catalog' | 'platform_facts' | 'dashboards' | 'ai_queries'
+let activeSubTab = 'overview'; // 'overview' | 'catalog' | 'platform_facts' | 'dashboards' | 'ai_queries'
 let currentReport = null;
 let currentDashboard = null;
 
@@ -28,25 +28,30 @@ export async function loadReports(container) {
 
   const subTabs = el('div', { class: 'tabs', style: 'margin-bottom:18px' }, [
     el('button', {
+      class: `tab ${activeSubTab === 'overview' ? 'active' : ''}`,
+      'data-tab': 'overview',
+      onclick: () => switchTab('overview', container)
+    }, isAr ? 'الرئيسية' : 'Overview'),
+    el('button', {
       class: `tab ${activeSubTab === 'catalog' ? 'active' : ''}`,
       'data-tab': 'catalog',
       onclick: () => switchTab('catalog', container)
-    }, isAr ? '📁 كتالوج التقارير الشامل (31 تقرير)' : '📁 Reports Catalog (31 Reports)'),
+    }, isAr ? 'كل التقارير' : 'All Reports'),
     el('button', {
       class: `tab ${activeSubTab === 'platform_facts' ? 'active' : ''}`,
       'data-tab': 'platform_facts',
       onclick: () => switchTab('platform_facts', container)
-    }, isAr ? '🛵 تقارير المنصات والأداء التشغيلي (19 مؤشر)' : '🛵 Platform Performance (19 KPIs)'),
+    }, isAr ? 'أداء المنصات' : 'Platform Performance'),
     el('button', {
       class: `tab ${activeSubTab === 'dashboards' ? 'active' : ''}`,
       'data-tab': 'dashboards',
       onclick: () => switchTab('dashboards', container)
-    }, isAr ? '📊 لوحات DOU AI التفاعلية' : '📊 DOU AI Dashboards'),
+    }, isAr ? 'لوحات التحليل' : 'Analytics Dashboards'),
     el('button', {
       class: `tab ${activeSubTab === 'ai_queries' ? 'active' : ''}`,
       'data-tab': 'ai_queries',
       onclick: () => switchTab('ai_queries', container)
-    }, isAr ? '⚡ استعلامات DOU AI الحية' : '⚡ Live DOU AI BI Queries'),
+    }, isAr ? 'استعلامات DOU AI' : 'DOU AI Queries'),
   ]);
 
   const contentArea = el('div', { id: 'reports-content-area' });
@@ -64,9 +69,17 @@ function switchTab(tabId, container) {
   renderSubTab(contentArea);
 }
 
+function activateReportsTab(tabId) {
+  const contentArea = document.getElementById('reports-content-area');
+  const reportsRoot = contentArea?.parentElement;
+  if (reportsRoot) switchTab(tabId, reportsRoot);
+}
+
 function renderSubTab(contentArea) {
   contentArea.innerHTML = '';
-  if (activeSubTab === 'platform_facts') {
+  if (activeSubTab === 'overview') {
+    renderReportsOverview(contentArea);
+  } else if (activeSubTab === 'platform_facts') {
     renderPlatformFactsTab(contentArea);
   } else if (activeSubTab === 'catalog') {
     renderCatalogTab(contentArea);
@@ -75,6 +88,89 @@ function renderSubTab(contentArea) {
   } else if (activeSubTab === 'ai_queries') {
     renderAIQueriesTab(contentArea);
   }
+}
+
+async function renderReportsOverview(container) {
+  const body = el('div', {}, [loadingState('جاري تجهيز مركز التقارير...')]);
+  container.append(body);
+  try {
+    const data = await api.get('/analytics/reports/catalog');
+    body.replaceWith(renderReportsOverviewLayout(data.catalog || {}, container));
+  } catch (e) {
+    body.replaceWith(errorState('تعذر تحميل مركز التقارير: ' + e.message, () => renderReportsOverview(container)));
+  }
+}
+
+function findCatalogReport(catalog, group, reportId) {
+  return (catalog[group] || []).find((report) => (report.report_type || report.id) === reportId);
+}
+
+function openCatalogReport(catalog, group, reportId, container) {
+  const report = findCatalogReport(catalog, group, reportId);
+  if (!report) {
+    container.replaceChildren(errorState('هذا التقرير غير متاح لصلاحيتك الحالية.', () => renderReportsOverview(container)));
+    return;
+  }
+  openReportDetail(group, report, container);
+}
+
+function journeyAction(label, onclick, primary = false) {
+  return el('button', { class: `reports-journey-action ${primary ? 'primary' : ''}`, onclick }, [
+    el('span', { text: label }), el('b', { text: '←' })
+  ]);
+}
+
+function renderReportsOverviewLayout(catalog, container) {
+  const isAr = getLang() === 'ar';
+  const wrap = el('div', { class: 'reports-overview' });
+  wrap.append(el('div', { class: 'reports-overview-intro' }, [
+    el('div', {}, [
+      el('h2', { text: isAr ? 'تقارير عملية تبدأ من مصدر البيانات' : 'Operational reports organized by data source' }),
+      el('p', { text: isAr ? 'تابع تسجيلات المندوبين، ارفع تقرير الشركة اليومي، أو راجع بيانات المنصات المتصلة—من دون البحث وسط عشرات التقارير.' : 'Track rider entries, upload the daily company report, or review connected-platform data without searching through dozens of reports.' })
+    ]),
+    el('span', { class: 'reports-overview-badge', text: isAr ? '3 مسارات واضحة' : '3 clear workflows' })
+  ]));
+
+  const journeys = el('div', { class: 'reports-journeys' });
+  journeys.append(
+    el('article', { class: 'reports-journey' }, [
+      el('div', { class: 'reports-journey-icon rider', text: '🕐' }),
+      el('h3', { text: isAr ? 'تسجيلات المندوبين' : 'Rider Entries' }),
+      el('p', { text: isAr ? 'الحضور والانصراف وساعات العمل والطلبات المسجلة، بمتابعة يومية وتجميع شهري.' : 'Attendance, working hours, and recorded orders with daily and monthly views.' }),
+      el('div', { class: 'reports-journey-actions' }, [
+        journeyAction(isAr ? 'تقرير اليوم' : 'Today report', () => openCatalogReport(catalog, 'attendance', 'attendance_report', container), true),
+        journeyAction(isAr ? 'ملخص الشهر وساعات العمل' : 'Monthly hours summary', () => openCatalogReport(catalog, 'attendance', 'working_hours', container)),
+        journeyAction(isAr ? 'الغياب والتأخير' : 'Absence and lateness', () => openCatalogReport(catalog, 'attendance', 'late_absence', container))
+      ])
+    ]),
+    el('article', { class: 'reports-journey' }, [
+      el('div', { class: 'reports-journey-icon company', text: '📥' }),
+      el('h3', { text: isAr ? 'تقرير أداء الشركة اليومي' : 'Daily Company Performance' }),
+      el('p', { text: isAr ? 'ارفع ملف الـ19 عمود، راجع البيانات، ثم تابع أداء اليوم والتراكم الشهري.' : 'Upload the 19-column file, validate it, then track daily and month-to-date performance.' }),
+      el('div', { class: 'reports-journey-actions' }, [
+        journeyAction(isAr ? 'رفع تقرير اليوم' : 'Upload today report', () => openUploadPlatformCsvModal(() => activateReportsTab('platform_facts')), true),
+        journeyAction(isAr ? 'مشاهدة الأداء اليومي' : 'View daily performance', () => activateReportsTab('platform_facts')),
+        journeyAction(isAr ? 'سجل الملفات المرفوعة' : 'Uploaded files log', () => openCatalogReport(catalog, 'orders', 'import_batches', container))
+      ])
+    ]),
+    el('article', { class: 'reports-journey' }, [
+      el('div', { class: 'reports-journey-icon platform', text: '🔗' }),
+      el('h3', { text: isAr ? 'المنصات المتصلة بالـ API' : 'Connected API Platforms' }),
+      el('p', { text: isAr ? 'راجع البيانات الواردة من نينجا والمنصات الأخرى وترتيب أداء المندوبين والفرق.' : 'Review incoming Ninja and platform data plus rider and team rankings.' }),
+      el('div', { class: 'reports-journey-actions' }, [
+        journeyAction(isAr ? 'ترتيب أداء المندوبين' : 'Rider performance ranking', () => openCatalogReport(catalog, 'performance', 'rider_performance', container), true),
+        journeyAction(isAr ? 'أداء الفرق والفروع' : 'Teams and branches', () => openCatalogReport(catalog, 'performance', 'team_performance', container)),
+        journeyAction(isAr ? 'عرض بيانات المنصات' : 'View platform data', () => activateReportsTab('platform_facts'))
+      ])
+    ])
+  );
+  wrap.append(journeys);
+
+  wrap.append(el('button', { class: 'reports-all-link', onclick: () => activateReportsTab('catalog') }, [
+    el('span', { text: isAr ? 'تحتاج تقريرًا إداريًا آخر؟ افتح كل التقارير الإضافية' : 'Need another administrative report? Open all additional reports' }),
+    el('b', { text: '←' })
+  ]));
+  return wrap;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -346,11 +442,12 @@ async function openReportDetail(group, report, container) {
   currentReport = { group, ...report };
   container.innerHTML = '';
   const isAr = getLang() === 'ar';
+  const reportType = report.report_type || report.id;
 
   const topActions = el('div', { style: 'display:flex;gap:8px;align-items:center;margin-bottom:16px;' }, [
     el('button', { class: 'btn btn-ghost', onclick: () => renderSubTab(container) }, isAr ? '← العودة للكتالوج' : '← Back to Catalog'),
-    el('button', { class: 'btn btn-ghost', onclick: () => exportReport('csv', report.report_type, group) }, isAr ? '⬇ تصدير CSV' : '⬇ Export CSV'),
-    el('button', { class: 'btn btn-ghost', onclick: () => exportReport('xlsx', report.report_type, group) }, isAr ? '⬇ تصدير Excel' : '⬇ Export Excel'),
+    el('button', { class: 'btn btn-ghost', onclick: () => exportReport('csv', reportType, group) }, isAr ? '⬇ تصدير CSV' : '⬇ Export CSV'),
+    el('button', { class: 'btn btn-ghost', onclick: () => exportReport('xlsx', reportType, group) }, isAr ? '⬇ تصدير Excel' : '⬇ Export Excel'),
   ]);
 
   const header = el('div', { class: 'card', style: 'padding:16px 20px;margin-bottom:16px;' }, [
@@ -370,7 +467,7 @@ async function openReportDetail(group, report, container) {
   container.append(topActions, header, body);
 
   try {
-    const data = await api.get(`/analytics/reports/${group}/${report.report_type}`);
+    const data = await api.get(`/analytics/reports/${encodeURIComponent(group)}/${encodeURIComponent(reportType)}`);
     body.replaceWith(renderReportTable(data));
   } catch (e) {
     body.replaceWith(errorState('تعذر استخراج بيانات التقرير: ' + e.message, () => openReportDetail(group, report, container)));
@@ -400,8 +497,23 @@ function renderReportTable(data) {
   ]);
 }
 
-function exportReport(format, reportType, group) {
-  window.open(`/analytics/reports/export/${format}?report_type=${reportType}&group=${group}`, '_blank');
+async function exportReport(format, reportType, group) {
+  const path = `/analytics/reports/download/${format}?report_type=${encodeURIComponent(reportType)}&group=${encodeURIComponent(group)}`;
+  try {
+    const response = await fetch(path, { headers: { Authorization: `Bearer ${api.getToken()}` } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dou-${reportType}.${format}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert(`تعذر تصدير التقرير: ${e.message}`);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
