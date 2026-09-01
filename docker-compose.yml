@@ -42,8 +42,7 @@ services:
       redis:
         condition: service_started
     ports:
-      - "80:8000"
-      - "8123:8000"
+      - "127.0.0.1:8000:8000"
 
 volumes:
   postgres_data:
