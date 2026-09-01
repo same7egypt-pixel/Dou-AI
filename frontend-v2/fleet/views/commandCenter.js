@@ -125,13 +125,13 @@ function renderDashboard(overview, needsAttention) {
         el('p', { style: 'font-size:12px; color:var(--muted); margin:0 0 8px 0; line-height:1.4;' }, isAr ? 'تقييم الأبعاد الـ 8، تفعيل السائق، وإسناد المركبات والورديات.' : '8-dimension assessment, driver activation, and vehicle/shift assignment.'),
         el('div', { style: 'font-size:11px; font-weight:700; color:var(--primary);' }, isAr ? 'فتح ملف السائق 360 ➔' : 'Open Driver 360 Profile ➔'),
       ]),
-      // Card 5: Metabase & Advanced Reports
+      // Card 5: DOU AI & Advanced Reports
       el('div', { class: 'card', style: 'margin:0; padding:14px; cursor:pointer; border:1px solid var(--border); transition:transform 0.15s, border-color 0.15s; background:var(--card)', onclick: () => go('reports') }, [
         el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:6px;' }, [
           el('span', { style: 'font-size:20px;' }, '📊'),
-          el('b', { style: 'font-size:13px; color:var(--text);' }, isAr ? 'لوحات Metabase وكتالوج 31 تقرير' : 'Metabase Dashboards & 31-Report Catalog'),
+          el('b', { style: 'font-size:13px; color:var(--text);' }, isAr ? 'لوحات DOU AI الذكية وكتالوج 31 تقرير' : 'DOU AI Dashboards & 31-Report Catalog'),
         ]),
-        el('p', { style: 'font-size:12px; color:var(--muted); margin:0 0 8px 0; line-height:1.4;' }, isAr ? 'تضمين لوحات Metabase المشفرة بـ JWT، وتصدير CSV لكافة المجالات.' : 'Embedded JWT-signed Metabase dashboards and CSV export across all domains.'),
+        el('p', { style: 'font-size:12px; color:var(--muted); margin:0 0 8px 0; line-height:1.4;' }, isAr ? 'تضمين لوحات DOU AI المشفرة بـ JWT، وتصدير CSV لكافة المجالات.' : 'Embedded JWT-signed DOU AI dashboards and CSV export across all domains.'),
         el('div', { style: 'font-size:11px; font-weight:700; color:var(--primary);' }, isAr ? 'استعراض التقارير ➔' : 'Explore Reports ➔'),
       ]),
       // Card 6: Needs Attention Queue

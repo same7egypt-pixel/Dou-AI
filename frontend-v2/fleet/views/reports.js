@@ -41,7 +41,7 @@ export async function loadReports(container) {
       class: `tab ${activeSubTab === 'dashboards' ? 'active' : ''}`,
       'data-tab': 'dashboards',
       onclick: () => switchTab('dashboards', container)
-    }, isAr ? '📊 لوحات Metabase التفاعلية' : '📊 Metabase Dashboards'),
+    }, isAr ? '📊 لوحات DOU AI التفاعلية' : '📊 DOU AI Dashboards'),
     el('button', {
       class: `tab ${activeSubTab === 'ai_queries' ? 'active' : ''}`,
       'data-tab': 'ai_queries',
@@ -354,17 +354,17 @@ function exportReport(format, reportType, group) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TAB 3: METABASE DASHBOARDS (SIGNED JWT EMBED)
+// TAB 3: DOU AI DASHBOARDS (SIGNED JWT EMBED)
 // ─────────────────────────────────────────────────────────────────────────────
 async function renderMetabaseDashboardsTab(container) {
-  const body = el('div', {}, [loadingState('جاري تحميل لوحات Metabase المتاحة...')]);
+  const body = el('div', {}, [loadingState('جاري تحميل لوحات DOU AI المتاحة...')]);
   container.append(body);
 
   try {
     const data = await api.get('/analytics/reports/dashboards');
     body.replaceWith(renderDashboardsLayout(data.dashboards, container));
   } catch (e) {
-    body.replaceWith(errorState('تعذر تحميل لوحات Metabase: ' + e.message, () => renderMetabaseDashboardsTab(container)));
+    body.replaceWith(errorState('تعذر تحميل لوحات DOU AI: ' + e.message, () => renderMetabaseDashboardsTab(container)));
   }
 }
 
@@ -380,7 +380,7 @@ function renderDashboardsLayout(dashboards, container) {
     }, [
       el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;' }, [
         el('span', { style: 'font-size:24px;' }, '📊'),
-        badge('Metabase Live', 'green'),
+        badge('DOU AI Live', 'green'),
       ]),
       el('h3', { style: 'margin:0 0 6px 0;font-size:15px;', text: d.name_ar || d.title || d.name_en }),
       el('p', { style: 'margin:0;font-size:12px;color:var(--muted);', text: d.description }),
@@ -399,7 +399,7 @@ async function openMetabaseEmbed(dashboard, container) {
   target.innerHTML = '';
 
   const topActions = el('div', { style: 'display:flex;gap:8px;align-items:center;margin-bottom:16px;' }, [
-    el('button', { class: 'btn btn-ghost', onclick: () => renderSubTab(target) }, '← العودة للوحات Metabase'),
+    el('button', { class: 'btn btn-ghost', onclick: () => renderSubTab(target) }, '← العودة للوحات DOU AI'),
     el('a', {
       class: 'btn btn-ghost',
       href: `/analytics/reports/dashboards/${dashboard.id}/open`,
