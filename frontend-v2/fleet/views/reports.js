@@ -181,33 +181,82 @@ function funnelStep(title, value, color, rate) {
 
 function openUploadPlatformCsvModal(onSuccess) {
   let m = null;
+  let totalImported = 0;
+  let totalUpdated = 0;
+  let totalFiles = 0;
+  let doneFiles = 0;
+
+  const statusEl = el('div', { id: 'upload-status', style: 'margin-top:10px;font-size:12px;color:var(--muted);display:none' }, '');
+
   const form = el('form', { onsubmit: async (e) => {
     e.preventDefault();
     const fileInput = document.getElementById('platform-csv-file');
-    const f = fileInput.files?.[0];
-    if (!f) return alert('الرجاء اختيار ملف CSV أولاً.');
-    try {
-      const text = await f.text();
-      const res = await api.post('/analytics/reports/platform-facts/upload', { csv_text: text });
-      alert(`✅ تم استيراد التقرير بنجاح!\nجديد: ${res.imported} يوم · محدث: ${res.updated} يوم`);
-      if (m && typeof m.close === 'function') m.close();
-      else if (m && typeof m.remove === 'function') m.remove();
-      onSuccess();
-    } catch (err) {
-      alert('❌ فشل الاستيراد: ' + err.message);
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) return alert('الرجاء اختيار ملف CSV واحد على الأقل.');
+
+    totalFiles = files.length;
+    doneFiles = 0;
+    totalImported = 0;
+    totalUpdated = 0;
+
+    statusEl.style.display = 'block';
+    statusEl.textContent = `⏳ جاري معالجة ${totalFiles} ملف...`;
+
+    const submitBtn = form.querySelector('button[type=submit]');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '⏳ جاري الرفع...'; }
+
+    let errors = [];
+
+    for (const file of files) {
+      try {
+        statusEl.textContent = `⏳ جاري رفع: ${file.name} (${doneFiles + 1} من ${totalFiles})`;
+        const text = await file.text();
+        const res = await api.post('/analytics/reports/platform-facts/upload', { csv_text: text });
+        totalImported += res.imported || 0;
+        totalUpdated += res.updated || 0;
+        doneFiles++;
+        statusEl.textContent = `✅ تم رفع ${doneFiles} من ${totalFiles} ملف`;
+      } catch (err) {
+        errors.push(`${file.name}: ${err.message}`);
+        doneFiles++;
+      }
     }
+
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'رفع وتحليل التقارير'; }
+
+    if (errors.length) {
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = `⚠️ ${errors.join(' | ')}`;
+    }
+
+    const msg = totalFiles === 1
+      ? `✅ تم استيراد التقرير بنجاح!\nجديد: ${totalImported} يوم · محدث: ${totalUpdated} يوم`
+      : `✅ تم استيراد ${totalFiles} ملف!\nإجمالي جديد: ${totalImported} يوم · إجمالي محدث: ${totalUpdated} يوم`;
+    alert(msg);
+
+    if (m && typeof m.close === 'function') m.close();
+    else if (m && typeof m.remove === 'function') m.remove();
+
+    // Full tab content refresh to update KPIs and table
+    const contentArea = document.getElementById('reports-content-area');
+    if (contentArea) {
+      contentArea.innerHTML = '';
+      renderPlatformFactsTab(contentArea);
+    }
+    onSuccess();
   }}, [
     el('div', { style: 'margin-bottom:16px' }, [
-      el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:6px' }, 'ملف تقرير المنصة (CSV بـ 19 عمود):'),
-      el('input', { type: 'file', id: 'platform-csv-file', accept: '.csv,text/csv', style: 'width:100%;padding:10px;border:1px dashed var(--border);border-radius:8px' }),
-      el('small', { style: 'display:block;color:var(--muted);margin-top:6px' }, 'يدعم التقارير الميدانية المصدرة من جاهز، هنقرستيشن، نينجا، ونون.')
+      el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:6px' }, '📂 ملفات تقارير المنصة (CSV بـ 19 عمود) — يمكن اختيار عدة ملفات دفعة واحدة:'),
+      el('input', { type: 'file', id: 'platform-csv-file', accept: '.csv,text/csv', multiple: true, style: 'width:100%;padding:10px;border:1px dashed var(--border);border-radius:8px' }),
+      el('small', { style: 'display:block;color:var(--muted);margin-top:6px' }, '💡 يمكنك اختيار عدة ملفات معاً. يدعم تقارير جاهز، هنقرستيشن، نينجا، ونون.')
     ]),
-    el('div', { style: 'display:flex;justify-content:flex-end;gap:8px' }, [
+    statusEl,
+    el('div', { style: 'display:flex;justify-content:flex-end;gap:8px;margin-top:12px' }, [
       el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => { if (m && m.close) m.close(); else if (m) m.remove(); } }, 'إلغاء'),
-      el('button', { type: 'submit', class: 'btn btn-primary' }, 'رفع وتحليل التقرير')
+      el('button', { type: 'submit', class: 'btn btn-primary' }, 'رفع وتحليل التقارير')
     ])
   ]);
-  m = modal('رفع تقرير الأداء الميداني للمنصة (Platform Report CSV)', form);
+  m = modal('📤 رفع تقارير الأداء الميداني للمنصات', form);
 }
 
 function downloadPlatformCsvTemplate() {
