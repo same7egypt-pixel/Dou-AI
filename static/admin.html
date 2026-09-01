@@ -642,8 +642,8 @@ async function loadDashboard(){
   document.getElementById("kOrders").textContent = tenants.reduce((s,t)=>s+(t.users_count||0),0);
   document.getElementById("kMerchants").textContent = tenants.filter(t=>t.subscription_status!=="SUSPENDED").length;
   document.getElementById("kCouriers").textContent = couriers.length;
-  document.getElementById("ctCompanies").textContent = tenants.length;
-  document.getElementById("ctCouriers").textContent = couriers.length;
+  const ctC = document.getElementById("ctCompanies"); if(ctC) ctC.textContent = tenants.length;
+  const ctR = document.getElementById("ctCouriers"); if(ctR) ctR.textContent = couriers.length;
   document.getElementById("financeSnapshot").innerHTML=`<div class="opt"><div><b>الإيراد المحصل</b><small>إيصالات الشهر الحالي</small></div><b>${moneyGroups(finance.actual_revenue)}</b></div><div class="opt"><div><b>الإيراد المتوقع</b><small>إجمالي الاشتراكات الشهرية</small></div><b>${moneyGroups(finance.expected_revenue)}</b></div><div class="opt"><div><b>المتأخرات التقديرية</b><small>حسب تواريخ الاستحقاق</small></div><b style="color:var(--red)">${moneyGroups(finance.outstanding)}</b></div>`;
   document.getElementById("companyStatusSnapshot").innerHTML=`<div class="opt"><div><b>دفعت هذا الشهر</b></div><span class="tag green">${finance.paid_companies}</span></div><div class="opt"><div><b>لم تسجل دفعة هذا الشهر</b></div><span class="tag amber">${finance.unpaid_this_month}</span></div><div class="opt"><div><b>متأخرة فعليًا</b></div><span class="tag red">${finance.overdue_companies}</span></div>`;
   document.getElementById("recentMerchants").innerHTML = tenants.slice(0,4).map(t=>`<div class="row"><span class="statusDot" style="width:8px;height:8px;border-radius:50%;background:${t.subscription_status!=="SUSPENDED"?"var(--green)":"var(--red)"}"></span><div><b>${t.name}</b><small>${t.plan} · ${t.couriers_count} سائق</small></div></div>`).join("");
