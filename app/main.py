@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
@@ -52,6 +53,7 @@ import os
 app = FastAPI(title="DOU Platform API", version="0.2.0")
 
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=300)
 app.add_middleware(RequestSizeLimitMiddleware, max_size_bytes=15 * 1024 * 1024)
 
@@ -121,6 +123,8 @@ class NoCacheHtml(StaticFiles):
         response = await super().get_response(path, scope)
         if path.endswith(".html") and response.status_code == 200:
             response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        elif any(path.endswith(ext) for ext in [".js", ".css", ".svg", ".png", ".jpg", ".woff2", ".woff"]) and response.status_code == 200:
+            response.headers["Cache-Control"] = "public, max-age=86400, stale-while-revalidate=3600"
         return response
 
 
