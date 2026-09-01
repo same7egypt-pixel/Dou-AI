@@ -878,15 +878,8 @@ def fleet_overview(
         courier_q = courier_q.filter(Courier.tenant_id == tenant_id)
     couriers = courier_q.all() if ids else []
 
-    orders_q = db.query(Order).filter(Order.courier_id.in_(ids))
-    if tenant_id is not None:
-        orders_q = orders_q.filter(Order.tenant_id == tenant_id)
-    orders = orders_q.all() if ids else []
-
-    tasks_q = db.query(CourierTask).filter(CourierTask.courier_id.in_(ids))
-    if tenant_id is not None:
-        tasks_q = tasks_q.filter(CourierTask.tenant_id == tenant_id)
-    tasks = tasks_q.all() if ids else []
+    orders = db.query(Order).filter(Order.courier_id.in_(ids)).all() if ids else []
+    tasks = db.query(CourierTask).filter(CourierTask.courier_id.in_(ids)).all() if ids else []
 
     today = date.today()
     expiry_limit = today + timedelta(days=30)
@@ -957,12 +950,11 @@ def fleet_overview(
         OrderStatus.IN_TRANSIT,
         OrderStatus.PICKED_UP,
     }
-    unassigned_q = db.query(Order).filter(
-        Order.courier_id.is_(None), Order.status == OrderStatus.PLACED
+    unassigned = (
+        db.query(Order)
+        .filter(Order.courier_id.is_(None), Order.status == OrderStatus.PLACED)
+        .count()
     )
-    if tenant_id is not None:
-        unassigned_q = unassigned_q.filter(Order.tenant_id == tenant_id)
-    unassigned = unassigned_q.count()
 
     return {
         "couriers_total": len(couriers),
@@ -2071,17 +2063,12 @@ def fleet_orders(user: User = Depends(get_current_user), db: Session = Depends(g
     ids = _courier_ids(
         db, tenant_id, user.id if user.role == UserRole.SUPERVISOR else None, managed
     )
-    orders_q = db.query(Order).filter(Order.courier_id.in_(ids))
-    if tenant_id is not None:
-        orders_q = orders_q.filter(Order.tenant_id == tenant_id)
-    orders = orders_q.all() if ids else []
+    orders = db.query(Order).filter(Order.courier_id.in_(ids)).all() if ids else []
     courier_q = db.query(Courier)
-    merchant_q = db.query(Merchant)
     if tenant_id is not None:
         courier_q = courier_q.filter(Courier.tenant_id == tenant_id)
-        merchant_q = merchant_q.filter(Merchant.tenant_id == tenant_id)
     couriers = {c.id: c.name for c in courier_q.all()}
-    merchants = {m.id: m.name for m in merchant_q.all()}
+    merchants = {m.id: m.name for m in db.query(Merchant).all()}
     return [
         {
             "id": o.id,
