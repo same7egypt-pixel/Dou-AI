@@ -41,11 +41,19 @@ from .routers import (
     operations,
     ninja_integration,
     client_invoices,
+    health,
 )
 from .config import ENABLE_LEGACY_DELIVERY, CORS_ORIGINS, GOOGLE_ANALYTICS_ID
+from .middleware.security_headers import SecurityHeadersMiddleware
+from .middleware.rate_limit import RateLimitMiddleware
+from .middleware.size_limit import RequestSizeLimitMiddleware
 import os
 
 app = FastAPI(title="DOU Platform API", version="0.2.0")
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=300)
+app.add_middleware(RequestSizeLimitMiddleware, max_size_bytes=15 * 1024 * 1024)
 
 app.add_middleware(
     CORSMiddleware,
@@ -94,6 +102,7 @@ app.include_router(dou_ai.router)
 app.include_router(notifications.router)
 app.include_router(analytics_freshness.router)
 app.include_router(notifications.webhook_router)
+app.include_router(health.router)
 
 # المنتج الحالي مخصص لإدارة سائقي الشركات. مسارات التجارة والطلبات والشحن
 # القديمة لا تُنشر إلا عند تفعيلها صراحة لأغراض التوافق أو العرض التجريبي.

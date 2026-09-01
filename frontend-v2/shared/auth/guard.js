@@ -25,36 +25,91 @@ export function renderLogin(error = null) {
   const currentLang = getLang();
   const nextLangLabel = currentLang === 'ar' ? 'English (EN)' : 'العربية (AR)';
 
-  root.innerHTML = `
-    <div class="login-screen">
-      <div style="position:absolute;top:20px;left:20px;z-index:10;">
-        <button id="login-lang-btn" class="btn btn-ghost btn-small" style="font-weight:700;font-size:12px;background:rgba(255,255,255,0.08);color:#fff;border-radius:20px;padding:6px 14px;border:1px solid rgba(255,255,255,0.2);cursor:pointer">
-          🌐 ${nextLangLabel}
-        </button>
-      </div>
-      <div class="login-card">
-        <div class="login-logo">DOU</div>
-        <h1>Fleet Partners</h1>
-        <p class="login-sub">${t('سجل دخول شركتك اللوجستية')}</p>
-        ${error ? `<div class="error-banner">${esc(error)}</div>` : ''}
-        <form id="login-form">
-          <label>${t('رقم الجوال (بمفتاح الدولة)')}</label>
-          <input id="login-phone" dir="ltr" placeholder="9665xxxxxxxx" required />
-          <label>${t('كلمة المرور (8 أحرف)')}</label>
-          <input id="login-password" type="password" dir="ltr" minlength="8" required />
-          <button type="submit" class="btn-primary full">${t('دخول الشركة')}</button>
-        </form>
-        <p class="login-foot">${t('الحسابات الجديدة يفعّلها فريق DOU')}</p>
-      </div>
-    </div>`;
+  root.innerHTML = '';
+  
+  const screen = document.createElement('div');
+  screen.className = 'login-screen';
 
-  const langBtn = document.getElementById('login-lang-btn');
-  if (langBtn) {
-    langBtn.addEventListener('click', () => {
-      toggleLang();
-      renderLogin(error);
-    });
+  const langContainer = document.createElement('div');
+  langContainer.style.cssText = 'position:absolute;top:20px;left:20px;z-index:10;';
+
+  const langBtn = document.createElement('button');
+  langBtn.id = 'login-lang-btn';
+  langBtn.className = 'btn btn-ghost btn-small';
+  langBtn.style.cssText = 'font-weight:700;font-size:12px;background:rgba(255,255,255,0.08);color:#fff;border-radius:20px;padding:6px 14px;border:1px solid rgba(255,255,255,0.2);cursor:pointer';
+  langBtn.textContent = `🌐 ${nextLangLabel}`;
+  langBtn.addEventListener('click', () => {
+    toggleLang();
+    renderLogin(error);
+  });
+  langContainer.appendChild(langBtn);
+  screen.appendChild(langContainer);
+
+  const card = document.createElement('div');
+  card.className = 'login-card';
+
+  const logo = document.createElement('div');
+  logo.className = 'login-logo';
+  logo.textContent = 'DOU';
+  card.appendChild(logo);
+
+  const h1 = document.createElement('h1');
+  h1.textContent = 'Fleet Partners';
+  card.appendChild(h1);
+
+  const sub = document.createElement('p');
+  sub.className = 'login-sub';
+  sub.textContent = t('سجل دخول شركتك اللوجستية');
+  card.appendChild(sub);
+
+  if (error) {
+    const errDiv = document.createElement('div');
+    errDiv.className = 'error-banner';
+    errDiv.textContent = error;
+    card.appendChild(errDiv);
   }
+
+  const form = document.createElement('form');
+  form.id = 'login-form';
+
+  const lblPhone = document.createElement('label');
+  lblPhone.textContent = t('رقم الجوال (بمفتاح الدولة)');
+  form.appendChild(lblPhone);
+
+  const inpPhone = document.createElement('input');
+  inpPhone.id = 'login-phone';
+  inpPhone.dir = 'ltr';
+  inpPhone.placeholder = '9665xxxxxxxx';
+  inpPhone.required = true;
+  form.appendChild(inpPhone);
+
+  const lblPass = document.createElement('label');
+  lblPass.textContent = t('كلمة المرور (8 أحرف)');
+  form.appendChild(lblPass);
+
+  const inpPass = document.createElement('input');
+  inpPass.id = 'login-password';
+  inpPass.type = 'password';
+  inpPass.dir = 'ltr';
+  inpPass.minLength = 8;
+  inpPass.required = true;
+  form.appendChild(inpPass);
+
+  const submitBtn = document.createElement('button');
+  submitBtn.type = 'submit';
+  submitBtn.className = 'btn-primary full';
+  submitBtn.textContent = t('دخول الشركة');
+  form.appendChild(submitBtn);
+
+  card.appendChild(form);
+
+  const foot = document.createElement('p');
+  foot.className = 'login-foot';
+  foot.textContent = t('الحسابات الجديدة يفعّلها فريق DOU');
+  card.appendChild(foot);
+
+  screen.appendChild(card);
+  root.appendChild(screen);
 
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();

@@ -873,15 +873,21 @@ def fleet_overview(
     ids = _courier_ids(
         db, tenant_id, user.id if user.role == UserRole.SUPERVISOR else None, managed
     )
-    couriers = db.query(Courier).filter(Courier.id.in_(ids)).all() if ids else []
+    courier_q = db.query(Courier).filter(Courier.id.in_(ids))
+    if tenant_id is not None:
+        courier_q = courier_q.filter(Courier.tenant_id == tenant_id)
+    couriers = courier_q.all() if ids else []
 
-    orders = db.query(Order).filter(Order.courier_id.in_(ids)).all() if ids else []
-    orders = [o for o in orders if o.courier_id in ids]
-    tasks = (
-        db.query(CourierTask).filter(CourierTask.courier_id.in_(ids)).all()
-        if ids
-        else []
-    )
+    orders_q = db.query(Order).filter(Order.courier_id.in_(ids))
+    if tenant_id is not None:
+        orders_q = orders_q.filter(Order.tenant_id == tenant_id)
+    orders = orders_q.all() if ids else []
+
+    tasks_q = db.query(CourierTask).filter(CourierTask.courier_id.in_(ids))
+    if tenant_id is not None:
+        tasks_q = tasks_q.filter(CourierTask.tenant_id == tenant_id)
+    tasks = tasks_q.all() if ids else []
+
     today = date.today()
     expiry_limit = today + timedelta(days=30)
     expiring_documents = 0
@@ -910,29 +916,26 @@ def fleet_overview(
     on_leave = sum(1 for c in couriers if c.is_on_leave)
     day_start = datetime.combine(today, datetime.min.time())
     day_end = day_start + timedelta(days=1)
-    today_att = (
-        db.query(Attendance)
-        .filter(
-            Attendance.courier_id.in_(ids),
-            Attendance.check_in >= day_start,
-            Attendance.check_in < day_end,
-        )
-        .all()
-        if ids
-        else []
+    
+    att_q = db.query(Attendance).filter(
+        Attendance.courier_id.in_(ids),
+        Attendance.check_in >= day_start,
+        Attendance.check_in < day_end,
     )
+    if tenant_id is not None:
+        att_q = att_q.filter(Attendance.tenant_id == tenant_id)
+    today_att = att_q.all() if ids else []
+
     month_start = date(today.year, today.month, 1)
-    logs = (
-        db.query(DailyLog)
-        .filter(
-            DailyLog.courier_id.in_(ids),
-            DailyLog.log_date >= month_start,
-            DailyLog.log_date <= today,
-        )
-        .all()
-        if ids
-        else []
+    logs_q = db.query(DailyLog).filter(
+        DailyLog.courier_id.in_(ids),
+        DailyLog.log_date >= month_start,
+        DailyLog.log_date <= today,
     )
+    if tenant_id is not None:
+        logs_q = logs_q.filter(DailyLog.tenant_id == tenant_id)
+    logs = logs_q.all() if ids else []
+
     selected_month = today.strftime("%Y-%m")
     payroll_preview, payroll_finalized = (
         payroll_rows(db, tenant_id, selected_month)
@@ -954,13 +957,12 @@ def fleet_overview(
         OrderStatus.IN_TRANSIT,
         OrderStatus.PICKED_UP,
     }
-    unassigned = (
-        db.query(Order)
-        .filter(Order.courier_id.is_(None), Order.status == OrderStatus.PLACED)
-        .count()
+    unassigned_q = db.query(Order).filter(
+        Order.courier_id.is_(None), Order.status == OrderStatus.PLACED
     )
     if tenant_id is not None:
-        unassigned = 0
+        unassigned_q = unassigned_q.filter(Order.tenant_id == tenant_id)
+    unassigned = unassigned_q.count()
 
     return {
         "couriers_total": len(couriers),
@@ -2069,7 +2071,10 @@ def fleet_orders(user: User = Depends(get_current_user), db: Session = Depends(g
     ids = _courier_ids(
         db, tenant_id, user.id if user.role == UserRole.SUPERVISOR else None, managed
     )
-    orders = db.query(Order).filter(Order.courier_id.in_(ids)).all() if ids else []
+    orders_q = db.query(Order).filter(Order.courier_id.in_(ids))
+    if tenant_id is not None:
+        orders_q = orders_q.filter(Order.tenant_id == tenant_id)
+    orders = orders_q.all() if ids else []
     courier_q = db.query(Courier)
     merchant_q = db.query(Merchant)
     if tenant_id is not None:
@@ -2191,10 +2196,10 @@ def fleet_reassign(
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Not a fleet account")
     _require_legacy_delivery()
-    order = db.get(Order, order_id)
-    if not order:
-        raise HTTPException(404, "Order not found")
     tenant_id = _scope(user, db)
+    order = db.get(Order, order_id)
+    if not order or (tenant_id is not None and order.tenant_id != tenant_id):
+        raise HTTPException(404, "Order not found")
     ids = _courier_ids(
         db, tenant_id, user.id if user.role == UserRole.SUPERVISOR else None
     )

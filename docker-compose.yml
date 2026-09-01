@@ -1,13 +1,49 @@
-# DOU Platform — تشغيل محلي أو على أي سيرفر عبر Docker Compose
-# استخدم SQLite بملف dou.db (يتحفظ حتى بعد إعادة التشغيل).
+version: "3.8"
+
 services:
-  dou-api:
-    build: .
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./dou.db:/app/dou.db
-    restart: unless-stopped
+  db:
+    image: postgres:15-alpine
+    restart: always
     environment:
-      - DATABASE_URL=sqlite:///./dou.db
-      - SECRET_KEY=change-me-in-production
+      POSTGRES_DB: ${POSTGRES_DB:-dou_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-dou_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_prod_password_32bytes}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-dou_user} -d $${POSTGRES_DB:-dou_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  app:
+    build: .
+    restart: always
+    environment:
+      APP_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-dou_user}:${POSTGRES_PASSWORD:-secure_prod_password_32bytes}@db:5432/${POSTGRES_DB:-dou_prod}
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-minimum-32-bytes}
+      ADMIN_KEY: ${ADMIN_KEY:-admin-secret-key-prod-minimum-16b}
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-LOCAL}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports:
+      - "8123:8123"
+
+volumes:
+  postgres_data:
+  redis_data:

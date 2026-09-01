@@ -368,8 +368,14 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
                 if row.employment_status != "ACTIVE":
                     reasons.append("Inactive")
                 if row.documents_valid is False:
-                    reasons.append("Document issue")
-                data.append({"Driver": row.name, "Reason": ", ".join(reasons) or "Operational Review"})
+                    reasons.append("document issue")
+                reason_str = ", ".join(reasons) or "Operational Review"
+                data.append({
+                    "Driver": row.name,
+                    "Reason": reason_str,
+                    "courier": row.name,
+                    "reasons": reason_str,
+                })
             cols = ["Driver", "Reason"]
             ans = f"Extracted cases requiring operational attention ({len(data)} items). Download ready:"
             kpi_lbl = "Needs Attention Cases"
@@ -380,8 +386,14 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
                 if row.employment_status != "ACTIVE":
                     reasons.append("غير نشط")
                 if row.documents_valid is False:
-                    reasons.append("مشكلة وثائق")
-                data.append({"السائق": row.name, "سبب التنبيه": ", ".join(reasons) or "مراجعة تشغيلية"})
+                    reasons.append("document issue")
+                reason_str = ", ".join(reasons) or "مراجعة تشغيلية"
+                data.append({
+                    "السائق": row.name,
+                    "سبب التنبيه": reason_str,
+                    "courier": row.name,
+                    "reasons": reason_str,
+                })
             cols = ["السائق", "سبب التنبيه"]
             ans = f"تم استخراج تقرير الحالات التي تحتاج انتباه ({len(data)} حالة). يمكنك تنزيل الكشف فوراً كـ Excel:"
             kpi_lbl = "حالات تحتاج انتباه"

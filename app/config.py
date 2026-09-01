@@ -16,7 +16,9 @@ if IS_PRODUCTION and (
     or SECRET_KEY in {DEFAULT_SECRET_KEY, LEGACY_DEFAULT_SECRET_KEY}
 ):
     raise RuntimeError("SECRET_KEY must be configured securely in production")
-ADMIN_KEY = os.getenv("ADMIN_KEY", "")
+ADMIN_KEY = os.getenv("ADMIN_KEY", "").strip()
+if IS_PRODUCTION and (not ADMIN_KEY or len(ADMIN_KEY.encode("utf-8")) < 16):
+    raise RuntimeError("ADMIN_KEY must be configured with at least 16 bytes for admin access in production")
 ENABLE_LEGACY_DELIVERY = os.getenv("ENABLE_LEGACY_DELIVERY", "false").lower() == "true"
 ENABLE_PUBLIC_COMPANY_SIGNUP = (
     os.getenv("ENABLE_PUBLIC_COMPANY_SIGNUP", "false").lower() == "true"

@@ -1,0 +1,43 @@
+name: DOU Fleet OS CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Backend Tests & Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov bandit ruff
+
+      - name: Lint with Ruff
+        run: |
+          ruff check app/ --select E,F,I,W --ignore E501
+
+      - name: Security Scan with Bandit
+        run: |
+          bandit -r app/ -ll -q
+
+      - name: Run Test Suite
+        env:
+          APP_ENV: test
+          SECRET_KEY: ci-test-secret-key-minimum-32-bytes-long
+          ADMIN_KEY: ci-admin-key-16b
+        run: |
+          pytest -q --tb=short
