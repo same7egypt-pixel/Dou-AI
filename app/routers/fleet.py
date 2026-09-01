@@ -910,24 +910,30 @@ def fleet_overview(
     day_start = datetime.combine(today, datetime.min.time())
     day_end = day_start + timedelta(days=1)
     
-    att_q = db.query(Attendance).filter(
-        Attendance.courier_id.in_(ids),
-        Attendance.check_in >= day_start,
-        Attendance.check_in < day_end,
+    today_att = (
+        db.query(Attendance)
+        .filter(
+            Attendance.courier_id.in_(ids),
+            Attendance.check_in >= day_start,
+            Attendance.check_in < day_end,
+        )
+        .all()
+        if ids
+        else []
     )
-    if tenant_id is not None:
-        att_q = att_q.filter(Attendance.tenant_id == tenant_id)
-    today_att = att_q.all() if ids else []
 
     month_start = date(today.year, today.month, 1)
-    logs_q = db.query(DailyLog).filter(
-        DailyLog.courier_id.in_(ids),
-        DailyLog.log_date >= month_start,
-        DailyLog.log_date <= today,
+    logs = (
+        db.query(DailyLog)
+        .filter(
+            DailyLog.courier_id.in_(ids),
+            DailyLog.log_date >= month_start,
+            DailyLog.log_date <= today,
+        )
+        .all()
+        if ids
+        else []
     )
-    if tenant_id is not None:
-        logs_q = logs_q.filter(DailyLog.tenant_id == tenant_id)
-    logs = logs_q.all() if ids else []
 
     selected_month = today.strftime("%Y-%m")
     payroll_preview, payroll_finalized = (
