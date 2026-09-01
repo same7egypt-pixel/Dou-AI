@@ -689,6 +689,32 @@ def download_xlsx(
     return export_xlsx(report_type=report_type, group=group, user=user, db=db)
 
 
+@router.get("/platform-facts/contracts")
+def platform_fact_contracts(
+    user: ent.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List tenant contracts available for platform-performance uploads."""
+    tenant_id = _tenant_id(user)
+    contracts = (
+        db.query(ent.Contract)
+        .filter(ent.Contract.tenant_id == tenant_id)
+        .order_by(ent.Contract.name)
+        .all()
+    )
+    return {
+        "contracts": [
+            {
+                "id": contract.id,
+                "name": contract.name,
+                "status": contract.status,
+                "client_name": contract.client_name or contract.name,
+            }
+            for contract in contracts
+        ]
+    }
+
+
 # Generic Dispatcher for all catalog reports with safe entity extraction
 @router.get("/{group}/{report_id}")
 def get_report_data(
@@ -1119,6 +1145,7 @@ def export_xlsx(
 
 @router.get("/platform-facts")
 def get_platform_delivery_facts(
+    contract_id: Optional[int] = Query(None),
     contract_name: Optional[str] = Query(None),
     month: Optional[str] = Query(None),
     user: ent.User = Depends(get_current_user),
@@ -1129,7 +1156,9 @@ def get_platform_delivery_facts(
     q = db.query(ent.PlatformDeliveryFact).filter(
         ent.PlatformDeliveryFact.tenant_id == tenant_id
     )
-    if contract_name:
+    if contract_id:
+        q = q.filter(ent.PlatformDeliveryFact.contract_id == contract_id)
+    elif contract_name:
         q = q.filter(ent.PlatformDeliveryFact.contract_name == contract_name)
     if month:
         from ..services.financial_calculations import month_bounds
@@ -1184,6 +1213,7 @@ def get_platform_delivery_facts(
         "rows": [
             {
                 "id": r.id,
+                "contract_id": r.contract_id,
                 "created_date": r.created_date.isoformat() if r.created_date else None,
                 "city_name": r.city_name,
                 "contract_name": r.contract_name,
@@ -1220,6 +1250,20 @@ def upload_platform_delivery_facts(
     csv_text = payload.get("csv_text", "")
     if not csv_text:
         raise HTTPException(400, "csv_text is required")
+    try:
+        contract_id = int(payload.get("contract_id"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "contract_id is required")
+    contract = (
+        db.query(ent.Contract)
+        .filter(
+            ent.Contract.id == contract_id,
+            ent.Contract.tenant_id == tenant_id,
+        )
+        .first()
+    )
+    if not contract:
+        raise HTTPException(404, "Contract not found for this company")
 
     f = io.StringIO(csv_text.strip())
     reader = csv.DictReader(f)
@@ -1241,7 +1285,7 @@ def upload_platform_delivery_facts(
         if not dt:
             continue
 
-        contract_name = row.get("Contract Name", "general").strip()
+        contract_name = contract.name
         city_name = row.get("City Name", "Riyadh").strip()
 
         # Check existing
@@ -1249,7 +1293,13 @@ def upload_platform_delivery_facts(
             db.query(ent.PlatformDeliveryFact)
             .filter(
                 ent.PlatformDeliveryFact.tenant_id == tenant_id,
-                ent.PlatformDeliveryFact.contract_name == contract_name,
+                (
+                    (ent.PlatformDeliveryFact.contract_id == contract.id)
+                    | (
+                        (ent.PlatformDeliveryFact.contract_id.is_(None))
+                        & (ent.PlatformDeliveryFact.contract_name == contract_name)
+                    )
+                ),
                 ent.PlatformDeliveryFact.created_date == dt,
             )
             .first()
@@ -1273,6 +1323,8 @@ def upload_platform_delivery_facts(
         not_accepted = int(float(row.get("Not Accepted Deliveries", 0) or 0))
 
         if fact:
+            fact.contract_id = contract.id
+            fact.contract_name = contract.name
             fact.riders_count = riders_count
             fact.shifts_done = shifts_done
             fact.planned_hours = planned_hours
@@ -1294,6 +1346,7 @@ def upload_platform_delivery_facts(
         else:
             fact = ent.PlatformDeliveryFact(
                 tenant_id=tenant_id,
+                contract_id=contract.id,
                 created_date=dt,
                 city_name=city_name,
                 contract_name=contract_name,
@@ -1319,4 +1372,9 @@ def upload_platform_delivery_facts(
             imported += 1
 
     db.commit()
-    return {"status": "SUCCESS", "imported": imported, "updated": updated}
+    return {
+        "status": "SUCCESS",
+        "contract": {"id": contract.id, "name": contract.name},
+        "imported": imported,
+        "updated": updated,
+    }

@@ -1013,6 +1013,7 @@ class PlatformDeliveryFact(Base):
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
+    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=True, index=True)
     created_date = Column(Date, nullable=False)
     city_name = Column(String(100), default="Riyadh")
     contract_name = Column(String(100), nullable=False)

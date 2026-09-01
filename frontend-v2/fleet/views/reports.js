@@ -7,6 +7,7 @@ import { t, getLang } from '../../shared/i18n/i18n.js';
 let activeSubTab = 'overview'; // 'overview' | 'catalog' | 'platform_facts' | 'dashboards' | 'ai_queries'
 let currentReport = null;
 let currentDashboard = null;
+let platformContractFilter = '';
 
 export async function loadReports(container) {
   const isAr = getLang() === 'ar';
@@ -148,7 +149,7 @@ function renderReportsOverviewLayout(catalog, container) {
       el('h3', { text: isAr ? 'تقرير أداء الشركة اليومي' : 'Daily Company Performance' }),
       el('p', { text: isAr ? 'ارفع ملف الـ19 عمود، راجع البيانات، ثم تابع أداء اليوم والتراكم الشهري.' : 'Upload the 19-column file, validate it, then track daily and month-to-date performance.' }),
       el('div', { class: 'reports-journey-actions' }, [
-        journeyAction(isAr ? 'رفع تقرير اليوم' : 'Upload today report', () => openUploadPlatformCsvModal(() => activateReportsTab('platform_facts')), true),
+        journeyAction(isAr ? 'رفع تقرير اليوم' : 'Upload today report', () => openContractUploadModal(() => activateReportsTab('platform_facts')), true),
         journeyAction(isAr ? 'مشاهدة الأداء اليومي' : 'View daily performance', () => activateReportsTab('platform_facts')),
         journeyAction(isAr ? 'سجل الملفات المرفوعة' : 'Uploaded files log', () => openCatalogReport(catalog, 'orders', 'import_batches', container))
       ])
@@ -177,33 +178,54 @@ function renderReportsOverviewLayout(catalog, container) {
 // TAB 1: تقارير المنصات والأداء التشغيلي (19 مؤشر كفاءة وتوصيل)
 // ─────────────────────────────────────────────────────────────────────────────
 async function renderPlatformFactsTab(container) {
+  container.innerHTML = '';
   const body = el('div', {}, [loadingState('جاري تحميل وتحليل بيانات المنصات...')]);
   container.append(body);
 
   try {
-    const data = await api.get('/analytics/reports/platform-facts');
-    body.replaceWith(renderPlatformFactsLayout(data, container));
+    const query = platformContractFilter ? `?contract_id=${encodeURIComponent(platformContractFilter)}` : '';
+    const [data, contractData] = await Promise.all([
+      api.get(`/analytics/reports/platform-facts${query}`),
+      api.get('/analytics/reports/platform-facts/contracts')
+    ]);
+    body.replaceWith(renderPlatformFactsLayout(data, container, contractData.contracts || []));
   } catch (e) {
     body.replaceWith(errorState('تعذر تحميل بيانات المنصات: ' + e.message, () => renderPlatformFactsTab(container)));
   }
 }
 
-function renderPlatformFactsLayout(data, container) {
+function renderPlatformFactsLayout(data, container, contracts) {
   const wrap = el('div', {});
   const summary = data.summary || {};
   const rows = data.rows || [];
 
   // Toolbar
+  const contractFilter = el('select', {
+    class: 'form-control',
+    style: 'min-width:220px;width:auto',
+    onchange: (event) => {
+      platformContractFilter = event.target.value;
+      renderPlatformFactsTab(document.getElementById('reports-content-area'));
+    }
+  }, [
+    el('option', { value: '', text: 'كل العقود' }),
+    ...contracts.map((contract) => el('option', {
+      value: String(contract.id),
+      ...(String(contract.id) === String(platformContractFilter) ? { selected: '' } : {}),
+      text: contract.name
+    }))
+  ]);
   const toolbar = el('div', { class: 'card', style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 18px;margin-bottom:16px;background:var(--card);border:1px solid var(--border)' }, [
     el('div', { style: 'display:flex;align-items:center;gap:10px' }, [
       el('span', { style: 'font-size:18px' }, '📈'),
       el('b', { style: 'font-size:14px;color:var(--text)' }, 'تحليل الأداء اليومي للأسطول (Raw Platform Performance Facts)'),
       el('span', { class: 'badge badge-green' }, 'بيانات حية مباشرة')
     ]),
-    el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, [
+    el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center' }, [
+      contractFilter,
       el('button', {
         class: 'btn btn-primary btn-small',
-        onclick: () => openUploadPlatformCsvModal(() => renderPlatformFactsTab(container))
+        onclick: () => openUploadPlatformCsvModal(contracts, () => renderPlatformFactsTab(container))
       }, '📤 رفع تقرير منصة (CSV)'),
       el('button', {
         class: 'btn btn-ghost btn-small',
@@ -275,7 +297,16 @@ function funnelStep(title, value, color, rate) {
   ]);
 }
 
-function openUploadPlatformCsvModal(onSuccess) {
+async function openContractUploadModal(onSuccess) {
+  try {
+    const data = await api.get('/analytics/reports/platform-facts/contracts');
+    openUploadPlatformCsvModal(data.contracts || [], onSuccess);
+  } catch (e) {
+    alert(`تعذر تحميل عقود الشركة: ${e.message}`);
+  }
+}
+
+function openUploadPlatformCsvModal(contracts, onSuccess) {
   let m = null;
   let totalImported = 0;
   let totalUpdated = 0;
@@ -286,6 +317,8 @@ function openUploadPlatformCsvModal(onSuccess) {
 
   const form = el('form', { onsubmit: async (e) => {
     e.preventDefault();
+    const contractId = document.getElementById('platform-upload-contract')?.value;
+    if (!contractId) return alert('اختر العقد المرتبط بالتقرير أولاً.');
     const fileInput = document.getElementById('platform-csv-file');
     const files = Array.from(fileInput.files || []);
     if (!files.length) return alert('الرجاء اختيار ملف CSV واحد على الأقل.');
@@ -307,7 +340,7 @@ function openUploadPlatformCsvModal(onSuccess) {
       try {
         statusEl.textContent = `⏳ جاري رفع: ${file.name} (${doneFiles + 1} من ${totalFiles})`;
         const text = await file.text();
-        const res = await api.post('/analytics/reports/platform-facts/upload', { csv_text: text });
+        const res = await api.post('/analytics/reports/platform-facts/upload', { csv_text: text, contract_id: Number(contractId), file_name: file.name });
         totalImported += res.imported || 0;
         totalUpdated += res.updated || 0;
         doneFiles++;
@@ -333,14 +366,16 @@ function openUploadPlatformCsvModal(onSuccess) {
     if (m && typeof m.close === 'function') m.close();
     else if (m && typeof m.remove === 'function') m.remove();
 
-    // Full tab content refresh to update KPIs and table
-    const contentArea = document.getElementById('reports-content-area');
-    if (contentArea) {
-      contentArea.innerHTML = '';
-      renderPlatformFactsTab(contentArea);
-    }
     onSuccess();
   }}, [
+    el('div', { style: 'margin-bottom:16px' }, [
+      el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:6px' }, '🏢 العقد المرتبط بالتقرير:'),
+      el('select', { id: 'platform-upload-contract', class: 'form-control', required: true }, [
+        el('option', { value: '', text: 'اختر العقد' }),
+        ...contracts.map((contract) => el('option', { value: String(contract.id), text: contract.name }))
+      ]),
+      el('small', { style: 'display:block;color:var(--muted);margin-top:6px' }, 'سيتم ربط كل صفوف الملفات المختارة بهذا العقد، وستظهر مؤشرات الأداء الخاصة به منفصلة.')
+    ]),
     el('div', { style: 'margin-bottom:16px' }, [
       el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:6px' }, '📂 ملفات تقارير المنصة (CSV بـ 19 عمود) — يمكن اختيار عدة ملفات دفعة واحدة:'),
       el('input', { type: 'file', id: 'platform-csv-file', accept: '.csv,text/csv', multiple: true, style: 'width:100%;padding:10px;border:1px dashed var(--border);border-radius:8px' }),

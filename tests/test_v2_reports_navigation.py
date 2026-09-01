@@ -37,3 +37,11 @@ def test_reports_overview_has_responsive_styles():
     styles = MAIN_CSS.read_text(encoding="utf-8")
     assert ".reports-journeys" in styles
     assert "@media (max-width: 700px)" in styles
+
+
+def test_platform_upload_and_dashboard_are_contract_scoped():
+    source = REPORTS_JS.read_text(encoding="utf-8")
+    assert "/analytics/reports/platform-facts/contracts" in source
+    assert "platform-upload-contract" in source
+    assert "contract_id: Number(contractId)" in source
+    assert "?contract_id=${encodeURIComponent(platformContractFilter)}" in source
