@@ -1205,17 +1205,18 @@ def upload_platform_delivery_facts(
     updated = 0
 
     for row in reader:
-        # Parse date
-        date_raw = row.get("Created Date", "").strip().strip('"')
+        date_raw = row.get("Created Date", "") or row.get("created_date", "") or row.get("Date", "")
         if not date_raw:
             continue
-        try:
-            # e.g. "Dec 30, 2025" or "2025-12-30"
-            if "," in date_raw:
-                dt = datetime.strptime(date_raw, "%b %d, %Y").date()
-            else:
-                dt = datetime.strptime(date_raw, "%Y-%m-%d").date()
-        except Exception:
+        dt = None
+        clean_date = date_raw.strip().strip('"').strip("'")
+        for fmt in ["%b %d, %Y", "%B %d, %Y", "%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%Y/%m/%d", "%Y.%m.%d", "%d.%m.%Y"]:
+            try:
+                dt = datetime.strptime(clean_date, fmt).date()
+                break
+            except Exception:
+                pass
+        if not dt:
             continue
 
         contract_name = row.get("Contract Name", "general").strip()

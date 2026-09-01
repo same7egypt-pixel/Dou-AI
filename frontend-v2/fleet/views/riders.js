@@ -275,6 +275,7 @@ async function openAddRider(container) {
     updateSupervisorSelect();
     setTimeout(updateHierarchySummary, 50);
 
+    let m = null;
     const content = el('form', { id: 'add-rider-form', onsubmit: async (e) => {
       e.preventDefault();
       const name = document.getElementById('ar-name').value.trim();

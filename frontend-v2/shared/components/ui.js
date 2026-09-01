@@ -99,7 +99,8 @@ export function modal(title, content, onClose) {
     ]),
   ]);
   document.body.append(overlay);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); onClose && onClose(); } });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.close(); });
+  overlay.close = () => { overlay.remove(); onClose && onClose(); };
   return overlay;
 }
 

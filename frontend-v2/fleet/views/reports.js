@@ -180,6 +180,7 @@ function funnelStep(title, value, color, rate) {
 }
 
 function openUploadPlatformCsvModal(onSuccess) {
+  let m = null;
   const form = el('form', { onsubmit: async (e) => {
     e.preventDefault();
     const fileInput = document.getElementById('platform-csv-file');
@@ -189,7 +190,8 @@ function openUploadPlatformCsvModal(onSuccess) {
       const text = await f.text();
       const res = await api.post('/analytics/reports/platform-facts/upload', { csv_text: text });
       alert(`✅ تم استيراد التقرير بنجاح!\nجديد: ${res.imported} يوم · محدث: ${res.updated} يوم`);
-      m.close();
+      if (m && typeof m.close === 'function') m.close();
+      else if (m && typeof m.remove === 'function') m.remove();
       onSuccess();
     } catch (err) {
       alert('❌ فشل الاستيراد: ' + err.message);
@@ -201,11 +203,11 @@ function openUploadPlatformCsvModal(onSuccess) {
       el('small', { style: 'display:block;color:var(--muted);margin-top:6px' }, 'يدعم التقارير الميدانية المصدرة من جاهز، هنقرستيشن، نينجا، ونون.')
     ]),
     el('div', { style: 'display:flex;justify-content:flex-end;gap:8px' }, [
-      el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => m.close() }, 'إلغاء'),
+      el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => { if (m && m.close) m.close(); else if (m) m.remove(); } }, 'إلغاء'),
       el('button', { type: 'submit', class: 'btn btn-primary' }, 'رفع وتحليل التقرير')
     ])
   ]);
-  const m = modal('رفع تقرير الأداء الميداني للمنصة (Platform Report CSV)', form);
+  m = modal('رفع تقرير الأداء الميداني للمنصة (Platform Report CSV)', form);
 }
 
 function downloadPlatformCsvTemplate() {
