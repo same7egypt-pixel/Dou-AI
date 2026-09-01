@@ -97,7 +97,8 @@ export function renderLogin(error = null) {
 
   const submitBtn = document.createElement('button');
   submitBtn.type = 'submit';
-  submitBtn.className = 'btn-primary full';
+  submitBtn.className = 'btn btn-primary btn-full';
+  submitBtn.style.cssText = 'background: #ff5500; color: #fff; border: none; border-radius: 12px; padding: 12px 20px; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; margin-top: 14px; box-shadow: 0 4px 14px rgba(255, 85, 0, 0.35); transition: all 0.2s;';
   submitBtn.textContent = t('دخول الشركة');
   form.appendChild(submitBtn);
 
