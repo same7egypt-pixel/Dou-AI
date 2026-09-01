@@ -3,7 +3,12 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.entities import (
-    Merchant, Order, ShippingCompany, ShippingLabel, User, UserRole,
+    Merchant,
+    Order,
+    ShippingCompany,
+    ShippingLabel,
+    User,
+    UserRole,
 )
 from ..schemas.dou import ShipmentIn
 from ..services.shipping import ShipmentRequest, gateway
@@ -11,11 +16,15 @@ from .auth import get_current_user
 
 BUSINESS_ROLES = (UserRole.COMPANY, UserRole.DOU_OPS, UserRole.DOU_ADMIN)
 
+
 def _business_only(user: User = Depends(get_current_user)):
     if user.role not in BUSINESS_ROLES:
         raise HTTPException(403, "Insufficient permissions")
 
-router = APIRouter(prefix="/shipping", tags=["shipping"], dependencies=[Depends(_business_only)])
+
+router = APIRouter(
+    prefix="/shipping", tags=["shipping"], dependencies=[Depends(_business_only)]
+)
 
 
 @router.get("/companies")
@@ -40,10 +49,14 @@ def create_shipment(order_id: int, payload: ShipmentIn, db: Session = Depends(ge
     merchant = db.get(Merchant, order.merchant_id)
 
     # اختيار شركة شحن نشطة في بلد الطلب
-    company = db.query(ShippingCompany).filter(
-        ShippingCompany.country == merchant.country,
-        ShippingCompany.is_active.is_(True),
-    ).first()
+    company = (
+        db.query(ShippingCompany)
+        .filter(
+            ShippingCompany.country == merchant.country,
+            ShippingCompany.is_active.is_(True),
+        )
+        .first()
+    )
     if not company:
         raise HTTPException(400, "No active shipping company in this country")
 

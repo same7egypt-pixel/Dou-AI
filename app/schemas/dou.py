@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 
 
@@ -6,7 +6,7 @@ class LoginIn(BaseModel):
     phone: str
     password: str
     name: Optional[str] = None
-    role: Optional[str] = None       # CUSTOMER/MERCHANT/COURIER/COMPANY/DOU_OPS
+    role: Optional[str] = None  # CUSTOMER/MERCHANT/COURIER/COMPANY/DOU_OPS
     country: Optional[str] = None
 
 
@@ -39,7 +39,7 @@ class ShiftCreate(BaseModel):
     start_time: str = "09:00"
     end_time: str = "17:00"
     required_couriers: int = 0
-    courier_ids: List[int] = []
+    courier_ids: List[int] = Field(default_factory=list)
 
 
 class AttendanceIn(BaseModel):
@@ -72,8 +72,8 @@ class PatchStatusIn(BaseModel):
 class CourierCreate(BaseModel):
     name: str
     phone: str
-    courier_type: str          # COMPANY | FREELANCER
-    country: str               # SA | EG
+    courier_type: str  # COMPANY | FREELANCER
+    country: str  # SA | EG
     tenant_id: Optional[int] = None
     fleet_id: Optional[int] = None
 
@@ -93,8 +93,7 @@ class CourierOut(CourierCreate):
     lng: Optional[float] = None
     bank_iban: Optional[str] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MerchantCreate(BaseModel):
@@ -114,8 +113,7 @@ class MerchantOut(MerchantCreate):
     theme: str
     is_active: Optional[bool] = True
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProductCreate(BaseModel):
@@ -130,8 +128,7 @@ class ProductOut(ProductCreate):
     id: int
     is_available: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderItemIn(BaseModel):
@@ -145,8 +142,7 @@ class OrderItemOut(BaseModel):
     quantity: int
     unit_price: float
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderCreate(BaseModel):
@@ -156,7 +152,7 @@ class OrderCreate(BaseModel):
     customer_lat: float
     customer_lng: float
     customer_address: str
-    delivery_method: Optional[str] = None   # يتركه النظام ليحدده
+    delivery_method: Optional[str] = None  # يتركه النظام ليحدده
     items: List[OrderItemIn]
 
 
@@ -178,7 +174,6 @@ class OrderOut(BaseModel):
     shipping_ref: Optional[str] = None
     shipping_company: Optional[str] = None
     created_at: Optional[object] = None
-    items: List[OrderItemOut] = []
+    items: List[OrderItemOut] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

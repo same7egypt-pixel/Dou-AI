@@ -106,7 +106,19 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 .hrPane{display:none}.hrPane.active{display:block}.hrPaneHead{display:flex;justify-content:space-between;align-items:end;gap:14px;margin:4px 2px 13px}.hrPaneHead h2{font-size:17px;margin:0}.hrPaneHead p{font-size:11px;color:var(--muted);margin:4px 0 0}
 	.reportPeriod{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}.reportPeriod button{border:1px solid var(--line);background:#f5f7fb;color:var(--text);border-radius:10px;padding:9px 16px;font-family:inherit;font-weight:700;cursor:pointer}.reportPeriod button.active{background:var(--blue);border-color:var(--blue);color:#fff}.reportAdvanced{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}.reportAdvanced summary{cursor:pointer;font-weight:700;color:var(--blue);list-style:none}.reportAdvanced summary:before{content:'⚙ '}.reportAdvanced[open] summary{margin-bottom:12px}.reportRangeLabel{font-size:11px;color:var(--muted);margin-top:4px}
 	.analyticsTabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}.analyticsTabs button{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:10px;padding:9px 13px;font:700 12px inherit;cursor:pointer}.analyticsTabs button.active{background:var(--nav);color:#fff;border-color:var(--nav)}.analyticsState{font-size:12px;margin:10px 0;color:var(--muted)}.analyticsState.error{color:#b42318}.analyticsState.ok{color:#067647}.analyticsActive{font-size:11px;color:var(--blue);min-height:16px}.analyticsCharts{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin:16px 0}.analyticsChart{border:1px solid var(--line);border-radius:14px;padding:14px}.analyticsChart h3{font-size:13px;margin:0 0 10px}.analyticsChart .empty{font-size:12px;color:var(--muted);padding:10px 0}.analyticsPagination{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;font-size:12px;color:var(--muted)}.analyticsFinancial{border:1px solid #dce7ff;background:#f7faff;border-radius:10px;padding:7px 10px;font-size:11px;color:#2455a6}.analyticsFilters input,.analyticsFilters select{min-width:135px}.analyticsFilters .wide{min-width:190px}@media(max-width:760px){.analyticsFilters input,.analyticsFilters select{min-width:100%;flex:1}}
-.hrEmptyGuide{border:1px dashed #cfd6e2;background:#fbfcfe;border-radius:14px;padding:18px;color:var(--muted);font-size:12px;margin-bottom:14px}
+.context-select{width:100%;background:#213251;color:#b5c2d8;border:1px solid #2d3d5c;border-radius:8px;padding:8px 10px;font-size:11px;font-family:inherit;cursor:pointer}
+.context-select:focus{outline:none;border-color:#4a90e2}
+.context-select option{background:#213251;color:#fff}
+.nav-search-input{width:100%;background:#213251;color:#b5c2d8;border:1px solid #2d3d5c;border-radius:8px;padding:8px 10px;font-size:11px;font-family:inherit}
+.nav-search-input:focus{outline:none;border-color:#4a90e2}
+.nav-search-input::placeholder{color:#5b6a85}
+.context-breadcrumb{color:var(--blue);font-weight:600}
+.context-badge{background:var(--blue2);color:var(--blue);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;margin-left:8px}
+@import-tab{background:transparent;color:var(--muted);white-space:nowrap;padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:600;border:0;font-family:inherit}
+.import-tab.active{background:var(--nav);color:#fff}
+/* DOU AI + operational notifications: reuses the dashboard token system. */
+.ai-shell{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;min-height:68vh}.ai-panel{background:#fff;border-radius:18px;box-shadow:0 10px 25px rgba(26,42,72,.05);display:flex;flex-direction:column;overflow:hidden}.ai-head{padding:20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:center}.ai-head h2{margin:0;font-size:19px}.ai-head p{margin:5px 0 0;color:var(--muted);font-size:11px}.ai-messages{padding:20px;overflow:auto;flex:1;min-height:380px}.ai-empty{text-align:center;color:var(--muted);padding:55px 20px}.ai-empty b{display:block;color:var(--ink);font-size:18px;margin-bottom:8px}.ai-msg{max-width:82%;padding:12px 14px;border-radius:14px;margin:0 0 12px;line-height:1.75;font-size:12px;white-space:pre-wrap}.ai-msg.user{background:var(--blue);color:#fff;margin-right:auto;border-bottom-left-radius:4px}.ai-msg.assistant{background:#f3f6fb;border:1px solid var(--line);border-bottom-right-radius:4px}.ai-meta{font-size:9px;color:var(--muted);margin-top:7px}.ai-kpis{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.ai-kpi{background:#fff;border:1px solid var(--line);padding:8px 10px;border-radius:10px}.ai-kpi b{display:block;font-size:16px}.ai-compose{border-top:1px solid var(--line);padding:14px;display:flex;gap:8px}.ai-compose textarea{flex:1;resize:none;min-height:46px;max-height:120px;border:1px solid var(--line);border-radius:12px;padding:12px;font:12px Alexandria}.ai-prompts{display:flex;gap:7px;flex-wrap:wrap}.ai-prompt{background:#fff;border:1px solid var(--line);color:var(--ink);text-align:right;padding:9px 11px}.ai-side .card{box-shadow:none;border:1px solid var(--line)}.ai-warning{background:var(--amber2);color:#92400e;padding:8px 10px;border-radius:9px;margin-top:8px;font-size:10px}.ai-table{overflow:auto;margin-top:10px;max-height:260px}.ask-ai{background:var(--blue2)!important;color:var(--blue)!important}.notif-button{position:relative}.notif-count{position:absolute;top:-6px;left:-6px;background:var(--red);color:#fff;border-radius:10px;min-width:18px;height:18px;padding:2px 5px;font-size:9px;display:none}.notification-list{display:grid;gap:10px}.notification-item{background:#fff;border:1px solid var(--line);border-right:4px solid var(--blue);border-radius:13px;padding:14px}.notification-item.CRITICAL{border-right-color:var(--red)}.notification-item.WARNING{border-right-color:var(--amber)}.notification-item.unread{background:#f8fbff}.notification-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.notification-meta{font-size:10px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+@media(max-width:900px){.ai-shell{grid-template-columns:1fr}.ai-side{order:-1}.ai-messages{min-height:320px}.ai-msg{max-width:94%}.topActions .rolebar{display:none}}
 @media(max-width:760px){.hrHero{display:block}.hrHeroActions{margin-top:16px}.hrTabs{top:72px}.hrPane .card{overflow-x:auto}.hrPaneHead{display:block}}
 </style>
 </head>
@@ -114,121 +126,165 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 <button onclick="setDouLanguage(localStorage.getItem('dou_lang')==='en'?'ar':'en')" style="position:fixed;left:14px;bottom:14px;z-index:100;background:#111827;color:#fff;border:1px solid #374151;border-radius:20px;padding:8px 13px;font:700 11px Alexandria;cursor:pointer">AR / EN</button>
 <div class="layout"><aside class="side" id="side">
   <div class="logo"><i>↗</i><b>DOU</b><small>FLEET PARTNERS</small></div>
-  <div class="group">إدارة السائقين</div>
-  <button class="nav active" data-view="overview"><i>▦</i><span>نظرة عامة</span></button>
+  
+  <!-- Hierarchy Context Selector -->
+  <div class="context-selector" id="contextSelector" style="margin-bottom:12px">
+    <select id="contextOperator" class="context-select" onchange="changeOperatorContext()" title="اختر المشغل / المشروع">
+      <option value="">كل المشغلات</option>
+    </select>
+    <select id="contextCity" class="context-select" onchange="changeCityContext()" style="margin-top:6px" title="اختر المدينة">
+      <option value="">كل المدن</option>
+    </select>
+    <select id="contextBranch" class="context-select" onchange="changeBranchContext()" style="margin-top:6px" title="اختر الفرع">
+      <option value="">كل الفروع</option>
+    </select>
+  </div>
+  
+  <div class="nav-search" style="margin-bottom:12px">
+    <input type="text" id="globalSearch" placeholder="بحث..." class="nav-search-input" onkeydown="if(event.key==='Enter')performGlobalSearch()">
+  </div>
+  <div class="group">الرئيسية</div>
+  <button class="nav active" data-view="overview"><i>▦</i><span>مركز القيادة</span></button>
+  <div class="group">القوى العاملة</div>
   <button class="nav" data-view="couriers" data-permission="drivers"><i>◉</i><span>السائقون</span></button>
-  <button class="nav" data-view="supervision" data-permission="supervision"><i>🧑‍💼</i><span>إدارة فريقي</span></button>
   <div class="group">التشغيل</div>
   <button class="nav" data-view="shifts" data-permission="attendance"><i>◷</i><span>الورديات والحضور</span></button>
-  <button class="nav" data-view="attendance" data-permission="attendance"><i>⏱</i><span>سجل الحضور</span></button>
-  <div class="group">المالية والأداء</div>
-  <button class="nav" data-view="performance" data-permission="performance"><i>◒</i><span>أداء السائقين</span></button>
+  <button class="nav" data-view="needsAttention" data-permission="dashboard"><i>⚠</i><span>يحتاج انتباه</span></button>
+  <button class="nav" data-view="capacity" data-permission="attendance"><i>◫</i><span>تخطيط السعة</span></button>
+  <div class="group">الأداء والمالية</div>
+  <button class="nav" data-view="reports" data-permission="reports"><i>📊</i><span>التقارير</span></button>
   <button class="nav" data-view="payouts" data-permission="payroll"><i>₪</i><span>الرواتب والحوافز</span></button>
-  <button class="nav" data-view="compliance" data-permission="hr"><i>!</i><span>المستندات والامتثال</span></button>
-  <div class="group">الإدارة</div>
-  <button class="nav" data-view="hr" data-permission="hr"><i>🧑‍💼</i><span>الموارد البشرية</span></button>
-  <button class="nav" data-view="reports" data-permission="reports"><i>📊</i><span>مركز التقارير</span></button>
-  <button class="nav" data-view="tickets" data-permission="tickets"><i>🎫</i><span>طلبات ودعم السائقين</span></button>
-  <button class="nav" data-view="users" data-permission="users"><i>🔐</i><span>المستخدمون والصلاحيات</span></button>
-  <div class="group">الاشتراك</div>
-  <button class="nav" data-view="billing" data-permission="billing"><i>💳</i><span>الاشتراك والفواتير</span></button>
+  <div class="group">الذكاء</div>
+  <button class="nav" data-view="douai"><i>✨</i><span>DOU AI</span></button>
   <div class="user"><div class="photo">✓</div><div><b id="roleName">فريق DOU</b><small id="roleDesc">مشرف العمليات</small></div><button class="btn ghost small" onclick="changeFleetPassword()" style="margin-top:8px;width:100%">🔐 كلمة المرور</button><button class="btn ghost small" onclick="logout()" style="margin-top:8px;width:100%">🚪 خروج</button></div>
 </aside>
 <div class="overlay" id="overlay" onclick="toggleSide()"></div>
 <main class="main" id="main">
   <header class="top">
-    <div class="breadcrumb"><button class="hamburger" onclick="toggleSide()">☰</button> DOU / Fleet Partners / <b id="crumb">نظرة عامة</b></div>
+    <div class="breadcrumb">
+      <button class="hamburger" onclick="toggleSide()">☰</button>
+      <span id="contextBreadcrumb" class="context-breadcrumb" style="display:none"></span>
+      DOU / Fleet Partners / <b id="crumb">نظرة عامة</b>
+    </div>
     <div class="topActions">
+      <span id="contextBadge" class="context-badge" style="display:none"></span>
       <div class="rolebar" style="margin:0">
         <button class="active">حساب الشركة</button>
       </div>
+      <button class="btn ghost notif-button" onclick="go('notifications')">🔔<span class="notif-count" id="topNotifCount"></span></button>
       <button class="btn ghost" onclick="exportCurrentView()">⬇ تصدير الصفحة</button>
     </div>
   </header>
   <div class="content">
 
+    <section id="view-douai" style="display:none">
+      <div class="header"><div><div class="kicker">INTELLIGENT OPERATIONS</div><h1>✨ DOU AI</h1><p style="color:var(--muted);font-size:12px;margin:5px 0 0">Your intelligent operations assistant.</p></div></div>
+      <div class="ai-shell">
+        <div class="ai-panel">
+          <div class="ai-head"><div><h2>DOU AI</h2><p>اسأل عن السائقين والحضور والأداء والمشغلين والأهداف والاتجاهات التشغيلية.</p></div><button class="btn ghost small" onclick="newAIConversation()">+ محادثة جديدة</button></div>
+          <div class="ai-messages" id="aiMessages"><div class="ai-empty"><b>كيف يمكنني مساعدتك في عملياتك؟</b><span>الأرقام تأتي فقط من بيانات DOU المصرح بها.</span></div></div>
+          <div class="ai-compose"><textarea id="aiInput" placeholder="Ask DOU AI..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIMessage()}"></textarea><button class="btn blue" id="aiSend" onclick="sendAIMessage()">إرسال</button></div>
+        </div>
+        <aside class="ai-side">
+          <div class="card"><h3>أسئلة مقترحة</h3><div class="ai-prompts">
+            <button class="ai-prompt" onclick="askAIPrompt('What needs my attention today?')">ما الذي يحتاج انتباهي اليوم؟</button>
+            <button class="ai-prompt" onclick="askAIPrompt('Which riders are below target?')">السائقون تحت المستهدف</button>
+            <button class="ai-prompt" onclick="askAIPrompt('Compare Operator performance this month.')">مقارنة أداء المشغّلين</button>
+            <button class="ai-prompt" onclick="askAIPrompt('Show attendance trend for the last 7 days.')">اتجاه الحضور</button>
+          </div></div>
+          <div class="card"><h3>المصدر والنطاق</h3><p style="font-size:11px;color:var(--muted);line-height:1.8">تُطبّق صلاحيات الشركة والمشغّل والمشرف قبل تحليل البيانات. سياق الصفحة يفلتر النتائج ولا يمنح صلاحيات جديدة.</p><div id="aiStatus" class="ai-meta">جاهز</div></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="view-rider360" style="display:none">
+      <div class="header"><div><div class="kicker">الملف التشغيلي الموحد</div><h1>◎ ملف السائق 360</h1><p style="color:var(--muted);font-size:12px">الملف التشغيلي الموحد — كل ما يخص السائق في مكان واحد.</p></div><button class="btn ghost" onclick="loadRider360()">&#8635; تحديث</button></div>
+      <div class="card"><label>اختر السائق</label><select id="rider360Select" onchange="loadRider360Profile()"><option value="">اختر سائقاً</option></select></div>
+      <div id="rider360Tabs" style="display:none">
+        <div class="hrTabs" role="tablist" aria-label="tabs"><button class="hrTab active" data-r360tab="profile" onclick="showRider360Tab('profile')">الملف الشخصي</button><button class="hrTab" data-r360tab="documents" onclick="showRider360Tab('documents')">المستندات</button><button class="hrTab" data-r360tab="shifts" onclick="showRider360Tab('shifts')">الورديات</button><button class="hrTab" data-r360tab="attendance" onclick="showRider360Tab('attendance')">الحضور</button><button class="hrTab" data-r360tab="performance" onclick="showRider360Tab('performance')">الأداء</button><button class="hrTab" data-r360tab="targets" onclick="showRider360Tab('targets')">الأهداف</button><button class="hrTab" data-r360tab="payroll" onclick="showRider360Tab('payroll')">الراتب</button><button class="hrTab" data-r360tab="leave" onclick="showRider360Tab('leave')">الإجازات</button></div>
+        <div id="rider360Tab-profile" class="hrPane active"><div class="hrPaneHead"><h2>الملف الشخصي</h2></div><div id="r360Profile"></div></div>
+        <div id="rider360Tab-documents" class="hrPane"><div class="hrPaneHead"><h2>المستندات والامتثال</h2></div><div id="r360Documents"></div></div>
+        <div id="rider360Tab-shifts" class="hrPane"><div class="hrPaneHead"><h2>الورديات</h2></div><div id="r360Shifts"></div></div>
+        <div id="rider360Tab-attendance" class="hrPane"><div class="hrPaneHead"><h2>الحضور</h2></div><div id="r360Attendance"></div></div>
+        <div id="rider360Tab-performance" class="hrPane"><div class="hrPaneHead"><h2>الأداء</h2></div><div id="r360Performance"></div></div>
+        <div id="rider360Tab-targets" class="hrPane"><div class="hrPaneHead"><h2>الأهداف والحوافز</h2></div><div id="r360Targets"></div></div>
+        <div id="rider360Tab-payroll" class="hrPane"><div class="hrPaneHead"><h2>الراتب</h2></div><div id="r360Payroll"></div></div>
+        <div id="rider360Tab-leave" class="hrPane"><div class="hrPaneHead"><h2>الإجازات</h2></div><div id="r360Leave"></div></div>
+      </div>
+      <div id="rider360Content" class="card" style="margin-top:12px;color:var(--muted)">اختر سائقاً لعرض ملفه التشغيلي.</div>
+    </section>
+
+    <section id="view-needsAttention" style="display:none">
+      <div class="header"><div><div class="kicker">DETERMINISTIC EXCEPTIONS</div><h1>⚠ يحتاج انتباه</h1><p style="color:var(--muted);font-size:12px">إشارات تشغيلية محسوبة من بيانات DOU، بدون توليد أو تقدير بالذكاء الاصطناعي.</p></div><button class="btn ghost" onclick="loadNeedsAttention()">↻ تحديث</button></div>
+      <div class="cards"><div class="metric alert"><b id="needsAttentionTotal">0</b><span>إشارات مفتوحة</span></div></div>
+      <div id="needsAttentionList"><div class="card">جاري التحميل...</div></div>
+    </section>
+
+    <section id="view-capacity" style="display:none">
+      <div class="header"><div><div class="kicker">WORKFORCE PLANNING</div><h1>◫ تخطيط السعة</h1><p style="color:var(--muted);font-size:12px">المطلوب والمتاح والموزع فعلياً، مع إظهار العجز أو الفائض.</p></div><button class="btn ghost" onclick="loadCapacity()">↻ تحديث</button></div>
+      <div class="card"><div class="formgrid"><select id="capacityScopeType" onchange="loadCapacity()"><option value="">كل الشركة</option><option value="PROJECT">مشروع</option><option value="BRANCH">فرع تعاقدي</option><option value="OPERATOR">مشغّل</option></select><input id="capacityScopeId" type="number" min="1" placeholder="رقم النطاق" onchange="loadCapacity()"><input id="capacityRequiredInput" type="number" min="0" placeholder="عدد السائقين المطلوب"><input id="capacityEffectiveFrom" type="date"></div><button class="btn blue" onclick="saveCapacityRequirement()">حفظ الاحتياج</button><small id="capacityMsg"></small></div>
+      <div class="cards"><div class="metric"><b id="capacityRequired">0</b><span>المطلوب</span></div><div class="metric"><b id="capacityAvailable">0</b><span>المتاح</span></div><div class="metric"><b id="capacityAssigned">0</b><span>الموزع على ورديات</span></div><div class="metric"><b id="capacityActive">0</b><span>الحاضر فعلياً</span></div><div class="metric alert"><b id="capacityShortage">0</b><span>العجز</span></div><div class="metric trend"><b id="capacitySurplus">0</b><span>الفائض</span></div></div>
+    </section>
+
+    <section id="view-attendanceCorrections" style="display:none">
+      <div class="header"><div><div class="kicker">TIMEKEEPING CONTROL</div><h1>✎ تصحيحات الحضور</h1><p style="color:var(--muted);font-size:12px">طلبات موثقة لا تغيّر سجل الحضور إلا بعد الموافقة.</p></div><button class="btn ghost" onclick="loadAttendanceCorrections()">↻ تحديث</button></div>
+      <div class="card"><h3>طلب تصحيح</h3><div class="formgrid"><input id="correctionAttendanceId" type="number" min="1" placeholder="رقم سجل الحضور *"><input id="correctionCheckIn" type="datetime-local" aria-label="وقت الدخول المصحح"><input id="correctionCheckOut" type="datetime-local" aria-label="وقت الخروج المصحح"><input id="correctionReason" placeholder="سبب التصحيح *"></div><button class="btn blue" onclick="submitAttendanceCorrection()">إرسال للمراجعة</button><small id="attendanceCorrectionMsg"></small></div>
+      <div class="card" style="margin-top:12px"><table><thead><tr><th>الطلب</th><th>سجل الحضور</th><th>السائق</th><th>السبب</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody id="attendanceCorrectionBody"><tr><td colspan="6">جاري التحميل...</td></tr></tbody></table></div>
+    </section>
+
+    <section id="view-dataHealth" style="display:none">
+      <div class="header"><div><div class="kicker">DATA OPERATIONS</div><h1>♥ صحة البيانات</h1><p style="color:var(--muted);font-size:12px">آخر مزامنة وحجم المعالجة وحداثة كل مصدر تشغيلي.</p></div><button class="btn ghost" onclick="loadDataHealth()">↻ تحديث</button></div>
+      <div class="cards"><div class="metric trend"><b id="dataHealthHealthy">0</b><span>مصادر سليمة</span></div><div class="metric alert"><b id="dataHealthIssues">0</b><span>مصادر تحتاج متابعة</span></div></div>
+      <div class="card"><table><thead><tr><th>المصدر</th><th>الحالة</th><th>آخر نجاح</th><th>آخر فشل</th><th>الصفوف</th><th>حداثة البيانات</th></tr></thead><tbody id="dataHealthBody"><tr><td colspan="6">جاري التحميل...</td></tr></tbody></table></div>
+    </section>
+
+    <section id="view-notifications" style="display:none">
+      <div class="header"><div><div class="kicker">OPERATIONS CENTER</div><h1>🔔 مركز الإشعارات</h1><p style="color:var(--muted);font-size:12px">تنبيهات تشغيلية قابلة للمتابعة، وليست موجزًا اجتماعيًا.</p></div><button class="btn ghost" onclick="loadNotifications()">↻ تحديث</button></div>
+      <div class="cards"><div class="metric alert"><b id="notificationUnread">0</b><span>غير مقروء</span></div><div class="metric"><b id="notificationOpen">0</b><span>مفتوح</span></div><div class="metric"><b id="notificationCritical">0</b><span>حرج</span></div></div>
+      <div id="notificationList" class="notification-list"><div class="card" style="color:var(--muted)">لا توجد إشعارات.</div></div>
+    </section>
+
     <section id="view-overview">
       <div class="header">
-        <div><div class="kicker">منصة موحّدة — تشغيل مشترك</div><h1>نظرة عامة</h1></div>
+        <div><div class="kicker">مركز القيادة التشغيلي</div><h1>مركز القيادة</h1></div>
         <div class="filters" style="margin:0">
-          <select id="oDateFilter" onchange="renderOverview()"><option value="">هذا الأسبوع</option><option>اليوم</option><option>هذا الشهر</option></select>
+          <button class="btn ghost" onclick="loadOverview()">↻ تحديث</button>
         </div>
       </div>
       <div class="cards">
         <div class="metric"><b id="mCouriers">–</b><span>إجمالي السائقين</span></div>
-        <div class="metric"><b id="mOnline">–</b><span>وردية شغالة</span></div>
-        <div class="metric"><b id="mOrders">–</b><span>موظفون نشطون</span></div>
-        <div class="metric"><b id="mActive">–</b><span>في إجازة</span></div>
-        <div class="metric alert"><b id="mUnassigned">–</b><span>مستندات تحتاج انتباه</span></div>
-        <div class="metric" style="border-color:#ef4444"><b id="mDocsExpired">–</b><span>🔴 مستندات منتهية</span></div><div class="metric" style="border-color:#f97316"><b id="mDocs30">–</b><span>🟠 خلال 30 يوم</span></div><div class="metric" style="border-color:#eab308"><b id="mDocs60">–</b><span>🟡 خلال 60 يوم</span></div>
-        <div class="metric"><b id="mPresent">–</b><span>حضور اليوم</span></div><div class="metric alert"><b id="mAbsent">–</b><span>غياب اليوم</span></div><div class="metric"><b id="mTodayOrders">–</b><span>طلبات اليوم</span></div><div class="metric"><b id="mMonthOrders">–</b><span>طلبات الشهر</span></div><div class="metric alert"><b id="mPendingLeaves">–</b><span>إجازات تنتظر الموافقة</span></div>
+        <div class="metric"><b id="mOnline">–</b><span>متصلون</span></div>
+        <div class="metric"><b id="mActive">–</b><span>نشطون</span></div>
+        <div class="metric alert"><b id="mAbsent">–</b><span>غائبون اليوم</span></div>
+        <div class="metric"><b id="mPresent">–</b><span>حاضرون اليوم</span></div>
       </div>
       <div class="cards">
-        <div class="metric"><b id="mPayroll">–</b><span>إجمالي الرواتب التقديري (ر.س)</span></div>
-        <div class="metric trend"><b id="mRevenue">–</b><span>إيراد العميل التقديري (ر.س)</span></div>
-        <div class="metric"><b id="mMargin">–</b><span>هامش التشغيل التقديري (ر.س)</span></div>
-        <div class="metric trend"><b id="mUtil">–</b><span>متوسط الالتزام</span></div>
-        <div class="metric trend"><b id="mOntime">–</b><span>متوسط الأداء</span></div>
+        <div class="metric"><b id="mReady">–</b><span>جاهز للعمل</span></div>
+        <div class="metric alert"><b id="mNotReady">–</b><span>غير جاهز</span></div>
+        <div class="metric"><b id="mOnLeave">–</b><span>في إجازة</span></div>
+        <div class="metric alert"><b id="mPendingLeaves">–</b><span>إجازات معلّقة</span></div>
+      </div>
+      <div class="cards">
+        <div class="metric alert"><b id="mDocsExpired">–</b><span>🔴 مستندات منتهية</span></div>
+        <div class="metric" style="border-color:#f97316"><b id="mDocs30">–</b><span>🟠 تنتهي خلال 30 يوم</span></div>
+        <div class="metric" style="border-color:#eab308"><b id="mDocs60">–</b><span>🟡 تنتهي خلال 60 يوم</span></div>
       </div>
       <div class="pool" style="margin-bottom:16px">
         <div class="p"><b id="poolCompany">–</b><span>سائقو الشركة</span></div>
         <div class="p"><b id="poolFreelance">–</b><span>سائقون مستقلون</span></div>
-        <div class="p"><b id="poolShipping">–</b><span>ورديات نشطة</span></div>
-      </div>
-      <div class="cards" style="grid-template-columns:1fr 1fr;display:none">
-        <div class="card">
-          <h3>التوصيلات — 7 أيام</h3>
-          <div class="bars">
-            <div class="b"><i style="height:42%;background:var(--blue)"></i><small>سبت</small></div>
-            <div class="b"><i style="height:58%;background:var(--blue)"></i><small>أحد</small></div>
-            <div class="b"><i style="height:50%;background:var(--blue)"></i><small>اثنين</small></div>
-            <div class="b"><i style="height:72%;background:var(--blue)"></i><small>ثلاثاء</small></div>
-            <div class="b"><i style="height:66%;background:var(--blue)"></i><small>أربعاء</small></div>
-            <div class="b"><i style="height:81%;background:var(--blue)"></i><small>خميس</small></div>
-            <div class="b"><i style="height:88%;background:var(--amber)"></i><small>جمعة</small></div>
-          </div>
-        </div>
-        <div class="card">
-          <h3>استغلال الأسطول (Fleet Utilization)</h3>
-          <div class="chartRow"><span class="lbl">صافي وقت العمل</span><div class="bar"><i style="width:68%;background:var(--green)"></i></div><span class="val">68%</span></div>
-          <div class="chartRow"><span class="lbl">في مهمة توصيل</span><div class="bar"><i style="width:52%;background:var(--blue)"></i></div><span class="val">52%</span></div>
-          <div class="chartRow"><span class="lbl">انتظار عروض</span><div class="bar"><i style="width:23%;background:var(--amber)"></i></div><span class="val">23%</span></div>
-          <div class="chartRow"><span class="lbl">غير نشط</span><div class="bar"><i style="width:9%;background:var(--red)"></i></div><span class="val">9%</span></div>
-        </div>
-      </div>
-      <div class="card" style="display:none"><h3>إرسال حي — آخر الطلبات</h3>
-        <table><thead><tr><th>#</th><th>الحالة</th><th>التوصيل</th><th>المسافة</th><th>مندوب</th></tr></thead>
-        <tbody id="recentOrders"><tr><td colspan="5" style="color:var(--muted)">لا طلبات</td></tr></tbody></table>
+        <div class="p"><b id="mPayroll">–</b><span>إجمالي الرواتب (ر.س)</span></div>
       </div>
     </section>
 
-    <section id="view-dispatch" style="display:none">
-      <div class="header"><div><div class="kicker">إشراف وتحكم</div><h1>الإرسال والتحكم</h1></div>
-        <button class="btn ghost" onclick="sendTestOrder()">🧪 طلب اختباري</button></div>
-      <div class="cards">
-        <div class="metric alert"><b id="dUnassigned">–</b><span>طلبات بدون مندوب</span></div>
-        <div class="metric"><b id="dOverdue">–</b><span>متأخرة عن SLA</span></div>
-        <div class="metric"><b id="dBroadcast">–</b><span>قيد الإرسال (Broadcast)</span></div>
-        <div class="metric"><b id="dEscalated">–</b><span>تصعيد خارجي نشط</span></div>
-      </div>
-      <div class="card">
-        <h3>خط أنابيب الطلبات</h3>
-        <div id="dPipeline"></div>
-      </div>
-      <div class="card">
-        <h3>تحكم يدوي (Manual Override)</h3>
-        <table><thead><tr><th>الطلب</th><th>الحالة</th><th>المندوب الحالي</th><th>النوع</th><th>الإجراء</th></tr></thead>
-          <tbody id="overrideBody"></tbody></table>
-      </div>
-      <div class="card">
-        <h3>معالجة الاستثناءات</h3>
-        <div id="exceptionsBody"></div>
-      </div>
-    </section>
+    <!-- Phase 2 surfaces — completely hidden from Phase 1 Fleet product -->
+    <section id="view-dispatch" style="display:none" data-phase2="true"></section>
+    <section id="view-orders" style="display:none" data-phase2="true"></section>
+    <section id="view-channels" style="display:none" data-phase2="true"></section>
+    <section id="view-shipping" style="display:none" data-phase2="true"></section>
 
     <section id="view-couriers" style="display:none">
       <div class="header"><div><div class="kicker">إدارة المناديب</div><h1>المناديب</h1></div>
-        <div style="display:flex;gap:8px;align-items:center"><input id="courierSearch" class="fInput" style="min-width:220px" placeholder="بحث بالاسم أو الجوال" oninput="queueCourierSearch()"><button class="btn blue" data-company-only onclick="toggleAddCourier()">+ إضافة مندوب</button></div></div>
+        <div style="display:flex;gap:8px;align-items:center"><input id="courierSearch" class="fInput" style="min-width:220px" placeholder="بحث بالاسم أو الجوال" oninput="queueCourierSearch()"><button class="btn ghost" data-company-only onclick="go('imports')">استيراد جماعي</button><button class="btn blue" data-company-only onclick="toggleAddCourier()">+ إضافة مندوب</button></div></div>
       <div class="card" id="addCourierBox" style="display:none">
         <div class="form-row"><input id="cName" placeholder="الاسم"><input id="cPhone" placeholder="الجوال 05xxxxxxxx"></div>
         <div class="form-row"><select id="cType" style="font-family:inherit;border:1px solid var(--line);border-radius:10px;padding:10px">
@@ -252,15 +308,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <tbody id="couriersBody"></tbody></table><div id="courierPagination" style="display:flex;justify-content:space-between;align-items:center;padding:14px 4px 4px"></div></div>
     </section>
 
-    <section id="view-orders" style="display:none">
-      <div class="header"><div><div class="kicker">كل الطلبات</div><h1>الطلبات</h1></div></div>
-      <div class="filters">
-        <select id="orderStatusFilter" onchange="renderOrders()"><option value="">كل الحالات</option><option>PLACED</option><option>ASSIGNED</option><option>IN_TRANSIT</option><option>DELIVERED</option></select>
-        <select id="orderTypeFilter" onchange="renderOrders()"><option value="">كل الأنواع</option><option>Dedicated</option><option>On-demand</option></select>
-      </div>
-      <div class="card"><table><thead><tr><th>#</th><th>العميل</th><th>التاجر</th><th>الحالة</th><th>النوع</th><th>التوصيل</th><th>المسافة</th><th>مندوب</th></tr></thead>
-        <tbody id="ordersBody"></tbody></table></div>
-    </section>
+
 
     <section id="view-shifts" style="display:none">
       <div class="header"><div><div class="kicker">تخطيط القوى</div><h1>الورديات والحضور</h1></div>
@@ -277,7 +325,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     </section>
 
     <section id="view-attendance" style="display:none">
-      <div class="header"><div><div class="kicker">حضور حسب التاريخ</div><h1>تتبع الحضور</h1></div><div class="filters" style="margin:0"><label style="font-size:11px;color:var(--muted)">اختر اليوم</label><input id="attendanceDate" type="date" onchange="loadAttendance()"><button class="btn ghost small" onclick="setAttendanceToday()">اليوم</button></div></div>
+      <div class="header"><div><div class="kicker">حضور حسب التاريخ</div><h1>تتبع الحضور</h1></div><div class="filters" style="margin:0"><button class="btn ask-ai" onclick="openContextualAI('attendance')">✨ Ask DOU AI</button><label style="font-size:11px;color:var(--muted)">اختر اليوم</label><input id="attendanceDate" type="date" onchange="loadAttendance()"><button class="btn ghost small" onclick="setAttendanceToday()">اليوم</button></div></div>
       <div class="cards">
         <div class="metric"><b id="attIn">–</b><span>الحضور في التاريخ المختار</span></div>
         <div class="metric"><b id="attLate">–</b><span>المتأخرون في التاريخ المختار</span></div>
@@ -290,7 +338,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
 
     <section id="view-performance" style="display:none">
       <div class="header"><div><div class="kicker">جودة التشغيل</div><h1>أداء المناديب</h1></div>
-        <button class="btn ghost" onclick="loadPerformance()">↻ تحديث</button></div>
+        <div style="display:flex;gap:8px"><button class="btn ask-ai" onclick="openContextualAI('performance')">✨ Ask DOU AI</button><button class="btn ghost" onclick="loadPerformance()">↻ تحديث</button></div></div>
       <div class="filters"><input id="perfFrom" type="date" onchange="loadPerformance()"><input id="perfTo" type="date" onchange="loadPerformance()"><select id="perfProject" onchange="loadPerformance()"><option value="">كل المشاريع</option></select><select id="perfSupervisor" onchange="loadPerformance()"><option value="">كل المشرفين</option></select></div>
       <div class="cards" id="perfMetrics"></div>
       <div class="card"><h3>سكوركارد الأداء</h3>
@@ -312,38 +360,7 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <tbody id="payoutsBody"></tbody></table></div>
     </section>
 
-    <section id="view-channels" style="display:none">
-      <div class="header"><div><div class="kicker">قنوات وتكلفة</div><h1>القنوات والتكاليف</h1></div>
-        <button class="btn ghost" onclick="exportCurrentView()">⬇ CSV</button></div>
-      <div class="cards">
-        <div class="metric"><b>2.4 ر.س</b><span>متوسط تكلفة التوصيلة (داخلي)</span></div>
-        <div class="metric"><b>11.8 ر.س</b><span>متوسط تكلفة التوصيلة (خارجي)</span></div>
-        <div class="metric trend"><b>+18%</b><span>الهامش على الطلبات المحلية</span></div>
-      </div>
-      <div class="cards" style="grid-template-columns:1fr 1fr">
-        <div class="card">
-          <h3>الطلبات حسب القناة</h3>
-          <div class="chartRow"><span class="lbl">DOU App</span><div class="bar"><i style="width:70%;background:var(--blue)"></i></div><span class="val">70%</span></div>
-          <div class="chartRow"><span class="lbl">Jahez</span><div class="bar"><i style="width:18%;background:var(--green)"></i></div><span class="val">18%</span></div>
-          <div class="chartRow"><span class="lbl">HungerStation</span><div class="bar"><i style="width:8%;background:var(--amber)"></i></div><span class="val">8%</span></div>
-          <div class="chartRow"><span class="lbl">POS / يدوي</span><div class="bar"><i style="width:4%;background:var(--muted)"></i></div><span class="val">4%</span></div>
-        </div>
-        <div class="card">
-          <h3>استخدام المندوبين (Supply)</h3>
-          <div class="chartRow"><span class="lbl">أسطول داخلي</span><div class="bar"><i style="width:62%;background:var(--green)"></i></div><span class="val">62%</span></div>
-          <div class="chartRow"><span class="lbl">فريلانسر</span><div class="bar"><i style="width:27%;background:var(--blue)"></i></div><span class="val">27%</span></div>
-          <div class="chartRow"><span class="lbl">خارجي / تصعيد</span><div class="bar"><i style="width:11%;background:var(--amber)"></i></div><span class="val">11%</span></div>
-        </div>
-      </div>
-      <div class="card"><h3>تكلفة التوصيلة — داخلي مقابل خارجي</h3>
-        <table><thead><tr><th>القناة</th><th>توصيلات</th><th>داخلي</th><th>خارجي</th><th>الفرق</th></tr></thead>
-          <tbody>
-            <tr><td>DOU App</td><td>140</td><td>2.1 ر.س</td><td>11.2 ر.س</td><td><span class="tag green">أفضل داخلياً</span></td></tr>
-            <tr><td>Jahez</td><td>52</td><td>2.8 ر.س</td><td>12.4 ر.س</td><td><span class="tag green">أفضل داخلياً</span></td></tr>
-            <tr><td>HungerStation</td><td>21</td><td>—</td><td>12.1 ر.س</td><td><span class="tag amber">خارجي فقط</span></td></tr>
-          </tbody></table>
-      </div>
-    </section>
+
 
     <section id="view-compliance" style="display:none">
       <div class="header"><div><div class="kicker">التحكم بالمخاطر</div><h1>الامتثال والحالات</h1></div>
@@ -475,34 +492,60 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
     </section>
 
     <section id="view-reports" style="display:none">
-      <div class="header"><div><div class="kicker">التحليلات والتقارير</div><h1>مركز التحليلات</h1></div>
-        <button class="btn blue" id="analyticsExportBtn" onclick="downloadAnalyticsReport()">⬇ تصدير CSV</button></div>
-      <div class="card">
-        <div class="analyticsTabs" id="analyticsTabs">
-          <button data-report="executive" onclick="setAnalyticsReport('executive')">لوحة الإدارة</button>
-          <button data-report="operations" onclick="setAnalyticsReport('operations')">التشغيل</button>
-          <button data-report="financial" data-financial="1" onclick="setAnalyticsReport('financial')">المالية</button>
-          <button data-report="workforce" onclick="setAnalyticsReport('workforce')">القوى العاملة والأداء</button>
+      <div class="header"><div><div class="kicker">التحليلات والتقارير</div><h1>مركز التقارير والتحليلات</h1></div>
+        <div>
+          <button class="btn ask-ai" onclick="openContextualAI('reports')">✨ Ask DOU AI</button>
+          <button class="btn ghost" id="reportsExportCsvBtn" onclick="downloadReportCSV()">⬇ CSV</button>
+          <button class="btn ghost" id="reportsExportXlsxBtn" onclick="downloadReportXLSX()">⬇ XLSX</button>
+          <button class="btn blue" id="reportsRefreshBtn" onclick="loadReportsCenter()">↻ تحديث</button>
         </div>
-        <div class="form-row analyticsFilters">
-          <select id="analyticsCity" onchange="analyticsOptionsChanged()"><option value="">كل المدن</option></select>
-          <select id="analyticsContract" onchange="analyticsOptionsChanged()"><option value="">كل العقود</option></select>
-          <select id="analyticsProject" onchange="analyticsOptionsChanged()"><option value="">كل المشاريع</option></select>
-          <select id="analyticsBranch" onchange="analyticsOptionsChanged()"><option value="">كل الفروع</option></select>
-          <select id="analyticsSupervisor" onchange="analyticsOptionsChanged()"><option value="">كل المشرفين</option></select>
-          <select id="analyticsRider" onchange="analyticsApply()"><option value="">كل المندوبين</option></select>
-          <select id="analyticsEmployment" onchange="analyticsApply()"><option value="">كل حالات التوظيف</option><option value="ACTIVE">نشط</option><option value="SUSPENDED">موقوف</option><option value="TERMINATED">منتهي</option></select>
-          <select id="analyticsOnline" onchange="analyticsApply()"><option value="">كل حالات الاتصال</option><option value="true">متصل</option><option value="false">غير متصل</option></select>
-          <input class="wide" id="analyticsSearch" placeholder="بحث باسم أو جوال المندوب" onkeydown="if(event.key==='Enter')analyticsApply()">
-        </div>
-        <div class="reportPeriod" id="analyticsPeriod"><button data-period="today" onclick="setAnalyticsPeriod('today')">اليوم</button><button data-period="yesterday" onclick="setAnalyticsPeriod('yesterday')">أمس</button><button data-period="week" onclick="setAnalyticsPeriod('week')">آخر 7 أيام</button><button data-period="month" onclick="setAnalyticsPeriod('month')">هذا الشهر</button><button data-period="previous" onclick="setAnalyticsPeriod('previous')">الشهر السابق</button><button data-period="custom" onclick="setAnalyticsPeriod('custom')">فترة مخصصة</button></div>
-        <div class="form-row"><input id="analyticsFrom" type="date" onchange="analyticsCustomDates()"><input id="analyticsTo" type="date" onchange="analyticsCustomDates()"><button class="btn blue" onclick="analyticsApply()">تطبيق</button><button class="btn ghost" onclick="resetAnalyticsFilters()">إعادة ضبط</button></div>
-        <div id="analyticsActive" class="analyticsActive"></div><div id="analyticsState" class="analyticsState"></div>
       </div>
-      <div id="analyticsFinancialState" class="analyticsFinancial" style="display:none"></div>
-      <div class="cards" id="analyticsKpis"></div>
-      <div class="analyticsCharts" id="analyticsCharts"></div>
-      <div class="card" style="overflow:auto"><table><thead id="analyticsHead"></thead><tbody id="analyticsBody"></tbody></table><div class="analyticsPagination"><button class="btn ghost small" onclick="analyticsMovePage(-1)">السابق</button><span id="analyticsPageInfo">—</span><button class="btn ghost small" onclick="analyticsMovePage(1)">التالي</button></div></div>
+
+      <div class="card">
+        <div class="reportsCatalog" id="reportsCatalog">
+          <div class="reportsGroup">
+            <h3>👥 القوى العاملة</h3>
+            <div class="reportsList" data-group="workforce"></div>
+          </div>
+          <div class="reportsGroup">
+            <h3>🕐 الحضور وساعات العمل</h3>
+            <div class="reportsList" data-group="attendance"></div>
+          </div>
+          <div class="reportsGroup">
+            <h3>📄 المستندات والامتثال</h3>
+            <div class="reportsList" data-group="documents"></div>
+          </div>
+          <div class="reportsGroup">
+            <h3>🚗 المركبات</h3>
+            <div class="reportsList" data-group="vehicles"></div>
+          </div>
+
+          <div class="reportsGroup">
+            <h3>📊 الأداء</h3>
+            <div class="reportsList" data-group="performance"></div>
+          </div>
+          <div class="reportsGroup">
+            <h3>💰 المالية والرواتب</h3>
+            <div class="reportsList" data-group="financial"></div>
+          </div>
+          <div class="reportsGroup">
+            <h3>🔍 المراجعة والحوكمة</h3>
+            <div class="reportsList" data-group="audit"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="reportDetail" style="display:none">
+        <div class="card">
+          <div class="reportDetailHeader">
+            <h2 id="reportDetailTitle">—</h2>
+            <p id="reportDetailDesc">—</p>
+          </div>
+          <div class="form-row reportFilters" id="reportFilters"></div>
+          <div class="reportState" id="reportState"></div>
+          <div id="reportResult"></div>
+        </div>
+      </div>
     </section>
 
     <section id="view-supervision" style="display:none">
@@ -516,18 +559,9 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
       <div class="card"><h3>ترتيب السائقين والتنبيهات</h3><div id="svLeaderboard"></div><div id="svViolations"></div></div>
     </section>
 
-    <section id="view-companies" style="display:none">
-      <div class="header"><div><div class="kicker">فريق DOU فقط</div><h1>شركات التشغيل</h1></div>
-        <button class="btn blue" onclick="createOperatingCompany()">+ شركة</button></div>
-      <div class="card"><table><thead><tr><th>الشركة</th><th>الأساطيل</th><th>مناديب</th><th>الأداء</th><th>الحالة</th></tr></thead>
-        <tbody id="companiesBody"></tbody></table></div>
-      <div class="card"><h3>تخصيص الأساطيل</h3>
-        <div class="opt"><div><b>أسطول مقهى بن القهوة</b><small>4 مناديب · الرياض</small></div>
-          <select class="ruleNum" onchange="updateFleetCompany(this)"><option>شركة النقل الذكي</option><option>شركة الإمداد السريع</option></select></div>
-        <div class="opt"><div><b>أسطول مندوبي الشمال</b><small>8 مناديب · الرياض</small></div>
-          <select class="ruleNum" onchange="updateFleetCompany(this)"><option>شركة الإمداد السريع</option><option>شركة النقل الذكي</option></select></div>
-      </div>
-    </section>
+    <!-- Companies: DOU team only — hidden from normal Fleet users -->
+    <section id="view-companies" style="display:none" data-dou-only="true">
+      <div class="header"><div><div class="kicker">فريق DOU فقط</div><h1>شركات التشغيل</h1></div></div></section>
 
     <section id="view-rules" style="display:none">
       <div class="header"><div><div class="kicker">إعدادات التشغيل</div><h1>قواعد النظام</h1></div>
@@ -570,17 +604,118 @@ input,select{font-family:inherit;border:1px solid var(--line);border-radius:10px
         <span id="billingMsg" class="msg"></span>
       </div>
     </section>
-
-    <section id="view-shipping" style="display:none">
-      <div class="header"><div><div class="kicker">الشحن البعيد</div><h1>شركات الشحن</h1></div>
-        <button class="btn blue" onclick="toggleAddCompany()">+ إضافة شركة</button></div>
-      <div class="card" id="addCompanyBox" style="display:none">
-        <div class="form-row"><input id="coName" placeholder="الاسم"><input id="coCode" placeholder="SMSA/BOSTA/ARAMEX"><input id="coCountry" placeholder="SA/EG"></div>
-        <button class="btn" onclick="addCompany()">حفظ</button><span id="companyMsg" class="msg"></span>
+    <!-- Contextual workflow opened from Riders; not a primary sidebar destination. -->
+    <section id="view-imports" style="display:none">
+      <div class="header"><div><div class="kicker">السائقون</div><h1>الاستيراد الجماعي</h1></div><button class="btn ghost" onclick="go('couriers')">العودة للسائقين</button></div>
+      
+      <div class="import-tabs" style="display:flex;gap:8px;margin-bottom:16px;background:#fff;border:1px solid var(--line);padding:6px;border-radius:12px;width:fit-content">
+        <button class="import-tab active" data-import-tab="riders" onclick="switchImportTab('riders')">السائقون</button>
+        <button class="import-tab" data-import-tab="performance" onclick="switchImportTab('performance')">الأداء التشغيلي</button>
       </div>
-      <div class="card"><table><thead><tr><th>الاسم</th><th>الكود</th><th>البلد</th><th>الحالة</th></tr></thead>
-        <tbody id="companiesBody2"></tbody></table></div>
+
+      <!-- Riders Import -->
+      <div id="importTab-riders" class="import-tab-content">
+        <div class="card"><h3>استيراد السائقين</h3>
+          <p class="msg" style="margin-bottom:12px">قم برفع ملف CSV يحتوي على بيانات السائقين. يمكنك تحميل القالب أدناه لمعرفة الشكل المطلوب.</p>
+          <div class="form-row"><button class="btn ghost" onclick="downloadRiderImportTemplate()">تنزيل القالب</button><input id="riderImportFile" type="file" accept=".csv,text/csv,.xlsx,.xls"></div>
+          <div id="riderImportPreview" style="display:none;margin-top:16px">
+            <div class="import-summary" id="riderImportSummary"></div>
+            <div id="riderImportErrors" style="margin-top:12px"></div>
+            <div id="riderImportTable" style="margin-top:12px;overflow-x:auto;max-height:400px"></div>
+          </div>
+          <div class="form-row" style="margin-top:12px">
+            <button class="btn" onclick="previewRiderImport()">معاينة</button>
+            <button class="btn blue" id="riderImportConfirm" style="display:none" onclick="confirmRiderImport()">تأكيد الاستيراد</button>
+          </div>
+          <div id="riderImportResult"></div>
+        </div>
+      </div>
+
+      <!-- Performance Import -->
+      <div id="importTab-performance" class="import-tab-content" style="display:none">
+        <div class="card"><h3>استيراد الأداء التشغيلي</h3>
+          <p class="msg" style="margin-bottom:12px">قم برفع ملف CSV يحتوي على أداء السائقين (الطلبات المكتملة لكل سائق في كل يوم).</p>
+          <div class="form-row"><button class="btn ghost" onclick="downloadPerformanceImportTemplate()">تنزيل القالب</button><input id="performanceImportFile" type="file" accept=".csv,text/csv,.xlsx,.xls"></div>
+          <div id="performanceImportPreview" style="display:none;margin-top:16px">
+            <div class="import-summary" id="performanceImportSummary"></div>
+            <div id="performanceImportErrors" style="margin-top:12px"></div>
+            <div id="performanceImportTable" style="margin-top:12px;overflow-x:auto;max-height:400px"></div>
+          </div>
+          <div class="form-row" style="margin-top:12px">
+            <button class="btn" onclick="previewPerformanceImport()">معاينة</button>
+            <button class="btn blue" id="performanceImportConfirm" style="display:none" onclick="confirmPerformanceImport()">تأكيد الاستيراد</button>
+          </div>
+          <div id="performanceImportResult"></div>
+        </div>
+      </div>
+      <h3 style="margin-top:20px">سجل عمليات الاستيراد</h3>
+      <div class="filters" style="margin-bottom:14px">
+        <select id="historyTypeFilter" onchange="loadImportHistory()"><option value="">كل الأنواع</option><option value="RIDERS">سائقون</option><option value="PERFORMANCE">أداء</option></select>
+        <select id="historyStatusFilter" onchange="loadImportHistory()"><option value="">كل الحالات</option><option value="PREVIEW">معاينة</option><option value="COMMITTED">مؤكد</option></select>
+      </div>
+      <div class="card">
+        <table><thead><tr><th>النوع</th><th>الملف</th><th>الصفوف</th><th>صالح</th><th>غير صالح</th><th>الحالة</th><th>التاريخ</th><th>إجراءات</th></tr></thead>
+        <tbody id="importHistoryBody"></tbody>
+      </table>
+      <div id="importHistoryPagination" style="display:flex;justify-content:space-between;align-items:center;padding:14px 4px 4px"></div>
+      </div>
     </section>
+
+    <!-- W7: Operations Command Center -->
+    <section id="view-dashboard" style="display:none">
+      <div class="header"><div><div class="kicker">مركز القيادة التشغيلي</div><h1>مركز القيادة</h1></div>
+        <button class="btn ghost" onclick="loadDashboard()">↻ تحديث</button></div>
+
+      <!-- Hierarchy Filters -->
+      <div class="filters" style="margin-bottom:14px">
+        <select id="dashOperator" onchange="loadDashboard()"><option value="">كل المشاريع</option></select>
+        <select id="dashCity" onchange="loadDashboard()"><option value="">كل المدن</option></select>
+        <select id="dashBranch" onchange="loadDashboard()"><option value="">كل الفروع</option></select>
+        <select id="dashPeriod" onchange="loadDashboard()"><option value="today">اليوم</option><option value="week">آخر 7 أيام</option><option value="month">هذا الشهر</option></select>
+      </div>
+
+      <!-- Executive Summary KPIs -->
+      <div class="cards" id="dashSummaryKpis"></div>
+
+      <!-- Workforce Today -->
+      <div class="card" style="margin-bottom:14px">
+        <h3>القوى العاملة اليوم</h3>
+        <div class="cards" style="grid-template-columns:repeat(4,1fr)">
+          <div class="metric"><b id="dashTotalRiders">–</b><span>إجمالي السائقين</span></div>
+          <div class="metric"><b id="dashActiveRiders">–</b><span>نشطون</span></div>
+          <div class="metric"><b id="dashAttendedToday">–</b><span>حاضرون اليوم</span></div>
+          <div class="metric alert"><b id="dashAbsentToday">–</b><span>غائبون</span></div>
+        </div>
+      </div>
+
+      <!-- Operational Readiness & Orders -->
+      <div class="cards" style="grid-template-columns:1fr 1fr;margin-bottom:14px">
+        <div class="card"><h3>الجاهزية التشغيلية</h3>
+          <div class="cards" style="grid-template-columns:1fr 1fr">
+            <div class="metric alert"><b id="dashNotReady">–</b><span>غير جاهزين</span></div>
+            <div class="metric"><b id="dashVehicleAssigned">–</b><span>مركبة مسندة</span></div>
+          </div>
+        </div>
+        <div class="card"><h3>الطلبات والبيانات</h3>
+          <div class="cards" style="grid-template-columns:1fr 1fr">
+            <div class="metric"><b id="dashOrdersToday">–</b><span>طلبات اليوم</span></div>
+            <div class="metric alert"><b id="dashFailedImports">–</b><span>استيراد فاشل</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Needs Attention -->
+      <div class="card" style="margin-bottom:14px;border-left:4px solid var(--red)">
+        <h3>⚠️ يحتاج انتباه</h3>
+        <div id="dashNeedsAttention"></div>
+      </div>
+
+      <!-- Trend Chart -->
+      <div class="card"><h3>اتجاه الحضور (آخر 7 أيام)</h3>
+        <div id="dashTrendChart" style="height:200px"></div>
+      </div>
+    </section>
+
 
   </div>
 </main></div>
@@ -778,7 +913,10 @@ async function init(){
       const allowed=permissions.includes("*")||permissions.includes(el.dataset.permission);
       if(!allowed) el.style.display="none";
     });
-    go(META.role==="SUPERVISOR" ? "supervision" : "overview");
+    const requestedView=new URLSearchParams(location.search).get('view');
+    const safeViews=['overview','douai','notifications','couriers','rider360','imports','shifts','attendanceCorrections','needsAttention','capacity','reports','payouts'];
+    go(safeViews.includes(requestedView)?requestedView:"overview");
+    refreshNotificationCount();
   }catch(e){
     if(e.status===401){localStorage.removeItem("dou_token_fleet");localStorage.removeItem("dou_role_fleet");TOKEN=null;loginView();return}
     document.querySelector(".content").innerHTML=`<div class="card" style="max-width:620px;margin:50px auto;text-align:center"><h2>تعذر تحميل لوحة التحكم</h2><p style="color:var(--muted)">${escapeHtml(e.message||"خطأ مؤقت")}</p><button class="btn blue" onclick="location.reload()">إعادة المحاولة</button></div>`;
@@ -793,28 +931,284 @@ function escapeHtml(s){ return String(s||"").replace(/[&<>"]/g, c=>({"&":"&amp;"
 
 function go(v){
   document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
-  const views = ["overview","dispatch","couriers","supervision","orders","shifts","attendance","performance","payouts","channels","compliance","tickets","companies","rules","shipping","billing","hr","users","reports"];
+  const views = ["overview","douai","notifications","couriers","rider360","imports","shifts","attendanceCorrections","needsAttention","capacity","reports","payouts"];
   views.forEach(x=>{ const el=document.getElementById("view-"+x); if(el) el.style.display = x===v?"block":"none"; });
-  const names = {overview:"نظرة عامة",couriers:"السائقون",supervision:"إدارة فريقي",shifts:"الورديات",attendance:"سجل الحضور",performance:"أداء السائقين",payouts:"الرواتب",compliance:"المستندات والامتثال",tickets:"طلبات السائقين",billing:"الاشتراك",hr:"الموارد البشرية",users:"المستخدمون والصلاحيات",reports:"مركز التقارير"};
-  document.getElementById("crumb").textContent = names[v];
+  const names = {overview:"مركز القيادة",douai:"DOU AI",notifications:"مركز الإشعارات",couriers:"السائقون",rider360:"ملف السائق 360",imports:"استيراد السائقين",shifts:"الورديات والحضور",attendanceCorrections:"تصحيحات الحضور",needsAttention:"يحتاج انتباه",capacity:"تخطيط السعة",reports:"التقارير",payouts:"الرواتب والحوافز"};
+  document.getElementById("crumb").textContent = names[v]||v;
   if(v==="overview") loadOverview();
   if(v==="couriers") loadCouriers();
-  if(v==="supervision") loadSupervision();
-  if(v==="orders") loadOrders();
+  if(v==="rider360") loadRider360();
+  if(v==="imports") loadImportHistory();
   if(v==="shifts") loadShifts();
-  if(v==="companies") loadCompanies();
-  if(v==="performance") loadPerformance();
-  if(v==="payouts") loadPayouts();
-  if(v==="compliance") loadCompliance();
-  if(v==="tickets") loadTickets();
-  if(v==="attendance") loadAttendance();
-  if(v==="billing") loadBilling();
-  if(v==="dispatch"){ loadDispatch(); loadOverride(); }
-  if(v==="hr") loadHR();
-  if(v==="users") loadTeamUsers();
+  if(v==="attendanceCorrections") loadAttendanceCorrections();
+  if(v==="needsAttention") loadNeedsAttention();
+  if(v==="capacity") loadCapacity();
   if(v==="reports") initReports();
+  if(v==="payouts") loadPayouts();
+  if(v==="douai") checkAIStatus();
+  if(v==="notifications") loadNotifications();
+  const url=new URL(location.href);url.searchParams.set('view',v);history.replaceState(null,'',url);
 }
 document.querySelectorAll(".nav").forEach(n=>n.addEventListener("click",()=>go(n.dataset.view)));
+
+async function loadRider360(preferredId){
+  const select=document.getElementById("rider360Select");
+  const box=document.getElementById("rider360Content");
+  box.style.display="block";
+  box.textContent="جاري تحميل السائقين...";
+  try{
+    const result=await api("/fleet/couriers/page?page=1&page_size=100");
+    const selected=String(preferredId||select.value||"");
+    select.innerHTML='<option value="">اختر سائقاً</option>'+((result.rows||[]).map(r=>`<option value="${r.id}">${escapeHtml(r.name)} — ${escapeHtml(r.phone||"")}</option>`).join(""));
+    if(selected){
+      select.value=selected;
+      if(select.value){await loadRider360Profile();return}
+    }
+    document.getElementById("rider360Tabs").style.display="none";
+    box.textContent=(result.rows||[]).length?"اختر سائقاً لعرض ملفه التشغيلي.":"لا يوجد سائقون ضمن نطاقك الحالي.";
+  }catch(e){box.textContent="تعذر تحميل السائقين: "+e.message}
+}
+async function loadRider360Profile(){
+  const id=document.getElementById("rider360Select").value, box=document.getElementById("rider360Content");
+  if(!id){box.textContent="اختر سائقاً لعرض ملفه التشولي.";return}
+  box.textContent="جاري التحميل...";
+  try{
+    const r=await api(`/analytics/riders/${encodeURIComponent(id)}/profile`);
+    document.getElementById("rider360Tabs").style.display="block";
+    box.style.display="none";
+    showRider360Tab("profile");
+  }catch(e){box.textContent="تعذر تحميل ملف السائق: "+e.message}
+}
+function showRider360Tab(name){
+  document.querySelectorAll("[data-r360tab]").forEach(b=>b.classList.toggle("active",b.dataset.r360tab===name));
+  document.querySelectorAll("[id^='rider360Tab-']").forEach(p=>p.classList.toggle("active",p.id==="rider360Tab-"+name));
+  if(name==="profile") loadR360Profile();
+  if(name==="documents") loadR360Documents();
+  if(name==="shifts") loadR360Shifts();
+  if(name==="attendance") loadR360Attendance();
+  if(name==="performance") loadR360Performance();
+  if(name==="targets") loadR360Targets();
+  if(name==="payroll") loadR360Payroll();
+  if(name==="leave") loadR360Leave();
+}
+async function loadR360Profile(){
+  const id=document.getElementById("rider360Select").value;
+  const el=document.getElementById("r360Profile");
+  el.innerHTML='<div class="card">جاري التحميل...</div>';
+  try{
+    const today=new Date().toISOString().slice(0,10);
+    const [r,readiness,vehicle]=await Promise.all([
+      api(`/analytics/riders/${encodeURIComponent(id)}/profile`),
+      api(`/readiness/${encodeURIComponent(id)}`),
+      api(`/vehicles/riders/${encodeURIComponent(id)}/readiness?as_of=${today}`)
+    ]);
+    const blockers=(readiness.blockers||[]);
+    const dimensions=Object.entries(readiness.dimensions||{}).map(([k,v])=>`<div class="lineItem"><span>${escapeHtml(k)}</span><b>${escapeHtml(v||"—")}</b></div>`).join("");
+    const assignment=vehicle.details?.assignment;
+    const canManage=["COMPANY","COMPANY_ADMIN","OPERATIONS","HR"].includes(META.role);
+    el.innerHTML=`<div class="cards"><div class="metric"><b>${r.month_attendance_days||0}</b><span>أيام الحضور</span></div><div class="metric"><b>${r.month_orders||0}</b><span>الأداء المسجل</span></div><div class="metric"><b>${r.target_achievement==null?"—":`${r.target_achievement}%`}</b><span>تحقيق الهدف</span></div><div class="metric"><b>${r.documents_valid||0}/${r.documents_total||0}</b><span>المستندات</span></div></div>
+    <div class="card"><h3>بيانات السائق</h3><div class="lineItem"><span>الاسم</span><b>${escapeHtml(r.name)}</b></div><div class="lineItem"><span>الجوال</span><b dir="ltr">${escapeHtml(r.phone||"—")}</b></div><div class="lineItem"><span>الحالة</span><b>${escapeHtml(r.employment_status||"—")}</b></div><div class="lineItem"><span>مرحلة الانضمام</span><b>${escapeHtml(readiness.onboarding_status||"NEW")}</b></div><div class="lineItem"><span>الجاهزية</span><b>${escapeHtml(readiness.overall_status||"—")}</b></div><div class="lineItem"><span>المركبة الحالية</span><b>${assignment?`${escapeHtml(assignment.vehicle_type)} — ${escapeHtml(assignment.plate_number)}`:"غير مسندة (قد لا تكون مطلوبة)"}</b></div><div class="lineItem"><span>الهيكل</span><b>مدينة: ${r.city_id||"—"} · مشروع: ${r.project_id||"—"} · فرع: ${r.branch_id||"—"} · مشرف: ${r.supervisor_id||"—"}</b></div>${canManage?`<div style="margin-top:12px;display:flex;gap:8px"><button class="btn blue small" onclick="assignVehicleToRider()">إسناد / تغيير مركبة</button>${["NEW","INCOMPLETE"].includes(readiness.onboarding_status)?`<button class="btn ghost small" onclick="transitionRiderReadiness('SUBMIT_FOR_REVIEW')">إرسال للمراجعة</button>`:""}${readiness.onboarding_status==="READY_FOR_REVIEW"?`<button class="btn green small" onclick="transitionRiderReadiness('ACTIVATE')">تفعيل للعمل</button><button class="btn red small" onclick="transitionRiderReadiness('REJECT')">إعادة للاستكمال</button>`:""}</div>`:""}</div>
+    <div class="card"><h3>أبعاد الجاهزية</h3>${dimensions||'<p>لا توجد أبعاد.</p>'}${blockers.length?`<p class="msg" style="color:var(--red)">المعوقات: ${blockers.map(escapeHtml).join("، ")}</p>`:'<p class="msg" style="color:var(--green)">لا توجد معوقات تشغيلية.</p>'}</div>`;
+  }catch(e){el.innerHTML=`<div class="card">تعذر تحميل الملف والجاهزية: ${escapeHtml(e.message)}</div>`}
+}
+async function transitionRiderReadiness(action){
+  const id=document.getElementById("rider360Select").value;
+  try{await api(`/readiness/${encodeURIComponent(id)}/transition`,{method:"POST",body:JSON.stringify({action,note:null})});await loadR360Profile()}catch(e){alert("تعذر تحديث الجاهزية: "+e.message)}
+}
+async function assignVehicleToRider(){
+  const id=Number(document.getElementById("rider360Select").value);
+  try{
+    const vehicles=await api('/vehicles/');
+    if(!vehicles.length){alert("لا توجد مركبات نشطة متاحة في السجل.");return}
+    const value=prompt("اختر رقم المركبة:\n"+vehicles.map(v=>`${v.id} — ${v.plate_number} (${v.vehicle_type})`).join("\n"));
+    if(!value)return;
+    const vehicle=vehicles.find(v=>v.id===Number(value));
+    if(!vehicle){alert("رقم المركبة غير صحيح.");return}
+    await api(`/vehicles/assignments?vehicle_id=${vehicle.id}`,{method:"POST",body:JSON.stringify({courier_id:id,effective_from:new Date().toISOString().slice(0,10),effective_to:null,is_primary:true})});
+    alert("تم إسناد المركبة وحفظ التغيير.");
+    await loadR360Profile();
+  }catch(e){alert("تعذر إسناد المركبة: "+e.message)}
+}
+async function loadR360Documents(){
+  const id=document.getElementById("rider360Select").value;
+  const el=document.getElementById("r360Documents");
+  el.innerHTML='<div class="card">جاري التحميل...</div>';
+  try{
+    const docs=await api(`/documents/RIDER/${encodeURIComponent(id)}`);
+    if(!docs||!docs.length){el.innerHTML='<div class="card">لا توجد مستندات لهذا السائق.</div>';return}
+    const canManage=["COMPANY","COMPANY_ADMIN","OPERATIONS","HR"].includes(META.role);
+    el.innerHTML=`<div class="card"><table><thead><tr><th>المستند</th><th>الحالة</th><th>الانتهاء</th><th>إجراء</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${escapeHtml(d.filename||`نوع #${d.document_type_id}`)}</td><td><span class="tag ${d.status==="VALID"?"green":d.status==="PENDING"?"amber":"red"}">${escapeHtml(d.status)}</span></td><td>${escapeHtml(d.expiry_date||"—")}</td><td>${d.status==="PENDING"&&canManage?`<button class="btn green small" onclick="decideRiderDocument(${d.id},'approve')">اعتماد</button> <button class="btn red small" onclick="decideRiderDocument(${d.id},'reject')">رفض</button>`:"—"}</td></tr>`).join("")}</tbody></table></div>`;
+  }catch(e){el.innerHTML=`<div class="card">تعذر تحميل المستندات: ${escapeHtml(e.message)}</div>`}
+}
+async function decideRiderDocument(id,action){
+  if(!confirm(action==="approve"?"اعتماد المستند؟":"رفض المستند؟"))return;
+  const note=action==="reject"?(prompt("سبب الرفض / التصحيح المطلوب:")||""):null;
+  if(action==="reject"&&!note)return;
+  try{
+    await api(`/documents/${id}/review`,{method:"POST",body:JSON.stringify({decision:action==="approve"?"VALID":"REJECTED",review_note:note})});
+    await loadR360Documents();
+    await loadR360Profile();
+  }catch(e){alert("تعذر مراجعة المستند: "+e.message)}
+}
+async function loadR360Shifts(){
+  const id=document.getElementById("rider360Select").value;
+  const el=document.getElementById("r360Shifts");
+  el.innerHTML='<div class="card">جاري التحميل...</div>';
+  try{
+    const shifts=await api(`/shifts/riders/${encodeURIComponent(id)}/shifts`);
+    const canManage=["COMPANY","COMPANY_ADMIN","OPERATIONS","HR"].includes(META.role);
+    const actions=canManage?'<button class="btn blue small" onclick="assignShiftToRider()">إسناد وردية</button>':'';
+    if(!shifts||!shifts.length){el.innerHTML=`<div class="card"><p>لا ورديات مسندة لهذا السائق.</p>${actions}</div>`;return}
+    el.innerHTML=`<div class="card"><div style="margin-bottom:12px">${actions}</div><table><thead><tr><th>الوردية</th><th>الوقت</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>${shifts.map(s=>`<tr><td>${escapeHtml(s.name)}</td><td>${escapeHtml(s.start_time)}–${escapeHtml(s.end_time)}</td><td><span class="tag ${s.status==="ACTIVE"?"green":"gray"}">${escapeHtml(s.status)}</span></td><td>${canManage?`<button class="btn red small" onclick="removeShiftFromRider(${s.id})">إزالة</button>`:"—"}</td></tr>`).join("")}</tbody></table></div>`;
+  }catch(e){el.innerHTML=`<div class="card">تعذر تحميل الورديات: ${escapeHtml(e.message)}</div>`}
+}
+async function assignShiftToRider(){
+  const courierId=Number(document.getElementById("rider360Select").value);
+  try{
+    const shifts=await api('/fleet/shifts');
+    if(!shifts.length){alert("لا توجد ورديات متاحة. أنشئ وردية من شاشة الورديات والحضور أولاً.");return}
+    const value=prompt("اختر رقم الوردية:\n"+shifts.map(s=>`${s.id} — ${s.name} (${s.start_time}–${s.end_time})`).join("\n"));
+    if(!value)return;
+    if(!shifts.some(s=>s.id===Number(value))){alert("رقم الوردية غير صحيح.");return}
+    await api(`/shifts/${Number(value)}/assign`,{method:"POST",body:JSON.stringify({courier_id:courierId})});
+    await loadR360Shifts();await loadR360Profile();
+  }catch(e){alert("تعذر إسناد الوردية: "+e.message)}
+}
+async function removeShiftFromRider(shiftId){
+  const courierId=Number(document.getElementById("rider360Select").value);
+  if(!confirm("إزالة السائق من هذه الوردية؟"))return;
+  try{await api(`/shifts/${shiftId}/remove`,{method:"POST",body:JSON.stringify({courier_id:courierId})});await loadR360Shifts();await loadR360Profile()}catch(e){alert("تعذر إزالة الوردية: "+e.message)}
+}
+async function loadR360Attendance(){
+  const id=document.getElementById("rider360Select").value;
+  const el=document.getElementById("r360Attendance");
+  el.innerHTML='<div class="card">جاري التحميل...</div>';
+  try{
+    const rows=await api(`/fleet/attendance?courier_id=${encodeURIComponent(id)}`);
+    const queueButton='<button class="btn ghost small" onclick="go(\'attendanceCorrections\')">فتح سجل التصحيحات</button>';
+    if(!rows||!rows.length){el.innerHTML=`<div class="card"><p>لا سجلات حضور لهذا السائق اليوم.</p>${queueButton}</div>`;return}
+    el.innerHTML=`<div class="card"><div style="margin-bottom:12px">${queueButton}</div><table><thead><tr><th>التاريخ</th><th>الوردية</th><th>الدخول</th><th>الخروج</th><th>الحالة</th><th>تصحيح</th></tr></thead><tbody>${rows.map(r=>{const fmt=v=>v?new Date(v).toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"}):"—",day=r.check_in?String(r.check_in).slice(0,10):"—";return `<tr><td>${day}</td><td>${escapeHtml(r.shift||"—")}</td><td dir="ltr">${fmt(r.check_in)}</td><td dir="ltr">${fmt(r.check_out)}</td><td><span class="tag ${r.status==="PRESENT"?"green":r.status==="LATE"?"amber":"red"}">${escapeHtml(r.status)}</span></td><td><button class="btn ghost small" onclick="correctRiderAttendance(${r.id},'${escapeHtml(r.check_in||"")}','${escapeHtml(r.check_out||"")}')">تصحيح</button></td></tr>`}).join("")}</tbody></table></div>`;
+  }catch(e){el.innerHTML=`<div class="card">تعذر تحميل الحضور: ${escapeHtml(e.message)}</div>`}
+}
+async function correctRiderAttendance(id,currentIn,currentOut){
+  const reason=prompt("سبب التصحيح:");
+  if(!reason)return;
+  const correctedIn=prompt("وقت الدخول الجديد بصيغة ISO (اتركه فارغاً دون تغيير):",currentIn||"");
+  if(correctedIn===null)return;
+  const correctedOut=prompt("وقت الخروج الجديد بصيغة ISO (اتركه فارغاً دون تغيير):",currentOut||"");
+  if(correctedOut===null)return;
+  if(!correctedIn&&!correctedOut){alert("يجب إدخال وقت دخول أو خروج مصحح.");return}
+  try{
+    await api("/analytics/attendance/corrections",{method:"POST",body:JSON.stringify({attendance_id:id,corrected_check_in:correctedIn||null,corrected_check_out:correctedOut||null,reason})});
+    alert("تم إرسال طلب التصحيح للمراجعة.");
+    go('attendanceCorrections');
+  }catch(e){alert("تعذر إرسال التصحيح: "+e.message)}
+}
+async function loadR360Performance(){
+  const id=document.getElementById("rider360Select").value;
+  const data=await api(`/analytics/performance/scorecard/RIDER/${encodeURIComponent(id)}`);
+  const el=document.getElementById("r360Performance");
+  el.innerHTML=`<div class="card"><h3>الأداء</h3><p>الفترة: ${data.period} · KPIs: ${data.kpis?.length||0} · أهداف: ${data.targets?.length||0}</p></div>`;
+}
+async function loadR360Targets(){
+  const id=document.getElementById("rider360Select").value;
+  const el=document.getElementById("r360Targets");
+  el.innerHTML='<div class="card">جاري التحميل...</div>';
+  try{
+    const targets=await api(`/analytics/targets?scope_type=RIDER&scope_id=${encodeURIComponent(id)}`);
+    const canManage=["COMPANY","COMPANY_ADMIN","OPERATIONS","HR"].includes(META.role);
+    const action=canManage?'<button class="btn blue small" onclick="setRiderTarget()">تحديد / تعديل هدف</button>':'';
+    if(!targets||!targets.length){el.innerHTML=`<div class="card"><p>لا أهداف محددة لهذا السائق.</p>${action}</div>`;return}
+    el.innerHTML=`<div class="card"><div style="margin-bottom:12px">${action}</div><table><thead><tr><th>الهدف</th><th>الفترة</th><th>القيمة</th><th>الفعلي</th><th>الإنجاز</th></tr></thead><tbody>${targets.map(t=>`<tr><td>${escapeHtml(t.target_type)}</td><td>${escapeHtml(t.period)}</td><td>${t.target_value}</td><td>${t.actual_value??"—"}</td><td><span class="tag ${t.achievement_percentage>=100?"green":t.achievement_percentage>=80?"blue":"red"}">${t.achievement_percentage||0}%</span></td></tr>`).join("")}</tbody></table></div>`;
+  }catch(e){el.innerHTML=`<div class="card">تعذر تحميل الأهداف: ${escapeHtml(e.message)}</div>`}
+}
+async function setRiderTarget(){
+  const riderId=Number(document.getElementById("rider360Select").value);
+  try{
+    const targets=await api(`/analytics/targets?scope_type=RIDER&scope_id=${encodeURIComponent(riderId)}`);
+    const type=(prompt("نوع الهدف:",targets[0]?.target_type||"PERFORMANCE")||"").trim();
+    if(!type)return;
+    const period=(prompt("الفترة (YYYY-MM):",targets[0]?.period||new Date().toISOString().slice(0,7))||"").trim();
+    if(!period)return;
+    const existing=targets.find(t=>t.target_type===type&&t.period===period);
+    const value=Number(prompt("قيمة الهدف:",String(existing?.target_value||"")));
+    if(!Number.isFinite(value)||value<0){alert("قيمة الهدف غير صحيحة.");return}
+    if(existing){await api(`/analytics/targets/${existing.id}`,{method:"PATCH",body:JSON.stringify({target_value:value})})}
+    else{await api('/analytics/targets',{method:"POST",body:JSON.stringify({scope_type:"RIDER",scope_id:riderId,target_type:type,period,target_value:value})})}
+    await loadR360Targets();
+  }catch(e){alert("تعذر حفظ الهدف: "+e.message)}
+}
+async function loadR360Payroll(){
+  const id=document.getElementById("rider360Select").value;
+  const data=await api(`/analytics/payroll/courier/${encodeURIComponent(id)}`);
+  const el=document.getElementById("r360Payroll");
+  el.innerHTML=`<div class="card"><h3>الراتب</h3><div class="lineItem"><span>الأساسي</span><b>${data.base_salary||0} ر.س</b></div><div class="lineItem"><span>الحوافز</span><b>${data.incentives||0} ر.س</b></div><div class="lineItem"><span>الخصومات</span><b>${data.deductions||0} ر.س</b></div><div class="lineItem"><span>الصافي</span><b>${data.total||0} ر.س</b></div></div>`;
+}
+async function loadR360Leave(){
+  const id=document.getElementById("rider360Select").value;
+  const leaves=await api(`/hr/couriers/${encodeURIComponent(id)}/leaves`);
+  const el=document.getElementById("r360Leave");
+  if(!leaves||!leaves.length){el.innerHTML='<div class="card">لا طلبات إجازة</div>';return}
+  el.innerHTML=`<div class="card"><table><thead><tr><th>من</th><th>إلى</th><th>السبب</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>${leaves.map(l=>`<tr><td>${l.from_date}</td><td>${l.to_date}</td><td>${escapeHtml(l.reason||"—")}</td><td><span class="tag ${l.status==="APPROVED"?"green":l.status==="PENDING"?"amber":"red"}>${l.status}</span></td><td>${l.status==="PENDING"?`<button class="btn green small" onclick="decideRiderLeave(${l.id},'approve')">موافقة</button> <button class="btn red small" onclick="decideRiderLeave(${l.id},'reject')">رفض</button>`:"—"}</td></tr>`).join("")}</tbody></table></div>`;
+}
+async function decideRiderLeave(id,action){
+  if(!confirm(action==="approve"?"الموافقة على الإجازة؟":"رفض الإجازة؟"))return;
+  await api(`/hr/leaves/${id}/decide`,{method:"POST",body:JSON.stringify({action})});
+  loadR360Leave();
+}
+
+async function loadNeedsAttention(){
+  const list=document.getElementById("needsAttentionList");
+  try{
+    const result=await api("/analytics/needs-attention/deterministic"), routes={capacity_shortage:"capacity",absent_riders:"attendance",below_target:"performance",incomplete_onboarding:"rider360",expiring_documents:"compliance",pending_attendance_corrections:"attendanceCorrections"};
+    document.getElementById("needsAttentionTotal").textContent=result.total||0;
+    list.innerHTML=(result.items||[]).map(item=>`<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;border-right:4px solid ${item.severity==='high'?'var(--red)':item.severity==='medium'?'var(--amber)':'var(--blue)'}"><div><span class="tag ${item.severity==='high'?'red':item.severity==='medium'?'amber':'blue'}">${escapeHtml(item.severity)}</span><h3>${escapeHtml(item.title_ar)}</h3><small>${escapeHtml(item.signal)} · ${item.count||0}</small></div>${routes[item.signal]?`<button class="btn ghost" onclick="go('${routes[item.signal]}')">فتح الإجراء</button>`:""}</div>`).join("")||'<div class="card"><b>✅ لا توجد استثناءات تشغيلية مفتوحة.</b></div>';
+  }catch(e){list.innerHTML=`<div class="card">تعذر تحميل الإشارات: ${escapeHtml(e.message)}</div>`}
+}
+
+async function loadCapacity(){
+  const scopeType=document.getElementById("capacityScopeType").value, scopeId=document.getElementById("capacityScopeId").value;
+  const query=new URLSearchParams();if(scopeType)query.set("scope_type",scopeType);if(scopeId)query.set("scope_id",scopeId);
+  try{
+    const r=await api("/analytics/capacity/status"+(query.toString()?"?"+query.toString():""));
+    document.getElementById("capacityRequired").textContent=r.required||0;document.getElementById("capacityAvailable").textContent=r.available||0;document.getElementById("capacityAssigned").textContent=r.assigned||0;document.getElementById("capacityActive").textContent=r.active||0;document.getElementById("capacityShortage").textContent=r.shortage||0;document.getElementById("capacitySurplus").textContent=r.surplus||0;
+    const dateInput=document.getElementById("capacityEffectiveFrom");if(!dateInput.value)dateInput.value=new Date().toISOString().slice(0,10);
+  }catch(e){document.getElementById("capacityMsg").textContent="⚠️ "+e.message}
+}
+async function saveCapacityRequirement(){
+  const msg=document.getElementById("capacityMsg"), scopeType=document.getElementById("capacityScopeType").value, scopeId=Number(document.getElementById("capacityScopeId").value), required=Number(document.getElementById("capacityRequiredInput").value), effectiveFrom=document.getElementById("capacityEffectiveFrom").value;
+  if(!scopeType||!scopeId||!effectiveFrom||required<0||document.getElementById("capacityRequiredInput").value===""){msg.textContent="اختر النطاق وأدخل الرقم والعدد المطلوب وتاريخ السريان.";return}
+  try{await api("/analytics/capacity/requirements",{method:"POST",body:JSON.stringify({scope_type:scopeType,scope_id:scopeId,shift_id:null,required_riders:required,effective_from:effectiveFrom,effective_to:null})});msg.textContent="✅ تم حفظ الاحتياج";await loadCapacity()}catch(e){msg.textContent="⚠️ "+e.message}
+}
+
+async function loadDataHealth(){
+  const body=document.getElementById("dataHealthBody");
+  try{
+    const rows=await api("/analytics/data-health"), healthyStatuses=new Set(["SUCCESS","SUCCEEDED","HEALTHY","OK"]);
+    const healthy=rows.filter(r=>healthyStatuses.has(String(r.last_sync_status||"").toUpperCase())).length;
+    document.getElementById("dataHealthHealthy").textContent=healthy;document.getElementById("dataHealthIssues").textContent=rows.length-healthy;
+    body.innerHTML=rows.map(r=>{const ok=healthyStatuses.has(String(r.last_sync_status||"").toUpperCase()),fresh=r.freshness_seconds==null?"—":r.freshness_seconds<3600?`${Math.round(r.freshness_seconds/60)} دقيقة`:`${Math.round(r.freshness_seconds/3600)} ساعة`;return `<tr><td><b>${escapeHtml(r.source)}</b></td><td><span class="tag ${ok?'green':'red'}">${escapeHtml(r.last_sync_status||"UNKNOWN")}</span></td><td>${escapeHtml(r.last_successful_sync||"—")}</td><td>${escapeHtml(r.last_failed_sync||"—")}</td><td>${r.rows_processed??"—"}</td><td>${fresh}</td></tr>`}).join("")||'<tr><td colspan="6">لا توجد مصادر مسجلة بعد.</td></tr>';
+  }catch(e){body.innerHTML=`<tr><td colspan="6">تعذر التحميل: ${escapeHtml(e.message)}</td></tr>`}
+}
+
+function canManageAttendanceCorrections(){return META&&["COMPANY","COMPANY_ADMIN","OPERATIONS","HR"].includes(META.role)}
+async function loadAttendanceCorrections(){
+  const body=document.getElementById("attendanceCorrectionBody");
+  try{
+    const rows=await api("/analytics/attendance/corrections");
+    body.innerHTML=rows.map(r=>`<tr><td>#${r.id}<br><small>${escapeHtml(r.requested_at||"")}</small></td><td>#${r.attendance_id}</td><td>#${r.courier_id}</td><td>${escapeHtml(r.reason)}</td><td>${tag(r.status)}</td><td>${r.status==="PENDING"&&canManageAttendanceCorrections()?`<button class="btn green small" onclick="reviewAttendanceCorrection(${r.id},'APPROVED')">موافقة</button> <button class="btn red small" onclick="reviewAttendanceCorrection(${r.id},'REJECTED')">رفض</button>`:"—"}</td></tr>`).join("")||'<tr><td colspan="6">لا توجد طلبات تصحيح.</td></tr>';
+  }catch(e){body.innerHTML=`<tr><td colspan="6">تعذر التحميل: ${escapeHtml(e.message)}</td></tr>`}
+}
+async function submitAttendanceCorrection(){
+  const msg=document.getElementById("attendanceCorrectionMsg"), attendanceId=Number(document.getElementById("correctionAttendanceId").value), reason=document.getElementById("correctionReason").value.trim();
+  if(!attendanceId||!reason){msg.textContent="أدخل رقم سجل الحضور وسبب التصحيح.";return}
+  const checkIn=document.getElementById("correctionCheckIn").value, checkOut=document.getElementById("correctionCheckOut").value;
+  try{await api("/analytics/attendance/corrections",{method:"POST",body:JSON.stringify({attendance_id:attendanceId,corrected_check_in:checkIn||null,corrected_check_out:checkOut||null,reason})});msg.textContent="✅ تم إرسال الطلب للمراجعة";await loadAttendanceCorrections()}catch(e){msg.textContent="⚠️ "+e.message}
+}
+async function reviewAttendanceCorrection(id,decision){
+  if(!confirm(decision==="APPROVED"?"تطبيق التصحيح على سجل الحضور؟":"رفض طلب التصحيح؟"))return;
+  try{await api(`/analytics/attendance/corrections/${encodeURIComponent(id)}/review`,{method:"POST",body:JSON.stringify({decision,note:null})});await loadAttendanceCorrections()}catch(e){alert(e.message)}
+}
 
 const TEAM_ROLE_NAMES={COMPANY:"مالك الشركة",COMPANY_ADMIN:"مدير نظام",OPERATIONS:"مدير تشغيل",HR:"موارد بشرية",ACCOUNTANT:"محاسب",VIEWER:"مشاهدة فقط",PROJECT_MANAGER:"مدير مشروع"};
 async function loadTeamUsers(){
@@ -882,7 +1276,7 @@ async function loadCouriers(page=COURIER_PAGE){
       <td><b>${c.today_orders||0}</b></td><td><b>${c.month_orders||0}</b></td><td><small>من خطة الفرع / المشروع</small></td>
       <td>${c.documents_valid?'<span class="tag green">موثّق</span>':'<span class="tag red">منتهي</span>'}</td>
       <td style="display:flex;gap:6px">
-        <button class="btn blue small" onclick="openCourier(${c.id})">👤 ملف</button>
+        <button class="btn blue small" onclick="openCourier360(${c.id})">◎ ملف 360</button>
         ${isAccountAdmin()?`<button class="btn ${c.employment_status==="ACTIVE"?"red":"green"} small" onclick="setCourierStatus(${c.id},'${c.employment_status==="ACTIVE"?"SUSPENDED":"ACTIVE"}')">${c.employment_status==="ACTIVE"?"غير نشط":"تفعيل"}</button> <button class="btn red small" onclick="deleteCourierRecord(${c.id})">حذف</button>`:""}
       </td></tr>`).join("") || '<tr><td colspan="9" style="color:var(--muted)">لا مناديب</td></tr>';
     const pages=Math.max(1,Math.ceil((result.total||0)/COURIER_PAGE_SIZE));
@@ -926,21 +1320,20 @@ function loadAll(){
 function renderOverview(ov){
   if(!ov) return;
   document.getElementById("mCouriers").textContent = ov.couriers_total;
-  document.getElementById("mOnline").textContent = ov.shifts_running;
-  document.getElementById("mOrders").textContent = ov.active_employees;
-  document.getElementById("mActive").textContent = ov.on_leave;
-  document.getElementById("mUnassigned").textContent = ov.documents_attention;
-  document.getElementById("mDocsExpired").textContent=ov.documents_expired;document.getElementById("mDocs30").textContent=ov.documents_30;document.getElementById("mDocs60").textContent=ov.documents_60;
-  document.getElementById("mPresent").textContent=ov.present_today;document.getElementById("mAbsent").textContent=ov.absent_today;document.getElementById("mTodayOrders").textContent=ov.orders_today;document.getElementById("mMonthOrders").textContent=ov.orders_month;document.getElementById("mPendingLeaves").textContent=ov.pending_leaves;
-  document.getElementById("mPayroll").textContent = "ر.س "+(ov.payroll_total||0).toLocaleString();
-  document.getElementById("mRevenue").textContent = "ر.س "+(ov.client_revenue||0).toLocaleString();
-  document.getElementById("mMargin").textContent = "ر.س "+(ov.operational_margin||0).toLocaleString();
-  document.getElementById("mUtil").textContent = ov.avg_acceptance+"%";
-  document.getElementById("mOntime").textContent = ov.on_time_rate+"%";
+  document.getElementById("mOnline").textContent = ov.couriers_online;
+  document.getElementById("mActive").textContent = ov.active_employees;
+  document.getElementById("mAbsent").textContent = ov.absent_today;
+  document.getElementById("mPresent").textContent = ov.present_today;
+  document.getElementById("mReady").textContent = ov.couriers_total - (ov.not_ready || 0);
+  document.getElementById("mNotReady").textContent = ov.not_ready || 0;
+  document.getElementById("mOnLeave").textContent = ov.on_leave;
+  document.getElementById("mPendingLeaves").textContent = ov.pending_leaves;
+  document.getElementById("mDocsExpired").textContent=ov.documents_expired;
+  document.getElementById("mDocs30").textContent=ov.documents_30;
+  document.getElementById("mDocs60").textContent=ov.documents_60;
   document.getElementById("poolCompany").textContent = ov.company_couriers;
   document.getElementById("poolFreelance").textContent = ov.freelance_couriers;
-  document.getElementById("poolShipping").textContent = ov.shifts_active;
-  document.getElementById("recentOrders").innerHTML = "";
+  document.getElementById("mPayroll").textContent = "ر.س "+(ov.payroll_total||0).toLocaleString();
 }
 
 function renderOrders(){
@@ -987,7 +1380,7 @@ async function addCourier(){
       ,iqama_number:document.getElementById("cIqamaNumber").value||null,emergency_name:document.getElementById("cEmergencyName").value||null,emergency_phone:document.getElementById("cEmergencyPhone").value||null
     })});
     msg.style.color="var(--green)";
-    msg.innerHTML = "✅ أُضيف المندوب — <b>دخول التطبيق:</b> "+r.login_phone+" / "+r.password+" <small>(أرسله للمندوب)</small>";
+    msg.innerHTML = "✅ أُضيف المندوب — <b>رقم الدخول:</b> "+r.login_phone+" <small>(تم تعيين كلمة المرور التي أدخلتها)</small>";
     loadAll();
   }catch(e){ msg.style.color="var(--red)"; msg.textContent="❌ "+e.message; }
 }
@@ -1015,60 +1408,11 @@ function courierProfileBranchChanged(){
   setCourierProfileSupervisors(branch.supervisor_id||null);
   document.getElementById("cmProject").value=branch.project_id||"";
 }
-async function openCourier(id){
-  CM_ID = id;
-  const [c,projects,contracts,supervisors] = await Promise.all([api("/fleet/couriers/"+id),api("/hr/projects"),api("/hr/contract-structure"),api("/hr/supervisors")]);
-  CM_CONTRACTS=contracts; CM_SUPERVISORS=supervisors;
-  CM_PROJECT_ID=c.primary_project_id||null;
-  document.getElementById("cmTitle").textContent = "👤 "+c.name+" — ملف الموظف";
-  document.getElementById("cmCards").innerHTML = `
-    <div class="metric"><b>${c.today_orders||0}</b><span>طلبات اليوم المسجلة</span></div>
-    <div class="metric"><b>${c.month_orders||0}</b><span>طلبات الشهر</span></div>
-    <div class="metric"><b>${c.estimated_monthly.toLocaleString()}</b><span>الراتب الشهري</span></div>`;
-  document.getElementById("cmInfo").innerHTML = `
-    <div class="lineItem"><span>الحالة</span><b>${c.employment_status==="ACTIVE"?"موظف نشط":c.employment_status==="SUSPENDED"?"موقوف":"منتهي"}</b></div>
-    <div class="lineItem"><span>نوع العقد</span><b>${c.courier_type==="COMPANY"?"شركة (ثابت)":"فريلانسر (لكل توصيلة)"}</b></div>
-    <div class="lineItem"><span>الراتب الثابت</span><b>${(c.base_salary||0).toLocaleString()} ر.س</b></div>
-    <div class="lineItem"><span>أجر التوصيلة</span><b>${c.per_delivery_rate} ر.س</b></div>
-    <div class="lineItem"><span>البونص الشهري</span><b>${(c.bonus_target||0).toLocaleString()} ر.س</b></div>
-    <div class="lineItem"><span>البونص المستحق</span><b style="color:var(--green)">${(c.bonus_earned||0).toLocaleString()} ر.س</b></div>
-    <div class="lineItem"><span>معدل القبول</span><b>${c.acceptance_rate}%</b></div>
-    <div class="lineItem"><span>نقاط الأداء</span><b>${c.score}</b></div>
-    <div class="lineItem"><span>المستندات</span><b>${c.documents_valid?'<span class="tag green">سارية</span>':'<span class="tag red">منتهية</span>'}</b></div>
-    <div class="lineItem"><span>تاريخ التعيين</span><b>${c.hired_at?c.hired_at.slice(0,10):"—"}</b></div>
-    <div class="lineItem"><span>IBAN</span><b dir="ltr">${c.bank_iban||"—"}</b></div>
-    <div class="lineItem"><span>الهاتف</span><b dir="ltr">${c.phone}</b></div>
-    <div class="lineItem"><span>الجنسية</span><b>${c.nationality||"—"}</b></div>`;
-  document.getElementById("cmName").value=c.name||"";
-  document.getElementById("cmPhone").value=c.phone||"";
-  document.getElementById("cmNationality").value=c.nationality||"";
-  document.getElementById("cmContract").innerHTML='<option value="">اختر العقد</option>'+CM_CONTRACTS.map(x=>`<option value="${x.id}">${escapeHtml(x.name)}</option>`).join("");
-  document.getElementById("cmContract").value=c.contract_id||"";
-  courierProfileContractChanged();
-  document.getElementById("cmBranch").value=c.contract_branch_id||"";
-  courierProfileBranchChanged();
-  document.getElementById("cmWorkCity").value=c.work_city||document.getElementById("cmWorkCity").value||"";
-  setCourierProfileSupervisors(c.supervisor_id||null);
-  document.getElementById("cmSalary").value = c.base_salary||0;
-  document.getElementById("cmRate").value = c.per_delivery_rate||0;
-  document.getElementById("cmBonus").value = c.bonus_target||0;
-  document.getElementById("cmStatus").value = c.employment_status||"ACTIVE";
-  document.getElementById("cmIban").value = c.bank_iban||"";
-  document.getElementById("cmIqama").value = c.iqama_expiry||"";
-  document.getElementById("cmLicense").value = c.license_expiry||"";
-  document.getElementById("cmVehicleLicense").value = c.vehicle_license_expiry||"";
-  document.getElementById("cmVehicleType").value = ["سيارة","دباب"].includes(c.vehicle_type)?c.vehicle_type:"";
-  document.getElementById("cmVehiclePlate").value = c.vehicle_plate||"";
-  document.getElementById("cmZone").value = c.zone||"";
-  document.getElementById("cmProject").innerHTML='<option value="">بدون مشروع (اختياري)</option>'+projects.filter(p=>p.is_active).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-  document.getElementById("cmProject").value=c.primary_project_id||"";
-  document.getElementById("cmProject").disabled=true;
-  const companyEdit=META.role!=="SUPERVISOR";
-  ["cmName","cmPhone","cmNationality","cmContract","cmBranch","cmSupervisor","cmStatus","cmSalary","cmRate","cmBonus","cmIban"].forEach(x=>document.getElementById(x).disabled=!companyEdit);
-  document.getElementById("cmPlatformId").value = c.platform_courier_id||"";
-  document.getElementById("cmIqamaNumber").value=c.iqama_number||"";document.getElementById("cmEmergencyName").value=c.emergency_name||"";document.getElementById("cmEmergencyPhone").value=c.emergency_phone||"";document.getElementById("cmPassportNumber").value=c.passport_number||"";document.getElementById("cmPassportExpiry").value=c.passport_expiry||"";document.getElementById("cmInsuranceExpiry").value=c.insurance_expiry||"";document.getElementById("cmInspectionExpiry").value=c.inspection_expiry||"";document.getElementById("cmWorkPermitExpiry").value=c.work_permit_expiry||"";
-  document.getElementById("cmMsg").textContent = "";
-  document.getElementById("courierModal").classList.add("open");
+async function openCourier360(id){
+  go("rider360");
+  const select=document.getElementById("rider360Select");
+  select.value=id;
+  loadRider360Profile();
 }
 function closeCourier(){ document.getElementById("courierModal").classList.remove("open"); }
 async function saveCourierProfile(){
@@ -1534,7 +1878,7 @@ async function loadHR(){
   }catch(e){}
   loadLB(); loadPayroll(); loadOperatingCities(); loadContracts(); loadViolations(); loadOperationalExtensions();
 }
-let RIDER_IMPORT_BATCH=null, PERFORMANCE_IMPORT_BATCH=null;
+// Import batch state is declared once in the W6 workflow below.
 function downloadCsv(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),200);}
 function downloadRiderImportTemplate(){downloadCsv('rider-import-template.csv','\ufeffname,mobile,initial_password,national_id_or_iqama,nationality,city,branch,contract_or_project,supervisor,base_salary,employment_status,rider_rate_per_order,vehicle_type,vehicle_plate\\r\\nExample Rider,966500000001,TempPass123,2450000000,Egyptian,Riyadh,Riyadh,HungerStation Riyadh,Example Supervisor,2000,ACTIVE,0,Motorcycle,QA-1234\\r\\n');}
 function downloadPerformanceImportTemplate(){downloadCsv('performance-import-template.csv','rider_phone,date,project,completed_orders,notes\\n966500000001,2026-08-01,Current Project Name,0,Platform report row\\n');}
@@ -1750,8 +2094,848 @@ async function hrExport(){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="hr_report.csv";a.click();
 }
 
-init();
-setInterval(()=>{ fetch("/health").catch(()=>{}); }, 10*60*1000);
+// ===== W5: Hierarchy Context Management =====
+let CONTEXT_STATE = {
+  operator: null,  // {id, name}
+  city: null,      // {id, name}
+  branch: null     // {id, name}
+};
+let CONTEXT_OPERATORS = [];
+let CONTEXT_CITIES = [];
+let CONTEXT_BRANCHES = [];
+
+async function initHierarchyContext() {
+  try {
+    // Load operators/platforms
+    const platforms = await api('/sources/platforms');
+    CONTEXT_OPERATORS = platforms || [];
+    const opSelect = document.getElementById('contextOperator');
+    if (opSelect && CONTEXT_OPERATORS.length > 1) {
+      opSelect.innerHTML = '<option value="">' + douT('كل المشغلات') + '</option>' + 
+        CONTEXT_OPERATORS.map(o => `<option value="${o.id}">${escapeHtml(o.name_ar || o.name_en || o.code)}</option>`).join('');
+      document.getElementById('contextSelector').style.display = 'block';
+    } else if (opSelect) {
+      document.getElementById('contextSelector').style.display = 'none';
+    }
+  } catch (e) {
+    // Context not available — hide selector gracefully
+    const sel = document.getElementById('contextSelector');
+    if (sel) sel.style.display = 'none';
+  }
+}
+
+function changeOperatorContext() {
+  const sel = document.getElementById('contextOperator');
+  const id = sel.value;
+  CONTEXT_STATE.operator = id ? CONTEXT_OPERATORS.find(o => o.id === Number(id)) : null;
+  // Reset downstream context
+  CONTEXT_STATE.city = null;
+  CONTEXT_STATE.branch = null;
+  document.getElementById('contextCity').innerHTML = '<option value="">' + douT('كل المدن') + '</option>';
+  document.getElementById('contextBranch').innerHTML = '<option value="">' + douT('كل الفروع') + '</option>';
+  updateContextUI();
+  // Reload current view with new context
+  const activeView = document.querySelector('.nav.active')?.dataset.view;
+  if (activeView && typeof window['load' + activeView.charAt(0).toUpperCase() + activeView.slice(1)] === 'function') {
+    window['load' + activeView.charAt(0).toUpperCase() + activeView.slice(1)]();
+  }
+}
+
+function changeCityContext() {
+  const sel = document.getElementById('contextCity');
+  const id = sel.value;
+  CONTEXT_STATE.city = id ? CONTEXT_CITIES.find(c => c.id === Number(id)) : null;
+  CONTEXT_STATE.branch = null;
+  document.getElementById('contextBranch').innerHTML = '<option value="">' + douT('كل الفروع') + '</option>';
+  updateContextUI();
+}
+
+function changeBranchContext() {
+  const sel = document.getElementById('contextBranch');
+  const id = sel.value;
+  CONTEXT_STATE.branch = id ? CONTEXT_BRANCHES.find(b => b.id === Number(id)) : null;
+  updateContextUI();
+}
+
+function updateContextUI() {
+  const breadcrumb = document.getElementById('contextBreadcrumb');
+  const badge = document.getElementById('contextBadge');
+  const parts = [];
+  if (CONTEXT_STATE.operator) parts.push(CONTEXT_STATE.operator.name_ar || CONTEXT_STATE.operator.name_en || CONTEXT_STATE.operator.code);
+  if (CONTEXT_STATE.city) parts.push(CONTEXT_STATE.city.name_ar || CONTEXT_STATE.city.name_en);
+  if (CONTEXT_STATE.branch) parts.push(CONTEXT_STATE.branch.name_ar || CONTEXT_STATE.branch.name_en);
+  
+  if (parts.length > 0) {
+    breadcrumb.textContent = parts.join(' › ') + ' / ';
+    breadcrumb.style.display = 'inline';
+    badge.textContent = parts.join(' › ');
+    badge.style.display = 'inline';
+  } else {
+    breadcrumb.style.display = 'none';
+    badge.style.display = 'none';
+  }
+}
+
+// ===== W5: Global Search =====
+function performGlobalSearch() {
+  const query = document.getElementById('globalSearch').value.trim();
+  if (!query) return;
+  // Navigate to couriers view with search
+  go('couriers');
+  const searchInput = document.getElementById('courierSearch');
+  if (searchInput) {
+    searchInput.value = query;
+    searchInput.dispatchEvent(new Event('input'));
+  }
+}
+
+// ===== W5: Loading/Empty/Error States =====
+function showLoading(elementId) {
+  const el = document.getElementById(elementId);
+  if (el) el.innerHTML = '<p class="msg" style="padding:20px;text-align:center">⏳ ' + douT('جارِ التحميل...') + '</p>';
+}
+
+function showEmpty(elementId, message) {
+  const el = document.getElementById(elementId);
+  if (el) el.innerHTML = '<div class="hrEmptyGuide">' + (message || douT('لا توجد بيانات')) + '</div>';
+}
+
+function showError(elementId, message) {
+  const el = document.getElementById(elementId);
+  if (el) el.innerHTML = '<p class="msg" style="color:var(--red);padding:20px;text-align:center">❌ ' + douT('تعذّر تحميل البيانات') + '</p>';
+}
+
+// ===== W5: Confirmation Dialog =====
+function confirmAction(message, onConfirm) {
+  if (window.confirm(message)) {
+    onConfirm();
+  }
+}
+
+// Override destructive actions with confirmation
+const _deleteSup = deleteSup;
+deleteSup = function(id) {
+  confirmAction(douT('حذف المشرف نهائيًا؟ يجب نقل مناديبه أولًا.'), () => _deleteSup(id));
+}
+
+const _delBonus = delBonus;
+delBonus = function(id) {
+  confirmAction(douT('حذف خطة البونص نهائياً؟'), () => _delBonus(id));
+}
+
+// ===== W5: Keyboard shortcut for search =====
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+    e.preventDefault();
+    const search = document.getElementById('globalSearch');
+    if (search) search.focus();
+  }
+});
+
+// ===== W5: RBAC-based navigation visibility =====
+function applyRBACNavigation() {
+  const role = META.role;
+  const permissions = {
+    COMPANY: ['overview','douai','couriers','shifts','needsAttention','capacity','reports','payouts'],
+    COMPANY_ADMIN: ['overview','douai','couriers','shifts','needsAttention','capacity','reports','payouts'],
+    OPERATIONS: ['overview','douai','couriers','shifts','needsAttention','capacity','reports','payouts'],
+    HR: ['overview','douai','couriers','shifts','needsAttention','capacity','reports','payouts'],
+    ACCOUNTANT: ['overview','douai','reports','payouts'],
+    VIEWER: ['overview'],
+    PROJECT_MANAGER: ['overview','douai','couriers','shifts','needsAttention','capacity','reports'],
+    SUPERVISOR: ['overview','douai','couriers','shifts','needsAttention','capacity','reports'],
+    DOU_ADMIN: ['overview','douai','couriers','shifts','needsAttention','capacity','reports','payouts'],
+    DOU_OPS: ['overview','douai','couriers','shifts','needsAttention','capacity','reports','payouts']
+  };
+  
+  const allowed = permissions[role] || [];
+  document.querySelectorAll('.nav[data-view], .nav[data-permission]').forEach(btn => {
+    const view = btn.dataset.view;
+    const perm = btn.dataset.permission;
+    const required = view || perm;
+    if (required && !allowed.includes(required)) {
+      btn.style.display = 'none';
+    }
+  });
+  
+  // Hide empty groups
+  document.querySelectorAll('.group').forEach(group => {
+    let hasVisible = false;
+    let sibling = group.nextElementSibling;
+    while (sibling && !sibling.classList.contains('group') && !sibling.classList.contains('user')) {
+      if (sibling.style.display !== 'none') hasVisible = true;
+      sibling = sibling.nextElementSibling;
+    }
+    if (!hasVisible) group.style.display = 'none';
+  });
+}
+
+// Initialize RBAC on load
+const _init2 = init;
+init = async function() {
+  await _init2();
+  if (!META) return;
+  await initHierarchyContext();
+  applyRBACNavigation();
+};
+
+// ===== W6: Bulk Import Workflows =====
+let RIDER_IMPORT_BATCH = null;
+let PERFORMANCE_IMPORT_BATCH = null;
+
+function switchImportTab(tab) {
+  document.querySelectorAll('.import-tab').forEach(b => b.classList.toggle('active', b.dataset.importTab === tab));
+  document.querySelectorAll('.import-tab-content').forEach(c => c.style.display = 'none');
+  document.getElementById('importTab-' + tab).style.display = 'block';
+}
+
+async function downloadRiderImportTemplate() {
+  const r = await fetch('/fleet/imports/riders/template', { headers: { Authorization: 'Bearer ' + TOKEN } });
+  if (!r.ok) return alert('تعذر تحميل القالب');
+  const blob = await r.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rider-import-template.csv';
+  a.click();
+}
+
+async function downloadPerformanceImportTemplate() {
+  const r = await fetch('/fleet/imports/performance/template', { headers: { Authorization: 'Bearer ' + TOKEN } });
+  if (!r.ok) return alert('تعذر تحميل القالب');
+  const blob = await r.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'performance-import-template.csv';
+  a.click();
+}
+
+async function readImportFile(id) {
+  const f = document.getElementById(id).files?.[0];
+  if (!f) throw new Error('اختر ملف أولاً');
+  return { name: f.name, text: await f.text() };
+}
+
+function renderImportSummary(elId, result) {
+  const el = document.getElementById(elId);
+  el.innerHTML = `
+    <div class="cards" style="grid-template-columns:repeat(4,1fr)">
+      <div class="metric"><b>${result.total_rows}</b><span>إجمالي الصفوف</span></div>
+      <div class="metric trend"><b>${result.valid_rows}</b><span>صالح</span></div>
+      <div class="metric alert"><b>${result.invalid_rows}</b><span>غير صالح</span></div>
+      <div class="metric"><b>${result.warning_rows}</b><span>تحذيرات</span></div>
+    </div>`;
+}
+
+function renderImportErrors(elId, errors) {
+  const el = document.getElementById(elId);
+  if (!errors || errors.length === 0) { el.innerHTML = ''; return; }
+  const rows = errors.slice(0, 20).map(e => `<tr><td>${e.row}</td><td>${escapeHtml(e.field || '')}</td><td>${escapeHtml(e.reason)}</td></tr>`).join('');
+  el.innerHTML = `<div class="card" style="border-color:var(--red)"><h3>أخطاء المعاينة (${errors.length})</h3>
+    <table><thead><tr><th>الصف</th><th>الحقل</th><th>السبب</th></tr></thead><tbody>${rows}</tbody></table>
+    ${errors.length > 20 ? `<p class="msg">و${errors.length - 20} أخطاء أخرى...</p>` : ''}</div>`;
+}
+
+async function previewRiderImport() {
+  const result = document.getElementById('riderImportResult');
+  try {
+    const f = await readImportFile('riderImportFile');
+    const r = await api('/fleet/imports/riders/preview', { method: 'POST', body: JSON.stringify({ csv_text: f.text, file_name: f.name }) });
+    RIDER_IMPORT_BATCH = r.id;
+    document.getElementById('riderImportPreview').style.display = 'block';
+    renderImportSummary('riderImportSummary', r);
+    renderImportErrors('riderImportErrors', r.errors);
+    document.getElementById('riderImportConfirm').style.display = r.valid_rows > 0 && r.invalid_rows === 0 ? '' : 'none';
+    result.innerHTML = '';
+  } catch (e) {
+    result.innerHTML = `<p class="msg" style="color:var(--red)">❌ ${escapeHtml(e.message)}</p>`;
+  }
+}
+
+async function confirmRiderImport() {
+  if (!RIDER_IMPORT_BATCH) return;
+  const result = document.getElementById('riderImportResult');
+  try {
+    const r = await api('/fleet/imports/riders/' + RIDER_IMPORT_BATCH + '/confirm', { method: 'POST' });
+    result.innerHTML = `<p class="msg" style="color:var(--green)">✅ تم استيراد ${r.result?.imported || 0} سائق بنجاح</p>`;
+    document.getElementById('riderImportConfirm').style.display = 'none';
+  } catch (e) {
+    result.innerHTML = `<p class="msg" style="color:var(--red)">❌ ${escapeHtml(e.message)}</p>`;
+  }
+}
+
+async function previewPerformanceImport() {
+  const result = document.getElementById('performanceImportResult');
+  try {
+    const f = await readImportFile('performanceImportFile');
+    const r = await api('/fleet/imports/performance/preview', { method: 'POST', body: JSON.stringify({ csv_text: f.text, file_name: f.name }) });
+    PERFORMANCE_IMPORT_BATCH = r.id;
+    document.getElementById('performanceImportPreview').style.display = 'block';
+    renderImportSummary('performanceImportSummary', r);
+    renderImportErrors('performanceImportErrors', r.errors);
+    document.getElementById('performanceImportConfirm').style.display = r.valid_rows > 0 && r.invalid_rows === 0 ? '' : 'none';
+    result.innerHTML = '';
+  } catch (e) {
+    result.innerHTML = `<p class="msg" style="color:var(--red)">❌ ${escapeHtml(e.message)}</p>`;
+  }
+}
+
+async function confirmPerformanceImport() {
+  if (!PERFORMANCE_IMPORT_BATCH) return;
+  const result = document.getElementById('performanceImportResult');
+  try {
+    const r = await api('/fleet/imports/performance/' + PERFORMANCE_IMPORT_BATCH + '/confirm', { method: 'POST' });
+    result.innerHTML = `<p class="msg" style="color:var(--green)">✅ تم: جديد ${r.result?.imported || 0} · محدث ${r.result?.updated || 0}</p>`;
+    document.getElementById('performanceImportConfirm').style.display = 'none';
+  } catch (e) {
+    result.innerHTML = `<p class="msg" style="color:var(--red)">❌ ${escapeHtml(e.message)}</p>`;
+  }
+}
+
+async function loadImportHistory(page = 0) {
+  const limit = 20;
+  const typeFilter = document.getElementById('historyTypeFilter').value;
+  const statusFilter = document.getElementById('historyStatusFilter').value;
+  let url = `/imports/history?limit=${limit}&offset=${page * limit}`;
+  if (typeFilter) url += `&import_type=${typeFilter}`;
+  if (statusFilter) url += `&status_filter=${statusFilter}`;
+  try {
+    const r = await api(url);
+    const body = document.getElementById('importHistoryBody');
+    if (!r.items || r.items.length === 0) {
+      body.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px">${douT('لا توجد سجلات')}</td></tr>`;
+      document.getElementById('importHistoryPagination').innerHTML = '';
+      return;
+    }
+    const typeLabels = { RIDERS: 'سائقون', PERFORMANCE: 'أداء' };
+    const statusLabels = { PREVIEW: 'معاينة', COMMITTED: 'مؤكد', FAILED: 'فشل' };
+    body.innerHTML = r.items.map(b => `<tr>
+      <td>${typeLabels[b.import_type] || b.import_type}</td>
+      <td>${escapeHtml(b.file_name || '')}</td>
+      <td>${b.total_rows}</td>
+      <td>${b.valid_rows}</td>
+      <td>${b.invalid_rows}</td>
+      <td><span class="tag ${b.status === 'COMMITTED' ? 'green' : b.status === 'FAILED' ? 'red' : 'amber'}">${statusLabels[b.status] || b.status}</span></td>
+      <td>${new Date(b.created_at).toLocaleDateString()}</td>
+      <td><button class="btn ghost small" onclick="viewImportDetail(${b.id})">${douT('عرض')}</button></td>
+    </tr>`).join('');
+    const totalPages = Math.ceil(r.total / limit);
+    document.getElementById('importHistoryPagination').innerHTML = `
+      <span>${douT('صفحة')} ${page + 1} ${douT('من')} ${totalPages || 1}</span>
+      <div><button class="btn ghost small" ${page === 0 ? 'disabled' : ''} onclick="loadImportHistory(${page - 1})">${douT('السابق')}</button>
+      <button class="btn ghost small" ${page >= totalPages - 1 ? 'disabled' : ''} onclick="loadImportHistory(${page + 1})">${douT('التالي')}</button></div>`;
+  } catch (e) {
+    showError('importHistoryBody', e.message);
+  }
+}
+
+async function viewImportDetail(batchId) {
+  try {
+    const r = await api('/imports/' + batchId);
+    alert(`دفعة #${r.id}\nالنوع: ${r.import_type}\nالحالة: ${r.status}\nالصفوف: ${r.total_rows}\nصالح: ${r.valid_rows}\nغير صالح: ${r.invalid_rows}\nأخطاء: ${r.errors?.length || 0}`);
+  } catch (e) {
+    alert('تعذر تحميل التفاصيل: ' + e.message);
+  }
+}
+
+// W6: Initialize import history when navigating to that view
+const _go = go;
+go = function(view) {
+  _go(view);
+  if (view === 'importHistory') loadImportHistory();
+  if (view === 'dashboard') loadDashboard();
+  if (view === 'performance') loadPerformance();
+  if (view === 'payroll') loadPayroll();
+  if (view === 'reports') loadReportsCenter();
+};
+
+// ===== W7: Operations Command Center =====
+let DASHBOARD_DATA = null;
+
+async function loadDashboard() {
+  const container = document.getElementById('dashSummaryKpis');
+  if (!container) return;
+  
+  // Show loading
+  container.innerHTML = '<div class="loading">جارٍ التحميل...</div>';
+  
+  try {
+    const summary = await api('/analytics/dashboard/summary');
+    DASHBOARD_DATA = summary;
+    
+    // Render summary KPIs
+    container.innerHTML = `
+      <div class="metric"><b>${summary.total_riders}</b><span>إجمالي السائقين</span></div>
+      <div class="metric"><b>${summary.active_riders}</b><span>نشطون</span></div>
+      <div class="metric"><b>${summary.attended_today}</b><span>حاضرون اليوم</span></div>
+      <div class="metric alert"><b>${summary.absent_today}</b><span>غائبون</span></div>
+      <div class="metric alert"><b>${summary.not_ready}</b><span>غير جاهزين</span></div>
+      <div class="metric"><b>${summary.orders_today}</b><span>طلبات اليوم</span></div>
+      <div class="metric alert"><b>${summary.failed_imports}</b><span>استيراد فاشل</span></div>
+      <div class="metric"><b>${summary.expiring_docs}</b><span>مستندات تنتهي قريباً</span></div>
+    `;
+    
+    // Workforce today
+    setText('dashTotalRiders', summary.total_riders);
+    setText('dashActiveRiders', summary.active_riders);
+    setText('dashAttendedToday', summary.attended_today);
+    setText('dashAbsentToday', summary.absent_today);
+    setText('dashNotReady', summary.not_ready);
+    setText('dashVehicleAssigned', summary.vehicle_assigned);
+    setText('dashOrdersToday', summary.orders_today);
+    setText('dashFailedImports', summary.failed_imports);
+    
+    // Needs Attention
+    loadNeedsAttention();
+    
+    // Trend
+    loadTrend();
+  } catch (e) {
+    container.innerHTML = `<div class="error">خطأ في التحميل: ${e.message}</div>`;
+  }
+}
+
+async function loadNeedsAttention() {
+  const container = document.getElementById('dashNeedsAttention');
+  if (!container) return;
+  
+  try {
+    const data = await api('/analytics/dashboard/needs-attention');
+    if (data.items.length === 0) {
+      container.innerHTML = '<div class="empty">لا توجد عناصر تحتاج انتباه</div>';
+      return;
+    }
+    
+    container.innerHTML = data.items.map(item => `
+      <div class="attention-item severity-${item.severity}">
+        <div class="attention-body">
+          <strong>${item.title_ar}</strong>
+          <span class="count">${item.count}</span>
+        </div>
+        <a href="#" class="attention-link" onclick="go('${item.drill_down.view}'); return false;">عرض التفاصيل ←</a>
+      </div>
+    `).join('');
+  } catch (e) {
+    container.innerHTML = `<div class="error">خطأ: ${e.message}</div>`;
+  }
+}
+
+async function loadTrend() {
+  const container = document.getElementById('dashTrendChart');
+  if (!container) return;
+  
+  try {
+    const data = await api('/analytics/dashboard/workforce-trend?days=7');
+    if (!data.trend || data.trend.length === 0) {
+      container.innerHTML = '<div class="empty">لا توجد بيانات متاحة</div>';
+      return;
+    }
+    
+    // Simple bar chart
+    const max = Math.max(...data.trend.map(d => d.attended), 1);
+    container.innerHTML = `
+      <div class="trend-chart">
+        ${data.trend.map(d => `
+          <div class="trend-bar" style="height:${(d.attended / max) * 150}px" title="${d.date}: ${d.attended}">
+            <span class="trend-value">${d.attended}</span>
+            <span class="trend-label">${d.date.slice(5)}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="error">خطأ: ${e.message}</div>`;
+  }
+}
+
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value ?? '–';
+}
+
+// ===== W8: Performance Management =====
+let PERFORMANCE_DATA = null;
+
+async function loadPerformance() {
+  const container = document.getElementById('perfSummaryKpis');
+  if (!container) return;
+  
+  container.innerHTML = '<div class="loading">جارٍ التحميل...</div>';
+  
+  try {
+    const summary = await api('/analytics/performance/summary');
+    PERFORMANCE_DATA = summary;
+    
+    container.innerHTML = `
+      <div class="metric"><b>${summary.total_riders}</b><span>إجمالي السائقين</span></div>
+      <div class="metric"><b>${summary.attendance_rate || 0}%</b><span>معدل الحضور</span></div>
+      <div class="metric"><b>${summary.kpi_results}</b><span>نتائج KPI</span></div>
+      <div class="metric"><b>${summary.targets_configured}</b><span>أهداف محددة</span></div>
+    `;
+    
+    // Load explorer by default
+    loadPerformanceExplorer();
+    loadPerformanceTargets();
+    loadPerformanceIncentives();
+    loadPerformanceTrends();
+  } catch (e) {
+    container.innerHTML = `<div class="error">خطأ في التحميل: ${e.message}</div>`;
+  }
+}
+
+function switchPerfTab(tab) {
+  document.querySelectorAll('.perf-tab-content').forEach(c => c.style.display = 'none');
+  document.querySelectorAll('[data-perf-tab]').forEach(b => b.classList.remove('active'));
+  
+  const content = document.getElementById('perfTab-' + tab);
+  if (content) content.style.display = 'block';
+  
+  const btn = document.querySelector(`[data-perf-tab="${tab}"]`);
+  if (btn) btn.classList.add('active');
+}
+
+async function loadPerformanceExplorer(page = 0) {
+  const container = document.getElementById('perfExplorerBody');
+  if (!container) return;
+  
+  const statusFilter = document.getElementById('perfExplorerStatus')?.value || 'all';
+  const sortBy = document.getElementById('perfExplorerSort')?.value || 'name';
+  
+  try {
+    const data = await api(`/analytics/performance/explorer?status_filter=${statusFilter}&sort_by=${sortBy}&limit=50&offset=${page * 50}`);
+    
+    if (data.rows.length === 0) {
+      container.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">لا توجد بيانات</td></tr>';
+      return;
+    }
+    
+    container.innerHTML = data.rows.map(row => {
+      const statusLabel = {
+        above_target: '<span class="tag green">فوق الهدف</span>',
+        near_target: '<span class="tag blue">قريب</span>',
+        below_target: '<span class="tag red">تحت الهدف</span>',
+        no_target: '<span class="tag gray">بدون هدف</span>',
+        absent: '<span class="tag red">غائب</span>'
+      }[row.status] || row.status;
+      
+      return `<tr>
+        <td>${row.name}</td>
+        <td>${row.target_value || '–'}</td>
+        <td>${row.achievement_percentage ? row.achievement_percentage + '%' : '–'}</td>
+        <td>${row.attended_today ? '<span class="tag green">حاضر</span>' : '<span class="tag red">غائب</span>'}</td>
+        <td>${statusLabel}</td>
+        <td><a href="#" onclick="viewScorecard(${row.courier_id}); return false;" class="attention-link">السكوركارد</a></td>
+      </tr>`;
+    }).join('');
+    
+    // Pagination
+    const totalPages = Math.ceil(data.total / 50);
+    document.getElementById('perfExplorerPagination').innerHTML = `
+      <span>صفحة ${page + 1} من ${totalPages || 1}</span>
+      <div>
+        <button class="btn ghost small" ${page === 0 ? 'disabled' : ''} onclick="loadPerformanceExplorer(${page - 1})">السابق</button>
+        <button class="btn ghost small" ${page >= totalPages - 1 ? 'disabled' : ''} onclick="loadPerformanceExplorer(${page + 1})">التالي</button>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<tr><td colspan="6" style="color:var(--red)">خطأ: ${e.message}</td></tr>`;
+  }
+}
+
+async function loadPerformanceTargets() {
+  const container = document.getElementById('perfTargetsSummary');
+  if (!container) return;
+  
+  try {
+    const data = await api('/analytics/targets?period=' + new Date().toISOString().slice(0, 7));
+    
+    if (data.length === 0) {
+      container.innerHTML = '<div class="empty">لا توجد أهداف محددة</div>';
+      return;
+    }
+    
+    container.innerHTML = `
+      <table><thead><tr><th>النوع</th><th>القيمة</th><th>الإنجاز</th><th>الحالة</th></tr></thead>
+      <tbody>${data.map(t => {
+        const statusClass = t.achievement_percentage >= 100 ? 'green' : t.achievement_percentage >= 80 ? 'blue' : 'red';
+        return `<tr>
+          <td>${t.target_type}</td>
+          <td>${t.target_value}</td>
+          <td>${t.achievement_percentage || 0}%</td>
+          <td><span class="tag ${statusClass}">${t.achievement_percentage >= 100 ? 'محقق' : 'غير محقق'}</span></td>
+        </tr>`;
+      }).join('')}</tbody>
+     </table>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="error">خطأ: ${e.message}</div>`;
+  }
+}
+
+async function loadPerformanceIncentives() {
+  const container = document.getElementById('perfIncentivesSummary');
+  if (!container) return;
+  
+  try {
+    const data = await api('/analytics/performance/incentives');
+    
+    container.innerHTML = `
+      <div class="cards" style="grid-template-columns:1fr 1fr">
+        <div class="metric"><b>${data.total_earnings || 0}</b><span>إجمالي الأرباح</span></div>
+        <div class="metric alert"><b>${data.total_deductions || 0}</b><span>إجمالي الخصومات</span></div>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="error">خطأ: ${e.message}</div>`;
+  }
+}
+
+async function loadPerformanceTrends() {
+  const container = document.getElementById('perfTrendsSummary');
+  if (!container) return;
+  
+  try {
+    const data = await api('/analytics/performance/trends?scope_type=TENANT&scope_id=1&months=6');
+    
+    if (!data.trends || data.trends.length === 0) {
+      container.innerHTML = '<div class="empty">لا توجد بيانات اتجاه</div>';
+      return;
+    }
+    
+    const maxResult = Math.max(...data.trends.map(t => t.avg_result), 1);
+    
+    container.innerHTML = `
+      <div class="trend-chart">
+        ${data.trends.map(t => `
+          <div class="trend-bar" style="height:${(t.avg_result / maxResult) * 150}px" title="${t.period}: ${t.avg_result.toFixed(1)}">
+            <span class="trend-value">${t.avg_result.toFixed(1)}</span>
+            <span class="trend-label">${t.period.slice(5)}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="error">خطأ: ${e.message}</div>`;
+  }
+}
+
+async function viewScorecard(courierId) {
+  try {
+    const data = await api(`/analytics/performance/scorecard/RIDER/${courierId}`);
+    alert(`السكوركارد\nالفترة: ${data.period}\nعدد KPIs: ${data.kpis.length}\nالأهداف: ${data.targets.length}`);
+  } catch (e) {
+    alert('خطأ في تحميل السكوركارد: ' + e.message);
+  }
+}
+
+// ===== W9: Payroll & Financial Operations =====
+let PAYROLL_DATA = null;
+
+async function loadPayroll() {
+  const container = document.getElementById('payrollSummaryKpis');
+  if (!container) return;
+  
+  container.innerHTML = '<div class="loading">جارٍ التحميل...</div>';
+  
+  try {
+    const summary = await api('/analytics/payroll/summary');
+    PAYROLL_DATA = summary;
+    
+    container.innerHTML = `
+      <div class="metric"><b>${summary.active_riders}</b><span>مندوب نشط</span></div>
+      <div class="metric"><b>${summary.total_earnings?.toFixed(2) || 0}</b><span>إجمالي الأرباح</span></div>
+      <div class="metric alert"><b>${summary.total_deductions?.toFixed(2) || 0}</b><span>إجمالي الخصومات</span></div>
+      <div class="metric"><b>${summary.net_amount?.toFixed(2) || 0}</b><span>الصافي</span></div>
+    `;
+    
+    loadPayrollLedger();
+    loadPayrollReadiness();
+  } catch (e) {
+    container.innerHTML = `<div class="error">خطأ في التحميل: ${e.message}</div>`;
+  }
+}
+
+function switchPayrollTab(tab) {
+  document.querySelectorAll('.payroll-tab-content').forEach(c => c.style.display = 'none');
+  document.querySelectorAll('[data-payroll-tab]').forEach(b => b.classList.remove('active'));
+  
+  const content = document.getElementById('payrollTab-' + tab);
+  if (content) content.style.display = 'block';
+  
+  const btn = document.querySelector(`[data-payroll-tab="${tab}"]`);
+  if (btn) btn.classList.add('active');
+  
+  if (tab === 'breakdown') loadPayrollBreakdown();
+  if (tab === 'incentives') loadPayrollIncentives();
+}
+
+async function loadPayrollLedger(page = 0) {
+  const container = document.getElementById('payrollLedgerBody');
+  if (!container) return;
+  
+  const inputType = document.getElementById('payrollLedgerType')?.value || '';
+  const sourceType = document.getElementById('payrollLedgerSource')?.value || '';
+  const status = document.getElementById('payrollLedgerStatus')?.value || '';
+  
+  try {
+    let url = `/analytics/payroll/ledger?limit=50&offset=${page * 50}`;
+    if (inputType) url += `&input_type=${inputType}`;
+    if (sourceType) url += `&source_type=${sourceType}`;
+    if (status) url += `&status_filter=${status}`;
+    
+    const data = await api(url);
+    
+    if (data.rows.length === 0) {
+      container.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">لا توجد بيانات</td></tr>';
+      return;
+    }
+    
+    container.innerHTML = data.rows.map(row => {
+      const statusLabel = row.status === 'APPROVED' ? '<span class="tag green">معتمد</span>' : '<span class="tag red">ملغى</span>';
+      const typeLabel = row.input_type === 'EARNING' ? '<span class="tag green">ربح</span>' : '<span class="tag red">خصم</span>';
+      
+      return `<tr>
+        <td>${row.courier_name || '–'}</td>
+        <td>${typeLabel}</td>
+        <td>${row.source_name || row.source_type || '–'}</td>
+        <td>${row.description || '–'}</td>
+        <td>${row.amount?.toFixed(2) || 0}</td>
+        <td>${statusLabel}</td>
+        <td>${row.created_at?.slice(0, 10) || '–'}</td>
+      </tr>`;
+    }).join('');
+    
+    const totalPages = Math.ceil(data.total / 50);
+    document.getElementById('payrollLedgerPagination').innerHTML = `
+      <span>صفحة ${page + 1} من ${totalPages || 1}</span>
+      <div>
+        <button class="btn ghost small" ${page === 0 ? 'disabled' : ''} onclick="loadPayrollLedger(${page - 1})">السابق</button>
+        <button class="btn ghost small" ${page >= totalPages - 1 ? 'disabled' : ''} onclick="loadPayrollLedger(${page + 1})">التالي</button>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<tr><td colspan="7" style="color:var(--red)">خطأ: ${e.message}</td></tr>`;
+  }
+}
+
+async function loadPayrollBreakdown() {
+  const container = document.getElementById('payrollBreakdownBody');
+  if (!container) return;
+  
+  container.innerHTML = '<div class="empty">اختر مندوباً لعرض تفصيل راتبه</div>';
+}
+
+async function loadPayrollIncentives() {
+  const container = document.getElementById('payrollIncentivesBody');
+  if (!container) return;
+  
+  try {
+    const data = await api('/analytics/payroll/incentives');
+    
+    if (data.incentives.length === 0) {
+      container.innerHTML = '<div class="empty">لا توجد حوافز أو خصومات</div>';
+      return;
+    }
+    
+    container.innerHTML = `
+      <div class="cards" style="grid-template-columns:1fr 1fr;margin-bottom:14px">
+        <div class="metric"><b>${data.total_earnings?.toFixed(2) || 0}</b><span>إجمالي الأرباح</span></div>
+        <div class="metric alert"><b>${data.total_deductions?.toFixed(2) || 0}</b><span>إجمالي الخصومات</span></div>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="error">خطأ: ${e.message}</div>`;
+  }
+}
+
+async function loadPayrollReadiness() {
+  const container = document.getElementById('payrollReadinessBody');
+  if (!container) return;
+  
+  try {
+    const data = await api('/analytics/payroll/readiness');
+    
+    const readinessLabel = {
+      READY: '<span class="tag green">جاهز</span>',
+      NEEDS_REVIEW: '<span class="tag amber">يحتاج مراجعة</span>',
+      INCOMPLETE: '<span class="tag red">غير مكتمل</span>'
+    }[data.readiness] || data.readiness;
+    
+    container.innerHTML = `
+      <div class="cards" style="grid-template-columns:repeat(4,1fr)">
+        <div class="metric"><b>${data.total_active_riders}</b><span>مندوب نشط</span></div>
+        <div class="metric"><b>${data.riders_with_inputs}</b><span>لديه إدخالات</span></div>
+        <div class="metric alert"><b>${data.missing_riders}</b><span>بدون إدخالات</span></div>
+        <div class="metric">${readinessLabel}<span>الحالة</span></div>
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = `<div class="error">خطأ: ${e.message}</div>`;
+  }
+}
+
+
+async function loadReportsCenter() {
+  const catalog = document.getElementById('reportsCatalog');
+  if (!catalog) return;
+  
+  try {
+    const data = await api('/analytics/reports/catalog');
+    const groups = data.catalog;
+    
+    const groupEls = catalog.querySelectorAll('.reportsGroup');
+    groupEls.forEach(ge => {
+      const grp = ge.dataset.group;
+      const list = ge.querySelector('.reportsList');
+      if (!list) return;
+      
+      if (!groups[grp]) {
+        ge.style.display = 'none';
+        return;
+      }
+      
+      ge.style.display = '';
+      list.innerHTML = groups[grp].map(r => `
+        <button class="reportCard" onclick="openReport('${grp}', '${r.id}')">
+          <div class="reportCardTitle">${r.name_ar}</div>
+          <div class="reportCardDesc">${r.description || r.name_en}</div>
+        </button>
+      `).join('');
+    });
+  } catch (e) {
+    console.error('Reports center load error:', e);
+  }
+}
+
+function openReport(group, reportId) {
+  document.getElementById('reportsCatalog').style.display = 'none';
+  document.getElementById('reportDetail').style.display = 'block';
+  document.getElementById('reportDetailTitle').textContent = reportId;
+  document.getElementById('reportDetailDesc').textContent = group + ' / ' + reportId;
+}
+
+function downloadReportCSV() {
+  window.open('/analytics/reports/export/csv?report_type=rider_master', '_blank');
+}
+
+function downloadReportXLSX() {
+  window.open('/analytics/reports/export/xlsx?report_type=rider_master', '_blank');
+}
+
+// DOU AI + Notification Center
+let AI_CONVERSATION_ID=null, AI_PAGE_CONTEXT={}, AI_LAST_QUESTION='';
+function currentAIContext(view){const ctx={current_view:view||new URLSearchParams(location.search).get('view')||'overview'};const dateEl=document.getElementById('attendanceDate');if(ctx.current_view==='attendance'&&dateEl?.value)ctx.period=dateEl.value;const from=document.getElementById('perfFrom'),to=document.getElementById('perfTo');if(ctx.current_view==='performance'&&(from?.value||to?.value))ctx.period=(from?.value||'')+'..'+(to?.value||'');return ctx}
+function openContextualAI(view,serverContext){AI_PAGE_CONTEXT=Object.assign(currentAIContext(view),serverContext||{});go('douai');document.getElementById('aiInput').focus()}
+function askAIPrompt(text){document.getElementById('aiInput').value=text;sendAIMessage()}
+function newAIConversation(){AI_CONVERSATION_ID=null;AI_PAGE_CONTEXT={};document.getElementById('aiMessages').innerHTML='<div class="ai-empty"><b>كيف يمكنني مساعدتك في عملياتك؟</b><span>الأرقام تأتي فقط من بيانات DOU المصرح بها.</span></div>';document.getElementById('aiInput').focus()}
+function addAIUser(text){const box=document.getElementById('aiMessages');box.querySelector('.ai-empty')?.remove();box.insertAdjacentHTML('beforeend',`<div class="ai-msg user">${escapeHtml(text)}</div>`);box.scrollTop=box.scrollHeight}
+function renderAIResponse(data){const box=document.getElementById('aiMessages');let html=`<div class="ai-msg assistant"><div>${escapeHtml(data.answer)}</div>`;if(data.kpis?.length)html+=`<div class="ai-kpis">${data.kpis.map(k=>`<div class="ai-kpi"><b>${escapeHtml(k.value)}</b><span>${escapeHtml(k.label)}</span></div>`).join('')}</div>`;if(data.table?.rows?.length){const cols=data.table.columns||[];html+=`<div class="ai-table"><table><thead><tr>${cols.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr></thead><tbody>${data.table.rows.slice(0,20).map(r=>`<tr>${cols.map(c=>`<td>${escapeHtml(r[c])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}if(data.chart?.series?.length){const series=data.chart.series.slice(0,14),y=data.chart.y,x=data.chart.x,max=Math.max(1,...series.map(v=>Number(v[y])||0));html+=`<div style="margin-top:12px">${series.map(v=>`<div class="chartRow"><span class="lbl">${escapeHtml(v[x])}</span><div class="bar"><i style="width:${Math.round((Number(v[y])||0)*100/max)}%;background:var(--blue)"></i></div><span class="val">${escapeHtml(v[y])}</span></div>`).join('')}</div>`}if(data.warnings?.length)html+=data.warnings.map(w=>`<div class="ai-warning">${escapeHtml(w)}</div>`).join('');if(data.report_link&&String(data.report_link).startsWith('/app/'))html+=`<div style="margin-top:10px"><a class="btn small" href="${escapeHtml(data.report_link)}">فتح المصدر</a></div>`;if(data.suggested_followups?.length)html+=`<div class="ai-prompts" style="margin-top:10px">${data.suggested_followups.map(q=>`<button class="ai-prompt" data-ai-prompt="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join('')}</div>`;html+=`<div class="ai-meta">Source: ${escapeHtml(data.source)} · Updated: ${escapeHtml(data.freshness)} · ${escapeHtml(data.latency_ms)} ms</div></div>`;box.insertAdjacentHTML('beforeend',html);box.querySelectorAll('[data-ai-prompt]').forEach(b=>b.onclick=()=>askAIPrompt(b.dataset.aiPrompt));box.scrollTop=box.scrollHeight}
+async function sendAIMessage(){const input=document.getElementById('aiInput'),btn=document.getElementById('aiSend'),question=input.value.trim();if(!question||btn.disabled)return;AI_LAST_QUESTION=question;addAIUser(question);input.value='';btn.disabled=true;btn.textContent='...';const loading=document.createElement('div');loading.className='ai-msg assistant';loading.id='aiLoading';loading.textContent='DOU AI is checking your authorized operations data…';document.getElementById('aiMessages').appendChild(loading);try{const data=await api('/ai/chat',{method:'POST',body:JSON.stringify({question,conversation_id:AI_CONVERSATION_ID,context:Object.keys(AI_PAGE_CONTEXT).length?AI_PAGE_CONTEXT:currentAIContext('douai')})});AI_CONVERSATION_ID=data.conversation_id;loading.remove();renderAIResponse(data)}catch(e){loading.innerHTML=`تعذر إكمال الطلب بأمان: ${escapeHtml(e.message)} <button class="btn small" id="aiRetry">إعادة المحاولة</button>`;loading.querySelector('#aiRetry').onclick=()=>{loading.remove();input.value=AI_LAST_QUESTION;sendAIMessage()}}finally{btn.disabled=false;btn.textContent='إرسال'}}
+async function checkAIStatus(){try{const s=await api('/ai/status');document.getElementById('aiStatus').textContent=s.available?'DOU AI local provider available':'Authorized DOU analytics available · language model '+(s.reason||'unavailable')}catch(e){document.getElementById('aiStatus').textContent='DOU AI status unavailable'}}
+function setNotifBadges(count){['topNotifCount','navNotifCount'].forEach(id=>{const el=document.getElementById(id);if(el){el.textContent=count>99?'99+':count;el.style.display=count?'inline-block':'none'}})}
+async function refreshNotificationCount(){try{const d=await api('/notifications?unread_only=true');setNotifBadges(d.unread_count||0)}catch(_e){setNotifBadges(0)}}
+async function loadNotifications(){const list=document.getElementById('notificationList');if(!list)return;list.innerHTML='<div class="card">جاري التحميل…</div>';try{const d=await api('/notifications');setNotifBadges(d.unread_count||0);document.getElementById('notificationUnread').textContent=d.unread_count||0;document.getElementById('notificationOpen').textContent=d.notifications.filter(n=>n.status!=='RESOLVED').length;document.getElementById('notificationCritical').textContent=d.notifications.filter(n=>n.severity==='CRITICAL'&&n.status!=='RESOLVED').length;list.innerHTML=d.notifications.length?d.notifications.map(n=>`<article class="notification-item ${escapeHtml(n.severity)} ${n.read_at?'':'unread'}"><div class="notification-meta"><span>${escapeHtml(n.severity)}</span><span>${escapeHtml(n.source)}</span><span>${escapeHtml(new Date(n.created_at).toLocaleString('ar'))}</span><span>${escapeHtml(n.status)}</span></div><h3>${escapeHtml(n.title)}</h3><p>${escapeHtml(n.message)}</p><div class="notification-actions">${n.deep_link&&String(n.deep_link).startsWith('/app/')?`<a class="btn small" href="${escapeHtml(n.deep_link)}">فتح المصدر</a>`:''}<button class="btn ask-ai small" data-notif-ai="${n.id}">✨ Ask DOU AI</button>${n.read_at?'':`<button class="btn ghost small" onclick="notificationAction(${n.id},'read')">مقروء</button>`}${n.status==='OPEN'?`<button class="btn ghost small" onclick="notificationAction(${n.id},'acknowledge')">استلام</button>`:''}${n.status!=='RESOLVED'?`<button class="btn ghost small" onclick="notificationAction(${n.id},'resolve')">حل</button>`:''}</div></article>`).join(''):'<div class="card" style="color:var(--muted)">لا توجد إشعارات.</div>';list.querySelectorAll('[data-notif-ai]').forEach(btn=>{const n=d.notifications.find(x=>x.id===Number(btn.dataset.notifAi));btn.onclick=()=>openContextualAI('notifications',n.ai_context||{})})}catch(e){list.innerHTML=`<div class="card"><b>تعذر تحميل الإشعارات</b><p>${escapeHtml(e.message)}</p><button class="btn" onclick="loadNotifications()">إعادة المحاولة</button></div>`}}
+async function notificationAction(id,action){try{await api(`/notifications/${id}/${action}`,{method:'POST'});await loadNotifications()}catch(e){alert(e.message)}}
+
 </script>
 </body>
 </html>

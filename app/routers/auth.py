@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from collections import defaultdict, deque
 from threading import Lock
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt, JWTError
-from passlib.context import CryptContext
+import bcrypt
+import jwt
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -17,7 +17,6 @@ ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 7
 TRIAL_DAYS = 14
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -43,7 +42,20 @@ def _prune_failures(key: str, now: datetime):
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    encoded = password.encode("utf-8")
+    if len(encoded) > 72:
+        raise ValueError("Password is too long")
+    return bcrypt.hashpw(encoded, bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    encoded = password.encode("utf-8")
+    if len(encoded) > 72:
+        return False
+    try:
+        return bcrypt.checkpw(encoded, password_hash.encode("utf-8"))
+    except (ValueError, TypeError):
+        return False
 
 
 def create_token(user: User) -> str:
@@ -52,7 +64,7 @@ def create_token(user: User) -> str:
         "phone": user.phone,
         "role": user.role.value,
         "ver": user.token_version or 0,
-        "exp": datetime.utcnow() + timedelta(days=TOKEN_EXPIRE_DAYS),
+        "exp": datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRE_DAYS),
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -67,8 +79,13 @@ def register(payload: LoginIn, db: Session = Depends(get_db)):
 @router.post("/company-register", response_model=CompanyRegisterOut)
 def company_register(payload: CompanyRegisterIn, db: Session = Depends(get_db)):
     if not ENABLE_PUBLIC_COMPANY_SIGNUP:
-        raise HTTPException(403, "تفعيل الشركات الجديدة يتم عن طريق إدارة DOU — sales@dou.delivery — 0556338075")
-    country = Country(payload.country) if payload.country in ("SA", "EG") else Country.SA
+        raise HTTPException(
+            403,
+            "تفعيل الشركات الجديدة يتم عن طريق إدارة DOU — sales@dou.delivery — 0556338075",
+        )
+    country = (
+        Country(payload.country) if payload.country in ("SA", "EG") else Country.SA
+    )
     exists = db.query(User).filter(User.phone == payload.phone).first()
     if exists:
         raise HTTPException(400, "Phone already registered")
@@ -78,11 +95,15 @@ def company_register(payload: CompanyRegisterIn, db: Session = Depends(get_db)):
     if len(payload.password) < 8:
         raise HTTPException(400, "Password must be at least 8 characters")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     tenant = Tenant(
-        name=name, country=country,
-        plan="TRIAL", monthly_fee=0, billing_day=1,
-        subscription_status="ACTIVE", due_date=now + timedelta(days=TRIAL_DAYS),
+        name=name,
+        country=country,
+        plan="TRIAL",
+        monthly_fee=0,
+        billing_day=1,
+        subscription_status="ACTIVE",
+        due_date=now + timedelta(days=TRIAL_DAYS),
         created_at=now,
     )
     db.add(tenant)
@@ -120,13 +141,19 @@ def company_register(payload: CompanyRegisterIn, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenOut)
 def login(payload: LoginIn, db: Session = Depends(get_db), request: Request = None):
-    now = datetime.utcnow()
-    key = _login_key(request, payload.phone) if request else f"direct:{payload.phone.strip()}"
+    now = datetime.now(timezone.utc)
+    key = (
+        _login_key(request, payload.phone)
+        if request
+        else f"direct:{payload.phone.strip()}"
+    )
     with _login_lock:
         if len(_prune_failures(key, now)) >= LOGIN_MAX_FAILURES:
-            raise HTTPException(429, "محاولات دخول كثيرة. انتظر 10 دقائق ثم حاول مرة أخرى")
+            raise HTTPException(
+                429, "محاولات دخول كثيرة. انتظر 10 دقائق ثم حاول مرة أخرى"
+            )
     user = db.query(User).filter(User.phone == payload.phone).first()
-    if not user or not pwd_context.verify(payload.password, user.password_hash):
+    if not user or not verify_password(payload.password, user.password_hash):
         with _login_lock:
             _prune_failures(key, now).append(now.timestamp())
         raise HTTPException(401, "Invalid phone or password")
@@ -137,16 +164,23 @@ def login(payload: LoginIn, db: Session = Depends(get_db), request: Request = No
     user.last_login_at = now
     if user.tenant_id:
         tenant = db.get(Tenant, user.tenant_id)
-        if tenant: tenant.last_activity_at = datetime.utcnow()
+        if tenant:
+            tenant.last_activity_at = datetime.now(timezone.utc)
     db.commit()
     return TokenOut(access_token=create_token(user), role=user.role.value)
 
 
 @router.post("/logout-all")
-def logout_all(admin_key: str, db: Session = Depends(get_db)):
+def logout_all(
+    admin_key: str = "",
+    x_admin_key: str = Header(default="", alias="X-Admin-Key"),
+    db: Session = Depends(get_db),
+):
     """يبطل جميع الجلسات الحالية في النظام دفعة واحدة (يرفع token_version للجميع)."""
     from ..config import ADMIN_KEY
-    if not ADMIN_KEY or admin_key != ADMIN_KEY:
+
+    key = x_admin_key or admin_key
+    if not ADMIN_KEY or key != ADMIN_KEY:
         raise HTTPException(403, "Invalid admin key")
     db.execute(text("UPDATE users SET token_version = COALESCE(token_version, 0) + 1"))
     db.commit()
@@ -154,13 +188,15 @@ def logout_all(admin_key: str, db: Session = Depends(get_db)):
 
 
 def get_current_user(
-    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db), request: Request = None
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+    request: Request = None,
 ) -> User:
     credentials_exc = HTTPException(401, "Invalid or expired token")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = int(payload["sub"])
-    except (JWTError, KeyError, ValueError):
+    except (jwt.InvalidTokenError, KeyError, ValueError):
         raise credentials_exc
     user = db.get(User, user_id)
     if not user or not user.is_active:
@@ -169,14 +205,19 @@ def get_current_user(
         raise credentials_exc
     # تطبيق إيقاف الاشتراك على كل وحدات الشركة والسائق، وليس لوحة Fleet فقط.
     # تظل شاشة الفاتورة متاحة حتى يعرف العميل سبب الإيقاف وموعد الاستحقاق.
-    if user.tenant_id and (not request or request.url.path not in ("/billing/status", "/billing/invoice")):
+    if user.tenant_id and (
+        not request or request.url.path not in ("/billing/status", "/billing/invoice")
+    ):
         from .billing import check_active
+
         check_active(user, db)
     return user
 
 
 @router.post("/logout")
-def logout_current(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def logout_current(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     """يبطل كل التوكنات الحالية للحساب عند تسجيل الخروج."""
     user.token_version = (user.token_version or 0) + 1
     db.commit()
@@ -184,10 +225,12 @@ def logout_current(user: User = Depends(get_current_user), db: Session = Depends
 
 
 @router.post("/change-password")
-def change_password(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def change_password(
+    payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     current = str(payload.get("current_password") or "")
     new = str(payload.get("new_password") or "")
-    if not pwd_context.verify(current, user.password_hash):
+    if not verify_password(current, user.password_hash):
         raise HTTPException(400, "كلمة المرور الحالية غير صحيحة")
     if len(new) < 8:
         raise HTTPException(400, "كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل")
@@ -202,4 +245,5 @@ def require_role(*roles: UserRole):
         if user.role not in roles:
             raise HTTPException(403, "Not authorized for this role")
         return user
+
     return checker

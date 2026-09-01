@@ -4,6 +4,7 @@
 - عند تجاوز الاستحقاق تتحول الحالة إلى OVERDUE ثم بعد فترة سماح إلى SUSPENDED.
 - SUSPENDED تمنع الوصول لكل نقاط Fleet (تعطيل تلقائي).
 """
+
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,17 +17,17 @@ from .auth import get_current_user
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
-GRACE_DAYS = 7          # أيام السماح بعد الاستحقاق قبل التعطيل
-MONTH_DAYS = 30         # طول الفترة الشهرية
-TRIAL_DAYS = 14         # أيام التجربة المجانية عند إضافة شركة جديدة
+GRACE_DAYS = 7  # أيام السماح بعد الاستحقاق قبل التعطيل
+MONTH_DAYS = 30  # طول الفترة الشهرية
+TRIAL_DAYS = 14  # أيام التجربة المجانية عند إضافة شركة جديدة
 
 
 class SubscriptionPayload(BaseModel):
-    plan: str = "PRO"                      # TRIAL / PRO / ENTERPRISE
+    plan: str = "PRO"  # TRIAL / PRO / ENTERPRISE
     monthly_fee: float = 0
     billing_day: int = 1
-    set_active: bool = True                # تفعيل فوري (تسجيل دفعة)
-    months: int = 1                        # مدة الفترة عند التفعيل
+    set_active: bool = True  # تفعيل فوري (تسجيل دفعة)
+    months: int = 1  # مدة الفترة عند التفعيل
 
 
 def _tenant_for(user: User, db: Session) -> Tenant:
@@ -68,7 +69,9 @@ def _refresh_status(tenant: Tenant, db: Session):
 
 
 @router.get("/status")
-def billing_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def billing_status(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     """حالة اشتراك الشركة الحالية."""
     tenant = _tenant_for(user, db)
     _refresh_status(tenant, db)
@@ -86,7 +89,9 @@ def billing_status(user: User = Depends(get_current_user), db: Session = Depends
 
 
 @router.get("/invoice")
-def billing_invoice(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def billing_invoice(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     """فاتورة الشركة الحالية: الفترة، المبلغ، الحالة."""
     tenant = _tenant_for(user, db)
     _refresh_status(tenant, db)
@@ -96,7 +101,10 @@ def billing_invoice(user: User = Depends(get_current_user), db: Session = Depend
     return {
         "invoice_no": f"DOU-{tenant.id:04d}-{due.strftime('%Y%m')}",
         "tenant": tenant.name,
-        "period": {"from": period_start.date().isoformat(), "to": due.date().isoformat()},
+        "period": {
+            "from": period_start.date().isoformat(),
+            "to": due.date().isoformat(),
+        },
         "amount": tenant.monthly_fee,
         "status": tenant.subscription_status,
         "due_date": due.date().isoformat(),
@@ -105,7 +113,11 @@ def billing_invoice(user: User = Depends(get_current_user), db: Session = Depend
 
 
 @router.post("/subscribe")
-def billing_subscribe(payload: SubscriptionPayload, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def billing_subscribe(
+    payload: SubscriptionPayload,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """تسجيل شركة في اشتراك (يستخدمها فريق DOU عند إضافة عميل)."""
     if user.role not in (UserRole.DOU_OPS, UserRole.DOU_ADMIN):
         raise HTTPException(403, "فريق DOU فقط")
@@ -125,7 +137,11 @@ def billing_subscribe(payload: SubscriptionPayload, user: User = Depends(get_cur
         tenant.plan = payload.plan
         tenant.monthly_fee = payload.monthly_fee
     db.commit()
-    return {"ok": True, "status": tenant.subscription_status, "due_date": tenant.due_date.isoformat()}
+    return {
+        "ok": True,
+        "status": tenant.subscription_status,
+        "due_date": tenant.due_date.isoformat(),
+    }
 
 
 @router.post("/pay")
@@ -135,24 +151,36 @@ def billing_pay(user: User = Depends(get_current_user), db: Session = Depends(ge
 
 
 @router.get("/admin/tenants")
-def billing_admin_tenants(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def billing_admin_tenants(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     """قائمة الشركات مع حالة اشتراكها — لفريق DOU."""
     if user.role not in (UserRole.DOU_OPS, UserRole.DOU_ADMIN):
         raise HTTPException(403, "فريق DOU فقط")
     rows = []
     for t in db.query(Tenant).order_by(Tenant.id).all():
         _refresh_status(t, db)
-        rows.append({
-            "id": t.id, "name": t.name, "country": t.country.value,
-            "plan": t.plan, "monthly_fee": t.monthly_fee,
-            "status": t.subscription_status,
-            "due_date": t.due_date.isoformat() if t.due_date else None,
-        })
+        rows.append(
+            {
+                "id": t.id,
+                "name": t.name,
+                "country": t.country.value,
+                "plan": t.plan,
+                "monthly_fee": t.monthly_fee,
+                "status": t.subscription_status,
+                "due_date": t.due_date.isoformat() if t.due_date else None,
+            }
+        )
     return rows
 
 
 @router.post("/admin/tenants/{tid}/subscribe")
-def billing_admin_subscribe(tid: int, payload: SubscriptionPayload, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def billing_admin_subscribe(
+    tid: int,
+    payload: SubscriptionPayload,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """إدارة اشتراك شركة محددة — لفريق DOU."""
     if user.role not in (UserRole.DOU_OPS, UserRole.DOU_ADMIN):
         raise HTTPException(403, "فريق DOU فقط")
@@ -171,5 +199,9 @@ def billing_admin_subscribe(tid: int, payload: SubscriptionPayload, user: User =
         tenant.plan = payload.plan
         tenant.monthly_fee = payload.monthly_fee
     db.commit()
-    return {"ok": True, "tenant": tenant.name, "status": tenant.subscription_status,
-            "due_date": tenant.due_date.isoformat() if tenant.due_date else None}
+    return {
+        "ok": True,
+        "tenant": tenant.name,
+        "status": tenant.subscription_status,
+        "due_date": tenant.due_date.isoformat() if tenant.due_date else None,
+    }

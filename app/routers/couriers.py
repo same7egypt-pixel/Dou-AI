@@ -3,8 +3,17 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.entities import (
-    Courier, CourierTask, CourierTaskStatus, Merchant, Order, OrderStatus,
-    SupportTicket, User, UserRole,
+    Courier,
+    CourierTask,
+    CourierTaskStatus,
+    EmployeeRequest,
+    Fleet,
+    Merchant,
+    Order,
+    OrderStatus,
+    SupportTicket,
+    User,
+    UserRole,
 )
 from ..schemas.dou import CourierCreate, CourierOut, TaskActionIn
 from ..services.dispatch_engine import dispatch_order
@@ -13,8 +22,12 @@ from .auth import get_current_user
 router = APIRouter(prefix="/couriers", tags=["couriers"])
 
 STAFF_ROLES = (
-    UserRole.COMPANY, UserRole.COMPANY_ADMIN, UserRole.OPERATIONS,
-    UserRole.HR, UserRole.DOU_OPS, UserRole.DOU_ADMIN,
+    UserRole.COMPANY,
+    UserRole.COMPANY_ADMIN,
+    UserRole.OPERATIONS,
+    UserRole.HR,
+    UserRole.DOU_OPS,
+    UserRole.DOU_ADMIN,
 )
 
 
@@ -27,18 +40,36 @@ def _courier_access(courier_id: int, user: User, db: Session) -> Courier:
             raise HTTPException(403, "Courier is not active for operational actions")
         return courier
     if user.role in STAFF_ROLES:
-        if user.role in (UserRole.DOU_OPS, UserRole.DOU_ADMIN) or user.tenant_id == courier.tenant_id:
+        if (
+            user.role in (UserRole.DOU_OPS, UserRole.DOU_ADMIN)
+            or user.tenant_id == courier.tenant_id
+        ):
             return courier
     raise HTTPException(404, "Courier not found")
 
 
 @router.post("", response_model=CourierOut)
-def create_courier(payload: CourierCreate, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def create_courier(
+    payload: CourierCreate,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     if user.role not in STAFF_ROLES:
         raise HTTPException(403, "Not authorized")
     data = payload.model_dump(exclude_none=True)
     if user.role not in (UserRole.DOU_OPS, UserRole.DOU_ADMIN):
         data["tenant_id"] = user.tenant_id
+    if data.get("fleet_id") is not None:
+        fleet = (
+            db.query(Fleet)
+            .filter(
+                Fleet.id == data["fleet_id"],
+                Fleet.tenant_id == data.get("tenant_id"),
+            )
+            .first()
+        )
+        if not fleet:
+            raise HTTPException(404, "Fleet not found")
     courier = Courier(**data)
     db.add(courier)
     db.commit()
@@ -47,7 +78,9 @@ def create_courier(payload: CourierCreate, user: User = Depends(get_current_user
 
 
 @router.get("", response_model=list[CourierOut])
-def list_couriers(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def list_couriers(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     if user.role not in STAFF_ROLES:
         raise HTTPException(403, "Not authorized")
     q = db.query(Courier)
@@ -57,7 +90,11 @@ def list_couriers(user: User = Depends(get_current_user), db: Session = Depends(
 
 
 @router.post("/{courier_id}/online")
-def set_online(courier_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def set_online(
+    courier_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     courier = _courier_access(courier_id, user, db)
     courier.is_online = True
     courier.shift_active = True
@@ -66,7 +103,11 @@ def set_online(courier_id: int, user: User = Depends(get_current_user), db: Sess
 
 
 @router.post("/{courier_id}/offline")
-def set_offline(courier_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def set_offline(
+    courier_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     courier = _courier_access(courier_id, user, db)
     courier.is_online = False
     courier.shift_active = False
@@ -86,46 +127,92 @@ def my_profile(user: User = Depends(get_current_user), db: Session = Depends(get
 
 
 @router.get("/me/preferences")
-def my_preferences(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def my_preferences(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     if user.role != UserRole.COURIER or not user.tenant_id:
         raise HTTPException(403, "This account is not a courier")
     from ..models.entities import Tenant
+
     tenant = db.get(Tenant, user.tenant_id)
-    return {"language": tenant.default_language or "ar", "currency": tenant.currency or "SAR",
-            "timezone": tenant.timezone or "Asia/Riyadh", "market_code": tenant.market_code or "SA"}
+    return {
+        "language": tenant.default_language or "ar",
+        "currency": tenant.currency or "SAR",
+        "timezone": tenant.timezone or "Asia/Riyadh",
+        "market_code": tenant.market_code or "SA",
+    }
 
 
 @router.get("/{courier_id}/tasks")
-def my_tasks(courier_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def my_tasks(
+    courier_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     _courier_access(courier_id, user, db)
-    tasks = db.query(CourierTask).filter(
-        CourierTask.courier_id == courier_id,
-        CourierTask.status.in_([CourierTaskStatus.ACCEPTED, CourierTaskStatus.OFFERED]),
-    ).all()
+    tasks = (
+        db.query(CourierTask)
+        .filter(
+            CourierTask.courier_id == courier_id,
+            CourierTask.status.in_(
+                [CourierTaskStatus.ACCEPTED, CourierTaskStatus.OFFERED]
+            ),
+        )
+        .all()
+    )
+    order_ids = [t.order_id for t in tasks if t.order_id]
+    orders = (
+        {o.id: o for o in db.query(Order).filter(Order.id.in_(order_ids)).all()}
+        if order_ids
+        else {}
+    )
+    merchant_ids = [o.merchant_id for o in orders.values() if o.merchant_id]
+    merchants = (
+        {
+            m.id: m
+            for m in db.query(Merchant).filter(Merchant.id.in_(merchant_ids)).all()
+        }
+        if merchant_ids
+        else {}
+    )
+
     rows = []
     for t in tasks:
-        order = db.get(Order, t.order_id)
-        merchant = db.get(Merchant, order.merchant_id) if order else None
-        rows.append({
-            "id": t.id, "order_id": t.order_id, "status": t.status.value,
-            "offered_at": t.offered_at.isoformat() if t.offered_at else None,
-            "accepted_at": t.accepted_at.isoformat() if t.accepted_at else None,
-            "delivered_at": t.delivered_at.isoformat() if t.delivered_at else None,
-            "batch_orders": [t.order_id],
-            "customer_name": order.customer_name if order else None,
-            "customer_address": order.customer_address if order else None,
-            "customer_phone": order.customer_phone if order else None,
-            "total": order.total if order else 0,
-            "delivery_method": order.delivery_method.value if order and hasattr(order.delivery_method, "value") else (order.delivery_method if order else None),
-            "distance_km": order.distance_km if order else 0,
-            "merchant_name": merchant.name if merchant else None,
-            "merchant_district": merchant.district if merchant else None,
-        })
+        order = orders.get(t.order_id)
+        merchant = (
+            merchants.get(order.merchant_id) if order and order.merchant_id else None
+        )
+        rows.append(
+            {
+                "id": t.id,
+                "order_id": t.order_id,
+                "status": t.status.value,
+                "offered_at": t.offered_at.isoformat() if t.offered_at else None,
+                "accepted_at": t.accepted_at.isoformat() if t.accepted_at else None,
+                "delivered_at": t.delivered_at.isoformat() if t.delivered_at else None,
+                "batch_orders": [t.order_id],
+                "customer_name": order.customer_name if order else None,
+                "customer_address": order.customer_address if order else None,
+                "customer_phone": order.customer_phone if order else None,
+                "total": order.total if order else 0,
+                "delivery_method": order.delivery_method.value
+                if order and hasattr(order.delivery_method, "value")
+                else (order.delivery_method if order else None),
+                "distance_km": order.distance_km if order else 0,
+                "merchant_name": merchant.name if merchant else None,
+                "merchant_district": merchant.district if merchant else None,
+            }
+        )
     return rows
 
 
 @router.post("/{courier_id}/tasks/{task_id}/accept")
-def accept_task(courier_id: int, task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def accept_task(
+    courier_id: int,
+    task_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     _courier_access(courier_id, user, db)
     task = db.get(CourierTask, task_id)
     if not task or task.courier_id != courier_id:
@@ -134,6 +221,7 @@ def accept_task(courier_id: int, task_id: int, user: User = Depends(get_current_
         raise HTTPException(400, f"Task is {task.status.value}, not offered")
     task.status = CourierTaskStatus.ACCEPTED
     from datetime import datetime
+
     task.accepted_at = datetime.utcnow()
     order = db.get(Order, task.order_id)
     if order:
@@ -143,8 +231,13 @@ def accept_task(courier_id: int, task_id: int, user: User = Depends(get_current_
 
 
 @router.post("/{courier_id}/tasks/{task_id}/reject")
-def reject_task(courier_id: int, task_id: int, payload: TaskActionIn,
-                user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def reject_task(
+    courier_id: int,
+    task_id: int,
+    payload: TaskActionIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     _courier_access(courier_id, user, db)
     task = db.get(CourierTask, task_id)
     if not task or task.courier_id != courier_id:
@@ -165,7 +258,12 @@ def reject_task(courier_id: int, task_id: int, payload: TaskActionIn,
 
 
 @router.post("/{courier_id}/tasks/{task_id}/deliver")
-def mark_delivered(courier_id: int, task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def mark_delivered(
+    courier_id: int,
+    task_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     _courier_access(courier_id, user, db)
     task = db.get(CourierTask, task_id)
     if not task or task.courier_id != courier_id:
@@ -174,6 +272,7 @@ def mark_delivered(courier_id: int, task_id: int, user: User = Depends(get_curre
         raise HTTPException(400, "Task not in deliverable state")
     task.status = CourierTaskStatus.DELIVERED
     from datetime import datetime
+
     task.delivered_at = datetime.utcnow()
     order = db.get(Order, task.order_id)
     if order:
@@ -186,7 +285,12 @@ def mark_delivered(courier_id: int, task_id: int, user: User = Depends(get_curre
 
 
 @router.post("/{courier_id}/tasks/{task_id}/pickup")
-def mark_picked_up(courier_id: int, task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def mark_picked_up(
+    courier_id: int,
+    task_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     _courier_access(courier_id, user, db)
     task = db.get(CourierTask, task_id)
     if not task or task.courier_id != courier_id:
@@ -202,7 +306,12 @@ def mark_picked_up(courier_id: int, task_id: int, user: User = Depends(get_curre
 
 
 @router.post("/{courier_id}/tasks/{task_id}/transit")
-def mark_in_transit(courier_id: int, task_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def mark_in_transit(
+    courier_id: int,
+    task_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     _courier_access(courier_id, user, db)
     task = db.get(CourierTask, task_id)
     if not task or task.courier_id != courier_id:
@@ -219,8 +328,11 @@ def mark_in_transit(courier_id: int, task_id: int, user: User = Depends(get_curr
 
 # ===== خدمات المندوب الذاتية (Self-service) =====
 
+
 @router.patch("/me")
-def update_my_profile(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_my_profile(
+    payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     """المندوب يعدّل ملفه: الاسم، رقم الجوال، الحساب البنكي (IBAN)."""
     if user.role != UserRole.COURIER or not user.courier_id:
         raise HTTPException(403, "This account is not a courier")
@@ -238,7 +350,9 @@ def update_my_profile(payload: dict, user: User = Depends(get_current_user), db:
 
 
 @router.post("/me/tickets")
-def raise_ticket(payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def raise_ticket(
+    payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     """المندوب يرفع تذكرة دعم — تظهر لفريق الشركة في لوحة Fleet."""
     if user.role != UserRole.COURIER or not user.courier_id:
         raise HTTPException(403, "This account is not a courier")
@@ -252,7 +366,9 @@ def raise_ticket(payload: dict, user: User = Depends(get_current_user), db: Sess
     ticket = SupportTicket(
         tenant_id=courier.tenant_id if courier else None,
         courier_id=courier.id if courier else None,
-        subject=subject, message=message, status="OPEN",
+        subject=subject,
+        message=message,
+        status="OPEN",
     )
     db.add(ticket)
     db.commit()
@@ -264,11 +380,141 @@ def raise_ticket(payload: dict, user: User = Depends(get_current_user), db: Sess
 def my_tickets(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.role != UserRole.COURIER or not user.courier_id:
         raise HTTPException(403, "This account is not a courier")
-    tickets = db.query(SupportTicket).filter(SupportTicket.courier_id == user.courier_id).order_by(SupportTicket.id.desc()).all()
+    tickets = (
+        db.query(SupportTicket)
+        .filter(SupportTicket.courier_id == user.courier_id)
+        .order_by(SupportTicket.id.desc())
+        .all()
+    )
     return [
         {
-            "id": t.id, "subject": t.subject, "message": t.message, "status": t.status,
-            "reply": t.reply, "created_at": t.created_at.isoformat() if t.created_at else None,
+            "id": t.id,
+            "subject": t.subject,
+            "message": t.message,
+            "status": t.status,
+            "reply": t.reply,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
         }
         for t in tickets
     ]
+
+
+@router.post("/me/status")
+def update_driver_status(
+    payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """تحديث حالة السائق التشغيلية الميدانية (ONLINE / ON_BREAK / ON_DELIVERY / OFFLINE)."""
+    if user.role != UserRole.COURIER or not user.courier_id:
+        raise HTTPException(403, "Courier account required")
+    courier = db.get(Courier, user.courier_id)
+    if not courier:
+        raise HTTPException(404, "Courier not found")
+    status = (payload.get("status") or "ONLINE").upper()
+    if status == "ONLINE":
+        courier.is_online = True
+        courier.is_available = True
+        courier.shift_active = True
+    elif status == "ON_BREAK":
+        courier.is_online = True
+        courier.is_available = False
+    elif status == "ON_DELIVERY":
+        courier.is_online = True
+        courier.is_available = False
+        courier.shift_active = True
+    elif status == "OFFLINE":
+        courier.is_online = False
+        courier.is_available = False
+        courier.shift_active = False
+    db.commit()
+    return {
+        "ok": True,
+        "status": status,
+        "is_online": courier.is_online,
+        "is_available": courier.is_available,
+    }
+
+
+@router.post("/me/sos")
+def send_sos_alert(
+    payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """إرسال بلاغ طوارئ فوري مع الإحداثيات للمشرف وغرفة العمليات."""
+    if user.role != UserRole.COURIER or not user.courier_id:
+        raise HTTPException(403, "Courier account required")
+    courier = db.get(Courier, user.courier_id)
+    lat = payload.get("lat")
+    lng = payload.get("lng")
+    note = (payload.get("note") or "نداء استغاثة وطوارئ من المندوب").strip()
+    req = EmployeeRequest(
+        tenant_id=courier.tenant_id if courier else user.tenant_id,
+        courier_id=courier.id if courier else user.courier_id,
+        request_type="SOS",
+        title=f"🚨 بلاغ طوارئ SOS — {courier.name if courier else 'مندوب'}",
+        details=f"إحداثيات الموقع: Lat: {lat}, Lng: {lng}\nملاحظات: {note}",
+        status="PENDING",
+    )
+    db.add(req)
+    db.commit()
+    return {
+        "ok": True,
+        "id": req.id,
+        "message": "تم إرسال إشعار الطوارئ فوراً للمشرف وغرفة العمليات",
+    }
+
+
+@router.post("/me/inspection")
+def submit_pre_shift_inspection(
+    payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """تسجيل فحص الجاهزية والسلامة للمركبة والعهدة قبل بدء الوردية."""
+    if user.role != UserRole.COURIER or not user.courier_id:
+        raise HTTPException(403, "Courier account required")
+    courier = db.get(Courier, user.courier_id)
+    items = []
+    if payload.get("vehicle_ready"):
+        items.append("✅ فحص المركبة سليم")
+    if payload.get("fuel_ok"):
+        items.append("✅ الوقود/البطارية كافية")
+    if payload.get("bag_clean"):
+        items.append("✅ الحقيبة الحرارية نظيفة ومجهزة")
+    if payload.get("helmet_ready"):
+        items.append("✅ أدوات السلامة والخوذة مكتملة")
+    notes = payload.get("notes") or ""
+    req = EmployeeRequest(
+        tenant_id=courier.tenant_id if courier else user.tenant_id,
+        courier_id=courier.id if courier else user.courier_id,
+        request_type="INSPECTION",
+        title="📋 فحص الجاهزية والسلامة قبل الوردية",
+        details=" · ".join(items) + (f"\nملاحظات إضافية: {notes}" if notes else ""),
+        status="APPROVED",
+    )
+    db.add(req)
+    db.commit()
+    return {"ok": True, "id": req.id, "checklist": items}
+
+
+@router.post("/me/cod-settlement")
+def submit_cod_settlement(
+    payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """تسجيل تسوية كاش التحصيل اليومي (Cash on Delivery)."""
+    if user.role != UserRole.COURIER or not user.courier_id:
+        raise HTTPException(403, "Courier account required")
+    courier = db.get(Courier, user.courier_id)
+    amount = float(payload.get("amount") or 0)
+    if amount <= 0:
+        raise HTTPException(400, "المبلغ يجب أن يكون أكبر من صفر")
+    method = payload.get("method") or "CASH_TO_SUPERVISOR"
+    notes = payload.get("notes") or ""
+    req = EmployeeRequest(
+        tenant_id=courier.tenant_id if courier else user.tenant_id,
+        courier_id=courier.id if courier else user.courier_id,
+        request_type="COD_SETTLEMENT",
+        title=f"💵 تسوية كاش تحصيل COD — {amount:,.2f} ر.س",
+        amount=amount,
+        details=f"طريقة التسليم: {method}\nملاحظات: {notes}",
+        status="PENDING",
+    )
+    db.add(req)
+    db.commit()
+    return {"ok": True, "id": req.id, "amount": amount}

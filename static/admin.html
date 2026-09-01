@@ -142,15 +142,20 @@ input:focus,select:focus,textarea:focus{border-color:var(--orange)}
 <button onclick="setDouLanguage(localStorage.getItem('dou_lang')==='en'?'ar':'en')" style="position:fixed;left:14px;bottom:14px;z-index:100;background:#111827;color:#fff;border:1px solid #374151;border-radius:20px;padding:8px 13px;font:700 11px Alexandria;cursor:pointer">AR / EN</button>
 <div class="layout"><aside class="side" id="side">
   <div class="brand"><div class="lg">D</div><div><b>DOU</b><small>SUPER ADMIN</small></div></div>
-  <div class="group">الإدارة</div>
+  <div class="group">المنصة</div>
   <button class="nav active" data-view="dashboard"><i>📊</i><span>لوحة القيادة</span></button>
   <button class="nav" data-view="companies"><i>🏢</i><span>الشركات المشتركة</span><span class="ct" id="ctCompanies">0</span></button>
+  <button class="nav" data-view="operators"><i>🔗</i><span>المشغّلون</span></button>
+  <div class="group">المالية</div>
   <button class="nav" data-view="finance"><i>💰</i><span>التحصيل والإيرادات</span></button>
   <button class="nav" data-view="plans"><i>💳</i><span>الباقات والأسعار</span></button>
+  <button class="nav" data-view="usage"><i>📈</i><span>الاستخدام والحدود</span></button>
+  <div class="group">النظام</div>
+  <button class="nav" data-view="health"><i>🩺</i><span>صحة المنصة</span></button>
+  <button class="nav" data-view="integrations"><i>🔌</i><span>التكاملات</span></button>
+  <button class="nav" data-view="metabase"><i>📈</i><span>ذكاء الأعمال (Metabase)</span></button>
   <button class="nav" data-view="audit"><i>🛡️</i><span>سجل إدارة DOU</span></button>
-  <button class="nav" data-view="couriers"><i>👤</i><span>كل السائقين</span><span class="ct" id="ctCouriers">0</span></button>
-  <div class="group">الشركة</div>
-  <button class="nav" data-view="staff"><i>👥</i><span>الفريق والصلاحيات</span></button>
+  <button class="nav" data-view="dou-team"><i>👥</i><span>فريق DOU</span></button>
   <button class="nav" data-view="settings"><i>⚙</i><span>إعدادات النظام</span></button>
   <div class="user"><div class="photo">سم</div><div><b>سامح صالح</b><small>Super Admin</small></div><button class="btn ghost small" style="margin-right:8px;flex-shrink:0" onclick="changeAdminPassword()" title="تغيير كلمة المرور">🔐</button><button class="btn ghost small" style="flex-shrink:0" onclick="logout()" title="تسجيل الخروج">🚪</button></div>
 </aside>
@@ -160,6 +165,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--orange)}
     <button class="hamburger" onclick="toggleSide()">☰</button>
     <div class="breadcrumb">DOU / <b id="crumb">لوحة القيادة</b></div>
     <div class="topActions">
+      <span class="tag green" style="font-size:11px;padding:4px 10px;font-weight:700">🟢 99.98% Live</span>
+      <button class="btn ghost small" style="color:var(--blue);font-weight:700" onclick="openGhostModal()">👤 دخول كدعم (Ghost)</button>
+      <button class="btn red small" onclick="emergencyLogoutAll()">🔒 إبطال الجلسات</button>
       <button class="iconBtn" style="position:relative" onclick="toggleNotifs(event)">🔔<span class="dot" id="notifBadge">4</span>
         <div class="notifPanel" id="notifPanel"><div id="notifList"></div></div>
       </button>
@@ -419,8 +427,103 @@ input:focus,select:focus,textarea:focus{border-color:var(--orange)}
         </div>
       </div>
     </section>
+
+    <!-- ===== OPERATORS ===== -->
+    <section id="view-operators" style="display:none">
+      <div class="welcome"><div><h1>المشغّلون</h1><p>إدارة المشغّلين والشركات التابعة لمنصات التوصيل.</p></div></div>
+      <div class="kpis">
+        <div class="kpi"><div class="top"><i style="background:var(--blue-soft)">🔗</i>إجمالي المشغّلين</div><b id="opTotal">–</b></div>
+        <div class="kpi"><div class="top"><i style="background:var(--green-soft)">✅</i>نشط</div><b id="opActive">–</b></div>
+        <div class="kpi"><div class="top"><i style="background:var(--red-soft)">⛔</i>معطّل</div><b id="opInactive">–</b></div>
+        <div class="kpi"><div class="top"><i style="background:var(--amber-soft)">🛵</i>سائقون غير مرتبطين</div><b id="opUnassigned">–</b></div>
+      </div>
+      <div class="card"><h3>كل الشركات المشتركة</h3><table><thead><tr><th>الشركة</th><th>الدولة</th><th>الباقة</th><th>السائقون</th><th>المشغّلون</th><th>الحالة</th></tr></thead><tbody id="operatorsCompaniesBody"></tbody></table></div>
+    </section>
+
+    <!-- ===== USAGE ===== -->
+    <section id="view-usage" style="display:none">
+      <div class="welcome"><div><h1>الاستخدام والحدود</h1><p>مراقبة استخدام الشركات مقابل حدود الباقات.</p></div></div>
+      <div class="kpis">
+        <div class="kpi"><div class="top"><i style="background:var(--green-soft)">🏢</i>شركات نشطة</div><b id="usageActive">–</b></div>
+        <div class="kpi"><div class="top"><i style="background:var(--red-soft)">⛔</i>شركات معلّقة</div><b id="usageSuspended">–</b></div>
+        <div class="kpi"><div class="top"><i style="background:var(--amber-soft)">⚠️</i>شركات متأخرة</div><b id="usageOverdue">–</b></div>
+        <div class="kpi"><div class="top"><i style="background:var(--blue-soft)">👥</i>إجمالي المستخدمين</div><b id="usageUsers">–</b></div>
+      </div>
+      <div class="card"><h3>الشركات القريبة من الحد</h3><table><thead><tr><th>الشركة</th><th>السائقون</th><th>الحد</th><th>نسبة الاستخدام</th><th>الحالة</th></tr></thead><tbody id="usageNearLimitBody"></tbody></table></div>
+    </section>
+
+    <!-- ===== HEALTH ===== -->
+    <section id="view-health" style="display:none">
+      <div class="welcome"><div><h1>صحة المنصة</h1><p>مركز مراقبة صحة الأنظمة والتكاملات.</p></div></div>
+      <div class="kpis">
+        <div class="kpi"><div class="top"><i style="background:var(--green-soft)">⚡</i>API</div><b id="healthApi">–</b></div>
+        <div class="kpi"><div class="top"><i style="background:var(--blue-soft)">🗄️</i>قاعدة البيانات</div><b id="healthDb">–</b></div>
+        <div class="kpi"><div class="top"><i style="background:var(--red-soft)">❌</i>إخفاقات 24 ساعة</div><b id="healthFailures">–</b></div>
+        <div class="kpi"><div class="top"><i style="background:var(--amber-soft)">⏳</i>تصاريح معلّقة</div><b id="healthPending">–</b></div>
+      </div>
+      <div class="card"><h3>صحة البيانات</h3><table><thead><tr><th>المصدر</th><th>آخر مزامنة ناجحة</th><th>آخر فشل</th><th>الحالة</th><th>الصفوف</th></tr></thead><tbody id="healthDataBody"></tbody></table></div>
+    </section>
+
+    <!-- ===== INTEGRATIONS ===== -->
+    <section id="view-integrations" style="display:none">
+      <div class="welcome"><div><h1>التكاملات</h1><p>سجل التكاملات والـ Webhooks لكل الشركات.</p></div></div>
+      <div class="card"><table><thead><tr><th>الشركة</th><th>النوع</th><th>الرابط</th><th>الاتجاه</th><th>الحالة</th></tr></thead><tbody id="integrationsBody"></tbody></table></div>
+    </section>
+
+    <!-- ===== DOU TEAM ===== -->
+    <section id="view-dou-team" style="display:none">
+      <div class="welcome"><div><h1>فريق DOU</h1><p>إدارة أعضاء فريق DOU وصلاحياتهم.</p></div><div class="quickBtns"><button class="btn primary" onclick="toggleDouTeamAdd()">+ دعوة عضو</button></div></div>
+      <div class="card" id="douTeamAddBox" style="display:none;margin-bottom:16px">
+        <h3>دعوة عضو جديد</h3>
+        <div class="form-row">
+          <input id="dtName" placeholder="الاسم">
+          <input id="dtPhone" placeholder="الجوال (966...)">
+          <select id="dtRole"><option value="DOU_OPS">عمليات</option><option value="DOU_ADMIN">مدير المنصة</option></select>
+          <input id="dtPassword" type="text" placeholder="كلمة مرور مؤقتة (8 أحرف)">
+        </div>
+        <button class="btn primary" onclick="inviteDouMember()">إرسال الدعوة</button><span id="douTeamMsg" class="msg"></span>
+      </div>
+      <div class="card"><table><thead><tr><th>العضو</th><th>الجوال</th><th>الدور</th><th>الحالة</th><th>آخر دخول</th></tr></thead><tbody id="douTeamBody"></tbody></table></div>
+    </section>
+
+    <!-- ===== METABASE BI SUITE ===== -->
+    <section id="view-metabase" style="display:none">
+      <div class="welcome">
+        <div><h1>📈 ذكاء الأعمال والتقارير (Metabase BI)</h1><p>استعراض وتشغيل الاستعلامات المعتمدة وربط التقارير المتقدمة للربحية والإنتاجية.</p></div>
+        <div class="quickBtns">
+          <span id="mbStatusBadge" class="tag blue">جاري الفحص...</span>
+        </div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="top"><i style="background:var(--blue-soft)">📊</i>الأسئلة المعتمدة</div><b id="mbQuestionCount">0</b></div>
+        <div class="kpi"><div class="top"><i style="background:var(--green-soft)">⚡</i>المحول المدمج</div><b>Active Adapter</b></div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <h3>📋 قائمة الاستعلامات والتقارير المعتمدة</h3>
+        <div class="grid2" id="mbQuestionsList"></div>
+      </div>
+      <div class="card" id="mbResultBox" style="display:none">
+        <div class="ph"><h3 id="mbResultTitle">نتائج الاستعلام</h3><button class="btn ghost small" onclick="document.getElementById('mbResultBox').style.display='none'">إغلاق</button></div>
+        <div id="mbResultContent" style="overflow-x:auto"></div>
+      </div>
+    </section>
   </div>
 </main></div>
+
+<!-- Modal: الدخول بصفة دعم فني Ghost Login -->
+<div class="modal" id="ghostModal">
+  <div class="modalBox" style="max-width:440px">
+    <h3>👤 الدخول بصفة دعم فني (Ghost Login)</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">اختر الشركة المراد الدخول للوحتها لمعاينة المشكلة وتقديم الدعم المباشر. تُسجل العملية بالكامل في سجل التدقيق.</p>
+    <div class="form-row">
+      <select id="ghostTenantSelect" style="width:100%"></select>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+      <button class="btn ghost" onclick="closeModal('ghostModal')">إلغاء</button>
+      <button class="btn primary" onclick="executeGhostLogin()">فتح لوحة الشركة</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal: تعديل عمولة قناة -->
 <div class="modal" id="commModal">
@@ -475,22 +578,21 @@ async function changeAdminPassword(){
 
 function go(v){
   document.querySelectorAll(".nav").forEach(n=>n.classList.toggle("active",n.dataset.view===v));
-  const views = ["dashboard","merchants","channels","companies","finance","plans","audit","couriers","geo","orders","pricing","staff","settings"];
+  const views = ["dashboard","companies","operators","finance","plans","usage","health","integrations","metabase","audit","dou-team","settings"];
   views.forEach(x=>document.getElementById("view-"+x).style.display = x===v?"block":"none");
-  const names = {dashboard:"لوحة القيادة",merchants:"كل المتاجر",channels:"القنوات",companies:"شركات التشغيل",finance:"التحصيل والإيرادات",plans:"الباقات والأسعار",audit:"سجل إدارة DOU",couriers:"المناديب",geo:"الدول والمناطق",orders:"الطلبات",pricing:"العمولات والأسعار",staff:"الفريق والصلاحيات",settings:"إعدادات النظام"};
+  const names = {dashboard:"لوحة القيادة",companies:"الشركات المشتركة",operators:"المشغّلون",finance:"التحصيل والإيرادات",plans:"الباقات والأسعار",usage:"الاستخدام والحدود",health:"صحة المنصة",integrations:"التكاملات",metabase:"ذكاء الأعمال (Metabase)",audit:"سجل إدارة DOU","dou-team":"فريق DOU",settings:"إعدادات النظام"};
   document.getElementById("crumb").textContent = names[v];
   if(v==="dashboard") loadDashboard();
-  if(v==="merchants") loadMerchants();
-  if(v==="channels") loadChannels();
   if(v==="companies") loadCompanies();
+  if(v==="operators") loadOperators();
   if(v==="finance") loadFinance();
   if(v==="plans") loadPlans();
+  if(v==="usage") loadUsage();
+  if(v==="health") loadHealth();
+  if(v==="integrations") loadIntegrations();
+  if(v==="metabase") loadMetabase();
   if(v==="audit") loadAudit();
-  if(v==="couriers") loadCouriers();
-  if(v==="geo") loadGeo();
-  if(v==="orders") loadOrders();
-  if(v==="pricing") renderCommissionRows();
-  if(v==="staff"){ loadStaff(); loadUsers(); }
+  if(v==="dou-team") loadDouTeam();
   if(v==="settings") loadSystemStatus();
 }
 
@@ -700,9 +802,96 @@ async function toggleCompany(id){
 }
 async function setCompanyPlan(id,plan){await api("/admin/tenants/"+id,{method:"PATCH",body:JSON.stringify({plan})});loadCompanies()}
 async function supportLogin(id){
-  if(!confirm("فتح جلسة دعم آمنة لمدة 30 دقيقة؟ سيتم تسجيل العملية."))return;
-  const r=await api("/admin/tenants/"+id+"/support-login",{method:"POST"});
-  localStorage.setItem("dou_token_fleet",r.access_token);localStorage.setItem("dou_role",r.role);window.open("/static/fleet.html","_blank");loadAudit();
+  if(!confirm("فتح جلسة دعم آمنة للشركة؟ سيتم تسجيل العملية في سجل الحوكمة والأمان."))return;
+  try{
+    const r=await api("/admin/tenants/"+id+"/support-login",{method:"POST"});
+    localStorage.setItem("dou_token_v2",r.access_token);
+    localStorage.setItem("dou_token_fleet",r.access_token);
+    localStorage.setItem("dou_role",r.role);
+    window.open("/app/v2/","_blank");
+    loadAudit();
+  }catch(e){ alert("❌ تعذر الدخول: "+e.message); }
+}
+
+function openGhostModal(){
+  const sel=document.getElementById("ghostTenantSelect");
+  if(!allCompanies.length){
+    api("/admin/tenants").then(tenants=>{
+      allCompanies = tenants;
+      sel.innerHTML = allCompanies.map(c=>`<option value="${c.id}">${c.name} (${c.plan}) — ${c.couriers_count} سائق</option>`).join("");
+      openModal("ghostModal");
+    });
+  } else {
+    sel.innerHTML = allCompanies.map(c=>`<option value="${c.id}">${c.name} (${c.plan}) — ${c.couriers_count} سائق</option>`).join("");
+    openModal("ghostModal");
+  }
+}
+
+async function executeGhostLogin(){
+  const tid = document.getElementById("ghostTenantSelect").value;
+  if(!tid) return alert("اختر الشركة أولاً");
+  closeModal("ghostModal");
+  supportLogin(tid);
+}
+
+async function emergencyLogoutAll(){
+  if(!confirm("⚠️ تحذير أمني عاجل:\n\nهل تريد إبطال كافة الجلسات النشطة لجميع المستخدمين في النظام فوراً؟")) return;
+  try{
+    await api("/auth/logout-all",{method:"POST"});
+    alert("🔒 تم إرسال أمر إبطال الجلسات النشطة بنجاح.");
+  }catch(e){ alert("❌ فشل إبطال الجلسات: "+e.message); }
+}
+
+/* ===== METABASE BI SUITE ===== */
+async function loadMetabase(){
+  try{
+    const [statusRes, questionsRes] = await Promise.all([
+      api("/admin/metabase/status").catch(()=>({available:false,adapter_active:true})),
+      api("/admin/metabase/questions").catch(()=>({questions:[]}))
+    ]);
+    const badge = document.getElementById("mbStatusBadge");
+    if(badge){
+      badge.textContent = statusRes.available ? "🟢 Metabase Server Online" : "⚡ Built-in Adapter Active";
+      badge.className = "tag " + (statusRes.available ? "green" : "blue");
+    }
+    const qList = questionsRes.questions || [];
+    document.getElementById("mbQuestionCount").textContent = qList.length;
+    const container = document.getElementById("mbQuestionsList");
+    container.innerHTML = qList.map(q=>`
+      <div class="panel" style="background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px">
+        <div class="ph"><h3>📊 ${q.name || q.id}</h3><span class="tag gray">${q.id}</span></div>
+        <p style="font-size:11.5px;color:var(--muted);margin-bottom:14px">${q.description || 'استعلام تحليلي متقدم'}</p>
+        <button class="btn primary small" onclick="runMetabaseQuestion('${q.id}', '${q.name || q.id}')">⚡ تشغيل الاستعلام</button>
+      </div>
+    `).join("") || '<p style="color:var(--muted);padding:12px">لا توجد استعلامات معتمدة مسجلة.</p>';
+  }catch(e){ console.error(e); }
+}
+
+async function runMetabaseQuestion(qid, title){
+  const box = document.getElementById("mbResultBox");
+  const content = document.getElementById("mbResultContent");
+  box.style.display = "block";
+  document.getElementById("mbResultTitle").textContent = "📊 نتائج استعلام: " + title;
+  content.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted)">جاري استخراج وتحليل البيانات...</div>';
+  box.scrollIntoView({behavior:'smooth',block:'start'});
+  try{
+    const res = await api(`/admin/metabase/question/${qid}/execute`, {method:"POST"});
+    const rows = res.rows || res.data || [];
+    const cols = res.columns || (rows.length ? Object.keys(rows[0]) : []);
+    if(!rows.length){
+      content.innerHTML = '<div style="padding:16px;color:var(--muted)">تم تنفيذ الاستعلام بنجاح. لا توجد صفوف للتقرير الحالي.</div>';
+      return;
+    }
+    content.innerHTML = `
+      <table style="width:100%">
+        <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${rows.map(r=>`<tr>${cols.map(c=>`<td>${r[c]!==null && r[c]!==undefined ? (typeof r[c]==='number' ? r[c].toLocaleString('ar-SA') : r[c]) : '—'}</td>`).join('')}</tr>`).join('')}
+        </tbody>
+      </table>`;
+  }catch(e){
+    content.innerHTML = `<div style="padding:16px;color:var(--red)">❌ فشل تنفيذ الاستعلام: ${e.message}</div>`;
+  }
 }
 async function loadPlans(){const rows=await api("/admin/plans");window.DOU_PLANS=rows;document.getElementById('ncPlan').innerHTML=rows.filter(p=>p.is_active).map(p=>`<option value="${p.code}">${p.name} — ${p.monthly_price} SAR / ${p.monthly_price_usd||0} USD</option>`).join('');document.getElementById("plansBody").innerHTML=rows.map(p=>`<tr><td>${p.name}<small>${p.name_en||''}</small></td><td>${p.code}</td><td>${p.monthly_price}</td><td>$${p.monthly_price_usd||0}</td><td>${p.max_couriers||'غير محدود'}</td><td>${p.is_active?'<span class="tag green">نشطة</span>':'<span class="tag red">موقوفة</span>'}</td><td><button class="btn ghost small" onclick="editPlan('${p.code}')">تعديل</button></td></tr>`).join("")}
 function editPlan(code){const p=(window.DOU_PLANS||[]).find(x=>x.code===code);if(!p)return;document.getElementById('plCode').value=p.code;document.getElementById('plName').value=p.name;document.getElementById('plNameEn').value=p.name_en||'';document.getElementById('plPrice').value=p.monthly_price;document.getElementById('plPriceUsd').value=p.monthly_price_usd||0;document.getElementById('plLimit').value=p.max_couriers;document.getElementById('plFeaturesAr').value=p.features_ar||'';document.getElementById('plFeaturesEn').value=p.features_en||'';document.getElementById('plActive').value=String(p.is_active);window.scrollTo({top:0,behavior:'smooth'})}
@@ -959,6 +1148,173 @@ async function gateLogin(){
 
 const gatePassEl = document.getElementById("gatePass"); if(gatePassEl) gatePassEl.addEventListener("keydown", e=>{ if(e.key==="Enter") gateLogin(); });
 setInterval(()=>{ fetch("/health").catch(()=>{}); }, 10*60*1000);
+
+/* ===== OPERATORS ===== */
+async function loadOperators(){
+  try{
+    const health = await api("/admin/operators/health");
+    document.getElementById("opTotal").textContent = health.total_operators;
+    document.getElementById("opActive").textContent = health.active_operators;
+    document.getElementById("opInactive").textContent = health.inactive_operators;
+    document.getElementById("opUnassigned").textContent = health.unassigned_couriers;
+    const companies = await api("/admin/tenants");
+    document.getElementById("operatorsCompaniesBody").innerHTML = companies.map(t=>`
+      <tr>
+        <td><b>${t.name}</b></td>
+        <td>${countryTag(t.country)}</td>
+        <td><span class="tag blue">${t.plan}</span></td>
+        <td>${t.couriers_count}</td>
+        <td>${t.operators_count || 0}</td>
+        <td><span class="tag ${t.subscription_status==='ACTIVE'?'green':t.subscription_status==='OVERDUE'?'amber':'red'}">${t.subscription_status}</span></td>
+      </tr>`).join("") || '<tr><td colspan="6" style="color:var(--muted)">لا شركات</td></tr>';
+  }catch(e){ console.error(e); }
+}
+
+/* ===== USAGE ===== */
+async function loadUsage(){
+  try{
+    const usage = await api("/admin/usage/summary");
+    document.getElementById("usageActive").textContent = usage.active_tenants;
+    document.getElementById("usageSuspended").textContent = usage.suspended_tenants;
+    document.getElementById("usageOverdue").textContent = usage.overdue_tenants;
+    document.getElementById("usageUsers").textContent = usage.total_users;
+    document.getElementById("usageNearLimitBody").innerHTML = usage.tenants_near_limit.map(t=>`
+      <tr>
+        <td><b>${t.name}</b></td>
+        <td>${t.count}</td>
+        <td>${t.max}</td>
+        <td><div class="chartRow"><div class="bar"><i style="width:${t.usage_pct}%;background:${t.usage_pct>90?'var(--red)':t.usage_pct>80?'var(--amber)':'var(--green)'}"></i></div><span class="val">${t.usage_pct}%</span></div></td>
+        <td><span class="tag ${t.usage_pct>90?'red':'amber'}">${t.usage_pct>90?'حرج':'قريب من الحد'}</span></td>
+      </tr>`).join("") || '<tr><td colspan="5" style="color:var(--muted)">لا شركات قريبة من الحد</td></tr>';
+  }catch(e){ console.error(e); }
+}
+
+/* ===== HEALTH ===== */
+async function loadHealth(){
+  try{
+    const health = await api("/admin/health/detailed");
+    document.getElementById("healthApi").textContent = health.api;
+    document.getElementById("healthApi").className = "tag " + (health.api==='ONLINE'?'green':'red');
+    document.getElementById("healthDb").textContent = health.database;
+    document.getElementById("healthDb").className = "tag " + (health.database==='ONLINE'?'green':'red');
+    document.getElementById("healthFailures").textContent = health.recent_import_failures_24h;
+    document.getElementById("healthPending").textContent = health.pending_attendance_corrections;
+    document.getElementById("healthDataBody").innerHTML = health.data_health.map(h=>`
+      <tr>
+        <td><b>${h.source}</b></td>
+        <td>${h.last_successful_sync ? new Date(h.last_successful_sync).toLocaleString('ar-SA') : '—'}</td>
+        <td>${h.last_failed_sync ? new Date(h.last_failed_sync).toLocaleString('ar-SA') : '—'}</td>
+        <td><span class="tag ${h.last_sync_status==='SUCCESS'?'green':h.last_sync_status==='FAILED'?'red':'amber'}">${h.last_sync_status}</span></td>
+        <td>${h.rows_processed || 0}</td>
+      </tr>`).join("") || '<tr><td colspan="5" style="color:var(--muted)">لا بيانات</td></tr>';
+  }catch(e){ console.error(e); }
+}
+
+/* ===== INTEGRATIONS ===== */
+async function loadIntegrations(){
+  try{
+    const integrations = await api("/admin/integrations");
+    document.getElementById("integrationsBody").innerHTML = integrations.map(i=>`
+      <tr>
+        <td><b>${i.tenant_name}</b></td>
+        <td><span class="tag blue">${i.event_type}</span></td>
+        <td style="direction:ltr;font-size:11px">${i.url}</td>
+        <td><span class="tag ${i.is_inbound?'green':'amber'}">${i.is_inbound?'وارد':'صادر'}</span></td>
+        <td><span class="tag ${i.is_active?'green':'red'}">${i.is_active?'نشط':'معطّل'}</span></td>
+      </tr>`).join("") || '<tr><td colspan="5" style="color:var(--muted)">لا تكاملات</td></tr>';
+  }catch(e){ console.error(e); }
+}
+
+/* ===== DOU TEAM ===== */
+async function loadDouTeam(){
+  try{
+    const team = await api("/admin/dou-team");
+    document.getElementById("douTeamBody").innerHTML = team.map(u=>`
+      <tr>
+        <td><div style="display:flex;align-items:center;gap:10px">${avatar(u.name,"#ff5a13")}<b>${u.name}</b></div></td>
+        <td style="direction:ltr">${u.phone}</td>
+        <td><span class="tag ${u.role==='DOU_ADMIN'?'orange':'blue'}">${u.role==='DOU_ADMIN'?'مدير المنصة':'عمليات'}</span></td>
+        <td><span class="tag ${u.is_active?'green':'red'}">${u.is_active?'نشط':'موقوف'}</span></td>
+        <td>${u.last_login_at ? new Date(u.last_login_at).toLocaleString('ar-SA') : '—'}</td>
+      </tr>`).join("") || '<tr><td colspan="5" style="color:var(--muted)">لا أعضاء</td></tr>';
+  }catch(e){ console.error(e); }
+}
+function toggleDouTeamAdd(){ document.getElementById("douTeamAddBox").style.display = document.getElementById("douTeamAddBox").style.display==="none"?"block":"none"; }
+async function inviteDouMember(){
+  try{
+    await api("/admin/dou-team",{method:"POST",body:JSON.stringify({
+      name:document.getElementById("dtName").value,
+      phone:document.getElementById("dtPhone").value,
+      role:document.getElementById("dtRole").value,
+      password:document.getElementById("dtPassword").value})});
+    document.getElementById("douTeamMsg").textContent="✅ تمت إضافة العضو";
+    document.getElementById("douTeamMsg").style.color="var(--green)";
+    document.getElementById("douTeamAddBox").style.display="none";
+    loadDouTeam();
+  }catch(e){ document.getElementById("douTeamMsg").textContent="❌ "+e.message; }
+}
+
+/* ===== COMPANY 360 ===== */
+async function loadCompanyProfile(tid){
+  try{
+    const p = await api(`/admin/tenants/${tid}/profile`);
+    const el = document.getElementById("companyDetail");
+    el.style.display = "block";
+    el.innerHTML = `
+      <h3>ملف الشركة: ${p.name}</h3>
+      <div class="kpis">
+        <div class="kpi"><div class="top">🏢 الشركة</div><b>${p.name}</b></div>
+        <div class="kpi"><div class="top">💳 الباقة</div><b>${p.plan}</b></div>
+        <div class="kpi"><div class="top">📅 الاشتراك</div><b>${p.subscription_status}</b></div>
+        <div class="kpi"><div class="top">📊 الاستخدام</div><b>${p.usage.usage_pct}%</b></div>
+      </div>
+      <div class="grid2">
+        <div class="panel"><div class="ph"><h3>معلومات الشركة</h3></div>
+          <div class="opt"><div><b>الدولة</b></div><span>${p.country}</span></div>
+          <div class="opt"><div><b>العملة</b></div><span>${p.currency}</span></div>
+          <div class="opt"><div><b>اللغة</b></div><span>${p.default_language}</span></div>
+          <div class="opt"><div><b>المنطقة الزمنية</b></div><span>${p.timezone}</span></div>
+          <div class="opt"><div><b>هاتف التواصل</b></div><span>${p.contact_phone||'—'}</span></div>
+          <div class="opt"><div><b>البريد</b></div><span>${p.contact_email||'—'}</span></div>
+        </div>
+        <div class="panel"><div class="ph"><h3>الاشتراك</h3></div>
+          <div class="opt"><div><b>الرسوم الشهرية</b></div><span>${p.monthly_fee} ${p.currency}</span></div>
+          <div class="opt"><div><b>يوم الفوترة</b></div><span>${p.billing_day}</span></div>
+          <div class="opt"><div><b>تاريخ الاستحقاق</b></div><span>${p.due_date ? new Date(p.due_date).toLocaleDateString('ar-SA') : '—'}</span></div>
+          <div class="opt"><div><b>أيام متبقية</b></div><span>${p.days_to_due!==null?p.days_to_due+' يوم':'—'}</span></div>
+          <div class="opt"><div><b>آخر دفع</b></div><span>${p.last_paid_at ? new Date(p.last_paid_at).toLocaleDateString('ar-SA') : '—'}</span></div>
+          <div class="opt"><div><b>دفع هذا الشهر</b></div><span>${p.paid_this_month?`نعم (${p.paid_this_month_amount} ${p.currency})`:'لا'}</span></div>
+        </div>
+      </div>
+      <div class="panel mt"><div class="ph"><h3>الاستخدام مقابل الحد</h3></div>
+        <div class="totalsRow">
+          <div class="t"><small>السائقون</small><b>${p.usage.couriers} / ${p.usage.max_couriers}</b></div>
+          <div class="t"><small>السائقون النشطون</small><b>${p.usage.active_couriers}</b></div>
+          <div class="t"><small>المستخدمون</small><b>${p.usage.users}</b></div>
+          <div class="t"><small>المشرفون</small><b>${p.usage.supervisors}</b></div>
+        </div>
+      </div>`;
+    // Load operators if available
+    if (p.usage.operators_count > 0) {
+      const ops = await api(`/admin/tenants/${tid}/operators`);
+      const opsHtml = `<div class="panel mt"><div class="ph"><h3>المشغّلون (${ops.length})</h3></div><table><thead><tr><th>المشغّل</th><th>الحالة</th></tr></thead><tbody>` +
+        ops.map(op=>`<tr><td><b>${op.name}</b></td><td><span class="tag ${op.is_active?'green':'red'}">${op.is_active?'نشط':'معطّل'}</span></td></tr>`).join("") +
+        `</tbody></table></div>`;
+      el.insertAdjacentHTML('beforeend', opsHtml);
+    }
+  }catch(e){ console.error(e); }
+}
+
+/* ===== EXPORT HELPERS ===== */
+function exportFinanceCsv(){
+  if(!financeData || !financeData.rows){ alert("لا بيانات للتصدير"); return; }
+  const rows = [["الشركة","الباقة","الرسوم","دفع الشهر","المبلغ","المتأخرات","الحالة"]];
+  financeData.rows.forEach(r=>rows.push([r.company,r.plan,r.monthly_fee,r.paid_this_month?"نعم":"لا",r.paid_amount,r.outstanding_amount,r.collection_status]));
+  const csv = rows.map(r=>r.join(",")).join("\n");
+  const blob = new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download="dou-finance.csv"; a.click();
+}
+
 boot();
 </script>
 </body>

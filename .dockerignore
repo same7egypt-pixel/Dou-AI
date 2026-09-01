@@ -5,3 +5,8 @@ dou.db
 .DS_Store
 .git
 *.log
+venv/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.hermes/

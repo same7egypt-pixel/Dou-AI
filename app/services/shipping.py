@@ -2,17 +2,15 @@
 
 في الـ MVP: ممرّ Mock مع واجهة موحّدة — لاحقاً يُستبدل كل adapter بنداء API حقيقي.
 """
+
 from dataclasses import dataclass
 from typing import Optional
-from urllib.parse import urljoin
-import urllib.request
-import json
 
 
 @dataclass
 class ShipmentRequest:
     order_id: int
-    company_code: str          # SMSA / BOSTA / ARAMEX
+    company_code: str  # SMSA / BOSTA / ARAMEX
     from_address: str
     to_address: str
     from_city: str

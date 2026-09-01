@@ -3,16 +3,26 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.entities import Merchant, Product, User, UserRole
-from ..schemas.dou import MerchantCreate, MerchantOut, ProductCreate, ProductOut, PatchIn
+from ..schemas.dou import (
+    MerchantCreate,
+    MerchantOut,
+    ProductCreate,
+    ProductOut,
+    PatchIn,
+)
 from .auth import get_current_user
 
 BUSINESS_ROLES = (UserRole.COMPANY, UserRole.DOU_OPS, UserRole.DOU_ADMIN)
+
 
 def _business_only(user: User = Depends(get_current_user)):
     if user.role not in BUSINESS_ROLES:
         raise HTTPException(403, "Insufficient permissions")
 
-router = APIRouter(prefix="/merchants", tags=["merchants"], dependencies=[Depends(_business_only)])
+
+router = APIRouter(
+    prefix="/merchants", tags=["merchants"], dependencies=[Depends(_business_only)]
+)
 
 
 @router.post("", response_model=MerchantOut)
@@ -38,7 +48,9 @@ def get_merchant(merchant_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{merchant_id}/products", response_model=ProductOut)
-def add_product(merchant_id: int, payload: ProductCreate, db: Session = Depends(get_db)):
+def add_product(
+    merchant_id: int, payload: ProductCreate, db: Session = Depends(get_db)
+):
     if not db.get(Merchant, merchant_id):
         raise HTTPException(404, "Merchant not found")
     product = Product(merchant_id=merchant_id, **payload.model_dump())
@@ -64,7 +76,9 @@ def update_theme(merchant_id: int, payload: PatchIn, db: Session = Depends(get_d
 
 
 @router.patch("/{merchant_id}/delivery-method")
-def update_delivery_method(merchant_id: int, payload: PatchIn, db: Session = Depends(get_db)):
+def update_delivery_method(
+    merchant_id: int, payload: PatchIn, db: Session = Depends(get_db)
+):
     merchant = db.get(Merchant, merchant_id)
     if not merchant:
         raise HTTPException(404, "Merchant not found")

@@ -7,9 +7,11 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /health
+    healthCheckPath: /health/ready
     autoDeploy: true
     envVars:
+      - key: APP_ENV
+        value: production
       - key: SECRET_KEY
         generateValue: true
       - key: ADMIN_KEY

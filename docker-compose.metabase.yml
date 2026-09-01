@@ -1,0 +1,69 @@
+version: '3.8'
+
+# Local Metabase OSS environment for DOU
+# Docker-based reproducible setup
+# No production credentials, no Neon connection
+# Local only — for development/testing
+
+services:
+  # Metabase application metadata database
+  metabase-db:
+    image: postgres:15-alpine
+    container_name: dou-metabase-db
+    environment:
+      POSTGRES_DB: metabase
+      POSTGRES_USER: metabase
+      POSTGRES_PASSWORD: metabase
+    volumes:
+      - metabase-db-data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metabase"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dou-analytics
+
+  # Metabase OSS application
+  metabase:
+    image: metabase/metabase:v0.52.8
+    container_name: dou-metabase
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_HOST: metabase-db
+      MB_DB_PORT: 5432
+      MB_DB_USER: metabase
+      MB_DB_PASS: metabase
+      MB_SITE_NAME: DOU Analytics (Local)
+      MB_SITE_URL: http://localhost:3000
+      MB_APPLICATION_DB: metabase
+    ports:
+      - "3000:3000"
+    depends_on:
+      metabase-db:
+        condition: service_healthy
+    volumes:
+      - dou-demo-data:/data:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/session/properties"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - dou-analytics
+
+volumes:
+  metabase-db-data:
+  dou-demo-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /tmp/dou_final_demo
+
+networks:
+  dou-analytics:
+    driver: bridge

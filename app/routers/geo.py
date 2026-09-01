@@ -9,9 +9,11 @@ from .auth import get_current_user
 
 ADMIN_ROLES = (UserRole.DOU_OPS, UserRole.DOU_ADMIN)
 
+
 def _admin_only(user: User = Depends(get_current_user)):
     if user.role not in ADMIN_ROLES:
         raise HTTPException(403, "Insufficient permissions")
+
 
 router = APIRouter(prefix="/geo", tags=["geo"], dependencies=[Depends(_admin_only)])
 
@@ -19,16 +21,24 @@ router = APIRouter(prefix="/geo", tags=["geo"], dependencies=[Depends(_admin_onl
 def country_out(c: GeoCountry) -> dict:
     cities = []
     for ct in c.cities:
-        cities.append({
-            "id": ct.id, "name": ct.name, "active": ct.active,
-            "districts": [
-                {"id": d.id, "name": d.name, "active": d.active}
-                for d in ct.districts
-            ],
-        })
+        cities.append(
+            {
+                "id": ct.id,
+                "name": ct.name,
+                "active": ct.active,
+                "districts": [
+                    {"id": d.id, "name": d.name, "active": d.active}
+                    for d in ct.districts
+                ],
+            }
+        )
     return {
-        "id": c.id, "name": c.name, "code": c.code, "flag": c.flag,
-        "active": c.active, "cities": cities,
+        "id": c.id,
+        "name": c.name,
+        "code": c.code,
+        "flag": c.flag,
+        "active": c.active,
+        "cities": cities,
     }
 
 
@@ -104,8 +114,14 @@ def get_city(ctid: int, db: Session = Depends(get_db)):
     ct = db.get(GeoCity, ctid)
     if not ct:
         raise HTTPException(404, "City not found")
-    return {"id": ct.id, "name": ct.name, "active": ct.active,
-            "districts": [{"id": d.id, "name": d.name, "active": d.active} for d in ct.districts]}
+    return {
+        "id": ct.id,
+        "name": ct.name,
+        "active": ct.active,
+        "districts": [
+            {"id": d.id, "name": d.name, "active": d.active} for d in ct.districts
+        ],
+    }
 
 
 @router.patch("/cities/{ctid}")

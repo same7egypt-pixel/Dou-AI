@@ -1,28 +1,198 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#11161d">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#0d131a">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="DOU Rider">
-  <meta name="description" content="DOU Rider — shifts, attendance, performance, earnings and profile">
-  <title>DOU Rider</title>
+  <meta name="description" content="DOU Rider Web OS — Live operations, smart shifts, attendance, performance, wallet, and self-service">
+  <title>DOU Rider | غرفة قيادة المندوب</title>
   <link rel="manifest" href="/static/manifest.json">
   <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
   <link rel="apple-touch-icon" sizes="192x192" href="/static/icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <style>
-    :root{--navy:#11161d;--navy2:#1c2635;--orange:#ff5a13;--orange-soft:#fff0e8;--green:#12966a;--green-soft:#e8f8f0;--blue:#2866e5;--blue-soft:#edf3ff;--ink:#17202d;--muted:#6f7988;--line:#e8ebef;--canvas:#f4f6f9;--danger:#d94a55;--danger-soft:#fff0f1;--radius:18px;--shadow:0 14px 36px rgba(22,32,45,.08)}
-    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{min-height:100%;margin:0;background:var(--canvas);color:var(--ink);font-family:Alexandria,Arial,sans-serif}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.58}a{color:inherit}.app-shell{min-height:100dvh;max-width:600px;margin:0 auto;background:#fff;position:relative;padding-top:max(0px,env(safe-area-inset-top));padding-bottom:max(84px,calc(72px + env(safe-area-inset-bottom)));box-shadow:0 0 44px rgba(17,22,29,.07)}
-    .topbar{min-height:70px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;background:var(--navy);color:#fff;position:sticky;top:0;z-index:20}.brand{display:flex;gap:10px;align-items:center}.brand-mark{font-size:23px;font-weight:800;letter-spacing:-1.8px}.brand-mark i{display:inline-block;width:18px;height:7px;background:var(--orange);border-radius:99px;margin:0 2px 7px}.brand-sub{font-size:9px;color:#ff9a70;letter-spacing:1px;font-weight:800}.identity{font-size:11px;color:#c7d0dc;max-width:168px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.top-actions{display:flex;align-items:center;gap:8px}.icon-btn,.lang-btn{border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);color:#fff;min-height:38px;border-radius:12px;padding:0 10px;font-size:12px;font-weight:700}.lang-btn{font-size:10px;letter-spacing:.3px}.connection{display:none;align-items:center;gap:8px;background:#fff4d9;color:#8d5c00;font-size:11px;font-weight:700;padding:9px 18px}.connection.show{display:flex}.connection.online{background:var(--green-soft);color:#08704d}
-    main{padding:18px}.view{display:none;animation:enter .2s cubic-bezier(.2,.8,.2,1)}.view.active{display:block}@keyframes enter{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}.eyebrow{margin:0 0 5px;color:var(--orange);font-size:10px;font-weight:800;letter-spacing:.8px}.page-title{margin:0;font-size:24px;line-height:1.25;letter-spacing:-.7px}.page-lead{margin:6px 0 18px;color:var(--muted);font-size:12px;line-height:1.7}.section-title{font-size:13px;margin:20px 0 10px}.card{border:1px solid var(--line);background:#fff;border-radius:var(--radius);padding:15px;margin-bottom:12px;box-shadow:0 2px 6px rgba(18,27,39,.02)}.card.dark{background:linear-gradient(135deg,var(--navy),var(--navy2));border:0;color:#fff;box-shadow:none}.card.subtle{background:#fafbfc}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.muted{color:var(--muted)}.tiny{font-size:10px}.small{font-size:11px}.strong{font-weight:800}.status-pill{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:5px 9px;font-size:10px;font-weight:800;white-space:nowrap}.status-pill.green{background:var(--green-soft);color:#08704d}.status-pill.orange{background:var(--orange-soft);color:#bd4106}.status-pill.blue{background:var(--blue-soft);color:#1f5cc7}.status-pill.gray{background:#eff1f4;color:#66707e}.status-pill.red{background:var(--danger-soft);color:var(--danger)}
-    .shift-hero{padding:18px;background:linear-gradient(135deg,#121a25,#263852);border-radius:22px;color:#fff;margin-bottom:12px;overflow:hidden;position:relative}.shift-hero:after{content:"";position:absolute;width:160px;height:160px;border:1px solid rgba(255,255,255,.09);border-radius:50%;left:-54px;bottom:-80px}.shift-hero>*{position:relative;z-index:1}.shift-title{font-size:18px;margin:5px 0 9px;line-height:1.4}.shift-meta{font-size:11px;color:#b8c5d4;line-height:1.7}.hero-action{margin-top:16px}.btn{border:0;min-height:48px;border-radius:14px;padding:10px 14px;font-size:13px;font-weight:800;transition:transform .16s cubic-bezier(.23,1,.32,1),box-shadow .16s}.btn:active{transform:scale(.97)}.btn.primary{background:var(--orange);color:#fff;box-shadow:0 8px 20px rgba(255,90,19,.25)}.btn.success{background:var(--green);color:#fff;box-shadow:0 8px 20px rgba(18,150,106,.2)}.btn.ghost{background:#f1f3f6;color:var(--ink)}.btn.outline{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.danger{background:var(--danger-soft);color:var(--danger)}.btn.full{width:100%}.btn.compact{min-height:40px;padding:8px 12px;font-size:11px}.btn-row{display:flex;gap:9px;flex-wrap:wrap}.btn-row .btn{flex:1;min-width:128px}.metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}.metric{background:#fff;border:1px solid var(--line);padding:13px;border-radius:15px}.metric-label{display:block;color:var(--muted);font-size:10px;margin-bottom:6px}.metric-value{font-size:20px;line-height:1;font-weight:800;letter-spacing:-.5px}.metric-value.orange{color:var(--orange)}.metric-value.green{color:var(--green)}.metric-value.blue{color:var(--blue)}.progress-track{height:9px;background:#edf0f3;border-radius:99px;overflow:hidden;margin-top:9px}.progress-fill{height:100%;border-radius:inherit;background:var(--orange);transition:width .28s cubic-bezier(.23,1,.32,1)}.progress-fill.green{background:var(--green)}.alert-item{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}.alert-item:last-child{border-bottom:0}.alert-icon{height:33px;width:33px;border-radius:11px;display:grid;place-items:center;background:var(--orange-soft);flex:0 0 auto}.data-list{display:grid;gap:0}.data-row{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line);font-size:12px}.data-row:last-child{border-bottom:0}.data-row b{text-align:end;max-width:58%;word-break:break-word}.form-grid{display:grid;gap:11px}.field{display:grid;gap:6px}.field label{font-size:11px;font-weight:800;color:#465262}.field input,.field select,.field textarea{width:100%;border:1px solid #dfe4e9;background:#fff;border-radius:12px;padding:12px;font-size:13px;color:var(--ink);outline:none;transition:border .15s,box-shadow .15s}.field textarea{min-height:92px;resize:vertical}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,90,19,.12)}.form-note{font-size:10px;color:var(--muted);line-height:1.6}.divider{height:1px;background:var(--line);margin:16px 0}.empty{text-align:center;padding:23px 10px;color:var(--muted);font-size:12px;line-height:1.7}.empty-icon{font-size:26px;display:block;margin-bottom:6px}.skeleton{border-radius:12px;background:linear-gradient(90deg,#f0f2f5 25%,#fafbfc 38%,#f0f2f5 63%);background-size:400% 100%;animation:shimmer 1.4s infinite;height:68px;margin-bottom:10px}@keyframes shimmer{0%{background-position:100% 0}100%{background-position:0 0}}details{border-top:1px solid var(--line)}details summary{cursor:pointer;font-weight:800;font-size:12px;padding:13px 0;list-style:none}details summary::-webkit-details-marker{display:none}details summary:after{content:"＋";float:left;color:var(--orange);font-size:16px}details[open] summary:after{content:"−"}.history-table{width:100%;border-collapse:collapse;font-size:11px}.history-table th{color:var(--muted);font-weight:700;text-align:start;padding:8px 4px;border-bottom:1px solid var(--line)}.history-table td{padding:9px 4px;border-bottom:1px solid #f1f2f4}.bottom-nav{position:fixed;z-index:30;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,600px);padding:8px 10px max(8px,env(safe-area-inset-bottom));background:rgba(255,255,255,.94);backdrop-filter:blur(18px);border-top:1px solid rgba(224,228,233,.9);display:grid;grid-template-columns:repeat(5,1fr);gap:2px}.nav-btn{border:0;background:transparent;color:#727c89;padding:7px 2px 5px;min-height:51px;border-radius:12px;font-size:9px;font-weight:700;display:grid;place-items:center;gap:2px}.nav-btn span:first-child{font-size:18px;line-height:1}.nav-btn.active{color:var(--orange);background:var(--orange-soft)}.toast{position:fixed;z-index:80;bottom:calc(82px + env(safe-area-inset-bottom));left:50%;transform:translate(-50%,15px);width:min(calc(100% - 32px),420px);padding:12px 14px;border-radius:14px;background:var(--navy);color:#fff;font-size:12px;font-weight:700;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.22s cubic-bezier(.23,1,.32,1)}.toast.show{opacity:1;transform:translate(-50%,0)}.toast.success{background:var(--green)}.toast.error{background:#a9323c}.install-helper{border:1px solid #ffd6c2;background:#fff8f4;border-radius:14px;padding:12px;margin-top:13px;font-size:11px;line-height:1.7}.install-helper b{color:#9c3509}.login-page{min-height:100dvh;display:flex;flex-direction:column;justify-content:center;padding:max(26px,env(safe-area-inset-top)) 20px max(26px,env(safe-area-inset-bottom));background:radial-gradient(circle at 18% 10%,#263b56 0,#11161d 46%,#0c1016 100%)}.login-wrap{width:min(100%,430px);margin:auto}.login-brand{text-align:center;color:#fff;margin-bottom:25px}.login-brand h1{font-size:29px;margin:10px 0 5px;letter-spacing:-1.5px}.login-brand p{margin:0;color:#a9b7c6;font-size:12px;line-height:1.7}.login-card{background:#fff;border-radius:23px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)}.login-language{position:absolute;top:max(14px,env(safe-area-inset-top));left:16px}.blocked{min-height:100dvh;background:var(--navy);padding:30px 20px;display:grid;place-items:center;text-align:center;color:#fff}.blocked-card{max-width:390px}.blocked-icon{font-size:48px;margin-bottom:14px}.safe-gap{height:5px}@media (min-width:680px){body{padding:22px}.app-shell{border-radius:28px;overflow:hidden;min-height:calc(100dvh - 44px)}.bottom-nav{bottom:22px;border-radius:0 0 28px 28px}}
-    @media (prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+    :root[data-theme="dark"]{
+      --bg:#090d13;--surface:#111722;--surface2:#182232;--surface3:#222f42;
+      --ink:#f0f4f8;--ink2:#9bb0c6;--muted:#667d97;--line:rgba(255,255,255,.08);--line-strong:rgba(255,255,255,.16);
+      --orange:#ff5a13;--orange-soft:rgba(255,90,19,.14);--orange-glow:rgba(255,90,19,.28);
+      --green:#10b981;--green-soft:rgba(16,185,129,.14);--green-glow:rgba(16,185,129,.28);
+      --blue:#3b82f6;--blue-soft:rgba(59,130,246,.14);
+      --amber:#f59e0b;--amber-soft:rgba(245,158,11,.14);
+      --red:#ef4444;--red-soft:rgba(239,68,68,.14);
+      --shadow:0 12px 36px rgba(0,0,0,.45);--card-shadow:0 4px 20px rgba(0,0,0,.25);
+    }
+    :root[data-theme="light"]{
+      --bg:#f4f6f9;--surface:#ffffff;--surface2:#f8fafc;--surface3:#edf2f7;
+      --ink:#0f172a;--ink2:#475569;--muted:#64748b;--line:#e2e8f0;--line-strong:#cbd5e1;
+      --orange:#ea580c;--orange-soft:#fff7ed;--orange-glow:rgba(234,88,12,.2);
+      --green:#059669;--green-soft:#ecfdf5;--green-glow:rgba(5,150,105,.2);
+      --blue:#2563eb;--blue-soft:#eff6ff;
+      --amber:#d97706;--amber-soft:#fffbeb;
+      --red:#dc2626;--red-soft:#fef2f2;
+      --shadow:0 12px 36px rgba(15,23,42,.08);--card-shadow:0 4px 16px rgba(15,23,42,.04);
+    }
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+    html,body{min-height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:Alexandria,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.55}
+    a{color:inherit;text-decoration:none}
+    
+    .app-shell{min-height:100dvh;max-width:540px;margin:0 auto;background:var(--bg);position:relative;padding-top:max(0px,env(safe-area-inset-top));padding-bottom:max(88px,calc(76px + env(safe-area-inset-bottom)));box-shadow:0 0 60px rgba(0,0,0,.35)}
+    
+    /* TOPBAR */
+    .topbar{min-height:64px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40}
+    .brand-wrap{display:flex;gap:10px;align-items:center}
+    .brand-logo{font-size:22px;font-weight:900;letter-spacing:-1.2px;color:var(--ink);display:flex;align-items:center;gap:3px}
+    .brand-dot{display:inline-block;width:12px;height:12px;background:var(--orange);border-radius:4px}
+    .brand-badge{font-size:9px;background:var(--orange-soft);color:var(--orange);font-weight:800;padding:2px 6px;border-radius:6px;letter-spacing:.5px}
+    .driver-name{font-size:12px;font-weight:700;color:var(--ink);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .driver-hub{font-size:10px;color:var(--muted)}
+    
+    .top-actions{display:flex;align-items:center;gap:6px}
+    .icon-btn{border:1px solid var(--line);background:var(--surface2);color:var(--ink);min-height:36px;min-width:36px;border-radius:10px;display:grid;place-items:center;font-size:13px;font-weight:700;padding:0 8px}
+    .icon-btn.sos{background:var(--red-soft);color:var(--red);border-color:rgba(239,68,68,.3);font-weight:800}
+    
+    /* STATUS BANNER */
+    .connection{display:none;align-items:center;justify-content:center;gap:8px;background:var(--amber-soft);color:var(--amber);font-size:11px;font-weight:700;padding:8px 16px}
+    .connection.show{display:flex}
+    .connection.online{background:var(--green-soft);color:var(--green)}
+    
+    /* QUICK ACTIONS STRIP */
+    .quick-strip{display:flex;gap:8px;overflow-x:auto;padding:12px 16px;scrollbar-width:none}
+    .quick-strip::-webkit-scrollbar{display:none}
+    .quick-chip{flex:0 0 auto;display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);padding:7px 12px;border-radius:99px;font-size:11px;font-weight:700;color:var(--ink2)}
+    .quick-chip.active{background:var(--orange-soft);color:var(--orange);border-color:rgba(255,90,19,.3)}
+    
+    /* MAIN CONTAINER & VIEWS */
+    main{padding:0 16px 16px}
+    .view{display:none;animation:viewFadeIn .18s cubic-bezier(.2,.8,.2,1)}
+    .view.active{display:block}
+    @keyframes viewFadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+    
+    .eyebrow{margin:0 0 4px;color:var(--orange);font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase}
+    .page-title{margin:0 0 6px;font-size:22px;line-height:1.2;font-weight:900;letter-spacing:-.6px}
+    .page-lead{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.6}
+    .section-title{font-size:13px;font-weight:800;margin:20px 0 10px;color:var(--ink);display:flex;align-items:center;justify-content:space-between}
+    
+    /* CARDS */
+    .card{border:1px solid var(--line);background:var(--surface);border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:var(--card-shadow)}
+    .card.dark-hero{background:linear-gradient(135deg,#0d131d 0%,#182333 100%);border:1px solid rgba(255,255,255,.1);color:#fff;position:relative;overflow:hidden}
+    .card.dark-hero::after{content:"";position:absolute;top:-50px;left:-50px;width:150px;height:150px;background:radial-gradient(circle,rgba(255,90,19,.18) 0%,transparent 70%);border-radius:50%;pointer-events:none}
+    .card.subtle{background:var(--surface2);border-color:var(--line)}
+    .card.glow-green{border-color:rgba(16,185,129,.4);box-shadow:0 0 24px rgba(16,185,129,.12)}
+    .card.glow-orange{border-color:rgba(255,90,19,.4);box-shadow:0 0 24px rgba(255,90,19,.12)}
+    
+    .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .muted{color:var(--muted)}
+    .tiny{font-size:10px}
+    .small{font-size:11px}
+    .strong{font-weight:800}
+    .mono{font-family:'JetBrains Mono',monospace}
+    
+    /* STATUS PILLS */
+    .status-pill{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:4px 10px;font-size:10px;font-weight:800;white-space:nowrap}
+    .status-pill.green{background:var(--green-soft);color:var(--green)}
+    .status-pill.orange{background:var(--orange-soft);color:var(--orange)}
+    .status-pill.blue{background:var(--blue-soft);color:var(--blue)}
+    .status-pill.amber{background:var(--amber-soft);color:var(--amber)}
+    .status-pill.red{background:var(--red-soft);color:var(--red)}
+    .status-pill.gray{background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+    
+    /* BUTTONS */
+    .btn{border:0;min-height:48px;border-radius:14px;padding:10px 16px;font-size:13px;font-weight:800;transition:transform .12s cubic-bezier(.23,1,.32,1),box-shadow .12s,background .12s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+    .btn:active{transform:scale(.97)}
+    .btn.primary{background:var(--orange);color:#fff;box-shadow:0 8px 24px var(--orange-glow)}
+    .btn.success{background:var(--green);color:#fff;box-shadow:0 8px 24px var(--green-glow)}
+    .btn.danger{background:var(--red);color:#fff}
+    .btn.danger-soft{background:var(--red-soft);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+    .btn.ghost{background:var(--surface2);color:var(--ink);border:1px solid var(--line)}
+    .btn.outline{background:transparent;color:var(--ink);border:1px solid var(--line-strong)}
+    .btn.full{width:100%}
+    .btn.compact{min-height:36px;padding:6px 12px;font-size:11px;border-radius:10px}
+    .btn-row{display:flex;gap:8px;flex-wrap:wrap}
+    .btn-row .btn{flex:1;min-width:120px}
+    
+    /* SHIFT HERO */
+    .hero-shift-badge{font-size:10px;font-weight:800;letter-spacing:.5px;color:#cbd5e1;text-transform:uppercase}
+    .hero-shift-title{font-size:20px;font-weight:900;margin:6px 0 8px;line-height:1.3;color:#fff}
+    .hero-shift-meta{font-size:11px;color:#94a3b8;line-height:1.7;display:flex;flex-wrap:wrap;gap:10px}
+    .hero-action-box{margin-top:16px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.08);padding:14px;border-radius:16px}
+    
+    /* STATUS SWITCHER TABS */
+    .status-switcher{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:var(--surface2);border:1px solid var(--line);padding:4px;border-radius:14px;margin:12px 0}
+    .status-opt{border:0;background:transparent;color:var(--muted);padding:8px 4px;border-radius:10px;font-size:10px;font-weight:800;text-align:center;transition:all .14s}
+    .status-opt.active.online{background:var(--green-soft);color:var(--green)}
+    .status-opt.active.break{background:var(--amber-soft);color:var(--amber)}
+    .status-opt.active.delivery{background:var(--orange-soft);color:var(--orange)}
+    .status-opt.active.offline{background:var(--surface3);color:var(--ink)}
+    
+    /* METRICS GRID */
+    .metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+    .metric-box{background:var(--surface);border:1px solid var(--line);padding:14px;border-radius:16px}
+    .metric-box .label{display:block;color:var(--muted);font-size:10px;font-weight:700;margin-bottom:6px}
+    .metric-box .val{font-size:22px;line-height:1;font-weight:900;letter-spacing:-.5px}
+    
+    /* PROGRESS BAR */
+    .progress-track{height:10px;background:var(--surface2);border:1px solid var(--line);border-radius:99px;overflow:hidden;margin:10px 0}
+    .progress-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--orange),#ff8347);transition:width .35s cubic-bezier(.23,1,.32,1)}
+    .progress-fill.green{background:linear-gradient(90deg,var(--green),#34d399)}
+    
+    /* SUPERVISOR CARD */
+    .sup-avatar{width:40px;height:40px;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:grid;place-items:center;font-size:16px;font-weight:800}
+    .sup-actions{display:flex;gap:6px}
+    
+    /* DATA LIST */
+    .data-list{display:grid;gap:0}
+    .data-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line);font-size:12px}
+    .data-row:last-child{border-bottom:0}
+    .data-row b{text-align:end;max-width:60%;word-break:break-word}
+    
+    /* FORM GRID */
+    .form-grid{display:grid;gap:10px}
+    .field{display:grid;gap:5px}
+    .field label{font-size:11px;font-weight:800;color:var(--ink2)}
+    .field input,.field select,.field textarea{width:100%;border:1px solid var(--line-strong);background:var(--surface2);border-radius:12px;padding:11px 13px;font-size:13px;color:var(--ink);outline:none;transition:border .15s,box-shadow .15s}
+    .field textarea{min-height:80px;resize:vertical}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-soft)}
+    .form-note{font-size:10px;color:var(--muted);line-height:1.6}
+    .divider{height:1px;background:var(--line);margin:14px 0}
+    
+    /* BOTTOM NAVIGATION */
+    .bottom-nav{position:fixed;z-index:50;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,540px);padding:6px 10px max(6px,env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line);backdrop-filter:blur(20px);display:grid;grid-template-columns:repeat(5,1fr);gap:2px}
+    .nav-btn{border:0;background:transparent;color:var(--muted);padding:6px 2px 4px;min-height:50px;border-radius:12px;font-size:9px;font-weight:800;display:grid;place-items:center;gap:2px;transition:all .14s}
+    .nav-btn .icon{font-size:18px;line-height:1}
+    .nav-btn.active{color:var(--orange);background:var(--orange-soft)}
+    
+    /* TOAST */
+    .toast{position:fixed;z-index:90;bottom:calc(82px + env(safe-area-inset-bottom));left:50%;transform:translate(-50%,15px);width:min(calc(100% - 32px),400px);padding:12px 16px;border-radius:14px;background:var(--surface);color:var(--ink);border:1px solid var(--line-strong);font-size:12px;font-weight:700;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.2s cubic-bezier(.23,1,.32,1)}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    .toast.success{background:var(--green);color:#fff;border-color:transparent}
+    .toast.error{background:var(--red);color:#fff;border-color:transparent}
+    
+    /* MODALS */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);z-index:80;display:grid;place-items:center;padding:16px;animation:modalFade .15s}
+    .modal-sheet{background:var(--surface);border:1px solid var(--line-strong);border-radius:24px;width:min(100%,480px);max-height:90dvh;overflow-y:auto;padding:20px;box-shadow:var(--shadow)}
+    @keyframes modalFade{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+    
+    /* EMPTY & SKELETON */
+    .empty{text-align:center;padding:24px 12px;color:var(--muted);font-size:12px;line-height:1.7}
+    .empty-icon{font-size:28px;display:block;margin-bottom:6px}
+    .skeleton{border-radius:14px;background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 38%,var(--surface) 63%);background-size:400% 100%;animation:shimmer 1.4s infinite;height:64px;margin-bottom:10px}
+    @keyframes shimmer{0%{background-position:100% 0}100%{background-position:0 0}}
+    
+    /* PAYSLIP PRINT STYLES */
+    @media print{
+      body{background:#fff!important;color:#000!important}
+      .topbar,.bottom-nav,.top-actions,.btn-row,button{display:none!important}
+      .app-shell{box-shadow:none!important;max-width:100%!important;padding:0!important}
+      .card{border:1px solid #000!important;box-shadow:none!important}
+    }
   </style>
 </head>
 <body>
@@ -30,78 +200,1223 @@
   <script>
   const API = "";
   const COPY = {
-    ar:{brand:"تطبيق السائق",loginTitle:"ابدأ يومك التشغيلي من مكان واحد",loginLead:"تابع ورديتك وأدائك ومستحقاتك من بيانات DOU المعتمدة.",phone:"رقم الجوال بمفتاح الدولة",password:"كلمة المرور",login:"دخول",loggingIn:"جارِ الدخول…",home:"الرئيسية",shifts:"الورديات",performance:"الأداء",earnings:"المستحقات",profile:"حسابي",refresh:"تحديث",offline:"لا يوجد اتصال. تتطلب الإجراءات التشغيلية اتصالاً بالإنترنت.",reconnected:"عاد الاتصال. حدّث بياناتك عند الحاجة.",currentShift:"وردية اليوم",noShift:"لا توجد وردية مسندة",askSupervisor:"تواصل مع مشرفك لإسناد وردية.",checkIn:"تسجيل حضور",checkOut:"تسجيل انصراف",checkingIn:"جارِ تسجيل الحضور…",checkingOut:"جارِ تسجيل الانصراف…",checkedIn:"تم تسجيل الحضور",attendance:"الحضور",todayOrders:"طلبات اليوم",monthOrders:"طلبات الشهر",target:"التارجت",bonus:"البونص",workedHours:"ساعات العمل",late:"تأخير",earlyLeave:"انصراف مبكر",notAvailable:"غير متاح",today:"اليوم",month:"هذا الشهر",viewDetails:"عرض التفاصيل",shiftDetails:"تفاصيل الوردية",start:"البداية",end:"النهاية",status:"الحالة",overnight:"تنتهي في اليوم التالي",performanceLead:"سجّل أداءك اليومي وراجع التارجت من الحساب المعتمد.",dailyLog:"سجل اليوم",project:"المشروع",orders:"عدد الطلبات",notes:"ملاحظة اختيارية",save:"حفظ السجل",saving:"جارِ الحفظ…",history:"سجل الشهر",previousMonths:"الشهور السابقة",earningsLead:"مستحقاتك الشخصية فقط، محسوبة من DOU.",payrollPreview:"صافي تقديري",payrollClosed:"صافي مقفل",baseSalary:"الراتب الأساسي",deliveryPay:"أجر الطلبات",additions:"إضافات معتمدة",deductions:"استقطاعات معتمدة",netPay:"الصافي",finalized:"مقفل",estimated:"تقديري",profileLead:"بياناتك وخدماتك الذاتية المسموح بها.",city:"مدينة العمل",supervisor:"المشرف",platform:"منصة العمل",employment:"الحالة الوظيفية",iban:"IBAN",documents:"المستندات",uploadDocument:"رفع مستند",camera:"الكاميرا",files:"الصور أو الملفات",documentType:"نوع المستند",leave:"طلب إجازة",from:"من",to:"إلى",reason:"السبب",sendLeave:"إرسال الطلب",support:"الدعم",ticketSubject:"موضوع التذكرة",ticketMessage:"اشرح طلبك",sendTicket:"إرسال تذكرة",companyMessages:"رسائل الشركة",employeeRequest:"طلب موظف",requestType:"نوع الطلب",requestTitle:"عنوان الطلب",requestDetails:"التفاصيل",sendRequest:"إرسال الطلب",security:"الأمان",currentPassword:"كلمة المرور الحالية",newPassword:"كلمة المرور الجديدة",changePassword:"تغيير كلمة المرور",logout:"تسجيل الخروج",install:"تثبيت التطبيق",installAndroid:"ثبّت التطبيق للوصول السريع",installIOS:"ثبّت DOU Rider على iPhone",installIOSHelp:"من Safari، اضغط مشاركة ثم «إضافة إلى الشاشة الرئيسية».",dismiss:"لاحقاً",sessionExpired:"انتهت جلستك. سجّل الدخول مرة أخرى.",suspended:"هذا الحساب غير متاح حالياً. تواصل مع مشرفك أو الشركة.",networkError:"تعذر الاتصال. تحقق من الإنترنت ثم أعد المحاولة.",genericError:"تعذر إتمام العملية. حاول مرة أخرى.",successCheckin:"تم تسجيل الحضور بنجاح.",successCheckout:"تم تسجيل الانصراف بنجاح.",alreadyCheckin:"الحضور مسجل بالفعل.",saved:"تم الحفظ بنجاح.",uploaded:"تم رفع المستند. حالته بانتظار المراجعة.",sent:"تم الإرسال بنجاح.",noData:"لا توجد بيانات لعرضها الآن.",online:"متصل",offlineStatus:"غير متصل",active:"نشط",suspendedStatus:"موقوف",onLeave:"في إجازة",approved:"معتمد",rejected:"مرفوض",pending:"قيد المراجعة",replied:"تم الرد",waiting:"بانتظار الرد",open:"فتح",details:"تفاصيل",language:"EN",attention:"تنبيهات مهمة",noMessages:"لا توجد رسائل جديدة",iosOnly:"إرشادات iPhone",documentSize:"الحد الأقصى لحجم المستند 1 ميجابايت.",noProject:"لا يوجد مشروع مسند لك",retry:"إعادة المحاولة",homeLead:"كل ما تحتاجه لوردية اليوم.",showMore:"عرض المزيد",close:"إغلاق"},
-    en:{brand:"Rider App",loginTitle:"Start your operating day in one place",loginLead:"Follow your shift, performance and earnings from verified DOU data.",phone:"Mobile number with country code",password:"Password",login:"Sign in",loggingIn:"Signing in…",home:"Home",shifts:"Shifts",performance:"Performance",earnings:"Earnings",profile:"Profile",refresh:"Refresh",offline:"You are offline. Operational actions require an internet connection.",reconnected:"You are back online. Refresh data when needed.",currentShift:"Today's shift",noShift:"No assigned shift",askSupervisor:"Ask your supervisor to assign a shift.",checkIn:"Check in",checkOut:"Check out",checkingIn:"Checking in…",checkingOut:"Checking out…",checkedIn:"Checked in",attendance:"Attendance",todayOrders:"Today orders",monthOrders:"Month-to-date orders",target:"Target",bonus:"Bonus",workedHours:"Worked hours",late:"Late",earlyLeave:"Early leave",notAvailable:"Not available",today:"Today",month:"This month",viewDetails:"View details",shiftDetails:"Shift details",start:"Start",end:"End",status:"Status",overnight:"Ends the next day",performanceLead:"Record daily performance and review the verified target.",dailyLog:"Daily log",project:"Project",orders:"Orders",notes:"Optional note",save:"Save log",saving:"Saving…",history:"This month",previousMonths:"Previous months",earningsLead:"Your permitted personal earnings, calculated by DOU.",payrollPreview:"Estimated net",payrollClosed:"Closed net",baseSalary:"Base salary",deliveryPay:"Delivery pay",additions:"Approved additions",deductions:"Deductions",netPay:"Net pay",finalized:"Closed",estimated:"Estimated",profileLead:"Your permitted details and self-service actions.",city:"Work city",supervisor:"Supervisor",platform:"Work platform",employment:"Employment status",iban:"IBAN",documents:"Documents",uploadDocument:"Upload document",camera:"Camera",files:"Photo library or files",documentType:"Document type",leave:"Leave request",from:"From",to:"To",reason:"Reason",sendLeave:"Send leave request",support:"Support",ticketSubject:"Ticket subject",ticketMessage:"Describe your request",sendTicket:"Send ticket",companyMessages:"Company messages",employeeRequest:"Employee request",requestType:"Request type",requestTitle:"Request title",requestDetails:"Details",sendRequest:"Send request",security:"Security",currentPassword:"Current password",newPassword:"New password",changePassword:"Change password",logout:"Sign out",install:"Install app",installAndroid:"Install for faster access",installIOS:"Install DOU Rider on iPhone",installIOSHelp:"In Safari, tap Share then Add to Home Screen.",dismiss:"Not now",sessionExpired:"Your session has expired. Please sign in again.",suspended:"This account is currently unavailable. Contact your supervisor or company.",networkError:"Unable to connect. Check your internet and try again.",genericError:"Unable to complete this action. Please try again.",successCheckin:"Check-in recorded successfully.",successCheckout:"Check-out recorded successfully.",alreadyCheckin:"Attendance is already recorded.",saved:"Saved successfully.",uploaded:"Document uploaded and awaiting review.",sent:"Sent successfully.",noData:"No data to show yet.",online:"Online",offlineStatus:"Offline",active:"Active",suspendedStatus:"Suspended",onLeave:"On leave",approved:"Approved",rejected:"Rejected",pending:"Pending review",replied:"Replied",waiting:"Waiting for reply",open:"Open",details:"Details",language:"العربية",attention:"Important alerts",noMessages:"No new messages",iosOnly:"iPhone guidance",documentSize:"Maximum document size is 1 MB.",noProject:"No assigned project",retry:"Retry",homeLead:"Everything needed for today's shift.",showMore:"Show more",close:"Close"}
+    ar:{
+      brand:"DOU Rider",
+      loginTitle:"غرفة قيادة ومتابعة السائق",
+      loginLead:"تابع وردياتك وأداءك ومحفظتك ومستحقاتك المعتمدة لحظياً.",
+      phone:"رقم الجوال",password:"كلمة المرور",login:"دخول",loggingIn:"جارِ الدخول…",
+      home:"الرئيسية",shifts:"الورديات",performance:"الأداء",earnings:"المحفظة",profile:"حسابي",
+      refresh:"تحديث",offline:"لا يوجد اتصال بالإنترنت",reconnected:"تمت استعادة الاتصال",
+      currentShift:"وردية اليوم",noShift:"لا توجد وردية مسندة",askSupervisor:"تواصل مع مشرفك لإسناد وردية.",
+      checkIn:"⚡ تسجيل حضور الوردية",checkOut:"🏁 تسجيل انصراف الوردية",checkingIn:"جارِ تسجيل الحضور…",checkingOut:"جارِ تسجيل الانصراف…",
+      checkedIn:"تم تسجيل الحضور",attendance:"الحضور",todayOrders:"طلبات اليوم",monthOrders:"طلبات الشهر",
+      target:"التارجت",bonus:"البونص",workedHours:"ساعات العمل",
+      today:"اليوم",month:"هذا الشهر",viewDetails:"عرض التفاصيل",shiftDetails:"تفاصيل الوردية",
+      start:"البداية",end:"النهاية",status:"الحالة",overnight:"تنتهي في اليوم التالي",
+      performanceLead:"سجّل أداءك اليومي وتابع خطة البونص والتارجت المحقق.",
+      dailyLog:"سجل الإنتاجية اليومي",project:"المشروع",orders:"عدد الطلبات",notes:"ملاحظات",save:"حفظ السجل",saving:"جارِ الحفظ…",
+      history:"سجل الأيام السابقة",previousMonths:"أرشيف الشهور السابقة",
+      earningsLead:"كشف حسابك ومستحقاتك المالية المحسوبة بدقة من DOU.",
+      payrollPreview:"صافي تقديري حي",payrollClosed:"صافي مقفل ومسدد",
+      baseSalary:"الراتب الأساسي والبدلات",deliveryPay:"أجر إنتاجية الطلبات",bonusPay:"حافز وبونص التارجت",
+      additions:"إضافات وبدلات أخرى",deductions:"إجمالي الاستقطاعات",netPay:"صافي الراتب المستحق",
+      finalized:"مقفل بلقطة مالية",estimated:"مسودة تشغيلية",
+      profileLead:"بياناتك وخدماتك الذاتية والمستندات.",
+      city:"مدينة العمل",supervisor:"المشرف المباشر",platform:"منصة العمل",employment:"الحالة الوظيفية",iban:"IBAN",
+      documents:"محفظة المستندات",uploadDocument:"رفع مستند جديد",camera:"الكاميرا",files:"الملفات",
+      documentType:"نوع المستند",leave:"طلب إجازة",from:"من",to:"إلى",reason:"السبب",sendLeave:"إرسال طلب الإجازة",
+      support:"الدعم الفني",ticketSubject:"موضوع التذكرة",ticketMessage:"اشرح المشكلة أو الاستفسار",sendTicket:"إرسال التذكرة",
+      companyMessages:"رسائل الشركة",employeeRequest:"مركز طلبات الموظف",requestType:"نوع الطلب",requestTitle:"عنوان الطلب",requestDetails:"التفاصيل",sendRequest:"إرسال الطلب",
+      security:"الأمان",currentPassword:"كلمة المرور الحالية",newPassword:"كلمة المرور الجديدة",changePassword:"تغيير كلمة المرور",
+      logout:"تسجيل الخروج",install:"تثبيت التطبيق",installAndroid:"تثبيت DOU Rider للوصول السريع",installIOS:"إضافة DOU Rider للشاشة الرئيسية",
+      dismiss:"لاحقاً",sessionExpired:"انتهت الجلسة. سجّل الدخول مجدداً.",suspended:"الحساب موقوف حالياً.",
+      networkError:"تعذر الاتصال. تحقق من الإنترنت.",genericError:"حدث خطأ. حاول مرة أخرى.",
+      successCheckin:"تم تسجيل حضورك بنجاح.",successCheckout:"تم تسجيل انصرافك بنجاح.",alreadyCheckin:"تم تسجيل الحضور مسبقاً.",
+      saved:"تم الحفظ بنجاح.",uploaded:"تم رفع المستند بنجاح.",sent:"تم الإرسال بنجاح.",noData:"لا توجد بيانات.",
+      online:"متصل",offlineStatus:"غير متصل",active:"نشط",approved:"معتمد",rejected:"مرفوض",pending:"قيد المراجعة",
+      availableShifts:"الورديات المطروحة والمتاحة",selectShift:"اختيار الوردية",selectedShift:"وردية مسندة لك",slotsLeft:"شاغر متاح",dropShift:"ترك الوردية",
+      claimSuccess:"تم اختيار الوردية بنجاح.",dropSuccess:"تم ترك الوردية بنجاح.",
+      sosTitle:"🚨 بلاغ طوارئ SOS",sosDesc:"إرسال إشعار فوري بالموقع المباشر للمشرف وغرفة العمليات",sendSos:"إرسال نداء الاستغاثة",
+      inspectionTitle:"📋 فحص الجاهزية والسلامة",inspectionDesc:"قائمة تحقق سريعة قبل انطلاق الوردية",saveInspection:"تأكيد فحص الجاهزية",
+      codTitle:"💵 تسوية كاش التحصيل COD",codAmount:"المبلغ المحصل نقداً",codDesc:"تسجيل المبالغ النقدية المحصلة من العملاء",saveCod:"تسجيل تسوية الكاش",
+      printPayslip:"🖨️ طباعة قسيمة الراتب",advances:"السلف المالية المستردة",breakdown:"تفصيل الاستحقاقات والاستقطاعات",
+      statusOnline:"متوفر للطلبات",statusBreak:"استراحة 15د",statusDelivery:"في مهمة تسليم",statusOff:"خارج الوردية"
+    },
+    en:{
+      brand:"DOU Rider",
+      loginTitle:"Rider Cockpit & Operations",
+      loginLead:"Track your shifts, live performance, wallet, and verified earnings.",
+      phone:"Phone Number",password:"Password",login:"Sign In",loggingIn:"Signing in…",
+      home:"Home",shifts:"Shifts",performance:"Performance",earnings:"Wallet",profile:"Profile",
+      refresh:"Refresh",offline:"No internet connection",reconnected:"Connection restored",
+      currentShift:"Today's Shift",noShift:"No Assigned Shift",askSupervisor:"Contact supervisor for shift assignment.",
+      checkIn:"⚡ Check-In Shift",checkOut:"🏁 Check-Out Shift",checkingIn:"Checking in…",checkingOut:"Checking out…",
+      checkedIn:"Checked In",attendance:"Attendance",todayOrders:"Today Orders",monthOrders:"Month Orders",
+      target:"Target",bonus:"Bonus",workedHours:"Worked Hours",
+      today:"Today",month:"This Month",viewDetails:"View Details",shiftDetails:"Shift Details",
+      start:"Start",end:"End",status:"Status",overnight:"Ends next day",
+      performanceLead:"Log daily performance and track your live bonus tier.",
+      dailyLog:"Daily Performance Log",project:"Project",orders:"Orders Count",notes:"Notes",save:"Save Log",saving:"Saving…",
+      history:"Past 7 Days",previousMonths:"Previous Months Archive",
+      earningsLead:"Your verified payslip and financial statement on DOU.",
+      payrollPreview:"Estimated Live Net",payrollClosed:"Locked & Paid Net",
+      baseSalary:"Base Salary & Allowances",deliveryPay:"Delivery Orders Pay",bonusPay:"Target Bonus Earned",
+      additions:"Other Allowances",deductions:"Total Deductions",netPay:"Net Payable Pay",
+      finalized:"Snapshot Finalized",estimated:"Live Draft",
+      profileLead:"Your profile, documents vault, and self-service requests.",
+      city:"Work City",supervisor:"Direct Supervisor",platform:"Platform",employment:"Employment Status",iban:"IBAN",
+      documents:"Document Vault",uploadDocument:"Upload Document",camera:"Camera",files:"Files",
+      documentType:"Document Type",leave:"Leave Request",from:"From",to:"To",reason:"Reason",sendLeave:"Submit Leave",
+      support:"Support Tickets",ticketSubject:"Subject",ticketMessage:"Describe your inquiry",sendTicket:"Submit Ticket",
+      companyMessages:"Company Messages",employeeRequest:"Self-Service Requests",requestType:"Request Type",requestTitle:"Title",requestDetails:"Details",sendRequest:"Submit Request",
+      security:"Security",currentPassword:"Current Password",newPassword:"New Password",changePassword:"Change Password",
+      logout:"Sign Out",install:"Install App",installAndroid:"Install DOU Rider PWA",installIOS:"Add to Home Screen",
+      dismiss:"Later",sessionExpired:"Session expired. Sign in again.",suspended:"Account is suspended.",
+      networkError:"Connection failed.",genericError:"Something went wrong.",
+      successCheckin:"Checked in successfully.",successCheckout:"Checked out successfully.",alreadyCheckin:"Already checked in.",
+      saved:"Saved successfully.",uploaded:"Uploaded successfully.",sent:"Submitted successfully.",noData:"No data available.",
+      online:"Online",offlineStatus:"Offline",active:"Active",approved:"Approved",rejected:"Rejected",pending:"Pending",
+      availableShifts:"Open Available Shifts",selectShift:"Claim Shift",selectedShift:"Your Assigned Shift",slotsLeft:"slots left",dropShift:"Drop Shift",
+      claimSuccess:"Shift claimed successfully.",dropSuccess:"Shift dropped successfully.",
+      sosTitle:"🚨 Emergency SOS Beacon",sosDesc:"Broadcast live GPS coordinates to operations and supervisor",sendSos:"Broadcast SOS",
+      inspectionTitle:"📋 Pre-Shift Safety Checklist",inspectionDesc:"Quick 30s readiness inspection before shift",saveInspection:"Confirm Inspection",
+      codTitle:"💵 Daily COD Cash Reconciliation",codAmount:"Cash Collected Amount",codDesc:"Record cash on delivery collected today",saveCod:"Record Cash Handover",
+      printPayslip:"🖨️ Print Payslip",advances:"Salary Advances",breakdown:"Earnings & Deductions Breakdown",
+      statusOnline:"Ready for Orders",statusBreak:"15m Break",statusDelivery:"On Delivery",statusOff:"Shift Ended"
+    },
+    ur:{
+      brand:"DOU Rider",loginTitle:"رائیڈر کاک پٹ اور آپریشنز",loginLead:"اپنی شفٹس، لائیو کارکردگی، اور آمدنی کو ٹریک کریں۔",
+      phone:"فون نمبر",password:"پاس ورڈ",login:"لاگ ان",loggingIn:"لاگ ان ہو رہا ہے…",
+      home:"ہوم",shifts:"شفٹس",performance:"کارکردگی",earnings:"والیٹ",profile:"پروفائل",
+      refresh:"تازہ کریں",offline:"انٹرنیٹ نہیں ہے",reconnected:"انٹرنیٹ بحال ہو گیا",
+      currentShift:"آج کی شفٹ",noShift:"کوئی شفٹ تفویض نہیں",askSupervisor:"شفٹ کے لیے سپروائزر سے رابطہ کریں۔",
+      checkIn:"⚡ شفٹ شروع کریں (حاضری)",checkOut:"🏁 شفٹ ختم کریں (روانگی)",checkingIn:"حاضری لگائی جا رہی ہے…",checkingOut:"روانگی لگائی جا رہی ہے…",
+      checkedIn:"حاضری درج ہو گئی",attendance:"حاضری",todayOrders:"آج کے آرڈرز",monthOrders:"ماہانہ آرڈرز",
+      target:"ٹارگٹ",bonus:"بونس",workedHours:"کام کے گھنٹے",today:"آج",month:"اس مہینے",viewDetails:"تفصیلات دیکھیں",
+      shiftDetails:"شفٹ کی تفصیلات",start:"شروع",end:"ختم",status:"حالت",
+      performanceLead:"روزانہ کے آرڈرز درج کریں اور بونس ٹریک کریں۔",dailyLog:"روزانہ کا لاگ",project:"پروجیکٹ",orders:"آرڈرز کی تعداد",notes:"نوٹس",save:"محفوظ کریں",saving:"محفوظ ہو رہا ہے…",
+      history:"پچھلے 7 دن",previousMonths:"پچھلے مہینے",earningsLead:"آپ کی تصدیق شدہ تنخواہ اور تفصیلات۔",
+      payrollPreview:"تخمینی آمدنی",payrollClosed:"حتمی تنخواہ",baseSalary:"بنیادی تنخواہ",deliveryPay:"آرڈرز کی آمدنی",bonusPay:"ٹارگٹ بونس",additions:"اضافی الاؤنس",deductions:"کل کٹوتیاں",netPay:"خالص تنخواہ",
+      profileLead:"آپ کی پروفائل، دستاویزات اور درخواستیں۔",city:"شہر",supervisor:"سپروائزر",platform:"پلیٹ فارم",employment:"ملازمت کی حالت",iban:"IBAN",
+      documents:"دستاویزات",uploadDocument:"دستاویز اپ لوڈ کریں",camera:"کیمرہ",files:"فائلز",leave:"چھٹی کی درخواست",from:"سے",to:"تک",reason:"وجہ",sendLeave:"چھٹی بھیجیں",
+      support:"سپورٹ",ticketSubject:"موضوع",ticketMessage:"پیغام",sendTicket:"ٹکٹ بھیجیں",security:"سیکیورٹی",logout:"لاگ آؤٹ",
+      sosTitle:"🚨 ہنگامی SOS الرٹ",inspectionTitle:"📋 گاڑی اور حفاظت کی چیک لسٹ",codTitle:"💵 روزانہ کیش کی ترسیل",printPayslip:"🖨️ پے سلپ پرنٹ کریں",
+      statusOnline:"تیار",statusBreak:"وقفہ",statusDelivery:"ڈیلیوری پر",statusOff:"آف لائن"
+    },
+    hi:{
+      brand:"DOU Rider",loginTitle:"राइडर कॉकपिट और ऑपरेशन्स",loginLead:"अपनी शिफ्ट, प्रदर्शन और कमाई ट्रैक करें।",
+      phone:"फ़ोन नंबर",password:"पासवर्ड",login:"लॉग इन",loggingIn:"लॉग इन हो रहा है…",
+      home:"होम",shifts:"शिफ्ट्स",performance:"प्रदर्शन",earnings:"वॉलेट",profile:"प्रोफ़ाइल",
+      refresh:"रिफ्रेश",offline:"इंटरनेट नहीं है",reconnected:"इंटरनेट बहाल हो गया",
+      currentShift:"आज की शिफ्ट",noShift:"कोई शिफ्ट नहीं",askSupervisor:"सुपरवाइज़र से संपर्क करें।",
+      checkIn:"⚡ चेक-इन शिफ्ट",checkOut:"🏁 चेक-आउट शिफ्ट",checkingIn:"चेक-इन हो रहा है…",checkingOut:"चेक-आउट हो रहा है…",
+      checkedIn:"चेक-इन हो गया",attendance:"उपस्थिति",todayOrders:"आज के ऑर्डर",monthOrders:"महीने के ऑर्डर",
+      target:"टारगेट",bonus:"बोनस",workedHours:"काम के घंटे",today:"आज",month:"इस महीने",viewDetails:"विवरण देखें",
+      shiftDetails:"शिफ्ट विवरण",start:"शुरू",end:"समाप्त",status:"स्थिति",
+      performanceLead:"दैनिक ऑर्डर दर्ज करें और बोनस ट्रैक करें।",dailyLog:"दैनिक लॉग",project:"प्रोजेक्ट",orders:"ऑर्डर संख्या",notes:"नोट्स",save:"सेव करें",saving:"सेव हो रहा है…",
+      history:"पिछले 7 दिन",previousMonths:"पिछले महीने",earningsLead:"आपकी सैलरी और स्टेटमेंट।",
+      payrollPreview:"अनुमानित सैलरी",payrollClosed:"फ़ाइनल सैलरी",baseSalary:"मूल वेतन",deliveryPay:"ऑर्डर वेतन",bonusPay:"टारगेट बोनस",additions:"अतिरिक्त भत्ते",deductions:"कटौती",netPay:"कुल नेट सैलरी",
+      profileLead:"प्रोफ़ाइल, डाक्यूमेंट्स और अनुरोध।",city:"शहर",supervisor:"सुपरवाइज़र",platform:"प्लेटफ़ॉर्म",employment:"रोजगार स्थिति",iban:"IBAN",
+      documents:"डाक्यूमेंट्स",uploadDocument:"अपलोड करें",camera:"कैमरा",files:"फ़ाइलें",leave:"छुट्टी का अनुरोध",from:"से",to:"तक",reason:"कारण",sendLeave:"सबमिट करें",
+      support:"सपोर्ट",ticketSubject:"विषय",ticketMessage:"संदेश",sendTicket:"टिकट भेजें",security:"सुरक्षा",logout:"लॉग आउट",
+      sosTitle:"🚨 इमरजेंसी SOS अलर्ट",inspectionTitle:"📋 सुरक्षा चेकलिस्ट",codTitle:"💵 दैनिक कैश हैंडओवर",printPayslip:"🖨️ पेस्लिप प्रिंट करें",
+      statusOnline:"तैयार",statusBreak:"ब्रेक",statusDelivery:"डिलीवरी पर",statusOff:"ऑफलाइन"
+    }
   };
+
   let lang = new URLSearchParams(location.search).get("lang") || localStorage.getItem("dou_lang") || "ar";
-  if(!["ar","en"].includes(lang)) lang="ar";
+  if(!["ar","en","ur","hi"].includes(lang)) lang="ar";
+  let theme = localStorage.getItem("dou_theme") || "dark";
+  document.documentElement.setAttribute("data-theme", theme);
+
   let TOKEN = localStorage.getItem("dou_token_courier");
-  let locationPermissionRequested = false;
-  const state = {view:"home",core:null,extras:null,extrasPromise:null,projects:null,projectsPromise:null,busy:new Set(),deferredInstall:null,accessBlocked:false,toastTimer:null,toast:null};
+  const state = {
+    view:"home",
+    core:null,
+    extras:null,
+    projects:null,
+    driverStatus:"ONLINE",
+    busy:new Set(),
+    toast:null,
+    toastTimer:null,
+    deferredInstall:null,
+    activeTasks:[]
+  };
+
   const $ = (id)=>document.getElementById(id);
-  const t = (key)=>COPY[lang][key] || key;
+  const t = (key)=>COPY[lang]?.[key] || COPY.ar[key] || key;
   const esc = (value)=>String(value ?? "").replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
   const money = (value)=>new Intl.NumberFormat(lang==="ar"?"ar-SA":"en-SA",{style:"currency",currency:"SAR",maximumFractionDigits:2}).format(Number(value||0));
-  const dateText = (value)=>value ? new Intl.DateTimeFormat(lang==="ar"?"ar-SA":"en-GB",{dateStyle:"medium"}).format(new Date(value)) : "—";
   const isIOS = ()=>/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
   const standalone = ()=>window.matchMedia("(display-mode: standalone)").matches || navigator.standalone===true;
 
-  function setLang(next){lang=next;localStorage.setItem("dou_lang",lang);const url=new URL(location.href);url.searchParams.set("lang",lang);history.replaceState(history.state,"",url);document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";render();}
-  function toggleLang(){setLang(lang==="ar"?"en":"ar")}
-  function paintToast(){const box=$("toast");if(!box||!state.toast)return;box.textContent=state.toast.message;box.className="toast show "+state.toast.type;clearTimeout(state.toastTimer);state.toastTimer=setTimeout(()=>{state.toast=null;if(box.isConnected)box.className="toast"},3400)}
-  function showToast(message,type="") {state.toast={message,type};paintToast()}
-  function setBusy(key,on){on?state.busy.add(key):state.busy.delete(key);render();wireEmployeeRequestFields();wireDocumentBusy()}
-  function statusPill(label,type="gray"){return `<span class="status-pill ${type}">${esc(label)}</span>`}
-  function actionError(error){if(error?.status===401){clearSession(t("sessionExpired"));return}if(error?.status===403){state.accessBlocked=true;render();return}showToast(error?.status===0?t("networkError"):(lang==="ar"&&error?.message?error.message:t("genericError")),"error")}
-  async function api(path,opts={}){if(!navigator.onLine){const e=new Error(t("networkError"));e.status=0;throw e}const headers={...(opts.headers||{})};if(opts.body&&!headers["Content-Type"])headers["Content-Type"]="application/json";if(TOKEN)headers.Authorization="Bearer "+TOKEN;let response;try{response=await fetch(API+path,{...opts,headers})}catch(_){const e=new Error(t("networkError"));e.status=0;throw e}if(!response.ok){let detail="";try{detail=(await response.json()).detail||""}catch(_){}const e=new Error(detail);e.status=response.status;throw e}if(response.status===204)return null;return response.json()}
-  function clearSession(message=""){TOKEN=null;state.core=null;state.extras=null;state.extrasPromise=null;state.projects=null;state.projectsPromise=null;state.accessBlocked=false;localStorage.removeItem("dou_token_courier");localStorage.removeItem("dou_role_courier");renderLogin(message)}
-  function appLogo(){return `<div class="brand"><div><div class="brand-mark">D<i></i>ou</div><div class="brand-sub">RIDER</div></div>${state.core?`<div class="identity">${esc(state.core.courier.name||"")}</div>`:""}</div>`}
-  function renderLogin(message=""){document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";$('app').innerHTML=`<section class="login-page"><button class="lang-btn login-language" onclick="toggleLang()">${t("language")}</button><div class="login-wrap"><div class="login-brand"><div class="brand-mark">D<i></i>ou</div><div class="brand-sub">RIDER</div><h1>${t("loginTitle")}</h1><p>${t("loginLead")}</p></div><div class="login-card"><div class="form-grid"><div class="field"><label for="loginPhone">${t("phone")}</label><input id="loginPhone" type="tel" inputmode="tel" autocomplete="username" dir="ltr" placeholder="9665…"></div><div class="field"><label for="loginPassword">${t("password")}</label><input id="loginPassword" type="password" autocomplete="current-password" dir="ltr" placeholder="••••••••"></div><button id="loginButton" class="btn primary full" onclick="doLogin()">${t("login")}</button></div>${message?`<p class="small" style="color:var(--danger);margin:13px 0 0">${esc(message)}</p>`:""}<div id="installLogin"></div></div></div><div id="toast" class="toast"></div></section>`;renderInstallHelper("installLogin")}
-  function blockedView(){document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";$('app').innerHTML=`<section class="blocked"><div class="blocked-card"><div class="blocked-icon">🔒</div><h1>${t("suspended")}</h1><p>${lang==="ar"?"لا يمكن متابعة الإجراءات أو عرض البيانات التشغيلية من هذا الحساب الآن.":"Operational actions and data cannot be accessed from this account at this time."}</p><button class="btn outline" onclick="clearSession()">${t("logout")}</button></div></section>`}
-  async function doLogin(){const phone=$('loginPhone').value.trim(),password=$('loginPassword').value;const btn=$('loginButton');if(!phone||!password){showToast(t("genericError"),"error");return}btn.disabled=true;btn.textContent=t("loggingIn");try{const result=await api('/auth/login',{method:'POST',body:JSON.stringify({phone,password})});if(result.role!=="COURIER"){throw new Error(lang==="ar"?"هذا الحساب ليس حساب سائق.":"This is not a rider account.")}TOKEN=result.access_token;localStorage.setItem("dou_token_courier",TOKEN);localStorage.setItem("dou_role_courier",result.role);await loadCore();render();requestLocationPermission()}catch(error){btn.disabled=false;btn.textContent=t("login");actionError(error)}}
-  async function loadCore(){const [courier,shift,logs,hr,preferences]=await Promise.all([api('/couriers/me'),api('/shifts/me'),api('/hr/me/logs'),api('/hr/me/hr'),api('/couriers/me/preferences').catch(()=>null)]);state.core={courier,shift,logs,hr,preferences};if(preferences?.language&&["ar","en"].includes(preferences.language)&&!new URLSearchParams(location.search).get("lang")){lang=preferences.language;localStorage.setItem("dou_lang",lang)}}
-  async function refreshCore(){try{await loadCore();render();showToast(lang==="ar"?"تم تحديث البيانات.":"Data refreshed.","success")}catch(error){actionError(error)}}
-  async function ensureProjects(){if(state.projects)return state.projects;if(state.projectsPromise)return state.projectsPromise;state.projectsPromise=(async()=>{try{state.projects=await api('/hr/projects');render();wireEmployeeRequestFields();return state.projects}catch(error){actionError(error);return null}finally{state.projectsPromise=null}})();return state.projectsPromise}
-  async function ensureExtras(){if(state.extras)return state.extras;if(state.extrasPromise)return state.extrasPromise;state.extrasPromise=(async()=>{try{const [documents,tickets,leaves,messages]=await Promise.all([api('/hr/me/documents'),api('/couriers/me/tickets'),api('/hr/me/leaves'),api('/hr/me/messages')]);state.extras={documents,tickets,leaves,messages};render();wireEmployeeRequestFields();return state.extras}catch(error){actionError(error);return null}finally{state.extrasPromise=null}})();return state.extrasPromise}
-  function render(){if(state.accessBlocked){blockedView();return}if(!TOKEN){renderLogin();return}if(!state.core){$('app').innerHTML=`<div class="app-shell"><main>${[1,2,3,4].map(()=>'<div class="skeleton"></div>').join('')}</main></div>`;return}document.documentElement.lang=lang;document.documentElement.dir=lang==="ar"?"rtl":"ltr";const c=state.core.courier;$('app').innerHTML=`<div class="app-shell"><header class="topbar">${appLogo()}<div class="top-actions"><button class="icon-btn" aria-label="${t("refresh")}" onclick="refreshCore()">↻</button><button class="lang-btn" onclick="toggleLang()">${t("language")}</button></div></header><div id="connection" class="connection ${navigator.onLine?'':'show'}">${navigator.onLine?'':`◌ ${t("offline")}`}</div><main>${renderHome()}${renderShifts()}${renderPerformance()}${renderEarnings()}${renderProfile()}</main>${renderNav()}<div id="toast" class="toast"></div></div>`;paintToast();if(state.view==='profile'){ensureExtras();ensureProjects()}if(state.view==='performance')ensureProjects();}
-  function active(name){return state.view===name?'active':''}
-  function currentShift(){const data=state.core.shift||{};return data.current||(state.core.courier.shift_active?{name:t('noShift'),start_time:'—',end_time:'—',zone:'—',duration_hours:'—',attendance_only:true}:null)}
-  function attendanceMode(){const c=state.core.courier;const shift=currentShift();if(c.shift_active)return 'out';return shift?'in':'none'}
-  function renderHome(){const {courier:c,logs,hr}=state.core,shift=currentShift(),mode=attendanceMode(),bonus=logs.bonus_details?.[0],target=Number(bonus?.target||0),orders=Number((bonus?.orders ?? logs.month_orders) || 0),pct=target?Math.min(100,Math.round(orders/target*100)):0;const alerts=[];(hr.risks||[]).forEach(x=>alerts.push({icon:'⚠️',text:x,type:'orange'}));(hr.notes||[]).slice(0,1).forEach(x=>alerts.push({icon:'📝',text:x.note,type:'blue'}));return `<section class="view ${active('home')}" id="view-home"><p class="eyebrow">${t("home")}</p><h1 class="page-title">${esc(c.name||t("home"))}</h1><p class="page-lead">${t("homeLead")}</p><article class="shift-hero"><div class="row"><span class="status-pill ${c.shift_active?'green':'gray'}">${c.shift_active?t("checkedIn"):t("attendance")}</span>${shift?.overnight?statusPill(t("overnight"),'orange'):''}</div><p class="small" style="margin:15px 0 0;color:#aebfd0">${t("currentShift")}</p><h2 class="shift-title">${shift?esc(shift.name):t("noShift")}</h2><p class="shift-meta">${shift?`${esc(shift.start_time||'—')} — ${esc(shift.end_time||'—')} · ${esc(shift.zone||'—')}`:t("askSupervisor")}</p><div class="hero-action">${shift?`<button class="btn ${mode==='out'?'outline':'primary'} full" id="attendanceAction" onclick="attendanceAction()" ${state.busy.has('attendance')?'disabled':''}>${state.busy.has('attendance')?(mode==='out'?t('checkingOut'):t('checkingIn')):(mode==='out'?t('checkOut'):t('checkIn'))}</button>`:`<button class="btn outline full" onclick="go('shifts')">${t("viewDetails")}</button>`}</div></article><div class="metric-grid"><article class="metric"><span class="metric-label">${t("todayOrders")}</span><b class="metric-value orange">${Number(logs.today_orders||0)}</b></article><article class="metric"><span class="metric-label">${t("monthOrders")}</span><b class="metric-value green">${Number(logs.month_orders||0)}</b></article><article class="metric"><span class="metric-label">${t("target")}</span><b class="metric-value blue">${target||'—'}</b></article><article class="metric"><span class="metric-label">${t("bonus")}</span><b class="metric-value">${money(logs.bonus_earned||0)}</b></article></div><article class="card"><div class="row"><b>${t("target")}</b><span class="small muted">${orders} / ${target||'—'}</span></div><div class="progress-track"><div class="progress-fill ${bonus?.achieved?'green':''}" style="width:${pct}%"></div></div><p class="small muted" style="margin:9px 0 0">${bonus?(bonus.achieved?`${t("bonus")}: ${money(bonus.earned)}`:`${bonus.remaining_orders||0} ${lang==='ar'?'طلب متبقٍ':'orders remaining'}`):t("notAvailable")}</p></article><article class="card"><div class="row"><b>${t("attention")}</b><button class="btn ghost compact" onclick="go('profile')">${t("viewDetails")}</button></div>${alerts.length?alerts.map(a=>`<div class="alert-item"><span class="alert-icon">${a.icon}</span><div class="small">${esc(a.text)}</div></div>`).join(''):`<div class="empty"><span class="empty-icon">✓</span>${t("noMessages")}</div>`}</article></section>`}
-  function renderShifts(){const {courier:c}=state.core,shift=currentShift(),mode=attendanceMode();return `<section class="view ${active('shifts')}" id="view-shifts"><p class="eyebrow">${t("shifts")}</p><h1 class="page-title">${t("shiftDetails")}</h1><p class="page-lead">${lang==='ar'?'التوقيت والحضور من الوردية المسندة لك.':'Your assigned shift and attendance status.'}</p>${shift?`<article class="card dark"><div class="row"><b>${esc(shift.name)}</b>${statusPill(c.shift_active?t('checkedIn'):t('open'),c.shift_active?'green':'gray')}</div><div class="divider" style="background:rgba(255,255,255,.13)"></div><div class="data-list"><div class="data-row"><span>${t("start")}</span><b>${esc(shift.start_time||'—')}</b></div><div class="data-row"><span>${t("end")}</span><b>${esc(shift.end_time||'—')}</b></div><div class="data-row"><span>${lang==='ar'?'المنطقة':'Zone'}</span><b>${esc(shift.zone||'—')}</b></div><div class="data-row"><span>${lang==='ar'?'المدة':'Duration'}</span><b>${esc(shift.duration_hours||'—')} ${lang==='ar'?'ساعة':'hours'}</b></div></div>${shift.overnight?`<p class="small" style="color:#ffb292;margin:12px 0 0">${t("overnight")}</p>`:''}</article><article class="card"><h3 class="section-title" style="margin-top:0">${t("attendance")}</h3><div class="row"><div><b>${c.shift_active?t("checkedIn"):t("notAvailable")}</b><p class="tiny muted" style="margin:5px 0 0">${c.shift_active?(lang==='ar'?'استخدم زر الانصراف عند نهاية الوردية.':'Use check out when your shift ends.'):t("checkIn")}</p></div>${statusPill(c.is_online?t('online'):t('offlineStatus'),c.is_online?'green':'gray')}</div><div class="safe-gap"></div><button class="btn ${mode==='out'?'success':'primary'} full" onclick="attendanceAction()" ${state.busy.has('attendance')?'disabled':''}>${state.busy.has('attendance')?(mode==='out'?t('checkingOut'):t('checkingIn')):(mode==='out'?t('checkOut'):t('checkIn'))}</button></article>`:`<article class="card"><div class="empty"><span class="empty-icon">◷</span><b>${t("noShift")}</b><p>${t("askSupervisor")}</p></div></article>`}</section>`}
-  function projectOptions(){if(!state.projects)return `<option value="">${lang==='ar'?'جارِ تحميل المشاريع…':'Loading projects…'}</option>`;const rows=state.projects.filter(p=>p.is_current);return rows.length?rows.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(''):`<option value="">${t("noProject")}</option>`}
-  function renderBonus(){const details=state.core.logs.bonus_details||[];if(!details.length)return `<div class="empty"><span class="empty-icon">◎</span>${t("notAvailable")}</div>`;return details.map(b=>{const pct=Math.min(100,Math.round(Number(b.orders||0)/Math.max(1,Number(b.target||1))*100));return `<article class="card"><div class="row"><b>${esc(b.project||'—')}</b>${statusPill(b.achieved?t('approved'):t('target'),b.achieved?'green':'orange')}</div><div class="row" style="margin-top:13px"><span class="small muted">${Number(b.orders||0)} / ${Number(b.target||0)}</span><b>${money(b.earned||0)}</b></div><div class="progress-track"><div class="progress-fill ${b.achieved?'green':''}" style="width:${pct}%"></div></div><p class="tiny muted" style="margin:9px 0 0">${b.achieved?(lang==='ar'?`${b.over_orders||0} طلب فوق التارجت`:`${b.over_orders||0} orders above target`):(lang==='ar'?`${b.remaining_orders||0} طلب متبقٍ`:`${b.remaining_orders||0} orders remaining`)}</p></article>`}).join('')}
-  function renderHistory(){const logs=state.core.logs;const rows=logs.days||[];const table=(items)=>`<table class="history-table"><thead><tr><th>${t('today')}</th><th>${t('project')}</th><th>${t('orders')}</th></tr></thead><tbody>${items.map(r=>`<tr><td>${esc(r.date)}</td><td>${esc(r.project||'—')}</td><td><b>${Number(r.orders||0)}</b></td></tr>`).join('')}</tbody></table>`;return `<article class="card"><h3 class="section-title" style="margin-top:0">${t("history")}</h3>${rows.length?table(rows.slice(-7).reverse()):`<div class="empty">${t("noData")}</div>`}</article>${(logs.previous_months||[]).filter(m=>m.days?.length).length?`<article class="card"><h3 class="section-title" style="margin-top:0">${t("previousMonths")}</h3>${logs.previous_months.filter(m=>m.days?.length).map(m=>`<details><summary>${esc(m.month)} · ${Number(m.total||0)} ${t('orders')}</summary>${table(m.days)}</details>`).join('')}</article>`:''}`}
-  function renderPerformance(){return `<section class="view ${active('performance')}" id="view-performance"><p class="eyebrow">${t("performance")}</p><h1 class="page-title">${t("performance")}</h1><p class="page-lead">${t("performanceLead")}</p><article class="card"><h3 class="section-title" style="margin-top:0">${t("dailyLog")}</h3><div class="form-grid"><div class="field"><label for="logDate">${t("today")}</label><input id="logDate" type="date" value="${new Date().toISOString().slice(0,10)}"></div><div class="field"><label for="logProject">${t("project")}</label><select id="logProject">${projectOptions()}</select></div><div class="field"><label for="logOrders">${t("orders")}</label><input id="logOrders" type="number" min="0" inputmode="numeric" placeholder="0"></div><div class="field"><label for="logNote">${t("notes")}</label><input id="logNote" type="text"></div><button class="btn primary full" onclick="saveLog()" ${state.busy.has('log')||!state.projects?'disabled':''}>${state.busy.has('log')?t('saving'):t('save')}</button><p class="form-note">${lang==='ar'?'القيم المعروضة بعد الحفظ تُجلب من المنصة ولا تُحسب داخل التطبيق.':'Values shown after saving are refreshed from DOU and are not calculated in the app.'}</p></div></article><h2 class="section-title">${t("target")}</h2>${renderBonus()}${renderHistory()}</section>`}
-  function payrollRow(label,value){return `<div class="data-row"><span>${label}</span><b>${money(value)}</b></div>`}
-  function renderEarnings(){const {logs,hr}=state.core,p=logs.payroll||{};return `<section class="view ${active('earnings')}" id="view-earnings"><p class="eyebrow">${t("earnings")}</p><h1 class="page-title">${t("earnings")}</h1><p class="page-lead">${t("earningsLead")}</p><article class="card dark"><div class="row"><span class="small" style="color:#c7d1de">${p.finalized?t('payrollClosed'):t('payrollPreview')}</span>${statusPill(p.finalized?t('finalized'):t('estimated'),p.finalized?'green':'orange')}</div><div style="font-size:29px;font-weight:800;margin-top:13px">${money(p.net_pay||0)}</div><p class="small" style="color:#b8c5d4;margin:7px 0 0">${esc(p.month||state.core.logs.month||'—')}</p></article><article class="card"><h3 class="section-title" style="margin-top:0">${t("details")}</h3>${payrollRow(t('baseSalary'),p.base_salary)}${payrollRow(t('deliveryPay'),p.delivery_pay)}${payrollRow(t('bonus'),p.bonus_pay)}${payrollRow(t('additions'),p.additions)}${payrollRow(t('deductions'),-(Number(p.deductions||0)))}<div class="divider"></div>${payrollRow(t('netPay'),p.net_pay)}</article><article class="card subtle"><div class="row"><div><b>${t("monthOrders")}</b><p class="tiny muted" style="margin:4px 0 0">${lang==='ar'?'أجر الطلبات يعرض ضمن تفصيل الشهر.':'Delivery pay is included in the monthly breakdown.'}</p></div><b class="metric-value green">${Number(logs.month_orders||0)}</b></div></article></section>`}
-  function documentLabel(type){const map={IQAMA:lang==='ar'?'الإقامة':'Iqama',DRIVING_LICENSE:lang==='ar'?'رخصة القيادة':'Driving licence',VEHICLE_LICENSE:lang==='ar'?'رخصة المركبة':'Vehicle licence',PASSPORT:lang==='ar'?'جواز السفر':'Passport',INSURANCE:lang==='ar'?'التأمين':'Insurance',WORK_PERMIT:lang==='ar'?'تصريح العمل':'Work permit'};return map[type]||type}
-  function docStatus(value){const map={APPROVED:[t('approved'),'green'],REJECTED:[t('rejected'),'red'],PENDING:[t('pending'),'orange']};return map[value]||[esc(value||t('pending')),'gray']}
-  function statusEmployment(value){if(value==='SUSPENDED')return statusPill(t('suspendedStatus'),'red');if(value==='ACTIVE')return statusPill(t('active'),'green');return statusPill(value||'—','gray')}
-  function renderProfile(){const core=state.core,{courier:c,hr}=core,x=state.extras,docs=x?.documents||[],tickets=x?.tickets||[],leaves=x?.leaves||[],messages=x?.messages||[];return `<section class="view ${active('profile')}" id="view-profile"><p class="eyebrow">${t("profile")}</p><h1 class="page-title">${t("profile")}</h1><p class="page-lead">${t("profileLead")}</p><article class="card"><div class="data-list"><div class="data-row"><span>${lang==='ar'?'الاسم':'Name'}</span><b>${esc(c.name||'—')}</b></div><div class="data-row"><span>${t("phone")}</span><b dir="ltr">${esc(c.phone||'—')}</b></div><div class="data-row"><span>${t("city")}</span><b>${esc(hr.work_city||c.work_city||'—')}</b></div><div class="data-row"><span>${t("supervisor")}</span><b>${esc(hr.supervisor_name||'—')}</b></div><div class="data-row"><span>${t("platform")}</span><b>${esc(hr.platform||'—')}</b></div><div class="data-row"><span>${t("employment")}</span>${statusEmployment(hr.employment_status)}</div><div class="data-row"><span>${t("iban")}</span><b dir="ltr">${esc(c.bank_iban||'—')}</b></div></div></article>${x?renderProfileExtras(docs,tickets,leaves,messages):'<div class="skeleton"></div><div class="skeleton"></div>'}</section>`}
-  function renderProfileExtras(docs,tickets,leaves,messages){const types=['IQAMA','DRIVING_LICENSE','VEHICLE_LICENSE','PASSPORT','INSURANCE','WORK_PERMIT'];return `<article class="card"><div class="row"><h3 class="section-title" style="margin:0">${t("documents")}</h3>${statusPill(`${docs.length}`,'blue')}</div><div class="divider"></div><div class="form-grid"><div class="field"><label for="documentType">${t("documentType")}</label><select id="documentType">${types.map(x=>`<option value="${x}">${documentLabel(x)}</option>`).join('')}</select></div><div class="btn-row"><button class="btn outline compact" onclick="pickDocument('camera')">${t("camera")}</button><button class="btn ghost compact" onclick="pickDocument('files')">${t("files")}</button></div><p class="form-note">${t("documentSize")}</p></div><div class="divider"></div>${docs.length?docs.map(d=>{const s=docStatus(d.status);return `<div class="data-row"><span>${esc(d.filename||documentLabel(d.document_type))}</span>${statusPill(s[0],s[1])}</div>`}).join(''):`<div class="empty">${t("noData")}</div>`}</article><article class="card"><h3 class="section-title" style="margin-top:0">${t("leave")}</h3><div class="form-grid"><div class="field"><label for="leaveFrom">${t("from")}</label><input id="leaveFrom" type="date"></div><div class="field"><label for="leaveTo">${t("to")}</label><input id="leaveTo" type="date"></div><div class="field"><label for="leaveReason">${t("reason")}</label><input id="leaveReason" type="text"></div><button class="btn outline full" onclick="sendLeave()" ${state.busy.has('leave')?'disabled':''}>${state.busy.has('leave')?t('saving'):t('sendLeave')}</button></div>${leaves.length?`<div class="divider"></div>${leaves.slice(0,4).map(l=>`<div class="data-row"><span>${esc(l.from_date)} — ${esc(l.to_date)}</span>${statusPill(l.status==='APPROVED'?t('approved'):l.status==='REJECTED'?t('rejected'):t('pending'),l.status==='APPROVED'?'green':l.status==='REJECTED'?'red':'orange')}</div>`).join('')}`:''}</article><article class="card"><h3 class="section-title" style="margin-top:0">${t("support")}</h3><div class="form-grid"><div class="field"><label for="ticketSubject">${t("ticketSubject")}</label><input id="ticketSubject" type="text"></div><div class="field"><label for="ticketMessage">${t("ticketMessage")}</label><textarea id="ticketMessage"></textarea></div><button class="btn outline full" onclick="sendTicket()" ${state.busy.has('ticket')?'disabled':''}>${state.busy.has('ticket')?t('saving'):t('sendTicket')}</button></div>${tickets.length?`<div class="divider"></div>${tickets.slice(0,4).map(ticket=>`<div class="data-row"><span><b>${esc(ticket.subject||'—')}</b><br><small class="muted">${esc(ticket.reply||ticket.message||'')}</small></span>${statusPill(ticket.status==='REPLIED'?t('replied'):t('waiting'),ticket.status==='REPLIED'?'green':'orange')}</div>`).join('')}`:''}</article><article class="card"><h3 class="section-title" style="margin-top:0">${t("companyMessages")}</h3>${messages.length?messages.slice(0,5).map(m=>`<div class="alert-item"><span class="alert-icon">✉</span><div class="small"><b>${esc(m.sender_name||'DOU')}</b><br>${esc(m.message||'')}</div></div>`).join(''):`<div class="empty">${t("noMessages")}</div>`}</article><article class="card"><h3 class="section-title" style="margin-top:0">${t("employeeRequest")}</h3><div class="form-grid"><div class="field"><label for="employeeRequestType">${t("requestType")}</label><select id="employeeRequestType"><option value="ADVANCE">${lang==='ar'?'طلب سلفة':'Advance'}</option><option value="SHIFT_CHANGE">${lang==='ar'?'تغيير وردية':'Shift change'}</option><option value="PROJECT_TRANSFER">${lang==='ar'?'نقل مشروع':'Project transfer'}</option><option value="MAINTENANCE">${lang==='ar'?'صيانة مركبة':'Vehicle maintenance'}</option><option value="INCIDENT">${lang==='ar'?'بلاغ حادث':'Incident'}</option></select></div><div class="field"><label for="employeeRequestTitle">${t("requestTitle")}</label><input id="employeeRequestTitle" type="text"></div><div class="field"><label for="employeeRequestDetails">${t("requestDetails")}</label><textarea id="employeeRequestDetails"></textarea></div><button class="btn outline full" onclick="sendEmployeeRequest()" ${state.busy.has('employee')?'disabled':''}>${state.busy.has('employee')?t('saving'):t('sendRequest')}</button></div></article><article class="card"><h3 class="section-title" style="margin-top:0">${t("security")}</h3><div class="form-grid"><div class="field"><label for="currentPassword">${t("currentPassword")}</label><input id="currentPassword" type="password" autocomplete="current-password"></div><div class="field"><label for="newPassword">${t("newPassword")}</label><input id="newPassword" type="password" autocomplete="new-password"></div><button class="btn ghost full" onclick="changePassword()" ${state.busy.has('password')?'disabled':''}>${state.busy.has('password')?t('saving'):t('changePassword')}</button><button class="btn danger full" onclick="logout()">${t("logout")}</button></div></article>`}
-  function renderNav(){const items=[['home','⌂',t('home')],['shifts','◷',t('shifts')],['performance','◉',t('performance')],['earnings','₪',t('earnings')],['profile','◌',t('profile')]];return `<nav class="bottom-nav" aria-label="${t('brand')}">${items.map(([key,icon,label])=>`<button class="nav-btn ${state.view===key?'active':''}" onclick="go('${key}')" aria-current="${state.view===key?'page':'false'}"><span>${icon}</span><span>${label}</span></button>`).join('')}</nav>`}
-  function wireEmployeeRequestFields(){const type=$('employeeRequestType');if(!type||$('employeeProject'))return;const projects=(state.projects||[]).filter(p=>!p.is_current&&p.is_active);type.closest('.field').insertAdjacentHTML('afterend',`<div class="field" id="employeeProjectField"><label for="employeeProject">${lang==='ar'?'المشروع المطلوب':'Requested project'}</label><select id="employeeProject"><option value="">${lang==='ar'?'اختر المشروع':'Select project'}</option>${projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div><div class="field" id="employeeAmountField"><label for="employeeAmount">${lang==='ar'?'المبلغ المطلوب':'Requested amount'}</label><input id="employeeAmount" type="number" min="0" step="0.01" inputmode="decimal"></div>`);const sync=()=>{$('employeeProjectField').style.display=type.value==='PROJECT_TRANSFER'?'grid':'none';$('employeeAmountField').style.display=type.value==='ADVANCE'?'grid':'none'};type.addEventListener('change',sync);sync()}
-  function wireDocumentBusy(){if(!state.busy.has('document'))return;document.querySelectorAll("button[onclick^=\"pickDocument\"]").forEach(button=>{button.disabled=true;button.textContent=lang==='ar'?'جارِ رفع المستند…':'Uploading document…'})}
-  function go(view,push=true){state.view=view;render();wireEmployeeRequestFields();if(push){history.pushState({view},'',location.href)}if(view==='profile'){ensureExtras();ensureProjects()}if(view==='performance')ensureProjects()}
-  async function attendanceAction(){const mode=attendanceMode();if(mode==='none'){go('shifts');return}setBusy('attendance',true);try{const locationData=await getLocation();const result=await api(mode==='out'?'/shifts/attendance/check-out':'/shifts/attendance/check-in',{method:'POST',body:JSON.stringify({courier_id:state.core.courier.id,lat:locationData.lat,lng:locationData.lng})});await loadCore();render();showToast(mode==='out'?t('successCheckout'):(result.already_checked_in?t('alreadyCheckin'):t('successCheckin')),'success')}catch(error){if(error?.locationError)showToast(error.message,'error');else actionError(error)}finally{state.busy.delete('attendance');render()}}
-  function getLocation(){return new Promise((resolve,reject)=>{const fail=message=>{const error=new Error(message);error.locationError=true;reject(error)};if(!navigator.geolocation){fail(lang==='ar'?'هذا الجهاز لا يدعم تحديد الموقع. استخدم جهازًا يدعم GPS.':'This device does not support location. Use a GPS-enabled device.');return}navigator.geolocation.getCurrentPosition(position=>{const lat=Number(position.coords.latitude),lng=Number(position.coords.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lng)||lat<-90||lat>90||lng<-180||lng>180){fail(lang==='ar'?'تعذر الحصول على موقع صالح. افتح GPS ثم أعد المحاولة.':'A valid location could not be obtained. Turn on GPS and try again.');return}resolve({lat:+lat.toFixed(6),lng:+lng.toFixed(6)})},error=>{if(error?.code===1)fail(lang==='ar'?'اسمح لتطبيق DOU بالوصول إلى الموقع ثم أعد المحاولة.':'Allow DOU to access your location, then try again.');else if(error?.code===3)fail(lang==='ar'?'استغرق تحديد الموقع وقتًا طويلًا. افتح GPS وانتقل لمكان مكشوف ثم أعد المحاولة.':'Location timed out. Turn on GPS, move to an open area, and try again.');else fail(lang==='ar'?'تعذر تحديد موقعك. تأكد من تشغيل GPS ثم أعد المحاولة.':'Your location is unavailable. Make sure GPS is on, then try again.')},{enableHighAccuracy:true,timeout:15000,maximumAge:30000})})}
-  function requestLocationPermission(){if(locationPermissionRequested)return;locationPermissionRequested=true;getLocation().catch(error=>{if(error?.locationError)showToast(error.message,'error')})}
-  async function saveLog(){const projectId=Number($('logProject')?.value),orders=Number($('logOrders')?.value||0),logDate=$('logDate')?.value;if(!projectId||!logDate||orders<0){showToast(t('genericError'),'error');return}setBusy('log',true);try{await api('/hr/me/log',{method:'POST',body:JSON.stringify({log_date:logDate,project_id:projectId,orders_count:orders,notes:$('logNote')?.value||''})});await loadCore();render();showToast(t('saved'),'success')}catch(error){actionError(error)}finally{state.busy.delete('log');render()}}
-  async function sendLeave(){const from=$('leaveFrom')?.value,to=$('leaveTo')?.value,reason=$('leaveReason')?.value?.trim();if(!from||!to||!reason){showToast(t('genericError'),'error');return}setBusy('leave',true);try{await api('/hr/me/leave',{method:'POST',body:JSON.stringify({from_date:from,to_date:to,reason})});state.extras=null;await ensureExtras();showToast(t('sent'),'success')}catch(error){actionError(error)}finally{state.busy.delete('leave');render()}}
-  async function sendTicket(){const subject=$('ticketSubject')?.value?.trim(),message=$('ticketMessage')?.value?.trim();if(!subject||!message){showToast(t('genericError'),'error');return}setBusy('ticket',true);try{await api('/couriers/me/tickets',{method:'POST',body:JSON.stringify({subject,message})});state.extras=null;await ensureExtras();showToast(t('sent'),'success')}catch(error){actionError(error)}finally{state.busy.delete('ticket');render()}}
-  async function sendEmployeeRequest(){const request_type=$('employeeRequestType')?.value,title=$('employeeRequestTitle')?.value?.trim(),details=$('employeeRequestDetails')?.value?.trim(),project_id=Number($('employeeProject')?.value||0)||null,amount=Number($('employeeAmount')?.value||0)||null;if(!title||!details||(request_type==='PROJECT_TRANSFER'&&!project_id)){showToast(t('genericError'),'error');return}setBusy('employee',true);try{await api('/hr/employee-requests',{method:'POST',body:JSON.stringify({request_type,title,details,project_id,amount})});showToast(t('sent'),'success')}catch(error){actionError(error)}finally{state.busy.delete('employee');render();wireEmployeeRequestFields()}}
-  async function pickDocument(source){if(state.busy.has('document'))return;const type=$('documentType')?.value||'IQAMA';const input=document.createElement('input');input.type='file';input.accept=source==='camera'?'image/*':'image/jpeg,image/png,application/pdf';if(source==='camera')input.capture='environment';input.onchange=async()=>{const file=input.files?.[0];if(!file)return;if(file.size>1024*1024){showToast(t('documentSize'),'error');return}setBusy('document',true);try{const data=await readFile(file);await api('/hr/me/documents',{method:'POST',body:JSON.stringify({document_type:type,filename:file.name,mime_type:file.type,file_data:data})});state.extras=null;await ensureExtras();showToast(t('uploaded'),'success')}catch(error){actionError(error)}finally{state.busy.delete('document');render();wireEmployeeRequestFields()}};input.click()}
-  function readFile(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)})}
-  async function changePassword(){const current_password=$('currentPassword')?.value,new_password=$('newPassword')?.value;if(!current_password||!new_password||new_password.length<8){showToast(t('genericError'),'error');return}setBusy('password',true);try{await api('/auth/change-password',{method:'POST',body:JSON.stringify({current_password,new_password})});clearSession(lang==='ar'?'تم تغيير كلمة المرور. سجّل الدخول مجدداً.':'Password changed. Sign in again.')}catch(error){actionError(error)}finally{state.busy.delete('password');render()}}
-  async function logout(){const old=TOKEN;try{if(old)await fetch('/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+old}})}catch(_){}clearSession()}
-  function renderInstallHelper(id){const mount=$(id);if(!mount||standalone())return;if(isIOS()){if(localStorage.getItem('dou_ios_install_dismissed'))return;mount.innerHTML=`<div class="install-helper"><b>${t('installIOS')}</b><br>${t('installIOSHelp')}<div class="btn-row" style="margin-top:9px"><button class="btn ghost compact" onclick="dismissIOSInstall()">${t('dismiss')}</button></div></div>`;return}if(state.deferredInstall){mount.innerHTML=`<div class="install-helper"><b>${t('installAndroid')}</b><div class="btn-row" style="margin-top:9px"><button class="btn ghost compact" onclick="installApp()">${t('install')}</button></div></div>`}}
-  function dismissIOSInstall(){localStorage.setItem('dou_ios_install_dismissed','1');render()}
-  async function installApp(){if(!state.deferredInstall)return;state.deferredInstall.prompt();try{await state.deferredInstall.userChoice}catch(_){}state.deferredInstall=null;render()}
-  window.addEventListener('beforeinstallprompt',(event)=>{event.preventDefault();state.deferredInstall=event;render()});window.addEventListener('appinstalled',()=>{state.deferredInstall=null;render()});window.addEventListener('online',()=>{const bar=$('connection');if(bar){bar.textContent='✓ '+t('reconnected');bar.className='connection show online';setTimeout(()=>bar.className='connection',2500)}showToast(t('reconnected'),'success')});window.addEventListener('offline',()=>{const bar=$('connection');if(bar){bar.textContent='◌ '+t('offline');bar.className='connection show'}});window.addEventListener('popstate',(event)=>{if(event.state?.view){state.view=event.state.view;render()}});
-  if('serviceWorker' in navigator){window.addEventListener('load',async()=>{try{await navigator.serviceWorker.register('/sw.js',{scope:'/driver'});const registrations=await navigator.serviceWorker.getRegistrations();await Promise.all(registrations.filter(registration=>new URL(registration.scope).pathname==='/static/').map(registration=>registration.unregister()))}catch(_){}})}
-  async function boot(){document.documentElement.lang=lang;document.documentElement.dir=lang==='ar'?'rtl':'ltr';if(!TOKEN){renderLogin();return}const role=localStorage.getItem('dou_role_courier');if(role&&role!=='COURIER'){clearSession();return}try{await loadCore();history.replaceState({view:state.view},'',location.href);render();requestLocationPermission()}catch(error){if(error.status===401){clearSession(t('sessionExpired'))}else if(error.status===403){state.accessBlocked=true;blockedView()}else{renderLogin(error.status===0?t('networkError'):t('genericError'))}}}
-  Object.assign(window,{toggleLang,doLogin,go,refreshCore,attendanceAction,saveLog,sendLeave,sendTicket,sendEmployeeRequest,pickDocument,changePassword,logout,installApp,dismissIOSInstall,clearSession});
+  function setLang(next){
+    lang=next;localStorage.setItem("dou_lang",lang);
+    document.documentElement.lang=lang;
+    document.documentElement.dir=(lang==="ar"||lang==="ur")?"rtl":"ltr";
+    render();
+  }
+
+  function toggleTheme(){
+    theme = theme==="dark"?"light":"dark";
+    localStorage.setItem("dou_theme", theme);
+    document.documentElement.setAttribute("data-theme", theme);
+    render();
+  }
+
+  function showToast(message, type=""){
+    state.toast = {message, type};
+    const box = $("toast");
+    if(!box) return;
+    box.textContent = message;
+    box.className = "toast show " + type;
+    clearTimeout(state.toastTimer);
+    state.toastTimer = setTimeout(()=>{
+      if(box.isConnected) box.className = "toast";
+      state.toast = null;
+    }, 3400);
+  }
+
+  function setBusy(key, on){
+    if(on) state.busy.add(key); else state.busy.delete(key);
+    render();
+  }
+
+  function statusPill(label, type="gray"){
+    return `<span class="status-pill ${type}">${esc(label)}</span>`;
+  }
+
+  async function api(path, opts={}){
+    if(!navigator.onLine){const e=new Error(t("networkError"));e.status=0;throw e}
+    const headers={...(opts.headers||{})};
+    if(opts.body&&!headers["Content-Type"]) headers["Content-Type"]="application/json";
+    if(TOKEN) headers.Authorization="Bearer "+TOKEN;
+    let response;
+    try{response=await fetch(API+path,{...opts,headers})}
+    catch(_){const e=new Error(t("networkError"));e.status=0;throw e}
+    if(!response.ok){
+      let detail="";try{detail=(await response.json()).detail||""}catch(_){}
+      const e=new Error(detail||t("genericError"));e.status=response.status;throw e;
+    }
+    if(response.status===204) return null;
+    return response.json();
+  }
+
+  function clearSession(message=""){
+    TOKEN=null;state.core=null;state.extras=null;state.projects=null;
+    localStorage.removeItem("dou_token_courier");
+    localStorage.removeItem("dou_role_courier");
+    renderLogin(message);
+  }
+
+  function renderLogin(message=""){
+    document.documentElement.lang=lang;
+    document.documentElement.dir=(lang==="ar"||lang==="ur")?"rtl":"ltr";
+    $('app').innerHTML = `
+      <section style="min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg)">
+        <div style="width:min(100%,420px)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+            <div class="brand-logo">DOU<span class="brand-dot"></span> <span class="brand-badge">RIDER OS</span></div>
+            <div style="display:flex;gap:6px">
+              <select onchange="setLang(this.value)" class="icon-btn" style="width:auto">
+                <option value="ar" ${lang==='ar'?'selected':''}>🇸🇦 العربية</option>
+                <option value="en" ${lang==='en'?'selected':''}>🇬🇧 English</option>
+                <option value="ur" ${lang==='ur'?'selected':''}>🇵🇰 اردو</option>
+                <option value="hi" ${lang==='hi'?'selected':''}>🇮🇳 हिन्दी</option>
+              </select>
+              <button class="icon-btn" onclick="toggleTheme()">${theme==='dark'?'☀️':'🌙'}</button>
+            </div>
+          </div>
+          <div class="card" style="padding:24px">
+            <h1 style="font-size:22px;margin:0 0 6px;font-weight:900">${t("loginTitle")}</h1>
+            <p style="font-size:12px;color:var(--muted);margin:0 0 20px;line-height:1.6">${t("loginLead")}</p>
+            <div class="form-grid">
+              <div class="field">
+                <label for="loginPhone">${t("phone")}</label>
+                <input id="loginPhone" type="tel" inputmode="tel" dir="ltr" placeholder="9665xxxxxxxx" autocomplete="username">
+              </div>
+              <div class="field">
+                <label for="loginPassword">${t("password")}</label>
+                <input id="loginPassword" type="password" dir="ltr" placeholder="••••••••" autocomplete="current-password">
+              </div>
+              <button id="loginButton" class="btn primary full" onclick="doLogin()">${t("login")}</button>
+            </div>
+            ${message?`<p style="color:var(--red);font-size:11px;margin:12px 0 0;font-weight:700">${esc(message)}</p>`:''}
+          </div>
+        </div>
+      </section>
+      <div id="toast" class="toast"></div>
+    `;
+  }
+
+  async function doLogin(){
+    const phone = $('loginPhone').value.trim();
+    const password = $('loginPassword').value;
+    const btn = $('loginButton');
+    if(!phone || !password){showToast(t("genericError"),"error");return}
+    btn.disabled=true;btn.textContent=t("loggingIn");
+    try{
+      const res = await api('/auth/login',{method:'POST',body:JSON.stringify({phone,password})});
+      if(res.role!=="COURIER") throw new Error("هذا الحساب غير مصرح له كتطبيق سائق");
+      TOKEN = res.access_token;
+      localStorage.setItem("dou_token_courier", TOKEN);
+      localStorage.setItem("dou_role_courier", res.role);
+      await loadCore();
+      render();
+    }catch(err){
+      btn.disabled=false;btn.textContent=t("login");
+      showToast(err.message||t("genericError"),"error");
+    }
+  }
+
+  async function loadCore(){
+    const [courier, shift, logs, hr, preferences, tasks] = await Promise.all([
+      api('/couriers/me'),
+      api('/shifts/me'),
+      api('/hr/me/logs'),
+      api('/hr/me/hr'),
+      api('/couriers/me/preferences').catch(()=>null),
+      api(`/couriers/${localStorage.getItem('dou_rider_id') || 0}/tasks`).catch(()=>[])
+    ]);
+    state.core = {courier, shift, logs, hr, preferences};
+    state.activeTasks = tasks || [];
+    if(courier?.id) localStorage.setItem('dou_rider_id', courier.id);
+  }
+
+  async function refreshCore(){
+    try{
+      await loadCore();
+      render();
+      showToast("✓ " + t("reconnected"), "success");
+    }catch(err){showToast(err.message, "error")}
+  }
+
+  async function ensureProjects(){
+    if(state.projects) return state.projects;
+    try{
+      state.projects = await api('/hr/projects');
+      render();
+      return state.projects;
+    }catch(e){return []}
+  }
+
+  async function ensureExtras(){
+    if(state.extras) return state.extras;
+    try{
+      const [documents, tickets, leaves, messages, statement] = await Promise.all([
+        api('/hr/me/documents').catch(()=>[]),
+        api('/couriers/me/tickets').catch(()=>[]),
+        api('/hr/me/leaves').catch(()=>[]),
+        api('/hr/me/messages').catch(()=>[]),
+        api(`/hr/payroll/rider/${state.core.courier.id}/statement`).catch(()=>null)
+      ]);
+      state.extras = {documents, tickets, leaves, messages, statement};
+      render();
+      return state.extras;
+    }catch(e){return null}
+  }
+
+  function currentShift(){
+    const data = state.core.shift || {};
+    return data.current || (state.core.courier.shift_active ? {name:t('noShift'),start_time:'—',end_time:'—',zone:'—',duration_hours:'—',attendance_only:true} : null);
+  }
+
+  function attendanceMode(){
+    const c = state.core.courier;
+    const shift = currentShift();
+    if(c.shift_active) return 'out';
+    return shift ? 'in' : 'none';
+  }
+
+  /* RENDER APP */
+  function render(){
+    if(!TOKEN){renderLogin();return}
+    if(!state.core){
+      $('app').innerHTML = `<div class="app-shell"><main style="padding-top:20px">${[1,2,3,4].map(()=>'<div class="skeleton"></div>').join('')}</main></div>`;
+      return;
+    }
+    document.documentElement.lang=lang;
+    document.documentElement.dir=(lang==="ar"||lang==="ur")?"rtl":"ltr";
+    const c = state.core.courier;
+    const hr = state.core.hr || {};
+
+    $('app').innerHTML = `
+      <div class="app-shell">
+        <header class="topbar">
+          <div class="brand-wrap">
+            <div class="brand-logo">DOU<span class="brand-dot"></span></div>
+            <div>
+              <div class="driver-name">${esc(c.name || 'مندوب')}</div>
+              <div class="driver-hub">${esc(hr.work_city || c.zone || 'المملكة')} · ${esc(hr.platform || 'DOU Fleet')}</div>
+            </div>
+          </div>
+          <div class="top-actions">
+            <button class="icon-btn sos" onclick="openSosModal()" title="SOS">🚨 SOS</button>
+            <button class="icon-btn" onclick="toggleTheme()">${theme==='dark'?'☀️':'🌙'}</button>
+            <select onchange="setLang(this.value)" class="icon-btn" style="width:auto;padding:0 4px">
+              <option value="ar" ${lang==='ar'?'selected':''}>🇸🇦</option>
+              <option value="en" ${lang==='en'?'selected':''}>🇬🇧</option>
+              <option value="ur" ${lang==='ur'?'selected':''}>🇵🇰</option>
+              <option value="hi" ${lang==='hi'?'selected':''}>🇮🇳</option>
+            </select>
+            <button class="icon-btn" onclick="refreshCore()" title="${t('refresh')}">↻</button>
+          </div>
+        </header>
+
+        <div id="connection" class="connection ${navigator.onLine?'':'show'}">
+          ${navigator.onLine?'':'◌ '+t('offline')}
+        </div>
+
+        <div class="quick-strip">
+          <button class="quick-chip" onclick="openInspectionModal()">📋 ${t("inspectionTitle")}</button>
+          <button class="quick-chip" onclick="openCodModal()">💵 ${t("codTitle")}</button>
+          <button class="quick-chip" onclick="openPayslipModal()">🖨️ ${t("printPayslip")}</button>
+          <button class="quick-chip" onclick="openLeaveModal()">🌴 ${t("leave")}</button>
+        </div>
+
+        <main>
+          ${renderHomeView()}
+          ${renderShiftsView()}
+          ${renderEarningsView()}
+          ${renderPerformanceView()}
+          ${renderProfileView()}
+        </main>
+
+        ${renderBottomNav()}
+        <div id="toast" class="toast"></div>
+        <div id="modalContainer"></div>
+      </div>
+    `;
+
+    if(state.view==='earnings' || state.view==='profile') ensureExtras();
+    if(state.view==='performance') ensureProjects();
+  }
+
+  function active(name){return state.view===name?'active':'';}
+
+  /* 1. HOME VIEW (COCKPIT) */
+  function renderHomeView(){
+    const {courier:c, logs, hr} = state.core;
+    const shift = currentShift();
+    const mode = attendanceMode();
+    const bonus = logs.bonus_details?.[0];
+    const target = Number(bonus?.target || 0);
+    const orders = Number((bonus?.orders ?? logs.month_orders) || 0);
+    const pct = target ? Math.min(100, Math.round(orders / target * 100)) : 0;
+    const supervisorName = hr.supervisor_name || "مشرف العمليات";
+    const supervisorPhone = hr.supervisor_phone || "966500000000";
+
+    return `
+      <section class="view ${active('home')}" id="view-home">
+        <!-- SHIFT COCKPIT HERO -->
+        <article class="card dark-hero">
+          <div class="row">
+            <span class="hero-shift-badge">${shift ? (shift.overnight ? '🌙 '+t('overnight') : '☀️ '+t('currentShift')) : t('noShift')}</span>
+            ${statusPill(c.shift_active ? '🟢 '+t('checkedIn') : '⚪ '+t('attendance'), c.shift_active ? 'green' : 'gray')}
+          </div>
+          <h2 class="hero-shift-title">${shift ? esc(shift.name) : t('noShift')}</h2>
+          <div class="hero-shift-meta">
+            <span>⏰ ${shift ? `${esc(shift.start_time)} — ${esc(shift.end_time)}` : '—'}</span>
+            <span>📍 ${esc(shift?.zone || hr.work_city || 'المنطقة العامة')}</span>
+            <span>⏱️ ${shift ? `${shift.duration_hours || '—'} ساعة` : ''}</span>
+          </div>
+
+          <div class="hero-action-box">
+            <button class="btn ${mode==='out'?'danger':'primary'} full" onclick="attendanceAction()" ${state.busy.has('attendance')?'disabled':''}>
+              ${state.busy.has('attendance') ? (mode==='out'?t('checkingOut'):t('checkingIn')) : (mode==='out'?t('checkOut'):t('checkIn'))}
+            </button>
+          </div>
+        </article>
+
+        <!-- DRIVER OPERATIONAL STATUS SWITCHER -->
+        <div class="status-switcher">
+          <button class="status-opt ${state.driverStatus==='ONLINE'?'active online':''}" onclick="setDriverStatus('ONLINE')">🟢 ${t('statusOnline')}</button>
+          <button class="status-opt ${state.driverStatus==='ON_BREAK'?'active break':''}" onclick="setDriverStatus('ON_BREAK')">🟡 ${t('statusBreak')}</button>
+          <button class="status-opt ${state.driverStatus==='ON_DELIVERY'?'active delivery':''}" onclick="setDriverStatus('ON_DELIVERY')">🔴 ${t('statusDelivery')}</button>
+          <button class="status-opt ${state.driverStatus==='OFFLINE'?'active offline':''}" onclick="setDriverStatus('OFFLINE')">⚪ ${t('statusOff')}</button>
+        </div>
+
+        <!-- SUPERVISOR DIRECT CONNECT CARD -->
+        <article class="card subtle">
+          <div class="row">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="sup-avatar">👨‍💼</div>
+              <div>
+                <b style="font-size:12px">${esc(supervisorName)}</b>
+                <div class="tiny muted">${t('supervisor')}</div>
+              </div>
+            </div>
+            <div class="sup-actions">
+              <a class="btn ghost compact" href="tel:${supervisorPhone}">📞 اتصال</a>
+              <a class="btn ghost compact" href="https://wa.me/${supervisorPhone}" target="_blank">💬 واتساب</a>
+            </div>
+          </div>
+        </article>
+
+        <!-- PERFORMANCE & BONUS PULSE -->
+        <div class="metric-grid">
+          <div class="metric-box">
+            <span class="label">📦 ${t('todayOrders')}</span>
+            <span class="val" style="color:var(--orange)">${Number(logs.today_orders||0)}</span>
+          </div>
+          <div class="metric-box">
+            <span class="label">📊 ${t('monthOrders')}</span>
+            <span class="val" style="color:var(--green)">${Number(logs.month_orders||0)}</span>
+          </div>
+          <div class="metric-box">
+            <span class="label">🎯 ${t('target')}</span>
+            <span class="val" style="color:var(--blue)">${target || '—'}</span>
+          </div>
+          <div class="metric-box">
+            <span class="label">🏆 ${t('bonus')}</span>
+            <span class="val" style="color:var(--amber)">${money(logs.bonus_earned||0)}</span>
+          </div>
+        </div>
+
+        <!-- TARGET PROGRESS BAR -->
+        <article class="card">
+          <div class="row">
+            <b style="font-size:12px">🎯 ${t('target')} ${orders} / ${target||'—'}</b>
+            <span class="small muted mono">${pct}%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill ${bonus?.achieved?'green':''}" style="width:${pct}%"></div>
+          </div>
+          <p class="tiny muted" style="margin:6px 0 0">
+            ${bonus ? (bonus.achieved ? `🎉 تم تحقيق التارجت! بونص مستحق: ${money(bonus.earned)}` : `🚀 متبقي ${bonus.remaining_orders||0} طلب لتحقيق البونص`) : t('notAvailable')}
+          </p>
+        </article>
+      </section>
+    `;
+  }
+
+  /* 2. SHIFTS VIEW (MARKETPLACE) */
+  function renderShiftsView(){
+    const {courier:c} = state.core;
+    const shift = currentShift();
+    const availableShifts = state.core.shift?.available || [];
+
+    const assignedHtml = shift ? `
+      <article class="card glow-green">
+        <div class="row">
+          <b>${esc(shift.name)}</b>
+          ${statusPill(c.shift_active ? t('checkedIn') : t('selectedShift'), c.shift_active ? 'green' : 'blue')}
+        </div>
+        <div class="divider"></div>
+        <div class="data-list">
+          <div class="data-row"><span>⏰ ${t('start')} — ${t('end')}</span><b>${esc(shift.start_time)} — ${esc(shift.end_time)}</b></div>
+          <div class="data-row"><span>📍 ${t('city')} / المنطقة</span><b>${esc(shift.zone || 'عام')}</b></div>
+          <div class="data-row"><span>⏱️ المدة</span><b>${esc(shift.duration_hours || '—')} ساعة</b></div>
+        </div>
+        ${!c.shift_active && shift.id ? `
+          <div style="margin-top:12px;display:flex;justify-content:flex-end">
+            <button class="btn danger-soft compact" onclick="dropShiftAction(${shift.id})" ${state.busy.has('shift')?'disabled':''}>${t("dropShift")}</button>
+          </div>
+        ` : ''}
+      </article>
+    ` : `<article class="card"><div class="empty"><span class="empty-icon">◷</span><b>${t('noShift')}</b><p class="tiny">${t('askSupervisor')}</p></div></article>`;
+
+    const availableListHtml = availableShifts.length ? availableShifts.map(s => {
+      const isMy = s.is_assigned;
+      return `
+        <article class="card ${isMy ? 'glow-green' : 'subtle'}">
+          <div class="row">
+            <div>
+              <b style="font-size:13px">${esc(s.name)}</b>
+              <div class="tiny muted" style="margin-top:3px">📍 ${esc(s.zone||'المنطقة')} · ⏰ ${esc(s.start_time)} — ${esc(s.end_time)}</div>
+            </div>
+            ${isMy ? statusPill(t('selectedShift'),'green') : (s.slots_available > 0 ? statusPill(`${s.slots_available} ${t('slotsLeft')}`,'blue') : statusPill('مكتملة','gray'))}
+          </div>
+          <div class="row" style="margin-top:12px;align-items:center">
+            <span class="tiny muted">⏱️ ${s.duration_hours||'—'} ساعة</span>
+            ${isMy ? `
+              <button class="btn danger-soft compact" onclick="dropShiftAction(${s.id})" ${state.busy.has('shift')?'disabled':''}>${t('dropShift')}</button>
+            ` : `
+              <button class="btn primary compact" onclick="claimShiftAction(${s.id})" ${state.busy.has('shift')?'disabled':''}>➕ ${t('selectShift')}</button>
+            `}
+          </div>
+        </article>
+      `;
+    }).join('') : `<article class="card"><div class="empty">${lang==='ar'?'لا توجد ورديات مطروحة حالياً.':'No open shifts available.'}</div></article>`;
+
+    return `
+      <section class="view ${active('shifts')}" id="view-shifts">
+        <p class="eyebrow">${t('shifts')}</p>
+        <h1 class="page-title">${t('shiftDetails')}</h1>
+        <p class="page-lead">${lang==='ar'?'إدارة ورديتك النشطة واستعراض الورديات المطروحة لاختيارها.':'Manage your active shift and claim open shifts.'}</p>
+        ${assignedHtml}
+        <h2 class="section-title"><span>🛒 ${t('availableShifts')}</span></h2>
+        ${availableListHtml}
+      </section>
+    `;
+  }
+
+  /* 3. EARNINGS VIEW (FINANCIAL VAULT & PAYSLIP) */
+  function renderEarningsView(){
+    const {logs} = state.core;
+    const p = logs.payroll || {};
+    const stmt = state.extras?.statement?.statement || {};
+
+    const baseSalary = stmt.base_salary ?? p.base_salary ?? 0;
+    const deliveryPay = stmt.delivery_pay ?? p.delivery_pay ?? 0;
+    const bonusPay = stmt.target_bonus ?? p.bonus_pay ?? 0;
+    const additions = stmt.other_additions ?? p.additions ?? 0;
+    const absenceDed = stmt.absence_deduction ?? 0;
+    const lateDed = stmt.late_deduction ?? 0;
+    const advanceDed = stmt.advance_deduction ?? 0;
+    const otherDed = stmt.other_deductions ?? (Number(p.deductions||0) - advanceDed);
+    const netPay = stmt.net_pay ?? p.net_pay ?? 0;
+
+    return `
+      <section class="view ${active('earnings')}" id="view-earnings">
+        <p class="eyebrow">${t('earnings')}</p>
+        <h1 class="page-title">${t('earnings')}</h1>
+        <p class="page-lead">${t('earningsLead')}</p>
+
+        <!-- NET PAY HERO -->
+        <article class="card dark-hero glow-orange">
+          <div class="row">
+            <span class="small" style="color:#cbd5e1">${p.finalized ? '🔒 '+t('payrollClosed') : '⚡ '+t('payrollPreview')}</span>
+            ${statusPill(p.finalized ? t('finalized') : t('estimated'), p.finalized ? 'green' : 'orange')}
+          </div>
+          <div style="font-size:32px;font-weight:900;margin:12px 0 6px;color:#fff;letter-spacing:-1px">${money(netPay)}</div>
+          <div class="row">
+            <span class="tiny muted mono">📅 شهر ${esc(p.month || logs.month || '2026-08')}</span>
+            <button class="btn ghost compact" onclick="openPayslipModal()">🖨️ ${t('printPayslip')}</button>
+          </div>
+        </article>
+
+        <!-- ITEMIZED SETTLEMENT BREAKDOWN -->
+        <article class="card">
+          <h3 class="section-title" style="margin-top:0"><span>🟢 ${lang==='ar'?'الاستحقاقات (Earnings)':'Earnings'}</span></h3>
+          <div class="data-list">
+            <div class="data-row"><span>${t('baseSalary')}</span><b style="color:var(--green)">+ ${money(baseSalary)}</b></div>
+            <div class="data-row"><span>${t('deliveryPay')} (${stmt.orders_count || logs.month_orders || 0} طلب)</span><b style="color:var(--green)">+ ${money(deliveryPay)}</b></div>
+            <div class="data-row"><span>${t('bonusPay')}</span><b style="color:var(--green)">+ ${money(bonusPay)}</b></div>
+            <div class="data-row"><span>${t('additions')}</span><b style="color:var(--green)">+ ${money(additions)}</b></div>
+          </div>
+
+          <h3 class="section-title" style="margin-top:16px"><span>🔴 ${lang==='ar'?'الاستقطاعات (Deductions)':'Deductions'}</span></h3>
+          <div class="data-list">
+            <div class="data-row"><span>خصم غياب</span><b style="color:var(--red)">- ${money(absenceDed)}</b></div>
+            <div class="data-row"><span>خصم تأخير</span><b style="color:var(--red)">- ${money(lateDed)}</b></div>
+            <div class="data-row"><span>سلف مستردة</span><b style="color:var(--red)">- ${money(advanceDed)}</b></div>
+            <div class="data-row"><span>خصومات ومخالفات</span><b style="color:var(--red)">- ${money(otherDed)}</b></div>
+          </div>
+
+          <div class="divider"></div>
+          <div class="row" style="padding-top:4px">
+            <b style="font-size:14px">${t('netPay')}</b>
+            <b style="font-size:18px;color:var(--orange)">${money(netPay)}</b>
+          </div>
+        </article>
+      </section>
+    `;
+  }
+
+  /* 4. PERFORMANCE VIEW */
+  function renderPerformanceView(){
+    const {logs} = state.core;
+    const days = logs.days || [];
+    return `
+      <section class="view ${active('performance')}" id="view-performance">
+        <p class="eyebrow">${t('performance')}</p>
+        <h1 class="page-title">${t('performance')}</h1>
+        <p class="page-lead">${t('performanceLead')}</p>
+
+        <!-- DAILY LOG CARD -->
+        <article class="card">
+          <h3 class="section-title" style="margin-top:0"><span>✍️ ${t('dailyLog')}</span></h3>
+          <div class="form-grid">
+            <div class="field">
+              <label for="logDate">${t('today')}</label>
+              <input id="logDate" type="date" value="${new Date().toISOString().slice(0,10)}">
+            </div>
+            <div class="field">
+              <label for="logProject">${t('project')}</label>
+              <select id="logProject">${projectOptions()}</select>
+            </div>
+            <div class="field">
+              <label for="logOrders">${t('orders')}</label>
+              <input id="logOrders" type="number" min="0" inputmode="numeric" placeholder="0">
+            </div>
+            <div class="field">
+              <label for="logNote">${t('notes')}</label>
+              <input id="logNote" type="text" placeholder="ملاحظات تشغيلية اختيارية…">
+            </div>
+            <button class="btn primary full" onclick="saveLog()" ${state.busy.has('log')?'disabled':''}>
+              ${state.busy.has('log')?t('saving'):t('save')}
+            </button>
+          </div>
+        </article>
+
+        <!-- 7 DAYS HISTORY TABLE -->
+        <article class="card">
+          <h3 class="section-title" style="margin-top:0"><span>📅 ${t('history')}</span></h3>
+          ${days.length ? `
+            <div class="data-list">
+              ${days.slice(-7).reverse().map(d => `
+                <div class="data-row">
+                  <div>
+                    <b>${esc(d.date)}</b>
+                    <div class="tiny muted">${esc(d.project||'مشروع عام')}</div>
+                  </div>
+                  <b style="color:var(--orange)">${d.orders || 0} طلب</b>
+                </div>
+              `).join('')}
+            </div>
+          ` : `<div class="empty">${t('noData')}</div>`}
+        </article>
+      </section>
+    `;
+  }
+
+  function projectOptions(){
+    if(!state.projects) return `<option value="">جارِ تحميل المشاريع…</option>`;
+    const rows = state.projects.filter(p=>p.is_active);
+    return rows.length ? rows.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('') : `<option value="">لا توجد مشاريع</option>`;
+  }
+
+  /* 5. PROFILE & SELF-SERVICE VIEW */
+  function renderProfileView(){
+    const {courier:c, hr} = state.core;
+    const docs = state.extras?.documents || [];
+    const tickets = state.extras?.tickets || [];
+    const leaves = state.extras?.leaves || [];
+
+    return `
+      <section class="view ${active('profile')}" id="view-profile">
+        <p class="eyebrow">${t('profile')}</p>
+        <h1 class="page-title">${t('profile')}</h1>
+        <p class="page-lead">${t('profileLead')}</p>
+
+        <!-- PROFILE DATA CARD -->
+        <article class="card">
+          <div class="data-list">
+            <div class="data-row"><span>👤 الاسم</span><b>${esc(c.name||'—')}</b></div>
+            <div class="data-row"><span>📱 ${t('phone')}</span><b dir="ltr">${esc(c.phone||'—')}</b></div>
+            <div class="data-row"><span>📍 ${t('city')}</span><b>${esc(hr.work_city||c.zone||'—')}</b></div>
+            <div class="data-row"><span>👨‍💼 ${t('supervisor')}</span><b>${esc(hr.supervisor_name||'—')}</b></div>
+            <div class="data-row"><span>🏢 ${t('platform')}</span><b>${esc(hr.platform||'DOU')}</b></div>
+            <div class="data-row"><span>💼 ${t('employment')}</span>${statusPill(hr.employment_status||'ACTIVE','green')}</div>
+            <div class="data-row"><span>💳 ${t('iban')}</span><b class="mono" dir="ltr">${esc(c.bank_iban||'—')}</b></div>
+          </div>
+        </article>
+
+        <!-- DOCUMENTS VAULT -->
+        <article class="card">
+          <div class="row">
+            <h3 class="section-title" style="margin:0"><span>📂 ${t('documents')}</span></h3>
+            ${statusPill(`${docs.length} مستندات`,'blue')}
+          </div>
+          <div class="divider"></div>
+          <div class="form-grid">
+            <div class="field">
+              <label for="docType">${t('documentType')}</label>
+              <select id="docType">
+                <option value="IQAMA">الإقامة / الهوية الوطنية</option>
+                <option value="DRIVING_LICENSE">رخصة القيادة</option>
+                <option value="VEHICLE_LICENSE">استمارة المركبة</option>
+                <option value="INSURANCE">وثيقة التأمين</option>
+                <option value="WORK_PERMIT">تصريح العمل</option>
+              </select>
+            </div>
+            <div class="btn-row">
+              <button class="btn ghost compact" onclick="pickDocument('camera')">📸 التقاط بالكاميرا</button>
+              <button class="btn ghost compact" onclick="pickDocument('files')">📁 اختيار من الصور</button>
+            </div>
+          </div>
+          <div class="divider"></div>
+          ${docs.length ? `
+            <div class="data-list">
+              ${docs.map(d => `
+                <div class="data-row">
+                  <span>${esc(d.filename || d.document_type)}</span>
+                  ${statusPill(d.status==='APPROVED'?'معتمد':d.status==='REJECTED'?'مرفوض':'قيد المراجعة', d.status==='APPROVED'?'green':d.status==='REJECTED'?'red':'orange')}
+                </div>
+              `).join('')}
+            </div>
+          ` : `<div class="empty">${t('noData')}</div>`}
+        </article>
+
+        <!-- LEAVES CARD -->
+        <article class="card">
+          <div class="row">
+            <h3 class="section-title" style="margin:0"><span>🌴 ${t('leave')}</span></h3>
+            <button class="btn ghost compact" onclick="openLeaveModal()">➕ طلب جديد</button>
+          </div>
+          ${leaves.length ? `
+            <div class="divider"></div>
+            <div class="data-list">
+              ${leaves.slice(0,3).map(l => `
+                <div class="data-row">
+                  <span>${esc(l.from_date)} — ${esc(l.to_date)}<br><small class="muted">${esc(l.reason||'')}</small></span>
+                  ${statusPill(l.status==='APPROVED'?'معتمد':l.status==='REJECTED'?'مرفوض':'قيد المراجعة', l.status==='APPROVED'?'green':l.status==='REJECTED'?'red':'orange')}
+                </div>
+              `).join('')}
+            </div>
+          ` : `<div class="empty">${t('noData')}</div>`}
+        </article>
+
+        <!-- SUPPORT TICKETS -->
+        <article class="card">
+          <div class="row">
+            <h3 class="section-title" style="margin:0"><span>💬 ${t('support')}</span></h3>
+            <button class="btn ghost compact" onclick="openTicketModal()">➕ تذكرة جديدة</button>
+          </div>
+          ${tickets.length ? `
+            <div class="divider"></div>
+            <div class="data-list">
+              ${tickets.slice(0,3).map(t => `
+                <div class="data-row">
+                  <span><b>${esc(t.subject)}</b><br><small class="muted">${esc(t.reply || t.message || '')}</small></span>
+                  ${statusPill(t.status==='REPLIED'?'تم الرد':'بانتظار الرد', t.status==='REPLIED'?'green':'orange')}
+                </div>
+              `).join('')}
+            </div>
+          ` : `<div class="empty">${t('noData')}</div>`}
+        </article>
+
+        <!-- SECURITY & LOGOUT -->
+        <article class="card">
+          <h3 class="section-title" style="margin-top:0"><span>🔒 ${t('security')}</span></h3>
+          <div class="btn-row">
+            <button class="btn ghost" onclick="openPasswordModal()">🔑 ${t('changePassword')}</button>
+            <button class="btn danger" onclick="logout()">🚪 ${t('logout')}</button>
+          </div>
+        </article>
+      </section>
+    `;
+  }
+
+  /* BOTTOM NAVIGATION */
+  function renderBottomNav(){
+    const items = [
+      ['home', '⌂', t('home')],
+      ['shifts', '◷', t('shifts')],
+      ['earnings', '₪', t('earnings')],
+      ['performance', '◉', t('performance')],
+      ['profile', '◌', t('profile')]
+    ];
+    return `
+      <nav class="bottom-nav">
+        ${items.map(([key, icon, label]) => `
+          <button class="nav-btn ${state.view===key?'active':''}" onclick="go('${key}')">
+            <span class="icon">${icon}</span>
+            <span>${label}</span>
+          </button>
+        `).join('')}
+      </nav>
+    `;
+  }
+
+  function go(view){
+    state.view = view;
+    render();
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  /* ACTIONS & HANDLERS */
+  async function attendanceAction(){
+    const mode = attendanceMode();
+    if(mode==='none'){go('shifts');return}
+    setBusy('attendance', true);
+    try{
+      const pos = await getLocation();
+      const endpoint = mode==='out' ? '/shifts/attendance/check-out' : '/shifts/attendance/check-in';
+      const res = await api(endpoint, {
+        method:'POST',
+        body:JSON.stringify({courier_id:state.core.courier.id, lat:pos.lat, lng:pos.lng})
+      });
+      await loadCore();
+      render();
+      showToast(mode==='out' ? t('successCheckout') : (res.already_checked_in ? t('alreadyCheckin') : t('successCheckin')), 'success');
+    }catch(err){
+      showToast(err.message||t('genericError'), 'error');
+    }finally{
+      state.busy.delete('attendance');
+      render();
+    }
+  }
+
+  function getLocation(){
+    return new Promise((resolve, reject)=>{
+      if(!navigator.geolocation) return reject(new Error("جهازك لا يدعم نظام تحديد الموقع GPS"));
+      navigator.geolocation.getCurrentPosition(
+        p => resolve({lat:+p.coords.latitude.toFixed(6), lng:+p.coords.longitude.toFixed(6)}),
+        e => reject(new Error("تعذر تحديد موقع GPS. يرجى تفعيل الموقع والمحاولة مجدداً")),
+        {enableHighAccuracy:true, timeout:15000, maximumAge:30000}
+      );
+    });
+  }
+
+  async function setDriverStatus(newStatus){
+    state.driverStatus = newStatus;
+    render();
+    try{
+      await api('/couriers/me/status', {
+        method:'POST',
+        body:JSON.stringify({status:newStatus})
+      });
+      showToast(`تم تحديث حالتك إلى: ${t('status'+newStatus.charAt(0)+newStatus.slice(1).toLowerCase()) || newStatus}`, 'success');
+    }catch(e){}
+  }
+
+  async function claimShiftAction(shiftId){
+    setBusy('shift', true);
+    try{
+      await api(`/shifts/${shiftId}/claim`, {method:'POST'});
+      await loadCore();
+      render();
+      showToast(t('claimSuccess'), 'success');
+    }catch(err){showToast(err.message, 'error')}
+    finally{state.busy.delete('shift');render()}
+  }
+
+  async function dropShiftAction(shiftId){
+    setBusy('shift', true);
+    try{
+      await api(`/shifts/${shiftId}/drop`, {method:'POST'});
+      await loadCore();
+      render();
+      showToast(t('dropSuccess'), 'success');
+    }catch(err){showToast(err.message, 'error')}
+    finally{state.busy.delete('shift');render()}
+  }
+
+  async function saveLog(){
+    const projectId = Number($('logProject')?.value);
+    const orders = Number($('logOrders')?.value || 0);
+    const logDate = $('logDate')?.value;
+    if(!projectId || !logDate || orders < 0){
+      showToast("يرجى إدخال كافة الحقول بشكل صحيح", "error");
+      return;
+    }
+    setBusy('log', true);
+    try{
+      await api('/hr/me/log', {
+        method:'POST',
+        body:JSON.stringify({log_date:logDate, project_id:projectId, orders_count:orders, notes:$('logNote')?.value||''})
+      });
+      await loadCore();
+      render();
+      showToast(t('saved'), 'success');
+    }catch(err){showToast(err.message, 'error')}
+    finally{state.busy.delete('log');render()}
+  }
+
+  /* MODALS & OVERLAYS */
+  function openModal(title, bodyHtml){
+    const container = $('modalContainer');
+    container.innerHTML = `
+      <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal-sheet">
+          <div class="row" style="margin-bottom:16px">
+            <h3 style="margin:0;font-size:16px;font-weight:900">${title}</h3>
+            <button class="icon-btn" onclick="closeModal()">✕</button>
+          </div>
+          ${bodyHtml}
+        </div>
+      </div>
+    `;
+  }
+  function closeModal(){ $('modalContainer').innerHTML = ''; }
+
+  function openSosModal(){
+    openModal(t('sosTitle'), `
+      <p style="font-size:12px;color:var(--muted);line-height:1.6;margin:0 0 14px">${t('sosDesc')}</p>
+      <div class="form-grid">
+        <div class="field">
+          <label>سبب البلاغ أو الملاحظة</label>
+          <input id="sosNote" type="text" placeholder="حادث، عطل مفاجئ، ظرف طارئ…">
+        </div>
+        <button class="btn danger full" onclick="submitSosAction()">🚨 ${t('sendSos')}</button>
+      </div>
+    `);
+  }
+
+  async function submitSosAction(){
+    const note = $('sosNote')?.value || '';
+    closeModal();
+    showToast("جارِ إرسال إشعار الطوارئ…");
+    try{
+      const pos = await getLocation().catch(()=>({lat:0,lng:0}));
+      await api('/couriers/me/sos', {
+        method:'POST',
+        body:JSON.stringify({lat:pos.lat, lng:pos.lng, note})
+      });
+      showToast("✅ تم إرسال نداء الاستغاثة فوراً لغرفة العمليات", "success");
+    }catch(e){showToast(e.message, "error")}
+  }
+
+  function openInspectionModal(){
+    openModal(t('inspectionTitle'), `
+      <p style="font-size:12px;color:var(--muted);margin:0 0 14px">${t('inspectionDesc')}</p>
+      <div class="form-grid">
+        <label style="display:flex;gap:8px;align-items:center;font-size:12px">
+          <input type="checkbox" id="chk_vehicle" checked> فحص الفرامل والإطارات سليم
+        </label>
+        <label style="display:flex;gap:8px;align-items:center;font-size:12px">
+          <input type="checkbox" id="chk_fuel" checked> الوقود / البطارية كافية
+        </label>
+        <label style="display:flex;gap:8px;align-items:center;font-size:12px">
+          <input type="checkbox" id="chk_bag" checked> الحقيبة الحرارية نظيفة ومجهزة
+        </label>
+        <label style="display:flex;gap:8px;align-items:center;font-size:12px">
+          <input type="checkbox" id="chk_helmet" checked> الخوذة وأدوات السلامة مكتملة
+        </label>
+        <div class="field" style="margin-top:8px">
+          <label>ملاحظات الفحص</label>
+          <input id="inspNotes" type="text" placeholder="أي ملاحظة أو خدش سابق…">
+        </div>
+        <button class="btn primary full" onclick="submitInspectionAction()">${t('saveInspection')}</button>
+      </div>
+    `);
+  }
+
+  async function submitInspectionAction(){
+    const payload = {
+      vehicle_ready: $('chk_vehicle')?.checked,
+      fuel_ok: $('chk_fuel')?.checked,
+      bag_clean: $('chk_bag')?.checked,
+      helmet_ready: $('chk_helmet')?.checked,
+      notes: $('inspNotes')?.value || ''
+    };
+    closeModal();
+    try{
+      await api('/couriers/me/inspection', {method:'POST', body:JSON.stringify(payload)});
+      showToast("✅ تم تأكيد فحص الجاهزية بنجاح", "success");
+    }catch(e){showToast(e.message, "error")}
+  }
+
+  function openCodModal(){
+    openModal(t('codTitle'), `
+      <p style="font-size:12px;color:var(--muted);margin:0 0 14px">${t('codDesc')}</p>
+      <div class="form-grid">
+        <div class="field">
+          <label>${t('codAmount')}</label>
+          <input id="codAmt" type="number" step="0.01" min="0" placeholder="0.00" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label>طريقة التسليم</label>
+          <select id="codMethod">
+            <option value="CASH_TO_SUPERVISOR">تسليم نقدي للمشرف</option>
+            <option value="BANK_DEPOSIT">إيداع في حساب الشركة البنكي</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>ملاحظات أو رقم الإيصال</label>
+          <input id="codNotes" type="text" placeholder="رقم إيصال الإيداع أو اسم المستلم…">
+        </div>
+        <button class="btn primary full" onclick="submitCodAction()">${t('saveCod')}</button>
+      </div>
+    `);
+  }
+
+  async function submitCodAction(){
+    const amount = Number($('codAmt')?.value || 0);
+    if(amount <= 0){showToast("أدخل مبلغاً صحيحاً", "error"); return}
+    const payload = {
+      amount,
+      method: $('codMethod')?.value,
+      notes: $('codNotes')?.value || ''
+    };
+    closeModal();
+    try{
+      await api('/couriers/me/cod-settlement', {method:'POST', body:JSON.stringify(payload)});
+      showToast("✅ تم تسجيل تسوية الكاش بنجاح", "success");
+    }catch(e){showToast(e.message, "error")}
+  }
+
+  function openPayslipModal(){
+    const {courier:c, logs, hr} = state.core;
+    const stmt = state.extras?.statement?.statement || {};
+    const p = logs.payroll || {};
+    const netPay = stmt.net_pay ?? p.net_pay ?? 0;
+
+    openModal(`قسيمة الراتب الرقمية — شهر ${p.month || logs.month || '2026-08'}`, `
+      <div style="text-align:center;padding:12px 0">
+        <div class="brand-logo" style="justify-content:center">DOU<span class="brand-dot"></span></div>
+        <h4 style="margin:6px 0 2px">${esc(c.name)}</h4>
+        <div class="tiny muted">${esc(hr.platform || 'DOU Fleet')} · IBAN: ${esc(c.bank_iban||'—')}</div>
+      </div>
+      <div class="divider"></div>
+      <div class="data-list">
+        <div class="data-row"><span>الراتب الأساسي</span><b>${money(stmt.base_salary ?? p.base_salary ?? 0)}</b></div>
+        <div class="data-row"><span>أجر إنتاجية الطلبات</span><b>${money(stmt.delivery_pay ?? p.delivery_pay ?? 0)}</b></div>
+        <div class="data-row"><span>حافز وبونص التارجت</span><b>${money(stmt.target_bonus ?? p.bonus_pay ?? 0)}</b></div>
+        <div class="data-row"><span>إجمالي الاستقطاعات</span><b style="color:var(--red)">- ${money(stmt.total_deductions ?? p.deductions ?? 0)}</b></div>
+        <div class="data-row" style="font-size:14px;border-top:1px dashed var(--line);padding-top:12px">
+          <b>صافي الراتب النهائي</b>
+          <b style="color:var(--orange)">${money(netPay)}</b>
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button class="btn primary full" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+        <button class="btn ghost" onclick="closeModal()">إغلاق</button>
+      </div>
+    `);
+  }
+
+  function openLeaveModal(){
+    openModal("طلب إجازة جديد", `
+      <div class="form-grid">
+        <div class="field"><label>من تاريخ</label><input id="lvFrom" type="date"></div>
+        <div class="field"><label>إلى تاريخ</label><input id="lvTo" type="date"></div>
+        <div class="field"><label>السبب</label><input id="lvReason" type="text" placeholder="سبب الإجازة…"></div>
+        <button class="btn primary full" onclick="submitLeaveAction()">إرسال الطلب</button>
+      </div>
+    `);
+  }
+
+  async function submitLeaveAction(){
+    const from = $('lvFrom')?.value, to = $('lvTo')?.value, reason = $('lvReason')?.value;
+    if(!from || !to || !reason){showToast("أدخل كافة البيانات", "error");return}
+    closeModal();
+    try{
+      await api('/hr/me/leave', {method:'POST', body:JSON.stringify({from_date:from, to_date:to, reason})});
+      state.extras = null;
+      await ensureExtras();
+      showToast(t('sent'), 'success');
+    }catch(e){showToast(e.message, "error")}
+  }
+
+  function openTicketModal(){
+    openModal("تذكرة دعم جديدة", `
+      <div class="form-grid">
+        <div class="field"><label>الموضوع</label><input id="tkSub" type="text" placeholder="عنوان التذكرة…"></div>
+        <div class="field"><label>التفاصيل</label><textarea id="tkMsg" placeholder="اشرح تفاصيل الاستفسار…"></textarea></div>
+        <button class="btn primary full" onclick="submitTicketAction()">إرسال التذكرة</button>
+      </div>
+    `);
+  }
+
+  async function submitTicketAction(){
+    const subject = $('tkSub')?.value, message = $('tkMsg')?.value;
+    if(!subject || !message){showToast("أدخل كافة البيانات", "error");return}
+    closeModal();
+    try{
+      await api('/couriers/me/tickets', {method:'POST', body:JSON.stringify({subject, message})});
+      state.extras = null;
+      await ensureExtras();
+      showToast(t('sent'), 'success');
+    }catch(e){showToast(e.message, "error")}
+  }
+
+  function openPasswordModal(){
+    openModal("تغيير كلمة المرور", `
+      <div class="form-grid">
+        <div class="field"><label>كلمة المرور الحالية</label><input id="curPass" type="password"></div>
+        <div class="field"><label>كلمة المرور الجديدة</label><input id="newPass" type="password"></div>
+        <button class="btn primary full" onclick="submitPasswordAction()">تغيير</button>
+      </div>
+    `);
+  }
+
+  async function submitPasswordAction(){
+    const current_password = $('curPass')?.value, new_password = $('newPass')?.value;
+    if(!current_password || !new_password || new_password.length < 8){
+      showToast("كلمة المرور يجب أن تكون 8 خانات على الأقل", "error");
+      return;
+    }
+    closeModal();
+    try{
+      await api('/auth/change-password', {method:'POST', body:JSON.stringify({current_password, new_password})});
+      clearSession("تم تغيير كلمة المرور بنجاح. سجّل الدخول مجدداً.");
+    }catch(e){showToast(e.message, "error")}
+  }
+
+  /* IN-BROWSER CAMERA & IMAGE COMPRESSION */
+  async function pickDocument(source){
+    const type = $('docType')?.value || 'IQAMA';
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = source==='camera' ? 'image/*' : 'image/jpeg,image/png,application/pdf';
+    if(source==='camera') input.capture = 'environment';
+    input.onchange = async()=>{
+      const file = input.files?.[0];
+      if(!file) return;
+      showToast("جارِ ضغط ومعالجة الصورة…");
+      try{
+        const base64Data = await compressImage(file);
+        await api('/hr/me/documents', {
+          method:'POST',
+          body:JSON.stringify({document_type:type, filename:file.name, mime_type:'image/jpeg', file_data:base64Data})
+        });
+        state.extras = null;
+        await ensureExtras();
+        showToast(t('uploaded'), 'success');
+      }catch(err){showToast(err.message, 'error')}
+    };
+    input.click();
+  }
+
+  function compressImage(file){
+    return new Promise((resolve, reject)=>{
+      if(file.type === 'application/pdf'){
+        const reader = new FileReader();
+        reader.onload = ()=>resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+        return;
+      }
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = ()=>{
+        URL.revokeObjectURL(img.src);
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1280;
+        const MAX_HEIGHT = 1280;
+        let width = img.width;
+        let height = img.height;
+        if(width > height){
+          if(width > MAX_WIDTH){height *= MAX_WIDTH / width; width = MAX_WIDTH;}
+        } else {
+          if(height > MAX_HEIGHT){width *= MAX_HEIGHT / height; height = MAX_HEIGHT;}
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = reject;
+    });
+  }
+
+  async function logout(){
+    try{await fetch('/auth/logout',{method:'POST',headers:{Authorization:'Bearer '+TOKEN}})}catch(_){}
+    clearSession();
+  }
+
+  /* PWA SERVICE WORKER */
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', async()=>{
+      try{await navigator.serviceWorker.register('/sw.js',{scope:'/driver'})}catch(_){}
+    });
+  }
+
+  /* BOOT */
+  async function boot(){
+    if(!TOKEN){renderLogin();return}
+    try{
+      await loadCore();
+      render();
+    }catch(err){
+      if(err.status===401) clearSession(t('sessionExpired'));
+      else renderLogin();
+    }
+  }
+
+  window.addEventListener('online', ()=>{
+    const bar = $('connection');
+    if(bar){bar.textContent='✓ '+t('reconnected');bar.className='connection show online';setTimeout(()=>bar.className='connection',2500)}
+  });
+  window.addEventListener('offline', ()=>{
+    const bar = $('connection');
+    if(bar){bar.textContent='◌ '+t('offline');bar.className='connection show'}
+  });
+
   boot();
   </script>
 </body>

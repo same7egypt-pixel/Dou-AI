@@ -1,61 +1,64 @@
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-from .database import Base, engine
-from .routers import merchants, couriers, orders, auth, shifts, shipping, analytics, geo, admin, fleet, billing, hr
-from .models import entities  # noqa: F401 — يسجّل الجداول على Base
-from .migrations import run_migrations
-from .services.operating_structure import backfill_operating_cities
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from .database import get_db
+from .routers import (
+    merchants,
+    couriers,
+    orders,
+    auth,
+    shifts,
+    shipping,
+    analytics,
+    geo,
+    admin,
+    fleet,
+    billing,
+    hr,
+    workforce,
+    vehicles,
+    salary,
+    timekeeping,
+    leave,
+    documents,
+    readiness,
+    sources,
+    imports,
+    enterprise,
+    dashboard,
+    performance,
+    payroll,
+    reports,
+    operators,
+    dou_ai,
+    notifications,
+    analytics_freshness,
+    supervisor,
+    shifts_assignment,
+    operations,
+    ninja_integration,
+    client_invoices,
+)
 from .config import ENABLE_LEGACY_DELIVERY, CORS_ORIGINS, GOOGLE_ANALYTICS_ID
-from .database import SessionLocal
-from .models.entities import Country, User, UserRole
-from .routers.auth import hash_password
 import os
-
-Base.metadata.create_all(bind=engine)
-run_migrations(engine)
-# ترحيل علاقات المدينة من النصوص القديمة بمطابقة آمنة قابلة لإعادة التشغيل.
-with SessionLocal() as migration_db:
-    city_backfill = backfill_operating_cities(migration_db)
-    if city_backfill:
-        print(f"   ➕ operating-city backfill: {city_backfill}")
-
-
-def bootstrap_admin_from_environment():
-    """تهيئة مؤقتة وآمنة لمالك DOU، ثم تُحذف المتغيرات من Render."""
-    phone = os.getenv("BOOTSTRAP_ADMIN_PHONE", "").strip()
-    password = os.getenv("BOOTSTRAP_ADMIN_PASSWORD", "")
-    reset = os.getenv("BOOTSTRAP_ADMIN_RESET", "false").lower() == "true"
-    if not phone or len(password) < 8:
-        return
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.phone == phone).first()
-        if not user:
-            user = User(phone=phone, name="مالك منصة DOU", password_hash=hash_password(password),
-                        role=UserRole.DOU_ADMIN, country=Country.SA, is_active=True)
-            db.add(user)
-        elif reset:
-            user.password_hash = hash_password(password)
-            user.role = UserRole.DOU_ADMIN
-            user.is_active = True
-            user.token_version = (user.token_version or 0) + 1
-        db.commit()
-        print("✅ DOU admin bootstrap completed; remove BOOTSTRAP_ADMIN_* variables now")
-    finally:
-        db.close()
-
-
-bootstrap_admin_from_environment()
 
 app = FastAPI(title="DOU Platform API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "X-Admin-Key",
+        "X-Request-ID",
+    ],
 )
 
 app.include_router(auth.router)
@@ -66,6 +69,31 @@ app.include_router(admin.gate_router)
 app.include_router(fleet.router)
 app.include_router(billing.router)
 app.include_router(hr.router)
+app.include_router(workforce.router)
+app.include_router(vehicles.router)
+app.include_router(salary.router)
+app.include_router(timekeeping.router)
+app.include_router(leave.router)
+app.include_router(documents.router)
+app.include_router(readiness.router)
+app.include_router(sources.router)
+app.include_router(ninja_integration.router)
+app.include_router(client_invoices.router)
+app.include_router(imports.router)
+app.include_router(analytics.router)
+app.include_router(dashboard.router)
+app.include_router(performance.router)
+app.include_router(payroll.router)
+app.include_router(reports.router)
+app.include_router(operators.router)
+app.include_router(supervisor.router)
+app.include_router(shifts_assignment.router)
+app.include_router(operations.router)
+app.include_router(enterprise.router)
+app.include_router(dou_ai.router)
+app.include_router(notifications.router)
+app.include_router(analytics_freshness.router)
+app.include_router(notifications.webhook_router)
 
 # المنتج الحالي مخصص لإدارة سائقي الشركات. مسارات التجارة والطلبات والشحن
 # القديمة لا تُنشر إلا عند تفعيلها صراحة لأغراض التوافق أو العرض التجريبي.
@@ -73,7 +101,6 @@ if ENABLE_LEGACY_DELIVERY:
     app.include_router(merchants.router)
     app.include_router(orders.router)
     app.include_router(shipping.router)
-    app.include_router(analytics.router)
     app.include_router(geo.router)
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
@@ -89,13 +116,24 @@ class NoCacheHtml(StaticFiles):
 
 
 app.mount("/static", NoCacheHtml(directory=STATIC_DIR), name="static")
+FRONTEND_V2_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "frontend-v2"
+)
+os.makedirs(FRONTEND_V2_DIR, exist_ok=True)
+app.mount("/frontend-v2", NoCacheHtml(directory=FRONTEND_V2_DIR), name="frontend-v2")
 
 
 @app.api_route("/", methods=["GET", "HEAD"])
 def index(request: Request):
-    forwarded_host = request.headers.get("x-forwarded-host", "").split(",")[0].strip().split(":")[0]
+    forwarded_host = (
+        request.headers.get("x-forwarded-host", "").split(",")[0].strip().split(":")[0]
+    )
     direct_host = request.headers.get("host", "").split(":")[0]
-    if "admin.dou.delivery" in {request.url.hostname or "", forwarded_host, direct_host}:
+    if "admin.dou.delivery" in {
+        request.url.hostname or "",
+        forwarded_host,
+        direct_host,
+    }:
         return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
@@ -109,13 +147,21 @@ def english_landing():
 @app.api_route("/help", methods=["GET", "HEAD"])
 def arabic_help():
     with open(os.path.join(STATIC_DIR, "help.html"), encoding="utf-8") as source:
-        return HTMLResponse(source.read().replace("</head>", '<script src="/google-analytics.js" defer></script></head>'))
+        return HTMLResponse(
+            source.read().replace(
+                "</head>", '<script src="/google-analytics.js" defer></script></head>'
+            )
+        )
 
 
 @app.api_route("/help/en", methods=["GET", "HEAD"])
 def english_help():
     with open(os.path.join(STATIC_DIR, "help-en.html"), encoding="utf-8") as source:
-        return HTMLResponse(source.read().replace("</head>", '<script src="/google-analytics.js" defer></script></head>'))
+        return HTMLResponse(
+            source.read().replace(
+                "</head>", '<script src="/google-analytics.js" defer></script></head>'
+            )
+        )
 
 
 @app.api_route("/robots.txt", methods=["GET", "HEAD"])
@@ -125,12 +171,16 @@ def robots():
 
 @app.api_route("/favicon.ico", methods=["GET", "HEAD"])
 def favicon():
-    return FileResponse(os.path.join(STATIC_DIR, "icons", "icon-192.png"), media_type="image/png")
+    return FileResponse(
+        os.path.join(STATIC_DIR, "icons", "icon-192.png"), media_type="image/png"
+    )
 
 
 @app.api_route("/sitemap.xml", methods=["GET", "HEAD"])
 def sitemap():
-    return FileResponse(os.path.join(STATIC_DIR, "sitemap.xml"), media_type="application/xml")
+    return FileResponse(
+        os.path.join(STATIC_DIR, "sitemap.xml"), media_type="application/xml"
+    )
 
 
 @app.get("/google-analytics.js")
@@ -138,13 +188,40 @@ def google_analytics():
     if not GOOGLE_ANALYTICS_ID.startswith("G-"):
         return Response("", media_type="application/javascript")
     script = f"""(function(){{var s=document.createElement('script');s.async=true;s.src='https://www.googletagmanager.com/gtag/js?id={GOOGLE_ANALYTICS_ID}';document.head.appendChild(s);window.dataLayer=window.dataLayer||[];window.gtag=function(){{dataLayer.push(arguments)}};gtag('js',new Date());gtag('config','{GOOGLE_ANALYTICS_ID}',{{anonymize_ip:true}});}})();"""
-    return Response(script, media_type="application/javascript", headers={"Cache-Control":"public, max-age=300"})
+    return Response(
+        script,
+        media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=300"},
+    )
 
 
 @app.get("/app")
 @app.get("/app/")
 def fleet_app():
     return FileResponse(os.path.join(STATIC_DIR, "fleet.html"))
+
+
+@app.get("/app/v2")
+@app.get("/app/v2/")
+def fleet_app_v2():
+    return FileResponse(os.path.join(FRONTEND_V2_DIR, "fleet", "index.html"))
+
+
+@app.get("/admin")
+@app.get("/admin/")
+def admin_app():
+    return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
+
+
+@app.get("/admin/v2")
+@app.get("/admin/v2/")
+def admin_app_v2():
+    return RedirectResponse(url="/admin", status_code=307)
+
+
+@app.get("/app/workforce")
+def workforce_app():
+    return FileResponse(os.path.join(STATIC_DIR, "workforce.html"))
 
 
 @app.get("/driver")
@@ -167,7 +244,15 @@ def health():
     return {"status": "ok", "service": "dou-api"}
 
 
-@app.api_route("/.well-known/assetlinks.json", methods=["GET", "HEAD"], include_in_schema=False)
+@app.get("/health/ready")
+def readiness(db: Session = Depends(get_db)):
+    db.execute(text("SELECT 1"))
+    return {"status": "ok", "service": "dou-api", "database": "ok"}
+
+
+@app.api_route(
+    "/.well-known/assetlinks.json", methods=["GET", "HEAD"], include_in_schema=False
+)
 def android_asset_links():
     return FileResponse(
         os.path.join(STATIC_DIR, "assetlinks.json"),
@@ -213,9 +298,11 @@ ERROR_PAGE = """<!DOCTYPE html>
 
 
 def _error_page(code: int, title: str, detail: str) -> str:
-    return (ERROR_PAGE.replace("__CODE__", str(code))
-                     .replace("__TITLE__", title)
-                     .replace("__DETAIL__", detail))
+    return (
+        ERROR_PAGE.replace("__CODE__", str(code))
+        .replace("__TITLE__", title)
+        .replace("__DETAIL__", detail)
+    )
 
 
 def _wants_html(request: Request) -> bool:
@@ -226,16 +313,30 @@ def _wants_html(request: Request) -> bool:
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
     if _wants_html(request) and not request.url.path.startswith("/static"):
-        return HTMLResponse(_error_page(404, "الصفحة غير موجودة",
-                                        "المسار الذي تبحث عنه غير متوفر، أو أن الرابط قديم."),
-                            status_code=404)
+        return HTMLResponse(
+            _error_page(
+                404,
+                "الصفحة غير موجودة",
+                "المسار الذي تبحث عنه غير متوفر، أو أن الرابط قديم.",
+            ),
+            status_code=404,
+        )
     return JSONResponse({"detail": "Not Found"}, status_code=404)
 
 
 @app.exception_handler(500)
 async def internal_error(request: Request, exc):
+    import traceback
+
+    print("=== 500 ERROR ===", repr(exc), flush=True)
+    traceback.print_exc()
     if _wants_html(request):
-        return HTMLResponse(_error_page(500, "خطأ في الخادم",
-                                        "حدث خطأ غير متوقع. حاول مرة أخرى خلال لحظات، وإذا تكررت المشكلة تواصل مع الدعم."),
-                            status_code=500)
+        return HTMLResponse(
+            _error_page(
+                500,
+                "خطأ في الخادم",
+                "حدث خطأ غير متوقع. حاول مرة أخرى خلال لحظات، وإذا تكررت المشكلة تواصل مع الدعم.",
+            ),
+            status_code=500,
+        )
     return JSONResponse({"detail": "Internal Server Error"}, status_code=500)

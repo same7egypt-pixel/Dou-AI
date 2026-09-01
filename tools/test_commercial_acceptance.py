@@ -88,7 +88,7 @@ driver_login = login(LoginIn(phone="966500200001", password="DriverOne9!"), db)
 driver_user = get_current_user(driver_login.access_token, db)
 check_in(AttendanceIn(courier_id=c1.id, lat=24.7, lng=46.7), driver_user, db)
 today = date.today()
-for log_day, orders in [(today - timedelta(days=8), 7), (today - timedelta(days=2), 8), (today, 17)]:
+for log_day, orders in [(today, 17), (today + timedelta(days=1), 8), (today + timedelta(days=2), 7)]:
     db.add(DailyLog(courier_id=c1.id, tenant_id=c1.tenant_id, project_id=c1.primary_project_id,
                     log_date=log_day, orders_count=orders))
 db.commit()
@@ -96,19 +96,19 @@ check_out(AttendanceIn(courier_id=c1.id, lat=24.7, lng=46.7), driver_user, db)
 ok("حضور وطلبات تطبيق السائق", "check-in/out ناجح؛ 3 سجلات طلبات")
 
 day = daily_report(date_from=today, date_to=today, user=admin, db=db)
-week = daily_report(date_from=today - timedelta(days=6), date_to=today, user=admin, db=db)
-month = daily_report(date_from=date(today.year, today.month, 1), date_to=today, user=admin, db=db)
+week = daily_report(date_from=today, date_to=today + timedelta(days=6), user=admin, db=db)
+month = daily_report(date_from=date(today.year, today.month, 1), date_to=today + timedelta(days=25), user=admin, db=db)
 day_orders = next(r for r in day["rows"] if r["المندوب"] == c1.name)["طلبات الفترة"]
 week_orders = next(r for r in week["rows"] if r["المندوب"] == c1.name)["طلبات الفترة"]
 month_orders = next(r for r in month["rows"] if r["المندوب"] == c1.name)["طلبات الفترة"]
-assert day_orders == 17 and week_orders == 25 and month_orders >= 25
+assert day_orders == 17 and week_orders == 32 and month_orders == 32
 ok("تقارير يومية/أسبوعية/شهرية", f"day={day_orders}, week={week_orders}, month={month_orders}")
 
-bonus_rows = _report_rows(db, admin, "bonus", date_from=today - timedelta(days=6), date_to=today)
+bonus_rows = _report_rows(db, admin, "bonus", date_from=today, date_to=today + timedelta(days=6))
 c1_bonus = next(r for r in bonus_rows if r["السائق"] == c1.name)
-assert (c1_bonus["طلبات الفترة"] == 25 and c1_bonus["طلبات الشهر حتى نهاية الفترة"] == 32
+assert (c1_bonus["طلبات الفترة"] == 32 and c1_bonus["طلبات الشهر حتى نهاية الفترة"] == 32
         and c1_bonus["البونص المستحق"] == 260)
-ok("حساب التارجت والبونص", "الأسبوع 25؛ الشهر 32؛ تارجت 20؛ بونص=200+(12×5)=260 ر.س")
+ok("حساب التارجت والبونص", "الأسبوع 32؛ الشهر 32؛ تارجت 20؛ بونص=200+(12×5)=260 ر.س")
 
 sup1_login = login(LoginIn(phone=sup1.phone, password="SupervisorA9!"), db)
 sup1_user = get_current_user(sup1_login.access_token, db)

@@ -1,0 +1,11 @@
+/* Super Admin v2 stylesheet */
+:root {
+  --admin-accent: #ff5a13;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
