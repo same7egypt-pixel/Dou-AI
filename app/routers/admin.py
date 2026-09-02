@@ -961,7 +961,6 @@ def support_login(
             .first()
         )
     if not target:
-        from ..services.security import hash_password
         target = User(
             tenant_id=tid,
             name=f"إدارة {tenant.name}",
