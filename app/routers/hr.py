@@ -2,6 +2,7 @@
 الأدمن يدير كل شيء، والمشرف يدير مناديب مجموعته فقط، والمندوب يخدم نفسه."""
 
 from datetime import datetime, date, timedelta
+from typing import Optional, List, Dict, Any
 import csv
 import io
 import json
