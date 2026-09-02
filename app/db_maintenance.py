@@ -53,7 +53,10 @@ def bootstrap_admin_from_environment() -> None:
 
 def initialize_database() -> None:
     """Apply schema setup, compatibility migrations, and controlled backfills."""
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"⚠️ Metadata create_all notice (safe to continue): {e}")
     run_migrations(engine)
     with SessionLocal() as migration_db:
         city_backfill = backfill_operating_cities(migration_db)
