@@ -3,11 +3,11 @@ import { api } from '../../shared/api/client.js';
 import { el, loadingState, emptyState, errorState, metricCard, badge, table, modal } from '../../shared/components/ui.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
 
-let activeSubTab = 'overview'; // 'overview' | 'catalog' | 'platform_facts' | 'dashboards'
-let currentReport = null;
+let activeSubTab = 'driver_targets'; // 'driver_targets' | 'platform_facts' | 'dashboards'
 let currentDashboard = null;
 let platformContractFilter = '';
 let platformDateFilter = '';
+let currentDriverTargetsMonth = new Date().toISOString().slice(0, 7);
 
 export async function loadReports(container) {
   const isAr = getLang() === 'ar';
@@ -15,8 +15,8 @@ export async function loadReports(container) {
 
   const header = el('div', { class: 'header' }, [
     el('div', {}, [
-      el('div', { class: 'kicker' }, isAr ? 'ذكاء الأعمال والتحليلات المتقدمة' : 'Business Intelligence & Advanced Analytics'),
-      el('h1', { text: isAr ? 'مركز التقارير والتحليلات' : 'Reports & Analytics Center' }),
+      el('div', { class: 'kicker' }, isAr ? 'ذكاء الأعمال والتشغيل الميداني' : 'Business Intelligence & Operations'),
+      el('h1', { text: isAr ? 'مركز التقارير ومتابعة التارجت' : 'Reports & Target Operations Center' }),
     ]),
     el('div', { class: 'header-actions', id: 'reports-header-actions' }, [
       el('button', { class: 'btn btn-ghost', onclick: () => loadReports(container) }, `↻ ${t('تحديث البيانات')}`),
@@ -25,25 +25,20 @@ export async function loadReports(container) {
 
   const subTabs = el('div', { class: 'tabs', style: 'margin-bottom:18px' }, [
     el('button', {
-      class: `tab ${activeSubTab === 'overview' ? 'active' : ''}`,
-      'data-tab': 'overview',
-      onclick: () => switchTab('overview', container)
-    }, isAr ? 'الرئيسية' : 'Overview'),
-    el('button', {
-      class: `tab ${activeSubTab === 'catalog' ? 'active' : ''}`,
-      'data-tab': 'catalog',
-      onclick: () => switchTab('catalog', container)
-    }, isAr ? 'كل التقارير' : 'All Reports'),
+      class: `tab ${activeSubTab === 'driver_targets' ? 'active' : ''}`,
+      'data-tab': 'driver_targets',
+      onclick: () => switchTab('driver_targets', container)
+    }, isAr ? '🎯 تارجت وإنجاز السائقين' : '🎯 Driver Targets & Progress'),
     el('button', {
       class: `tab ${activeSubTab === 'platform_facts' ? 'active' : ''}`,
       'data-tab': 'platform_facts',
       onclick: () => switchTab('platform_facts', container)
-    }, isAr ? 'أداء المنصات' : 'Platform Performance'),
+    }, isAr ? '📈 أداء المنصات' : '📈 Platform Performance'),
     el('button', {
       class: `tab ${activeSubTab === 'dashboards' ? 'active' : ''}`,
       'data-tab': 'dashboards',
       onclick: () => switchTab('dashboards', container)
-    }, isAr ? 'لوحات التحليل' : 'Analytics Dashboards'),
+    }, isAr ? '📊 لوحات التحليل' : '📊 Analytics Dashboards'),
   ]);
 
   const contentArea = el('div', { id: 'reports-content-area' });
@@ -69,98 +64,223 @@ function activateReportsTab(tabId) {
 
 function renderSubTab(contentArea) {
   contentArea.innerHTML = '';
-  if (activeSubTab === 'overview') {
-    renderReportsOverview(contentArea);
+  if (activeSubTab === 'driver_targets') {
+    renderDriverTargetsTab(contentArea);
   } else if (activeSubTab === 'platform_facts') {
     renderPlatformFactsTab(contentArea);
-  } else if (activeSubTab === 'catalog') {
-    renderCatalogTab(contentArea);
   } else if (activeSubTab === 'dashboards') {
     renderMetabaseDashboardsTab(contentArea);
   }
 }
 
-async function renderReportsOverview(container) {
-  const body = el('div', {}, [loadingState('جاري تجهيز مركز التقارير...')]);
-  container.append(body);
-  try {
-    const data = await api.get('/analytics/reports/catalog');
-    body.replaceWith(renderReportsOverviewLayout(data.catalog || {}, container));
-  } catch (e) {
-    body.replaceWith(errorState('تعذر تحميل مركز التقارير: ' + e.message, () => renderReportsOverview(container)));
-  }
-}
-
-function findCatalogReport(catalog, group, reportId) {
-  return (catalog[group] || []).find((report) => (report.report_type || report.id) === reportId);
-}
-
-function openCatalogReport(catalog, group, reportId, container) {
-  const report = findCatalogReport(catalog, group, reportId);
-  if (!report) {
-    container.replaceChildren(errorState('هذا التقرير غير متاح لصلاحيتك الحالية.', () => renderReportsOverview(container)));
-    return;
-  }
-  openReportDetail(group, report, container);
-}
-
-function journeyAction(label, onclick, primary = false) {
-  return el('button', { class: `reports-journey-action ${primary ? 'primary' : ''}`, onclick }, [
-    el('span', { text: label }), el('b', { text: '←' })
-  ]);
-}
-
-function renderReportsOverviewLayout(catalog, container) {
+// ─────────────────────────────────────────────────────────────────────────────
+// TAB 1: تارجت وإنجاز السائقين اليومي والشهري (DRIVER TARGETS & DAILY TRACKER)
+// ─────────────────────────────────────────────────────────────────────────────
+async function renderDriverTargetsTab(container) {
   const isAr = getLang() === 'ar';
-  const wrap = el('div', { class: 'reports-overview' });
-  wrap.append(el('div', { class: 'reports-overview-intro' }, [
-    el('div', {}, [
-      el('h2', { text: isAr ? 'تقارير عملية تبدأ من مصدر البيانات' : 'Operational reports organized by data source' }),
-      el('p', { text: isAr ? 'تابع تسجيلات المندوبين، ارفع تقرير الشركة اليومي، أو راجع بيانات المنصات المتصلة—من دون البحث وسط عشرات التقارير.' : 'Track rider entries, upload the daily company report, or review connected-platform data without searching through dozens of reports.' })
-    ]),
-    el('span', { class: 'reports-overview-badge', text: isAr ? '3 مسارات واضحة' : '3 clear workflows' })
-  ]));
+  container.innerHTML = '';
+  const body = el('div', {}, [loadingState(isAr ? 'جاري تجميع بيانات الحضور ووتيرة تارجت السائقين...' : 'Loading driver targets and pacing...')]);
+  container.append(body);
 
-  const journeys = el('div', { class: 'reports-journeys' });
-  journeys.append(
-    el('article', { class: 'reports-journey' }, [
-      el('div', { class: 'reports-journey-icon rider', text: '🕐' }),
-      el('h3', { text: isAr ? 'تسجيلات المندوبين' : 'Rider Entries' }),
-      el('p', { text: isAr ? 'الحضور والانصراف وساعات العمل والطلبات المسجلة، بمتابعة يومية وتجميع شهري.' : 'Attendance, working hours, and recorded orders with daily and monthly views.' }),
-      el('div', { class: 'reports-journey-actions' }, [
-        journeyAction(isAr ? 'تقرير اليوم' : 'Today report', () => openCatalogReport(catalog, 'attendance', 'attendance_report', container), true),
-        journeyAction(isAr ? 'ملخص الشهر وساعات العمل' : 'Monthly hours summary', () => openCatalogReport(catalog, 'attendance', 'working_hours', container)),
-        journeyAction(isAr ? 'الغياب والتأخير' : 'Absence and lateness', () => openCatalogReport(catalog, 'attendance', 'late_absence', container))
-      ])
+  try {
+    const data = await api.get(`/analytics/reports/driver-targets?month=${currentDriverTargetsMonth}`);
+    body.replaceWith(renderDriverTargetsLayout(data, container));
+  } catch (e) {
+    body.replaceWith(errorState('تعذر تحميل تقرير تارجت السائقين: ' + e.message, () => renderDriverTargetsTab(container)));
+  }
+}
+
+function renderDriverTargetsLayout(data, container) {
+  const isAr = getLang() === 'ar';
+  const wrap = el('div', {});
+  const summary = data.summary || {};
+  let rows = data.rows || [];
+  let filterSearch = '';
+  let filterStatus = '';
+
+  // 1. Toolbar & Filters
+  const monthInput = el('input', {
+    type: 'month',
+    value: currentDriverTargetsMonth,
+    style: 'padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text)',
+    onchange: (e) => {
+      currentDriverTargetsMonth = e.target.value;
+      renderDriverTargetsTab(container);
+    }
+  });
+
+  const searchInput = el('input', {
+    type: 'text',
+    placeholder: isAr ? '🔍 بحث باسم السائق أو الجوال...' : '🔍 Search driver or phone...',
+    style: 'padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text);min-width:220px',
+    oninput: (e) => {
+      filterSearch = e.target.value.trim().toLowerCase();
+      updateTable();
+    }
+  });
+
+  const statusSelect = el('select', {
+    class: 'form-control',
+    style: 'padding:6px 12px;min-width:160px;width:auto',
+    onchange: (e) => {
+      filterStatus = e.target.value;
+      updateTable();
+    }
+  }, [
+    el('option', { value: '', text: isAr ? 'كل الحالات' : 'All Statuses' }),
+    el('option', { value: 'ACHIEVED', text: isAr ? '🏆 حقق التارجت' : '🏆 Target Achieved' }),
+    el('option', { value: 'ON_TRACK', text: isAr ? '🟢 على وتيرة الإنجاز' : '🟢 On Track' }),
+    el('option', { value: 'AT_RISK', text: isAr ? '🔴 متأخر عن التارجت' : '🔴 At Risk / Behind' }),
+  ]);
+
+  const toolbar = el('div', { class: 'card', style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 18px;margin-bottom:16px;background:var(--card);border:1px solid var(--border)' }, [
+    el('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap' }, [
+      el('label', { style: 'font-size:13px;font-weight:700;color:var(--text)' }, isAr ? '📅 الشهر:' : '📅 Month:'),
+      monthInput,
+      searchInput,
+      statusSelect,
     ]),
-    el('article', { class: 'reports-journey' }, [
-      el('div', { class: 'reports-journey-icon company', text: '📥' }),
-      el('h3', { text: isAr ? 'تقرير أداء الشركة اليومي' : 'Daily Company Performance' }),
-      el('p', { text: isAr ? 'ارفع ملف الـ19 عمود، راجع البيانات، ثم تابع أداء اليوم والتراكم الشهري.' : 'Upload the 19-column file, validate it, then track daily and month-to-date performance.' }),
-      el('div', { class: 'reports-journey-actions' }, [
-        journeyAction(isAr ? 'رفع تقرير اليوم' : 'Upload today report', () => openContractUploadModal(() => activateReportsTab('platform_facts')), true),
-        journeyAction(isAr ? 'مشاهدة الأداء اليومي' : 'View daily performance', () => activateReportsTab('platform_facts')),
-        journeyAction(isAr ? 'سجل الملفات المرفوعة' : 'Uploaded files log', () => openCatalogReport(catalog, 'orders', 'import_batches', container))
-      ])
-    ]),
-    el('article', { class: 'reports-journey' }, [
-      el('div', { class: 'reports-journey-icon platform', text: '🔗' }),
-      el('h3', { text: isAr ? 'المنصات المتصلة بالـ API' : 'Connected API Platforms' }),
-      el('p', { text: isAr ? 'راجع البيانات الواردة من نينجا والمنصات الأخرى وترتيب أداء المندوبين والفرق.' : 'Review incoming Ninja and platform data plus rider and team rankings.' }),
-      el('div', { class: 'reports-journey-actions' }, [
-        journeyAction(isAr ? 'ترتيب أداء المندوبين' : 'Rider performance ranking', () => openCatalogReport(catalog, 'performance', 'rider_performance', container), true),
-        journeyAction(isAr ? 'أداء الفرق والفروع' : 'Teams and branches', () => openCatalogReport(catalog, 'performance', 'team_performance', container)),
-        journeyAction(isAr ? 'عرض بيانات المنصات' : 'View platform data', () => activateReportsTab('platform_facts'))
-      ])
+    el('div', { style: 'display:flex;gap:8px' }, [
+      el('button', {
+        class: 'btn btn-ghost btn-small',
+        onclick: () => exportDriverTargetsCsv(data.month, rows)
+      }, isAr ? '⬇ تصدير Excel / CSV' : '⬇ Export CSV')
     ])
-  );
-  wrap.append(journeys);
+  ]);
+  wrap.append(toolbar);
 
-  wrap.append(el('button', { class: 'reports-all-link', onclick: () => activateReportsTab('catalog') }, [
-    el('span', { text: isAr ? 'تحتاج تقريرًا إداريًا آخر؟ افتح كل التقارير الإضافية' : 'Need another administrative report? Open all additional reports' }),
-    el('b', { text: '←' })
-  ]));
+  // 2. Summary KPI Cards
+  const cards = el('div', { class: 'cards', style: 'margin-bottom:16px' }, [
+    metricCard(`${(summary.total_month_orders || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`, isAr ? 'إجمالي طلبات الشهر (الأسطول)' : 'Fleet Monthly Orders', 'blue', null, isAr ? 'المسجل تراكمياً من السائقين' : 'Month-to-date total'),
+    metricCard(`${(summary.total_today_orders || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`, isAr ? 'طلبات اليوم المنجزة' : 'Today Orders', 'trend', null, isAr ? 'من تطبيق السائق الميداني' : 'Logged today'),
+    metricCard(`${summary.avg_orders_per_courier || 0} طلب`, isAr ? 'متوسط إنجاز السائق' : 'Avg Orders / Rider', 'purple', null, isAr ? 'إنتاجية السائق التراكمية' : 'Average per rider'),
+    metricCard(`${summary.on_track_count + summary.achieved_count} من ${summary.total_couriers}`, isAr ? 'سائقين على وتيرة التارجت' : 'On-Track Riders', 'green', null, isAr ? 'ملتزمون بالمعدل اليومي' : 'Meeting daily pace'),
+    metricCard(`${summary.at_risk_count} سائق`, isAr ? 'سائقين متأخرين عن التارجت' : 'At-Risk Riders', summary.at_risk_count > 0 ? 'alert' : 'blue', null, isAr ? 'يحتاجون دعم وتوجيه ميداني' : 'Behind target pace'),
+  ]);
+  wrap.append(cards);
+
+  // 3. Table Container
+  const tableContainer = el('div', { class: 'card', style: 'padding:16px;background:var(--card);border:1px solid var(--border);border-radius:12px' });
+  wrap.append(tableContainer);
+
+  function getFilteredRows() {
+    return rows.filter((r) => {
+      if (filterStatus && r.status !== filterStatus) return false;
+      if (filterSearch) {
+        const text = `${r.name || ''} ${r.phone || ''} ${r.branch_name || ''}`.toLowerCase();
+        if (!text.includes(filterSearch)) return false;
+      }
+      return true;
+    });
+  }
+
+  function updateTable() {
+    const filtered = getFilteredRows();
+    tableContainer.innerHTML = '';
+
+    const columns = [
+      { key: 'name', label: isAr ? 'السائق والفرع' : 'Driver & Branch', render: (v, r) => el('div', {}, [
+        el('b', { style: 'display:block;color:var(--text);font-size:13px' }, v || '—'),
+        el('div', { style: 'color:var(--muted);font-size:11px;display:flex;gap:6px' }, [
+          el('span', {}, r.phone || ''),
+          el('span', {}, '•'),
+          el('span', {}, r.branch_name || 'الفرع الرئيسي')
+        ])
+      ]) },
+      { key: 'checked_in', label: isAr ? 'حضور اليوم' : 'Today Attendance', render: (v, r) => {
+        if (v) {
+          return el('div', { style: 'text-align:center' }, [
+            el('span', { class: 'badge badge-green', style: 'font-weight:700;font-size:11px' }, isAr ? `✅ حاضر (${r.checkin_time || '08:00'})` : `✅ In (${r.checkin_time || '08:00'})`),
+            r.is_late ? el('small', { style: 'display:block;color:#ea580c;font-size:10px' }, isAr ? 'متأخر' : 'Late') : null
+          ]);
+        }
+        return el('span', { class: 'badge badge-alert', style: 'font-size:11px' }, isAr ? '❌ لم يسجل' : '❌ Absent');
+      }},
+      { key: 'today_orders', label: isAr ? 'طلبات اليوم' : 'Today Orders', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('span', { class: 'badge badge-blue', style: 'font-weight:700;font-size:12px;padding:3px 8px' }, `📱 ${v || 0}`),
+      ]) },
+      { key: 'month_orders', label: isAr ? 'إجمالي الشهر التراكمي' : 'Month Total', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+      ]) },
+      { key: 'monthly_target', label: isAr ? 'التارجت المستهدف' : 'Target', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${v || 400} طلب`),
+      ]) },
+      { key: 'achievement_pct', label: isAr ? 'نسبة الإنجاز' : 'Achievement %', render: (v) => {
+        const pct = Math.min(100, Math.max(0, v || 0));
+        const color = pct >= 100 ? '#16a34a' : (pct >= 60 ? '#0284c7' : '#dc2626');
+        return el('div', { style: 'min-width:110px' }, [
+          el('div', { style: 'display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:3px' }, [
+            el('span', { style: `color:${color}` }, `${v || 0}%`),
+            el('span', { style: 'color:var(--muted)' }, `${pct}/100`)
+          ]),
+          el('div', { style: 'height:6px;background:rgba(0,0,0,0.06);border-radius:4px;overflow:hidden' }, [
+            el('div', { style: `height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width 0.3s` })
+          ])
+        ]);
+      }},
+      { key: 'remaining_orders', label: isAr ? 'المتبقي للتارجت' : 'Remaining', render: (v) => el('div', { style: 'text-align:center' }, [
+        v === 0 
+          ? el('span', { style: 'color:#16a34a;font-weight:700;font-size:12px' }, isAr ? '🎉 اكتمل' : '🎉 Done') 
+          : el('span', { style: 'color:#ea580c;font-weight:700;font-size:12px' }, `${v} طلب`)
+      ]) },
+      { key: 'required_daily_rate', label: isAr ? 'المعدل اليومي المطلوب' : 'Daily Run-Rate', render: (v, r) => el('div', { style: 'text-align:center' }, [
+        r.remaining_orders === 0
+          ? el('span', { style: 'color:var(--muted);font-size:11px' }, '—')
+          : el('b', { style: 'color:#0284c7;font-size:12px' }, `${v} ${isAr ? 'طلب/يوم' : 'ord/day'}`)
+      ]) },
+      { key: 'status', label: isAr ? 'حالة الالتزام' : 'Pacing Status', render: (v) => {
+        if (v === 'ACHIEVED') return el('span', { class: 'badge badge-green', style: 'font-weight:700' }, isAr ? '🏆 محقق التارجت' : '🏆 Achieved');
+        if (v === 'ON_TRACK') return el('span', { class: 'badge badge-blue', style: 'font-weight:700' }, isAr ? '🟢 على الوتيرة' : '🟢 On Track');
+        return el('span', { class: 'badge badge-alert', style: 'font-weight:700' }, isAr ? '🔴 يحتاج دعم' : '🔴 At Risk');
+      }}
+    ];
+
+    tableContainer.append(el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px' }, [
+      el('div', {}, [
+        el('h3', { style: 'margin:0;font-size:15px;color:var(--text)' }, isAr ? `متابعة إنجاز وتارجت السائقين لشهر (${data.month || currentDriverTargetsMonth})` : `Driver Monthly Target & Progress (${data.month})`),
+        el('p', { style: 'margin:2px 0 0 0;font-size:11px;color:var(--muted)' }, isAr ? `المتبقي على نهاية الشهر: ${data.remaining_days || 1} يوم عمل` : `${data.remaining_days || 1} days remaining in month`)
+      ]),
+      el('span', { style: 'font-size:12px;color:var(--muted)' }, isAr ? `عدد السائقين: ${filtered.length}` : `Count: ${filtered.length}`)
+    ]));
+
+    if (!filtered.length) {
+      tableContainer.append(emptyState(isAr ? 'لا توجد بيانات مطابقة لخيارات البحث.' : 'No matching driver records found.'));
+    } else {
+      tableContainer.append(table(columns, filtered));
+    }
+  }
+
+  updateTable();
   return wrap;
+}
+
+function exportDriverTargetsCsv(month, rows) {
+  if (!rows || !rows.length) return alert('لا توجد بيانات للتصدير.');
+  const headers = ['اسم السائق', 'رقم الجوال', 'الفرع', 'حضور اليوم', 'طلبات اليوم', 'إجمالي الشهر', 'التارجت الشهري', 'نسبة الإنجاز', 'المتبقي', 'المعدل اليومي المطلوب', 'الحالة'];
+  const csvRows = [headers.join(',')];
+  rows.forEach((r) => {
+    csvRows.push([
+      `"${r.name || ''}"`,
+      `"${r.phone || ''}"`,
+      `"${r.branch_name || ''}"`,
+      r.checked_in ? `حاضر (${r.checkin_time || ''})` : 'غائب',
+      r.today_orders || 0,
+      r.month_orders || 0,
+      r.monthly_target || 400,
+      `"${r.achievement_pct || 0}%"`,
+      r.remaining_orders || 0,
+      r.required_daily_rate || 0,
+      r.status === 'ACHIEVED' ? 'محقق التارجت' : (r.status === 'ON_TRACK' ? 'على الوتيرة' : 'يحتاج دعم')
+    ].join(','));
+  });
+  const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `dou_driver_targets_${month}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

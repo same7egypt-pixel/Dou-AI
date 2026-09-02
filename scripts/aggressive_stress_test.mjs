@@ -1,7 +1,7 @@
 // scripts/aggressive_stress_test.mjs — Aggressive Stress, Concurrency & Security Penetration Test Suite
 import { chromium } from 'playwright';
 
-const LIVE_URL = 'http://18.194.202.73';
+const LIVE_URL = 'https://dou.delivery';
 const CREDENTIALS = {
   fleetAdmin: { phone: '966581112233', password: 'dou123456' },
   opsManager: { phone: '966500000000', password: 'dou123456' },

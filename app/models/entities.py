@@ -1340,6 +1340,7 @@ class PayrollPeriod(Base):
     status = Column(String(20), default="DRAFT", nullable=False)  # DRAFT / FINALIZED
     finalized_by = Column(Integer, ForeignKey("users.id"))
     finalized_at = Column(DateTime)
+    draft_overrides = Column(Text)  # JSON for accountant reviewed orders & notes
     created_at = Column(DateTime, default=utcnow)
 
 

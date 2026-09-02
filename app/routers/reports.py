@@ -1,5 +1,4 @@
-"""W10: Reports, Exports & Embedded Analytics — Expanded Report Catalog & Metabase Integration."""
-
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import Optional
 from decimal import Decimal
@@ -55,6 +54,166 @@ def _convert_query_objects(*args):
         else:
             result.append(value)
     return result
+
+
+@router.get("/driver-targets")
+def driver_targets_progress(
+    month: Optional[str] = Query(None),
+    branch_id: Optional[int] = Query(None),
+    user: ent.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Operational tracker for driver daily attendance, daily orders, and monthly target pacing."""
+    tenant_id = _tenant_id(user)
+    today = date.today()
+    selected_month = month or today.strftime("%Y-%m")
+    try:
+        year, month_num = (int(p) for p in selected_month.split("-", 1))
+        month_start = date(year, month_num, 1)
+        period_end = date(year + 1, 1, 1) if month_num == 12 else date(year, month_num + 1, 1)
+    except Exception:
+        month_start = date(today.year, today.month, 1)
+        period_end = date(today.year + 1, 1, 1) if today.month == 12 else date(today.year, today.month + 1, 1)
+
+    days_in_month = (period_end - month_start).days
+    day_of_month = today.day if selected_month == today.strftime("%Y-%m") else days_in_month
+    remaining_days = max(1, days_in_month - day_of_month)
+
+    couriers_q = db.query(ent.Courier).filter(
+        ent.Courier.tenant_id == tenant_id,
+        ent.Courier.employment_status == "ACTIVE",
+    )
+    if branch_id:
+        couriers_q = couriers_q.filter(ent.Courier.contract_branch_id == branch_id)
+
+    couriers = couriers_q.order_by(ent.Courier.name).all()
+    c_ids = [c.id for c in couriers]
+
+    today_orders = defaultdict(int)
+    month_orders = defaultdict(int)
+    if c_ids:
+        logs = (
+            db.query(ent.DailyLog)
+            .filter(
+                ent.DailyLog.courier_id.in_(c_ids),
+                ent.DailyLog.log_date >= month_start,
+                ent.DailyLog.log_date < period_end,
+            )
+            .all()
+        )
+        for log in logs:
+            qty = int(log.orders_count or 0)
+            month_orders[log.courier_id] += qty
+            if log.log_date == today:
+                today_orders[log.courier_id] += qty
+
+    today_attendances = {}
+    if c_ids:
+        today_dt_start = datetime.combine(today, datetime.min.time())
+        today_dt_end = datetime.combine(today + timedelta(days=1), datetime.min.time())
+        atts = (
+            db.query(ent.Attendance)
+            .filter(
+                ent.Attendance.courier_id.in_(c_ids),
+                ent.Attendance.check_in >= today_dt_start,
+                ent.Attendance.check_in < today_dt_end,
+            )
+            .all()
+        )
+        for att in atts:
+            today_attendances[att.courier_id] = {
+                "checked_in": True,
+                "time": att.check_in.strftime("%H:%M") if att.check_in else None,
+                "is_late": att.is_late,
+            }
+
+    branch_ids = [c.contract_branch_id for c in couriers if c.contract_branch_id]
+    branches = (
+        {
+            b.id: b.name
+            for b in db.query(ent.ContractBranch)
+            .filter(ent.ContractBranch.id.in_(branch_ids))
+            .all()
+        }
+        if branch_ids
+        else {}
+    )
+
+    rows = []
+    total_month_orders = 0
+    total_today_orders = 0
+    on_track_count = 0
+    at_risk_count = 0
+    achieved_count = 0
+
+    for c in couriers:
+        done = month_orders[c.id]
+        t_orders = today_orders[c.id]
+        target = int(c.bonus_target or 400)
+        if target <= 0:
+            target = 400
+
+        total_month_orders += done
+        total_today_orders += t_orders
+
+        pct = round((done / target) * 100, 1) if target > 0 else 100.0
+        remaining = max(0, target - done)
+        required_daily_rate = round(remaining / remaining_days, 1) if remaining > 0 else 0.0
+
+        expected_pace = (day_of_month / days_in_month) * target
+        if done >= target:
+            status = "ACHIEVED"
+            achieved_count += 1
+        elif done >= expected_pace * 0.85:
+            status = "ON_TRACK"
+            on_track_count += 1
+        else:
+            status = "AT_RISK"
+            at_risk_count += 1
+
+        att_info = today_attendances.get(
+            c.id, {"checked_in": False, "time": None, "is_late": False}
+        )
+
+        rows.append(
+            {
+                "id": c.id,
+                "name": c.name,
+                "phone": c.phone,
+                "branch_id": c.contract_branch_id,
+                "branch_name": branches.get(
+                    c.contract_branch_id, c.zone or "الفرع الرئيسي"
+                ),
+                "checked_in": att_info["checked_in"],
+                "checkin_time": att_info["time"],
+                "today_orders": t_orders,
+                "month_orders": done,
+                "monthly_target": target,
+                "achievement_pct": pct,
+                "remaining_orders": remaining,
+                "required_daily_rate": required_daily_rate,
+                "status": status,
+            }
+        )
+
+    return {
+        "month": selected_month,
+        "days_in_month": days_in_month,
+        "day_of_month": day_of_month,
+        "remaining_days": remaining_days,
+        "summary": {
+            "total_couriers": len(couriers),
+            "total_today_orders": total_today_orders,
+            "total_month_orders": total_month_orders,
+            "avg_orders_per_courier": round(
+                total_month_orders / max(1, len(couriers)), 1
+            ),
+            "achieved_count": achieved_count,
+            "on_track_count": on_track_count,
+            "at_risk_count": at_risk_count,
+        },
+        "rows": rows,
+    }
 
 
 def _generate_metabase_embed_url(

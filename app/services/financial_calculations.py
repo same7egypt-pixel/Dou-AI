@@ -195,9 +195,12 @@ def eligible_orders_for_courier(db: Session, courier: Courier, month: str) -> in
 
 
 def calculate_courier_bonuses(
-    db: Session, couriers: list[Courier], month: str
+    db: Session,
+    couriers: list[Courier],
+    month: str,
+    orders_override: Optional[dict[int, int]] = None,
 ) -> dict[int, dict]:
-    """Apply bonus rules supporting Target-Tier and Flat Per-Order plans."""
+    """Apply bonus rules supporting Target-Tier and Flat Per-Order plans with accountant override support."""
     if not couriers:
         return {}
     start, period_end = month_bounds(month)
@@ -284,17 +287,23 @@ def calculate_courier_bonuses(
             )
             source = "company"
 
-        orders = sum(
+        raw_driver_orders = sum(
             max(int(row.orders_count or 0), 0)
             for row in logs_by_courier.get(courier.id, [])
             if not courier.primary_project_id
             or row.project_id == courier.primary_project_id
         )
+
+        is_overridden = orders_override is not None and courier.id in orders_override
+        approved_orders = orders_override[courier.id] if is_overridden else raw_driver_orders
+
         if not plan:
             results[courier.id] = {
                 "plan_id": None,
                 "source": None,
-                "orders": orders,
+                "orders": approved_orders,
+                "driver_orders": raw_driver_orders,
+                "is_overridden": is_overridden,
                 "target": 0,
                 "earned": 0.0,
                 "achieved": False,
@@ -308,11 +317,13 @@ def calculate_courier_bonuses(
             }
             continue
 
-        calc = calculate_plan_earnings(orders, plan)
+        calc = calculate_plan_earnings(approved_orders, plan)
         results[courier.id] = {
             "plan_id": plan.id,
             "source": source,
-            "orders": orders,
+            "orders": approved_orders,
+            "driver_orders": raw_driver_orders,
+            "is_overridden": is_overridden,
             **calc,
         }
     return results
@@ -492,9 +503,12 @@ def calculate_payroll_preview(db: Session, courier: Courier, month: str) -> dict
 
 
 def calculate_payroll_previews(
-    db: Session, couriers: list[Courier], month: str
+    db: Session,
+    couriers: list[Courier],
+    month: str,
+    orders_override: Optional[dict[int, int]] = None,
 ) -> list[dict]:
-    """Batch existing preview calculations with itemized breakdown."""
+    """Batch existing preview calculations with itemized breakdown and accountant override support."""
     if not couriers:
         return []
     month_bounds(month)
@@ -535,7 +549,9 @@ def calculate_payroll_previews(
         .all()
     ):
         adjustments_by_courier[adjustment.courier_id].append(adjustment)
-    bonuses = calculate_courier_bonuses(db, couriers, month)
+    bonuses = calculate_courier_bonuses(
+        db, couriers, month, orders_override=orders_override
+    )
     rows = []
     for courier in couriers:
         compensation = next(
@@ -639,19 +655,34 @@ def calculate_payroll_previews(
             absence_deduction + late_deduction + advance_deduction + other_deduction, 2
         )
 
-        delivery_pay = round(bonus["orders"] * per_delivery_rate, 2)
+        effective_orders = bonus.get("orders", 0)
+        driver_orders = bonus.get("driver_orders", effective_orders)
+        is_overridden = bonus.get("is_overridden", False)
+
+        # Prevent accidental double-counting of per-order rate + flat bonus
+        if bonus.get("plan_type") == "FLAT_PER_ORDER" and float(bonus.get("flat_order_rate", 0) or 0) > 0:
+            effective_rate = float(bonus["flat_order_rate"])
+            delivery_pay = round(effective_orders * effective_rate, 2)
+            target_bonus_earned = 0.0
+        else:
+            delivery_pay = round(effective_orders * per_delivery_rate, 2)
+            target_bonus_earned = float(bonus.get("earned", 0) or 0)
+
         gross_pay = round(
-            base_salary + delivery_pay + float(bonus.get("earned", 0) or 0) + additions,
+            base_salary + delivery_pay + target_bonus_earned + additions,
             2,
         )
         net_pay = round(gross_pay - deductions, 2)
 
         itemized = {
             "base_salary": round(base_salary, 2),
-            "orders_count": bonus["orders"],
+            "orders_count": effective_orders,
+            "driver_orders": driver_orders,
+            "approved_orders": effective_orders,
+            "is_overridden": is_overridden,
             "per_delivery_rate": round(per_delivery_rate, 2),
             "delivery_pay": delivery_pay,
-            "target_bonus": round(float(bonus.get("earned", 0) or 0), 2),
+            "target_bonus": round(target_bonus_earned, 2),
             "overtime_pay": overtime_pay,
             "other_additions": other_additions,
             "gross_pay": gross_pay,
@@ -670,7 +701,10 @@ def calculate_payroll_previews(
                 "contract_branch_id": courier.contract_branch_id,
                 "base_salary": round(base_salary, 2),
                 "per_delivery_rate": round(per_delivery_rate, 2),
-                "eligible_orders": bonus["orders"],
+                "eligible_orders": effective_orders,
+                "driver_orders": driver_orders,
+                "approved_orders": effective_orders,
+                "is_overridden": is_overridden,
                 "delivery_pay": delivery_pay,
                 "bonus": bonus,
                 "additions": additions,
@@ -750,6 +784,9 @@ def payroll_rows(db: Session, tenant_id: int, month: str) -> tuple[list[dict], b
             itemized = c_data.get("itemized_breakdown") or {
                 "base_salary": round(float(item.base_salary or 0), 2),
                 "orders_count": int(c_data.get("eligible_orders", 0) or 0),
+                "driver_orders": int(c_data.get("driver_orders", c_data.get("eligible_orders", 0)) or 0),
+                "approved_orders": int(c_data.get("approved_orders", c_data.get("eligible_orders", 0)) or 0),
+                "is_overridden": bool(c_data.get("is_overridden", False)),
                 "per_delivery_rate": round(
                     float(c_data.get("per_delivery_rate", 0) or 0), 2
                 ),
@@ -780,6 +817,9 @@ def payroll_rows(db: Session, tenant_id: int, month: str) -> tuple[list[dict], b
                     "delivery_pay": round(float(item.delivery_pay or 0), 2),
                     "bonus": c_data.get("bonus", {}),
                     "eligible_orders": int(c_data.get("eligible_orders", 0) or 0),
+                    "driver_orders": int(c_data.get("driver_orders", c_data.get("eligible_orders", 0)) or 0),
+                    "approved_orders": int(c_data.get("approved_orders", c_data.get("eligible_orders", 0)) or 0),
+                    "is_overridden": bool(c_data.get("is_overridden", False)),
                     "per_delivery_rate": round(
                         float(c_data.get("per_delivery_rate", 0) or 0), 2
                     ),
@@ -807,13 +847,27 @@ def payroll_rows(db: Session, tenant_id: int, month: str) -> tuple[list[dict], b
                 }
             )
         return result_rows, True
+
+    orders_override = None
+    if period and period.draft_overrides:
+        try:
+            parsed = json.loads(period.draft_overrides)
+            if isinstance(parsed, dict) and "orders" in parsed:
+                orders_override = {int(k): int(v) for k, v in parsed["orders"].items()}
+            elif isinstance(parsed, dict):
+                orders_override = {int(k): int(v) for k, v in parsed.items()}
+        except Exception:
+            orders_override = None
+
     couriers = (
         db.query(Courier)
         .filter(Courier.tenant_id == tenant_id)
         .order_by(Courier.name)
         .all()
     )
-    return calculate_payroll_previews(db, couriers, month), False
+    return calculate_payroll_previews(
+        db, couriers, month, orders_override=orders_override
+    ), False
 
 
 def finalize_payroll_period(

@@ -207,6 +207,8 @@ async function renderPayrollLedger(container, mainContainer) {
     }
 
     // 4. Itemized Rider Settlement Table
+    const modifiedOrders = new Map();
+
     const columns = [
       { key: 'name', label: isAr ? 'السائق والبيانات' : 'Driver Details', render: (v, r) => el('div', {}, [
         el('b', { style: 'display:block;color:var(--text);font-size:13px' }, v || '—'),
@@ -216,10 +218,47 @@ async function renderPayrollLedger(container, mainContainer) {
           el('span', {}, r.city || r.zone || (isAr ? 'الرياض' : 'Riyadh'))
         ])
       ]) },
+      { key: 'driver_orders', label: isAr ? 'مسجل من السائق' : 'Driver Claimed', render: (_, r) => {
+        const dOrders = r.driver_orders ?? r.orders ?? 0;
+        return el('div', { style: 'text-align:center' }, [
+          el('span', { class: 'badge badge-blue', style: 'font-weight:700;font-size:12px;padding:3px 8px' }, `📱 ${dOrders}`),
+          el('small', { style: 'display:block;color:var(--muted);font-size:10px;margin-top:2px' }, isAr ? 'من تطبيق السائق' : 'DOU App Log')
+        ]);
+      }},
+      { key: 'approved_orders', label: isAr ? 'الطلبات المعتمدة (هنقرستيشن)' : 'Approved Orders', render: (_, r) => {
+        const appOrders = r.approved_orders ?? r.orders ?? 0;
+        const dOrders = r.driver_orders ?? r.orders ?? 0;
+        const isDiff = appOrders !== dOrders;
+        if (isFinalized) {
+          return el('div', { style: 'text-align:center' }, [
+            el('b', { style: 'color:#0284c7;font-size:13px' }, `${appOrders}`),
+            isDiff ? el('small', { style: 'display:block;color:#eab308;font-size:10px' }, isAr ? '✏️ معدل من المحاسب' : 'Accountant Adjusted') : null
+          ]);
+        }
+        const input = el('input', {
+          type: 'number',
+          min: '0',
+          value: appOrders,
+          style: `width:75px;padding:5px 8px;border-radius:6px;border:1px solid ${isDiff ? '#0284c7' : 'var(--border)'};background:${isDiff ? 'rgba(2,132,199,0.06)' : 'var(--bg)'};color:var(--text);font-weight:700;text-align:center;font-size:13px`,
+          onchange: (e) => {
+            const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+            modifiedOrders.set(r.id, val);
+            const saveBtn = document.getElementById('save-approved-orders-btn');
+            if (saveBtn) {
+              saveBtn.style.display = 'inline-flex';
+              saveBtn.innerText = isAr ? `💾 حفظ تعديل (${modifiedOrders.size}) مندوب` : `💾 Save (${modifiedOrders.size}) Overrides`;
+            }
+          }
+        });
+        return el('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:2px' }, [
+          input,
+          isDiff ? el('small', { style: 'color:#0284c7;font-size:10px;font-weight:600' }, isAr ? 'معدل بالفاتورة' : 'Invoice Verified') : null
+        ]);
+      }},
       { key: 'fixed', label: isAr ? 'الأساسي والبدلات' : 'Base & Allowances', render: (v) => `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}` },
-      { key: 'delivery', label: isAr ? 'إنتاجية الطلبات' : 'Delivery Earnings', render: (v, r) => el('div', {}, [
+      { key: 'delivery', label: isAr ? 'أجر الطلبات' : 'Delivery Earnings', render: (v, r) => el('div', {}, [
         el('b', { style: 'color:var(--primary)' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`),
-        el('small', { style: 'display:block;color:var(--muted);font-size:10px' }, `${(r.orders || 0)} ${isAr ? 'طلب' : 'orders'} × ${r.per_delivery_rate || r.average_per_order || 0}${curr}`)
+        el('small', { style: 'display:block;color:var(--muted);font-size:10px' }, `${(r.approved_orders ?? r.orders ?? 0)} ${isAr ? 'طلب' : 'orders'} × ${r.per_delivery_rate || r.average_per_order || 0}${curr}`)
       ]) },
       { key: 'bonus', label: isAr ? 'حافز التارجت' : 'Target Bonus', render: (v) => (v > 0 ? el('span', { style: 'color:#16a34a;font-weight:700' }, `+${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`) : `0${curr}`) },
       { key: 'gross', label: isAr ? 'إجمالي الاستحقاق' : 'Gross Total', render: (v, r) => {
@@ -244,10 +283,40 @@ async function renderPayrollLedger(container, mainContainer) {
       }, isAr ? '📄 كشف مفصل' : '📄 Statement') }
     ];
 
+    const saveApprovedOrdersBtn = el('button', {
+      id: 'save-approved-orders-btn',
+      class: 'btn btn-primary btn-small',
+      style: 'display:none;background:#16a34a;color:#fff;font-weight:700',
+      onclick: async () => {
+        if (!modifiedOrders.size) return;
+        try {
+          const overrides = Array.from(modifiedOrders.entries()).map(([cid, count]) => ({
+            courier_id: cid,
+            approved_orders: count,
+            notes: 'اعتماد المحاسب من شيت المنصة الرسمي'
+          }));
+          await api.post('/hr/payroll/override-orders', {
+            month: selectedPayrollMonth,
+            overrides
+          });
+          alert(isAr ? `✅ تم حفظ وتحديث طلبات (${overrides.length}) مندوب وإعادة احتساب المسير فوراً!` : `✅ Saved (${overrides.length}) rider overrides and recalculated ledger!`);
+          renderPayrollLedger(container, mainContainer);
+        } catch (err) {
+          alert('❌ فشل حفظ التعديلات: ' + err.message);
+        }
+      }
+    }, isAr ? '💾 حفظ تعديل الطلبات' : '💾 Save Approved Orders');
+
     container.append(el('div', { class: 'card', style: 'padding:16px;background:var(--card);border:1px solid var(--border);border-radius:12px' }, [
-      el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px' }, [
-        el('h3', { style: 'margin:0;font-size:15px;color:var(--text)' }, isAr ? `مسير رواتب وتسوية حسابات المناديب لشهر (${selectedPayrollMonth})` : `Monthly Driver Payroll Ledger & Settlement (${selectedPayrollMonth})`),
-        el('span', { style: 'font-size:12px;color:var(--muted)' }, isAr ? `إجمالي المناديب المشمولين: ${rows.length}` : `Total Drivers: ${rows.length}`)
+      el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px' }, [
+        el('div', {}, [
+          el('h3', { style: 'margin:0;font-size:15px;color:var(--text)' }, isAr ? `مسير رواتب وتسوية حسابات المناديب لشهر (${selectedPayrollMonth})` : `Monthly Driver Payroll Ledger & Settlement (${selectedPayrollMonth})`),
+          el('p', { style: 'margin:2px 0 0 0;font-size:11px;color:var(--muted)' }, isAr ? 'يمكن للمحاسب تعديل خانة الطلبات المعتمدة لكل سائق بناءً على فاتورة المنصة ثم الضغط على حفظ لحساب الصافي بدقة.' : 'The accountant can edit the Approved Orders column based on the platform invoice.')
+        ]),
+        el('div', { style: 'display:flex;align-items:center;gap:8px' }, [
+          saveApprovedOrdersBtn,
+          el('span', { style: 'font-size:12px;color:var(--muted)' }, isAr ? `إجمالي المناديب: ${rows.length}` : `Total Drivers: ${rows.length}`)
+        ])
       ]),
       table(columns, rows)
     ]));

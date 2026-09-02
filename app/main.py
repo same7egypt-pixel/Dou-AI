@@ -52,6 +52,22 @@ import os
 
 app = FastAPI(title="DOU Platform API", version="0.2.0")
 
+
+@app.on_event("startup")
+def on_startup():
+    from .database import engine
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        try:
+            conn.execute(
+                text("ALTER TABLE payroll_periods ADD COLUMN draft_overrides TEXT;")
+            )
+            conn.commit()
+        except Exception:
+            pass
+
+
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(RateLimitMiddleware, requests_per_minute=300)

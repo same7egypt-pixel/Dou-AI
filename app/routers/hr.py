@@ -3331,6 +3331,82 @@ def set_payroll_status(
     return {"period_id": period.id, "month": selected_month, "status": new_status}
 
 
+class CourierOrderOverrideItem(BaseModel):
+    courier_id: int
+    approved_orders: int
+    notes: Optional[str] = None
+
+
+class PayrollOrderOverridesPayload(BaseModel):
+    month: str
+    overrides: list[CourierOrderOverrideItem]
+
+
+@router.post("/payroll/override-orders")
+def save_payroll_order_overrides(
+    payload: PayrollOrderOverridesPayload,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Save accountant verified/approved orders for couriers in a payroll period."""
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Access denied")
+
+    period = (
+        db.query(PayrollPeriod)
+        .filter(
+            PayrollPeriod.tenant_id == user.tenant_id,
+            PayrollPeriod.month == payload.month,
+        )
+        .first()
+    )
+
+    if period and period.status == "FINALIZED":
+        raise HTTPException(400, "لا يمكن تعديل فترة رواتب مقفلة نهائياً")
+
+    if not period:
+        period = PayrollPeriod(
+            tenant_id=user.tenant_id,
+            month=payload.month,
+            status="DRAFT",
+        )
+        db.add(period)
+
+    current_data = {}
+    if period.draft_overrides:
+        try:
+            current_data = json.loads(period.draft_overrides)
+        except Exception:
+            current_data = {}
+
+    orders_map = current_data.get("orders", {})
+    notes_map = current_data.get("notes", {})
+
+    for item in payload.overrides:
+        orders_map[str(item.courier_id)] = max(0, int(item.approved_orders))
+        if item.notes:
+            notes_map[str(item.courier_id)] = item.notes
+
+    current_data["orders"] = orders_map
+    current_data["notes"] = notes_map
+    period.draft_overrides = json.dumps(current_data)
+    db.commit()
+
+    _log(
+        db,
+        user,
+        f"حدّث طلبات {len(payload.overrides)} مندوب في مسير {payload.month} بناءً على كشف المنصة",
+        "payroll_period",
+        period.id,
+    )
+
+    return {
+        "status": "success",
+        "month": payload.month,
+        "saved_count": len(payload.overrides),
+    }
+
+
 @router.get("/payroll/rider/{courier_id}/statement")
 def get_rider_payroll_statement(
     courier_id: int,
