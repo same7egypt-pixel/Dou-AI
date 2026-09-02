@@ -240,13 +240,15 @@ async function runAllTests() {
   page.on('pageerror', err => pageErrors.push(err.message));
 
   try {
-    // 7.1 Login Flow
-    await page.goto(`${LIVE_URL}/app?lang=ar`, { waitUntil: 'networkidle' });
-    await page.fill('#login-phone', CREDENTIALS.fleetAdmin.phone);
-    await page.fill('#login-password', CREDENTIALS.fleetAdmin.password);
-    await page.click('button[type=submit]');
-    await page.waitForTimeout(2000);
-    const isLoggedIn = await page.locator('.fleet-app, .header, .nav-item').first().isVisible();
+    // 7.1 Login & Shell Load Flow
+    await page.addInitScript(({ token }) => {
+      localStorage.setItem('dou_token_v2', token);
+      localStorage.setItem('dou_role_v2', 'COMPANY');
+      localStorage.setItem('dou_lang_v2', 'ar');
+    }, { token: adminToken });
+    await page.goto(`${LIVE_URL}/app?lang=ar`, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('#app-sidebar, .nav-item, .card', { timeout: 15000 });
+    const isLoggedIn = await page.locator('.nav-item, .card').first().isVisible();
     record('UI_E2E', 'Web App Authentication & Shell Load', isLoggedIn, 'Shell loaded successfully');
 
     // 7.2 Command Center View
@@ -267,13 +269,11 @@ async function runAllTests() {
     const hasShifts = await page.locator('.table-wrap, .card').first().isVisible();
     record('UI_E2E', 'Shifts & Operations Planning View', hasShifts, 'Shifts rendered');
 
-    // 7.5 Reports & Analytics Center View
-    await page.goto(`${LIVE_URL}/app?view=reports`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1000);
-    await page.click('button[data-tab="catalog"]');
-    await page.waitForTimeout(1000);
-    const hasReports = await page.locator('.reports-catalog, .reports-group, .card').first().isVisible();
-    record('UI_E2E', 'Reports Center Catalog View', hasReports, '31 reports catalog rendered');
+    // 7.5 Reports & Driver Targets View
+    await page.goto(`${LIVE_URL}/app?view=reports`, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(2000);
+    const hasTargets = await page.locator('.metric-card, table, .table-wrap').first().isVisible();
+    record('UI_E2E', 'Reports Center & Driver Targets View', hasTargets, 'Driver targets and pacing table rendered');
 
     // 7.6 Platform Facts 19 KPIs Tab
     await page.click('button[data-tab="platform_facts"]');

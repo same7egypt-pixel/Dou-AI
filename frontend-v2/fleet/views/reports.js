@@ -74,10 +74,6 @@ function renderSubTab(contentArea) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TAB 1: تارجت وإنجاز السائقين اليومي والشهري (DRIVER TARGETS & DAILY TRACKER)
-// ─────────────────────────────────────────────────────────────────────────────
-async function renderDriverTargetsTab(container) {
-// ─────────────────────────────────────────────────────────────────────────────
 // TAB 1: تارجت وإنجاز السائقين والتشغيل الميداني 360° (360° TARGETS & PERFORMANCE INTELLIGENCE)
 // ─────────────────────────────────────────────────────────────────────────────
 let current360Level = 'couriers'; // 'couriers' | 'supervisors' | 'branches' | 'contracts'
