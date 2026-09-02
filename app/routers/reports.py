@@ -130,7 +130,7 @@ def driver_targets_progress(
     branch_ids = [c.contract_branch_id for c in couriers if c.contract_branch_id]
     branches = (
         {
-            b.id: b.name
+            b.id: (b.branch_name or b.city or f"فرع #{b.id}")
             for b in db.query(ent.ContractBranch)
             .filter(ent.ContractBranch.id.in_(branch_ids))
             .all()
