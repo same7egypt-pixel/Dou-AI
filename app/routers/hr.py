@@ -3652,7 +3652,10 @@ def hr_contracts(user: User = Depends(get_current_user), db: Session = Depends(g
             status = "EXPIRING"
         branches = (
             db.query(ContractBranch)
-            .filter(ContractBranch.contract_id == ct.id)
+            .filter(
+                ContractBranch.contract_id == ct.id,
+                ContractBranch.is_active.is_(True),
+            )
             .order_by(ContractBranch.city)
             .all()
         )
@@ -4163,10 +4166,21 @@ def delete_contract_branch(
     if not branch or branch.tenant_id != user.tenant_id:
         raise HTTPException(404, "Branch not found")
 
-    branch.is_active = False
-    db.query(Courier).filter(Courier.contract_branch_id == bid).update(
-        {"contract_branch_id": None, "supervisor_id": None}, synchronize_session=False
+    if not branch.is_active:
+        return {"ok": True, "already_inactive": True}
+
+    assigned_couriers = (
+        db.query(Courier)
+        .filter(Courier.contract_branch_id == bid)
+        .count()
     )
+    if assigned_couriers:
+        raise HTTPException(
+            409,
+            f"لا يمكن حذف الفرع لأنه مرتبط بعدد {assigned_couriers} سائق. انقل السائقين إلى فرع آخر أولاً.",
+        )
+
+    branch.is_active = False
     db.commit()
     _log(db, user, f"حذف فرع العقد {branch.city}", "contract_branch", bid)
     return {"ok": True}

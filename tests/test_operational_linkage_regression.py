@@ -1,5 +1,7 @@
 from datetime import date, datetime, timedelta
 
+import pytest
+from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -22,6 +24,7 @@ from app.models.entities import (
     UserRole,
 )
 from app.routers.fleet import update_courier
+from app.routers.hr import delete_contract_branch, hr_contracts
 from app.routers.vehicles import (
     VehicleAssignmentCreate,
     VehicleCreate,
@@ -160,5 +163,70 @@ def test_supervisor_assignment_links_operational_and_financial_chain():
             db.query(Attendance).filter(Attendance.courier_id == rider.id).count()
             == 1
         )
+    finally:
+        db.close()
+
+
+def test_contract_branch_deletion_disappears_from_contracts_and_preserves_riders():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+    try:
+        tenant = Tenant(name="Branch Delete Co", country=Country.SA, market_code="SA")
+        db.add(tenant)
+        db.flush()
+        admin = User(
+            phone="admin-branch-delete",
+            password_hash="x",
+            role=UserRole.COMPANY,
+            tenant_id=tenant.id,
+        )
+        contract = Contract(
+            tenant_id=tenant.id,
+            name="Delete Contract",
+            status="ACTIVE",
+        )
+        db.add_all([admin, contract])
+        db.flush()
+        empty_branch = ContractBranch(
+            tenant_id=tenant.id,
+            contract_id=contract.id,
+            city="Riyadh",
+            is_active=True,
+        )
+        occupied_branch = ContractBranch(
+            tenant_id=tenant.id,
+            contract_id=contract.id,
+            city="Jeddah",
+            is_active=True,
+        )
+        db.add_all([empty_branch, occupied_branch])
+        db.flush()
+        rider = Courier(
+            tenant_id=tenant.id,
+            name="Assigned Rider",
+            phone="rider-branch-delete",
+            courier_type=CourierType.COMPANY,
+            country=Country.SA,
+            employment_status="ACTIVE",
+            contract_id=contract.id,
+            contract_branch_id=occupied_branch.id,
+        )
+        db.add(rider)
+        db.commit()
+
+        assert delete_contract_branch(empty_branch.id, admin, db) == {"ok": True}
+        rows = hr_contracts(admin, db)["rows"]
+        assert [branch["id"] for branch in rows[0]["branches"]] == [
+            occupied_branch.id
+        ]
+
+        with pytest.raises(HTTPException) as exc:
+            delete_contract_branch(occupied_branch.id, admin, db)
+        assert exc.value.status_code == 409
+        db.refresh(rider)
+        db.refresh(occupied_branch)
+        assert rider.contract_branch_id == occupied_branch.id
+        assert occupied_branch.is_active is True
     finally:
         db.close()
