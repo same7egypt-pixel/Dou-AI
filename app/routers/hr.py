@@ -3225,6 +3225,9 @@ def hr_payroll(
         orders = int(
             row.get("eligible_orders", (row.get("bonus") or {}).get("orders", 0)) or 0
         )
+        driver_orders = int(row.get("driver_orders", orders) or 0)
+        approved_orders = int(row.get("approved_orders", orders) or 0)
+        is_overridden = bool(row.get("is_overridden", False))
         per_order_rate = float(
             row.get("per_delivery_rate")
             or (round(delivery / orders, 2) if orders else 0)
@@ -3241,7 +3244,10 @@ def hr_payroll(
                 "contract_name": getattr(courier, "contract_name", None)
                 or courier.courier_type
                 or "عقد عام",
-                "orders": orders,
+                "orders": approved_orders,
+                "driver_orders": driver_orders,
+                "approved_orders": approved_orders,
+                "is_overridden": is_overridden,
                 "per_delivery_rate": round(per_order_rate, 2),
                 "fixed": round(fixed, 2),
                 "delivery": round(delivery, 2),
