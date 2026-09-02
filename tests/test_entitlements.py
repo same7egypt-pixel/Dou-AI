@@ -167,9 +167,21 @@ def test_the_new_plans_are_offered(plan):
 
 def test_plan_seeding_is_additive():
     """Seeding only when the table is empty means a new plan never reaches an
-    existing deployment."""
+    existing deployment, and a tenant created before anything read the
+    catalogue is priced at zero."""
     source = (ROOT / "app" / "routers" / "admin.py").read_text(encoding="utf-8")
-    block = source[source.index("def list_plans(") :]
+    block = source[source.index("def ensure_plans(") :]
     block = block[: block.index("\n@router")]
-    assert "if not db.query(SubscriptionPlan).count():" not in block
+    assert "if not db.query(SubscriptionPlan).count():" not in block, (
+        "plans are seeded only into an empty table, so a new plan never lands"
+    )
     assert "missing" in block
+
+
+def test_tenant_creation_prices_from_the_catalogue():
+    """ensure_plans must run before the plan is looked up, or monthly_fee is 0."""
+    source = (ROOT / "app" / "routers" / "admin.py").read_text(encoding="utf-8")
+    block = source[source.index("def create_tenant(") :]
+    block = block[: block.index("\n@router")]
+    assert "ensure_plans(db)" in block
+    assert block.index("ensure_plans(db)") < block.index("plan_code = payload.get")
