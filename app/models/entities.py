@@ -169,6 +169,13 @@ class Courier(Base):
     """مندوب شركة لوجستية أو فريلانسر."""
 
     __tablename__ = "couriers"
+    __table_args__ = (
+        # Every scoped read starts from the tenant; supervisor and branch are the
+        # two narrowings layered on top of it (workforce scoping, branch margins).
+        Index("ix_couriers_tenant_id", "tenant_id"),
+        Index("ix_couriers_tenant_supervisor", "tenant_id", "supervisor_id"),
+        Index("ix_couriers_tenant_branch", "tenant_id", "contract_branch_id"),
+    )
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"))
@@ -375,6 +382,10 @@ class Attendance(Base):
     """حضور/انصراف GPS للمندوب."""
 
     __tablename__ = "attendances"
+    __table_args__ = (
+        # Target and attendance reports scan a rider set over a date window.
+        Index("ix_attendances_courier_check_in", "courier_id", "check_in"),
+    )
 
     id = Column(Integer, primary_key=True)
     courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)
@@ -1954,6 +1965,15 @@ class AttendanceEvent(Base):
 
 class PayrollAdjustment(Base):
     __tablename__ = "payroll_adjustments"
+    __table_args__ = (
+        # Payroll reads these as (tenant, riders, month) on every sheet render.
+        Index(
+            "ix_payroll_adjustments_tenant_courier_month",
+            "tenant_id",
+            "courier_id",
+            "month",
+        ),
+    )
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False)

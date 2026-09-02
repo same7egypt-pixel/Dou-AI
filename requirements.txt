@@ -13,3 +13,7 @@ alembic==1.19.1
 # Backs app/services/cache.py and the shared login throttle. Without it both
 # degrade silently to no-ops, so it is a real dependency, not an optional one.
 redis==5.2.1
+# Required by S3DocumentStorage and by scripts/backup.py when BACKUP_S3_BUCKET
+# is set. Rider ID and passport scans live in this path, so it must not be a
+# best-effort import that fails only once a document is uploaded.
+boto3==1.35.76
