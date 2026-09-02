@@ -1,6 +1,6 @@
 // Shell — Main application shell with Navigation, Context Selector & Dynamic Views
 import { api } from '../shared/api/client.js';
-import { appStore, isDeliveryPlatform } from '../shared/state/store.js';
+import { appStore, isDeliveryPlatform, can } from '../shared/state/store.js';
 import { el, modal } from '../shared/components/ui.js';
 import { openNotificationsModal } from '../shared/components/notifications.js';
 import { t, getLang, toggleLang, setLang } from '../shared/i18n/i18n.js';
@@ -199,9 +199,18 @@ function renderSidebar() {
   const groups = isAr ? VIEW_GROUPS_AR : VIEW_GROUPS_EN;
   const labels = isAr ? VIEW_LABELS_AR : VIEW_LABELS_EN;
 
+  // Which screens exist is a server decision, carried in tenant.capabilities.
+  // A screen the account cannot use is absent, not disabled: a payroll screen
+  // on a delivery platform would either sit empty or imply a financial
+  // decision the platform does not make -- its vendors pay the riders.
+  const REQUIRES = { payroll: 'RIDER_PAYROLL' };
+  const permitted = (v) => !REQUIRES[v] || can(REQUIRES[v]);
+
   groups.forEach((g) => {
+    const views = g.views.filter(permitted);
+    if (!views.length) return;
     nav.append(el('div', { class: 'nav-group' }, g.group));
-    g.views.forEach((v) => {
+    views.forEach((v) => {
       nav.append(el('button', {
         class: `nav-item ${v === currentView ? 'active' : ''}`,
         'data-view': v,
@@ -246,32 +255,16 @@ function renderTopBar() {
   const topActions = [];
   const isPlat = isDeliveryPlatform();
 
-  // 1. Operating Model Switcher Button
-  const modelToggleBtn = el('button', {
-    class: `btn btn-small ${isPlat ? 'btn-primary' : 'btn-ghost'}`,
-    id: 'btn-toggle-operating-model',
-    style: 'border-radius:20px;font-size:12px;font-weight:700;padding:5px 12px;display:flex;align-items:center;gap:6px',
-    title: isAr ? 'انقر للتبديل الفوري بين نمط شركة الأساطيل المباشرة ونمط منصة التوصيل لعدة مشغلين 3PL' : 'Click to toggle between Direct Fleet Partner and Multi-3PL Platform',
-    onclick: async () => {
-      const current = appStore.get();
-      const nextType = isPlat ? 'LOGISTICS' : 'DELIVERY_PLATFORM';
-      appStore.set({
-        tenant: { ...current.tenant, customer_type: nextType },
-        activeOperatorId: null,
-      });
-      if (nextType === 'DELIVERY_PLATFORM') {
-        try {
-          const list = await api.get('/enterprise/operators');
-          if (Array.isArray(list)) appStore.set({ operators: list });
-        } catch (e) {}
-      }
-      renderShell();
-    }
-  }, [
-    el('span', { text: isPlat ? (isAr ? '🌐 نمط: منصة توصيل (متعددة 3PL)' : '🌐 Mode: Delivery Platform (Multi-3PL)') : (isAr ? '🏢 نمط: شركة أساطيل مباشرة' : '🏢 Mode: Direct Fleet Partner') }),
-    el('span', { style: 'opacity:0.7;font-size:10px' }, isAr ? '🔄 تبديل' : '🔄 Switch')
-  ]);
-  topActions.push(modelToggleBtn);
+  // The operating model is decided when the account is created and arrives in
+  // /fleet/me. There is deliberately no switcher: a mode the browser can change
+  // is not a mode, and it showed accounts a product they had not bought.
+  topActions.push(el('span', {
+    class: 'badge badge-gray',
+    style: 'font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:20px',
+    title: isAr ? 'نوع الحساب يُحدَّد عند إنشائه من لوحة إدارة DOU' : 'Account type is set at creation from the DOU admin console'
+  }, isPlat
+    ? (isAr ? '🌐 منصة توصيل' : '🌐 Delivery Platform')
+    : (isAr ? '🏢 شركة أساطيل' : '🏢 Fleet Partner')));
 
   // 2. Operator Dropdown if in Platform Mode
   if (isPlat) {

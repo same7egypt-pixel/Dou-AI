@@ -26,6 +26,13 @@ from ..models.entities import (
     User,
     UserRole,
 )
+from ..services.entitlements import (
+    normalize_customer_type,
+    resolve_capabilities,
+)
+from ..services.entitlements import (
+    serialize as serialize_capabilities,
+)
 from ..services.metabase_adapter import (
     check_metabase_available,
     execute_approved_question,
@@ -809,7 +816,12 @@ def create_tenant(
     if db.query(User).filter(User.phone == phone).first():
         raise HTTPException(400, "رقم المالك مستخدم")
     market, language, currency, timezone = regional_settings(payload)
+    # Decided here and nowhere else. The frontend used to flip this in its own
+    # store, which showed an account a product it had not bought.
+    customer_type = normalize_customer_type(payload.get("customer_type"))
+    capabilities = resolve_capabilities(customer_type, payload.get("capabilities"))
     country = Country.EG if market == "EG" else Country.SA
+    ensure_plans(db)
     plan_code = payload.get("plan") or "STARTER"
     plan = db.query(SubscriptionPlan).filter(SubscriptionPlan.code == plan_code).first()
     fee = (
@@ -830,6 +842,8 @@ def create_tenant(
         contact_email=payload.get("contact_email"),
         plan=plan_code,
         monthly_fee=fee,
+        customer_type=customer_type,
+        capabilities=serialize_capabilities(capabilities),
         billing_day=int(payload.get("billing_day") or 1),
         due_date=datetime.utcnow()
         + timedelta(days=int(payload.get("trial_days") or 14)),
@@ -853,39 +867,75 @@ def create_tenant(
         AdminAuditLog(
             actor_id=actor.id if actor else None,
             actor_name=actor.name if actor else "Admin",
-            action="إنشاء شركة لوجستية وحساب المالك",
+            action=(
+                "إنشاء منصة توصيل وحساب المالك"
+                if customer_type == "DELIVERY_PLATFORM"
+                else "إنشاء شركة لوجستية وحساب المالك"
+            ),
             tenant_id=t.id,
             entity="tenant",
             entity_id=t.id,
         )
     )
     db.commit()
-    return {"ok": True, "id": t.id, "owner_phone": phone}
+    return {
+        "ok": True,
+        "id": t.id,
+        "owner_phone": phone,
+        "customer_type": customer_type,
+        "capabilities": capabilities,
+        "plan": plan_code,
+        "monthly_fee": fee,
+    }
+
+
+PLAN_CATALOGUE = [
+    # code, name_ar, name_en, SAR/month, USD/month, max riders
+    #
+    # VENDOR is priced low on purpose. A vendor reaches it because its platform
+    # opened the dashboard to it, and it buys full management of its own riders
+    # as well as its numbers under that platform. Keeping it a real subscription
+    # rather than a free view is what stops one platform decision from ending
+    # the relationship.
+    ("VENDOR", "المورّد المرتبط", "Linked Vendor", 199, 59, 50),
+    ("STARTER", "الأساسية", "Starter", 499, 149, 10),
+    ("GROWTH", "النمو", "Growth", 999, 269, 75),
+    ("BUSINESS", "الأعمال", "Business", 1999, 499, 150),
+    ("ENTERPRISE", "المؤسسات", "Enterprise", 3500, 899, 0),
+    ("PLATFORM", "المنصة", "Delivery Platform", 7500, 1999, 0),
+]
+
+
+def ensure_plans(db: Session) -> None:
+    """Create any catalogue entry the database is missing.
+
+    Additive rather than "seed only when the table is empty": that older form
+    meant a newly added plan never reached a deployment that already had rows,
+    and a tenant created before anything read the catalogue was priced at zero.
+    """
+    existing = {row.code for row in db.query(SubscriptionPlan).all()}
+    missing = [row for row in PLAN_CATALOGUE if row[0] not in existing]
+    if not missing:
+        return
+    db.add_all(
+        [
+            SubscriptionPlan(
+                code=code,
+                name=name_ar,
+                name_en=name_en,
+                monthly_price=sar,
+                monthly_price_usd=usd,
+                max_couriers=max_riders,
+            )
+            for code, name_ar, name_en, sar, usd, max_riders in missing
+        ]
+    )
+    db.commit()
 
 
 @router.get("/plans")
 def list_plans(db: Session = Depends(get_db)):
-    defaults = [
-        ("STARTER", "الأساسية", "Starter", 499, 149, 10),
-        ("GROWTH", "النمو", "Growth", 999, 269, 75),
-        ("BUSINESS", "الأعمال", "Business", 1999, 499, 150),
-        ("ENTERPRISE", "المؤسسات", "Enterprise", 3500, 899, 0),
-    ]
-    if not db.query(SubscriptionPlan).count():
-        db.add_all(
-            [
-                SubscriptionPlan(
-                    code=c,
-                    name=n,
-                    name_en=e,
-                    monthly_price=p,
-                    monthly_price_usd=u,
-                    max_couriers=m,
-                )
-                for c, n, e, p, u, m in defaults
-            ]
-        )
-        db.commit()
+    ensure_plans(db)
     return [
         {
             "id": p.id,

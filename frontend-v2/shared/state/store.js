@@ -19,6 +19,10 @@ export const appStore = createStore({
   operators: [],
 });
 
+// Account type and capabilities are server truth, set when the account is
+// created from the admin console. A header button used to flip customer_type in
+// this store, which showed a logistics company the platform chrome over its own
+// unchanged data. Nothing in the client may write either field.
 export function isDeliveryPlatform() {
   const { tenant } = appStore.get();
   return tenant?.customer_type === 'DELIVERY_PLATFORM';
@@ -26,5 +30,11 @@ export function isDeliveryPlatform() {
 
 export function isLogisticsCompany() {
   return !isDeliveryPlatform();
+}
+
+/** Does this account have the capability the server granted it? */
+export function can(capability) {
+  const caps = appStore.get().tenant?.capabilities;
+  return Array.isArray(caps) && caps.includes(capability);
 }
 

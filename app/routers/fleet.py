@@ -38,6 +38,7 @@ from ..models.entities import (
     User,
     UserRole,
 )
+from ..services.entitlements import capabilities_for, normalize_customer_type
 from ..services.financial_calculations import (
     calculate_payroll_preview,
     financial_rows,
@@ -695,9 +696,12 @@ def fleet_me(user: User = Depends(get_current_user), db: Session = Depends(get_d
             "default_language": tenant.default_language or "ar",
             "currency": tenant.currency or "SAR",
             "timezone": tenant.timezone or "Asia/Riyadh",
-            "customer_type": getattr(tenant, "customer_type", "LOGISTICS_OPERATOR")
-            or "LOGISTICS_OPERATOR",
-            "capabilities": getattr(tenant, "capabilities", "[]") or "[]",
+            # Server truth. The client renders from this and never decides
+            # it: a browser-side account type is a browser-side lie.
+            "customer_type": normalize_customer_type(
+                getattr(tenant, "customer_type", None)
+            ),
+            "capabilities": capabilities_for(tenant),
         }
         if tenant
         else None,
