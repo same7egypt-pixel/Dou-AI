@@ -7,7 +7,7 @@ let activeSubTab = 'overview'; // 'overview' | 'catalog' | 'platform_facts' | 'd
 let currentReport = null;
 let currentDashboard = null;
 let platformContractFilter = '';
-let platformMonthFilter = '';
+let platformDateFilter = '';
 
 export async function loadReports(container) {
   const isAr = getLang() === 'ar';
@@ -174,7 +174,7 @@ async function renderPlatformFactsTab(container) {
   try {
     const params = new URLSearchParams();
     if (platformContractFilter) params.set('contract_id', platformContractFilter);
-    if (platformMonthFilter) params.set('month', platformMonthFilter);
+    if (platformDateFilter) params.set('date', platformDateFilter);
     const query = params.toString() ? `?${params.toString()}` : '';
     const [data, contractData] = await Promise.all([
       api.get(`/analytics/reports/platform-facts${query}`),
@@ -197,7 +197,7 @@ function renderPlatformFactsLayout(data, container, contracts) {
     style: 'min-width:220px;width:auto',
     onchange: (event) => {
       platformContractFilter = event.target.value;
-      platformMonthFilter = '';
+      platformDateFilter = '';
       renderPlatformFactsTab(document.getElementById('reports-content-area'));
     }
   }, [
@@ -208,17 +208,17 @@ function renderPlatformFactsLayout(data, container, contracts) {
       text: contract.name
     }))
   ]);
-  const monthFilter = el('select', {
+  const dateFilter = el('select', {
     class: 'form-control',
     style: 'min-width:150px;width:auto',
     onchange: (event) => {
-      platformMonthFilter = event.target.value;
+      platformDateFilter = event.target.value;
       renderPlatformFactsTab(document.getElementById('reports-content-area'));
     }
-  }, (summary.available_months || []).map(month => el('option', {
-    value: month,
-    ...(month === summary.selected_month ? { selected: '' } : {}),
-    text: month
+  }, (summary.available_dates || []).map(day => el('option', {
+    value: day,
+    ...(day === summary.selected_date ? { selected: '' } : {}),
+    text: day
   })));
   const toolbar = el('div', { class: 'card', style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 18px;margin-bottom:16px;background:var(--card);border:1px solid var(--border)' }, [
     el('div', { style: 'display:flex;align-items:center;gap:10px' }, [
@@ -228,7 +228,7 @@ function renderPlatformFactsLayout(data, container, contracts) {
     ]),
     el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center' }, [
       contractFilter,
-      monthFilter,
+      dateFilter,
       el('button', {
         class: 'btn btn-primary btn-small',
         onclick: () => openUploadPlatformCsvModal(contracts, () => renderPlatformFactsTab(container))
@@ -355,6 +355,12 @@ function openUploadPlatformCsvModal(contracts, onSuccess) {
       try {
         statusEl.textContent = `⏳ جاري رفع: ${file.name} (${doneFiles + 1} من ${totalFiles})`;
         const text = await file.text();
+        const header = (text.split(/\r?\n/, 1)[0] || '').replace(/^\uFEFF/, '');
+        const requiredHeaders = ['Created Date', 'City Name', '# Riders', 'Completed Deliveries'];
+        const missingHeaders = requiredHeaders.filter(name => !header.split(',').map(value => value.trim()).includes(name));
+        if (missingHeaders.length) {
+          throw new Error(`نوع الملف غير متوافق. هذه الصفحة تستقبل تقرير Daily Performance ذي 19 عموداً، وليس Rider's Performance. أعمدة مفقودة: ${missingHeaders.join('، ')}`);
+        }
         const res = await api.post('/analytics/reports/platform-facts/upload', { csv_text: text, contract_id: Number(contractId), file_name: file.name });
         totalImported += res.imported || 0;
         totalUpdated += res.updated || 0;
@@ -370,13 +376,25 @@ function openUploadPlatformCsvModal(contracts, onSuccess) {
 
     if (errors.length) {
       statusEl.style.color = 'var(--red)';
-      statusEl.textContent = `⚠️ ${errors.join(' | ')}`;
+      statusEl.textContent = `❌ لم يتم استيراد الملف: ${errors.join(' | ')}`;
+      alert(statusEl.textContent);
+      return;
+    }
+
+    if (totalImported + totalUpdated === 0) {
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = '❌ لم يتم استيراد أو تحديث أي يوم. راجع نوع التقرير ومحتواه.';
+      alert(statusEl.textContent);
+      return;
     }
 
     const msg = totalFiles === 1
       ? `✅ تم استيراد التقرير بنجاح!\nجديد: ${totalImported} يوم · محدث: ${totalUpdated} يوم`
       : `✅ تم استيراد ${totalFiles} ملف!\nإجمالي جديد: ${totalImported} يوم · إجمالي محدث: ${totalUpdated} يوم`;
     alert(msg);
+
+    platformContractFilter = String(contractId);
+    platformDateFilter = '';
 
     if (m && typeof m.close === 'function') m.close();
     else if (m && typeof m.remove === 'function') m.remove();
@@ -398,7 +416,7 @@ function openUploadPlatformCsvModal(contracts, onSuccess) {
     el('div', { style: 'margin-bottom:16px' }, [
       el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:6px' }, '📂 ملفات تقارير المنصة (CSV بـ 19 عمود) — يمكن اختيار عدة ملفات دفعة واحدة:'),
       el('input', { type: 'file', id: 'platform-csv-file', accept: '.csv,text/csv', multiple: true, style: 'width:100%;padding:10px;border:1px dashed var(--border);border-radius:8px' }),
-      el('small', { style: 'display:block;color:var(--muted);margin-top:6px' }, '💡 يمكنك اختيار عدة ملفات معاً. يدعم تقارير جاهز، هنقرستيشن، نينجا، ونون.')
+      el('small', { style: 'display:block;color:var(--muted);margin-top:6px;line-height:1.7' }, 'يقبل هنا تقرير Daily Performance فقط (19 عموداً)، ويتم تجميعه حسب اليوم والعقد. تقرير Rider\'s Performance ملف مختلف ولا يُدمج في المؤشرات اليومية دون خريطة أعمدة خاصة به.')
     ]),
     statusEl,
     el('div', { style: 'display:flex;justify-content:flex-end;gap:8px;margin-top:12px' }, [

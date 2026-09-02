@@ -45,7 +45,12 @@ def test_platform_upload_and_dashboard_are_contract_scoped():
     assert "platform-upload-contract" in source
     assert "contract_id: Number(contractId)" in source
     assert "params.set('contract_id', platformContractFilter)" in source
-    assert "params.set('month', platformMonthFilter)" in source
+    assert "params.set('date', platformDateFilter)" in source
+    assert "if (errors.length)" in source
+    assert "لم يتم استيراد الملف" in source
+    assert "totalImported + totalUpdated === 0" in source
+    assert "platformDateFilter = ''" in source
+    assert "Rider\\'s Performance" in source
 
 
 def test_reports_do_not_route_analytics_to_chat():

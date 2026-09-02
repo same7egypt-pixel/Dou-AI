@@ -102,6 +102,7 @@ def test_platform_summary_filters_by_contract_id(db):
         contract_id=second.id,
         contract_name=None,
         month=None,
+        report_date=None,
         user=user,
         db=db,
     )
@@ -121,21 +122,37 @@ def test_platform_upload_reads_excel_bom_and_maps_all_19_columns(db):
         contract_id=contract.id,
         contract_name=None,
         month=None,
+        report_date=None,
         user=user,
         db=db,
     )
     assert result["rows_processed"] == 2
     assert result["imported"] == 2
-    assert dashboard["summary"]["selected_month"] == "2026-02"
-    assert dashboard["summary"]["total_notified"] == 361
-    assert dashboard["summary"]["total_completed"] == 313
-    assert dashboard["summary"]["total_accepted"] == 327
-    assert dashboard["summary"]["total_stacked"] == 14
+    assert dashboard["summary"]["selected_date"] == "2026-02-22"
+    assert dashboard["summary"]["available_dates"] == ["2026-02-22", "2026-02-21"]
+    assert dashboard["summary"]["total_notified"] == 196
+    assert dashboard["summary"]["total_completed"] == 165
+    assert dashboard["summary"]["total_accepted"] == 173
+    assert dashboard["summary"]["total_stacked"] == 6
     latest = dashboard["rows"][0]
     assert latest["created_date"] == "2026-02-22"
     assert latest["completed_deliveries"] == 165
     assert latest["deduction_deliveries"] == 5
     assert latest["not_accepted_deliveries"] == -2
+
+    previous_day = reports.get_platform_delivery_facts(
+        contract_id=contract.id,
+        contract_name=None,
+        month=None,
+        report_date="2026-02-21",
+        user=user,
+        db=db,
+    )
+    assert previous_day["summary"]["total_completed"] == 148
+    assert previous_day["summary"]["available_dates"] == [
+        "2026-02-22",
+        "2026-02-21",
+    ]
 
 
 def test_platform_upload_rejects_missing_columns_instead_of_silent_success(db):

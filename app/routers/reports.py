@@ -1147,6 +1147,7 @@ def get_platform_delivery_facts(
     contract_id: Optional[int] = Query(None),
     contract_name: Optional[str] = Query(None),
     month: Optional[str] = Query(None),
+    report_date: Optional[str] = Query(None, alias="date"),
     user: ent.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -1159,30 +1160,30 @@ def get_platform_delivery_facts(
         q = q.filter(ent.PlatformDeliveryFact.contract_id == contract_id)
     elif contract_name:
         q = q.filter(ent.PlatformDeliveryFact.contract_name == contract_name)
-    if month:
-        from ..services.financial_calculations import month_bounds
-
-        start_m, end_m = month_bounds(month)
-        q = q.filter(
-            ent.PlatformDeliveryFact.created_date >= start_m,
-            ent.PlatformDeliveryFact.created_date < end_m,
-        )
-
     all_rows = q.order_by(ent.PlatformDeliveryFact.created_date.desc()).all()
-    available_months = sorted(
-        {r.created_date.strftime("%Y-%m") for r in all_rows if r.created_date},
+    available_dates = sorted(
+        {r.created_date.isoformat() for r in all_rows if r.created_date},
         reverse=True,
     )
-    selected_month = month or (available_months[0] if available_months else None)
-    rows = (
-        [
+    selected_date = report_date or (available_dates[0] if available_dates else None)
+    if report_date:
+        try:
+            datetime.strptime(report_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(400, "date غير صالح — استخدم YYYY-MM-DD")
+    if month and not report_date:
+        rows = [
             r
             for r in all_rows
-            if r.created_date and r.created_date.strftime("%Y-%m") == selected_month
+            if r.created_date and r.created_date.strftime("%Y-%m") == month
         ]
-        if selected_month
-        else []
-    )
+        selected_date = None
+    else:
+        rows = [
+            r
+            for r in all_rows
+            if r.created_date and r.created_date.isoformat() == selected_date
+        ]
 
     # Calculate aggregated analytics
     total_notified = sum(r.notified_deliveries or 0 for r in rows)
@@ -1222,8 +1223,8 @@ def get_platform_delivery_facts(
             "completion_rate": round(completion_rate * 100, 1),
             "stacked_rate": round(stacked_rate * 100, 1),
             "hours_utilization": round(hours_utilization * 100, 1),
-            "selected_month": selected_month,
-            "available_months": available_months,
+            "selected_date": selected_date,
+            "available_dates": available_dates,
         },
         "rows": [
             {
