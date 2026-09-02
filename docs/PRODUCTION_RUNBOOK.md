@@ -113,8 +113,33 @@ readable and contains table data. Local copies are pruned after
 `BACKUP_RETENTION_DAYS` (default 30); set a lifecycle policy on the bucket for
 the remote ones.
 
+**The dump format is tied to the PostgreSQL version.** `pg_dump` writes an
+archive that only an equal or newer `pg_restore` can read. The app image is
+pinned to `python:3.12-slim-bookworm` so its client is 15, matching the
+`postgres:15-alpine` server. This is not cosmetic: the floating `-slim` tag had
+moved to Debian trixie, whose client is 17, and those backups verified
+successfully and then could not be restored at all. **If you upgrade the
+database image, move the Python base image tag in the same commit.**
+
 **Restore drill — run this quarterly, against a scratch database, and record the
 date.** An unrehearsed restore is not a recovery plan.
+
+```bash
+# On the server, against a throwaway database. Production is untouched.
+cd /opt/dou-fleet
+PGUSER=$(grep '^POSTGRES_USER=' .env | cut -d= -f2-)
+DUMP=$(cd backups && ls -t dou_postgres_*.dump | head -1)
+CID=$(sudo docker compose ps -q db)
+
+sudo docker compose exec -T db psql -U "$PGUSER" -d postgres -c "CREATE DATABASE dou_drill;"
+sudo docker cp "backups/$DUMP" "$CID":/tmp/d.dump
+sudo docker exec "$CID" pg_restore -U "$PGUSER" -d dou_drill --no-owner /tmp/d.dump
+sudo docker exec "$CID" psql -U "$PGUSER" -d dou_drill -c "SELECT count(*) FROM couriers;"
+sudo docker exec "$CID" psql -U "$PGUSER" -d postgres -c "DROP DATABASE dou_drill;"
+```
+
+Last drill: 2026-09-02, restored 110 tables / 3 tenants / 7 couriers / 9 users,
+zero errors.
 
 ```bash
 createdb -U dou_user dou_restore_test

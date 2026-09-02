@@ -1,5 +1,11 @@
 # DOU Platform — production image
-FROM python:3.12-slim
+#
+# Pinned to bookworm rather than plain -slim on purpose. The floating tag moved
+# to Debian trixie, whose postgresql-client is 17, and a pg_dump 17 archive is
+# unreadable by the PostgreSQL 15 server this stack runs: backups verified fine
+# and then failed to restore. bookworm ships client 15, matching the db image.
+# If the db image is upgraded, move this tag in the same commit.
+FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -9,10 +15,17 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# postgresql-client supplies pg_dump and pg_restore, which scripts/backup.py
+# shells out to. Without them the nightly backup fails inside the container.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY app ./app
 COPY frontend-v2 ./frontend-v2
 COPY static ./static
 COPY tools ./tools
+COPY scripts ./scripts
 COPY alembic.ini .
 COPY alembic ./alembic
 COPY seed.py .

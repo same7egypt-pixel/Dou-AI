@@ -39,6 +39,10 @@ services:
     # No source bind mount: the container runs the code baked into its image,
     # so a release is always a rebuild and never a file copy onto a running
     # container. Deploy with `docker compose up -d --build`.
+    # This one mount is data, not code — database dumps have to outlive the
+    # container they were written in.
+    volumes:
+      - ./backups:/app/backups
     environment:
       APP_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
