@@ -1,67 +1,67 @@
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
-from fastapi import Query
-from sqlalchemy.orm import Session
-from sqlalchemy import or_, text
-from collections import defaultdict
 import csv
 import io
 import json
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from sqlalchemy import or_, text
+from sqlalchemy.orm import Session
+
+from ..config import ENABLE_LEGACY_DELIVERY
 from ..database import get_db
 from ..models.entities import (
-    Attendance,
     AppSetting,
+    Attendance,
+    AttendanceEvent,
+    AuditLog,
     Contract,
     ContractBranch,
     Courier,
     CourierTask,
     CourierTaskStatus,
+    DailyLog,
+    Fleet,
+    LeaveRequest,
     Merchant,
+    OperationalImportBatch,
+    OperationalReadinessState,
     Order,
     OrderStatus,
+    PayrollPeriod,
+    Project,
     Shift,
     ShiftStatus,
     SupportTicket,
     Tenant,
     User,
     UserRole,
-    Fleet,
-    Project,
-    DailyLog,
-    LeaveRequest,
-    OperationalImportBatch,
-    AuditLog,
-    AttendanceEvent,
-    PayrollPeriod,
-    OperationalReadinessState,
 )
-from .auth import get_current_user
-from .shifts import _assigned_courier_ids, _parse_shift_time, _shift_json, _shift_window
 from ..services.financial_calculations import (
     calculate_payroll_preview,
     financial_rows,
     payroll_rows,
-)
-from ..services.reporting import (
-    analytics_report,
-    flat_export_rows,
-    report_filter_options,
-)
-from ..services.rider_management import create_rider_record, apply_branch_assignment
-from ..services.rider_imports import (
-    confirm_rider_import,
-    preview_rider_import,
-    rider_template_csv,
 )
 from ..services.performance_imports import (
     confirm_performance_import,
     performance_template_csv,
     preview_performance_import,
 )
+from ..services.reporting import (
+    analytics_report,
+    flat_export_rows,
+    report_filter_options,
+)
+from ..services.rider_imports import (
+    confirm_rider_import,
+    preview_rider_import,
+    rider_template_csv,
+)
+from ..services.rider_management import apply_branch_assignment, create_rider_record
 from ..services.workforce_scope import supervisor_courier_scope
-from ..config import ENABLE_LEGACY_DELIVERY
+from .auth import get_current_user
+from .shifts import _assigned_courier_ids, _parse_shift_time, _shift_json, _shift_window
 
 router = APIRouter(prefix="/fleet", tags=["fleet"])
 
@@ -909,7 +909,7 @@ def fleet_overview(
     on_leave = sum(1 for c in couriers if c.is_on_leave)
     day_start = datetime.combine(today, datetime.min.time())
     day_end = day_start + timedelta(days=1)
-    
+
     today_att = (
         db.query(Attendance)
         .filter(

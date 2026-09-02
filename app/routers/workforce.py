@@ -23,7 +23,6 @@ from ..models.entities import (
 )
 from .auth import get_current_user
 
-
 router = APIRouter(prefix="/workforce", tags=["workforce"])
 MANAGE_ROLES = {
     UserRole.COMPANY,

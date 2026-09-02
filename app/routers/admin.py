@@ -1,40 +1,39 @@
-from fastapi import APIRouter, Depends, HTTPException, Header, Query
+from calendar import monthrange
+from datetime import datetime, timedelta
 from typing import Optional
+
+import jwt as pyjwt
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
+from ..config import ADMIN_KEY, ENABLE_LEGACY_DELIVERY, ENABLE_PUBLIC_COMPANY_SIGNUP
+from ..database import get_db
+from ..models.entities import (
+    AdminAuditLog,
+    Channel,
+    Country,
+    Courier,
+    CourierType,
+    Fleet,
+    Merchant,
+    PlatformOperator,
+    Staff,
+    SubscriptionPayment,
+    SubscriptionPlan,
+    Tenant,
+    User,
+    UserRole,
+)
 from ..services.metabase_adapter import (
-    get_metabase_config,
     check_metabase_available,
     execute_approved_question,
+    get_metabase_config,
     to_structured_response,
 )
 from ..services.metabase_registry import APPROVED_QUESTIONS, get_question
-
-from ..database import get_db
-from ..config import ADMIN_KEY, ENABLE_LEGACY_DELIVERY, ENABLE_PUBLIC_COMPANY_SIGNUP
-from sqlalchemy import text
-from ..models.entities import (
-    Channel,
-    Courier,
-    Merchant,
-    Staff,
-    CourierType,
-    Country,
-    User,
-    UserRole,
-    Tenant,
-    Fleet,
-    SubscriptionPlan,
-    SubscriptionPayment,
-    AdminAuditLog,
-    PlatformOperator,
-)
-from .auth import get_current_user, hash_password, SECRET_KEY, ALGORITHM
-import jwt as pyjwt
-from datetime import datetime, timedelta
-from calendar import monthrange
+from .auth import ALGORITHM, SECRET_KEY, get_current_user, hash_password
 
 MARKETS = {
     "SA": ("ar", "SAR", "Asia/Riyadh"),

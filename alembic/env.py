@@ -5,7 +5,12 @@ from sqlalchemy import engine_from_config, pool
 
 from app.config import DATABASE_URL
 from app.database import Base
-from app.models import entities  # noqa: F401 - register all model metadata
+# Every model module must be imported here. A module missing from this list is
+# absent from Base.metadata, so autogenerate reads its live tables as deleted
+# and writes drop_table into the next revision.
+from app.models import entities  # noqa: F401 - core Phase 1 schema
+from app.models import intelligence  # noqa: F401 - DOU AI, notifications, analytics
+from app.models import salary  # noqa: F401 - salary structures and components
 
 
 config = context.config

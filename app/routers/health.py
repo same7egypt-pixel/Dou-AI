@@ -1,13 +1,15 @@
 """Enterprise health check, readiness, and metrics endpoints."""
 from __future__ import annotations
+
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Any, Dict
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ..database import get_db
 from ..config import APP_ENV
+from ..database import get_db
 
 router = APIRouter(prefix="/health", tags=["health"])
 

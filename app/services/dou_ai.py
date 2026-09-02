@@ -20,15 +20,15 @@ from sqlalchemy.orm import Session
 
 from ..models import entities as ent
 from ..models.intelligence import AIConversation, AIMessage, AIRequestLog
-from .scope import AuthorizedScope
-from .reportspec import ReportSpec, validate_spec_against_scope, default_period_for
 from .conversational_parser import (
-    parse_question,
-    is_ambiguous,
     generate_clarification_options,
+    is_ambiguous,
+    parse_question,
 )
 from .report_executor import execute_report
 from .report_registry import validate_registered_report
+from .reportspec import ReportSpec, default_period_for, validate_spec_against_scope
+from .scope import AuthorizedScope
 
 
 def _role_value(user: ent.User) -> str:

@@ -1,9 +1,7 @@
 """Document storage service with S3 & local filesystem support."""
 from __future__ import annotations
+
 import os
-import hashlib
-from typing import Optional
-from datetime import datetime, timedelta
 
 STORAGE_PROVIDER = os.getenv("STORAGE_PROVIDER", "LOCAL").upper()
 S3_BUCKET = os.getenv("S3_BUCKET", "")

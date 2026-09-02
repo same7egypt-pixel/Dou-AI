@@ -1,13 +1,13 @@
-from collections import defaultdict
-from datetime import date, datetime, timedelta
-from typing import Optional
-from decimal import Decimal
-import time
-import os
-import jwt
 import csv
 import io
+import os
+import time
+from collections import defaultdict
+from datetime import date, datetime, timedelta
+from decimal import Decimal
+from typing import Optional
 
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import or_
@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import entities as ent
 from .auth import get_current_user
-
 
 router = APIRouter(prefix="/analytics/reports", tags=["reports"])
 
@@ -38,10 +37,36 @@ METABASE_SITE_URL = os.getenv("METABASE_URL", "http://localhost:3000")
 ALLOWED_METABASE_DASHBOARD_IDS = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
 
 
+DEFAULT_MONTHLY_ORDER_TARGET = 400
+MONTHLY_ORDER_TARGET_KEY = "default_monthly_order_target"
+
+
 def _tenant_id(user: ent.User) -> int:
     if user.role not in READ_ROLES or not user.tenant_id:
         raise HTTPException(403, "Reports access required")
     return user.tenant_id
+
+
+def default_monthly_target(db: Session, tenant_id: int) -> int:
+    """Fallback monthly order target for riders with no target of their own.
+
+    Configurable per company via the ``default_monthly_order_target`` app
+    setting, because a fixed number is wrong for any client whose contract sets
+    a different quota.
+    """
+    setting = (
+        db.query(ent.AppSetting)
+        .filter(
+            ent.AppSetting.tenant_id == tenant_id,
+            ent.AppSetting.key == MONTHLY_ORDER_TARGET_KEY,
+        )
+        .first()
+    )
+    try:
+        value = int(float((setting.value or "").strip())) if setting else 0
+    except (AttributeError, TypeError, ValueError):
+        value = 0
+    return value if value > 0 else DEFAULT_MONTHLY_ORDER_TARGET
 
 
 def _convert_query_objects(*args):
@@ -235,12 +260,14 @@ def driver_targets_progress(
     branch_groups = defaultdict(lambda: {"couriers": [], "today_orders": 0, "month_orders": 0, "target": 0, "checked_in": 0, "supervisors": set(), "contracts": set()})
     contract_groups = defaultdict(lambda: {"couriers": [], "today_orders": 0, "month_orders": 0, "target": 0, "checked_in": 0, "branches": set(), "cities": set(), "supervisors": set()})
 
+    fallback_target = default_monthly_target(db, tenant_id)
+
     for c in couriers:
         done = month_orders[c.id]
         t_orders = today_orders[c.id]
-        target = int(c.bonus_target or 400)
+        target = int(c.bonus_target or fallback_target)
         if target <= 0:
-            target = 400
+            target = fallback_target
 
         total_month_orders += done
         total_today_orders += t_orders
@@ -269,7 +296,7 @@ def driver_targets_progress(
 
         branch_obj = branch_map.get(c.contract_branch_id)
         contract_obj = contract_map.get(c.contract_id or (branch_obj.contract_id if branch_obj else None))
-        
+
         # Resolve supervisor
         sup_id = c.supervisor_id or (branch_obj.supervisor_id if branch_obj else None) or (branch_to_supervisors.get(branch_obj.id, [None])[0] if branch_obj else None)
         sup_obj = supervisor_map.get(sup_id)
@@ -351,7 +378,7 @@ def driver_targets_progress(
     for sup_key, data in sup_groups.items():
         sup_obj = supervisor_map.get(sup_key)
         total_c = len(data["couriers"])
-        tgt = data["target"] or (total_c * 400)
+        tgt = data["target"] or (total_c * fallback_target)
         done = data["month_orders"]
         pct = round((done / tgt) * 100, 1) if tgt > 0 else 100.0
         remaining = max(0, tgt - done)
@@ -389,7 +416,7 @@ def driver_targets_progress(
     branch_rows = []
     for b_key, data in branch_groups.items():
         total_c = len(data["couriers"])
-        tgt = data["target"] or (total_c * 400)
+        tgt = data["target"] or (total_c * fallback_target)
         done = data["month_orders"]
         pct = round((done / tgt) * 100, 1) if tgt > 0 else 100.0
         remaining = max(0, tgt - done)
@@ -426,7 +453,7 @@ def driver_targets_progress(
     contract_rows = []
     for cnt_key, data in contract_groups.items():
         total_c = len(data["couriers"])
-        tgt = data["target"] or (total_c * 400)
+        tgt = data["target"] or (total_c * fallback_target)
         done = data["month_orders"]
         pct = round((done / tgt) * 100, 1) if tgt > 0 else 100.0
         remaining = max(0, tgt - done)

@@ -1,3 +1,5 @@
+import os
+
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -5,68 +7,55 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+from .config import CORS_ORIGINS, ENABLE_LEGACY_DELIVERY, GOOGLE_ANALYTICS_ID
 from .database import get_db
-from .routers import (
-    merchants,
-    couriers,
-    orders,
-    auth,
-    shifts,
-    shipping,
-    analytics,
-    geo,
-    admin,
-    fleet,
-    billing,
-    hr,
-    workforce,
-    vehicles,
-    salary,
-    timekeeping,
-    leave,
-    documents,
-    readiness,
-    sources,
-    imports,
-    enterprise,
-    dashboard,
-    performance,
-    payroll,
-    reports,
-    operators,
-    dou_ai,
-    notifications,
-    analytics_freshness,
-    supervisor,
-    shifts_assignment,
-    operations,
-    ninja_integration,
-    client_invoices,
-    health,
-)
-from .config import ENABLE_LEGACY_DELIVERY, CORS_ORIGINS, GOOGLE_ANALYTICS_ID
-from .middleware.security_headers import SecurityHeadersMiddleware
 from .middleware.rate_limit import RateLimitMiddleware
+from .middleware.security_headers import SecurityHeadersMiddleware
 from .middleware.size_limit import RequestSizeLimitMiddleware
-import os
+from .routers import (
+    admin,
+    analytics,
+    analytics_freshness,
+    auth,
+    billing,
+    client_invoices,
+    couriers,
+    dashboard,
+    documents,
+    dou_ai,
+    enterprise,
+    fleet,
+    geo,
+    health,
+    hr,
+    imports,
+    leave,
+    merchants,
+    ninja_integration,
+    notifications,
+    operations,
+    operators,
+    orders,
+    payroll,
+    performance,
+    readiness,
+    reports,
+    salary,
+    shifts,
+    shifts_assignment,
+    shipping,
+    sources,
+    supervisor,
+    timekeeping,
+    vehicles,
+    workforce,
+)
 
 app = FastAPI(title="DOU Platform API", version="0.2.0")
 
-
-@app.on_event("startup")
-def on_startup():
-    from .database import engine
-    from sqlalchemy import text
-
-    with engine.connect() as conn:
-        try:
-            conn.execute(
-                text("ALTER TABLE payroll_periods ADD COLUMN draft_overrides TEXT;")
-            )
-            conn.commit()
-        except Exception:
-            pass
-
+# Schema changes belong to Alembic and run from tools/migrate.py before the web
+# process starts. Importing this module must never touch the database.
 
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(GZipMiddleware, minimum_size=500)

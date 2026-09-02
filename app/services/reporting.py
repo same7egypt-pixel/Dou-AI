@@ -7,9 +7,9 @@ margin calculation engine and it performs no mutations while serving reports.
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from datetime import date, datetime
-import json
 from typing import Callable
 
 from sqlalchemy import or_
@@ -32,7 +32,6 @@ from ..models.entities import (
     WorkforceTeam,
 )
 from .financial_calculations import calculate_courier_bonuses, courier_financial_rows
-
 
 COMMERCIAL_ROLES = (UserRole.COMPANY, UserRole.COMPANY_ADMIN)
 

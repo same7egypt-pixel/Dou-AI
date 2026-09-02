@@ -4,17 +4,17 @@ Provides real-time event ingestion from Ninja's external platform,
 automatic courier mapping, daily performance incrementing, and live feed telemetry.
 """
 
-from datetime import datetime, date, timezone
-from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Header
+from datetime import date, datetime, timezone
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import entities as ent
 from .auth import get_current_user
-
 
 router = APIRouter(prefix="/sources/ninja", tags=["ninja-integration"])
 

@@ -1,8 +1,10 @@
 """Centralized Courier repository for scoped data access."""
 from __future__ import annotations
-from typing import Optional, List
+
+from typing import List
+
 from sqlalchemy import or_
-from sqlalchemy.orm import Session, Query
+from sqlalchemy.orm import Query, Session
 
 from ..models import entities as ent
 from ..services.scope import AuthorizedScope

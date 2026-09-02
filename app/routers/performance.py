@@ -10,7 +10,6 @@ from ..database import get_db
 from ..models import entities as ent
 from .auth import get_current_user
 
-
 router = APIRouter(prefix="/analytics/performance", tags=["performance"])
 
 READ_ROLES = {

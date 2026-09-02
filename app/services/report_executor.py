@@ -15,17 +15,17 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 from ..models import entities as ent
-from .reportspec import (
-    ReportSpec,
-    resolve_period_range,
-)
-from .scope import AuthorizedScope, courier_query
-from .report_registry import get_report
 from .metabase_adapter import (
     execute_approved_question,
     get_metabase_config,
     to_structured_response,
 )
+from .report_registry import get_report
+from .reportspec import (
+    ReportSpec,
+    resolve_period_range,
+)
+from .scope import AuthorizedScope, courier_query
 
 
 def _base_response(

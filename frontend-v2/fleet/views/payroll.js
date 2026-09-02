@@ -195,10 +195,12 @@ async function renderPayrollLedger(container, mainContainer) {
     const curr = isAr ? ' ر.س' : ' SAR';
 
     const bankDisbursement = rows.reduce((acc, r) => acc + Math.max(0, r.total || 0), 0);
-    const totalRemainingAdvances = rows.reduce((acc, r) => acc + (r.total < 0 ? Math.abs(r.total) : 0), 0);
+    // Debt owed to the company, carried into next month rather than paid negative.
+    const carriedDebt = totals.debt_balance ?? rows.reduce((acc, r) => acc + (r.debt_balance || 0), 0);
+    const ridersInDebt = data.riders_in_debt ?? rows.filter((r) => r.is_in_debt).length;
 
-    const netSubtext = totalRemainingAdvances > 0
-      ? (isAr ? `صرف بنكي للمستحقين: ${bankDisbursement.toLocaleString('ar-SA')} ر.س · سلف مستحقة للشركة: ${totalRemainingAdvances.toLocaleString('ar-SA')} ر.س` : `Bank Payable: ${bankDisbursement} SAR · Unrecovered Loans: ${totalRemainingAdvances} SAR`)
+    const netSubtext = carriedDebt > 0
+      ? (isAr ? `صرف بنكي: ${bankDisbursement.toLocaleString('ar-SA')} ر.س · مديونية مرحّلة على ${ridersInDebt} مندوب: ${carriedDebt.toLocaleString('ar-SA')} ر.س` : `Bank Payable: ${bankDisbursement} SAR · Debt carried for ${ridersInDebt} riders: ${carriedDebt} SAR`)
       : (isAr ? 'جاهز للتحويل والصرف البنكي' : 'Ready for bank disbursement');
 
     container.append(el('div', { class: 'cards' }, [
@@ -284,17 +286,27 @@ async function renderPayrollLedger(container, mainContainer) {
         const adv = (r.advance_deduction || 0) + (r.other_deductions || 0);
         return adv > 0 ? el('span', { style: 'color:#e11d48;font-weight:600' }, `-${adv.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`) : `0${curr}`;
       }},
-      { key: 'total', label: isAr ? 'صافي حساب المندوب' : 'Net Settlement', render: (v) => {
+      { key: 'total', label: isAr ? 'صافي حساب المندوب' : 'Net Settlement', render: (v, r) => {
+        // Net is never negative: a shortfall is paid as zero and carried as debt.
         const net = v || 0;
-        if (net < 0) {
+        const balance = r.debt_balance || 0;
+        if (r.is_in_debt || balance > 0) {
           return el('div', { style: 'background:rgba(220,38,38,0.08);padding:4px 8px;border-radius:6px;display:inline-block;border:1px solid rgba(220,38,38,0.25)' }, [
             el('b', { style: 'color:#dc2626;font-size:13px' }, `${net.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`),
-            el('small', { style: 'display:block;color:#dc2626;font-size:10px;font-weight:700' }, isAr ? 'مدين (متبقي سلفة)' : 'Over-advanced / Debt')
+            el('small', { style: 'display:block;color:#dc2626;font-size:10px;font-weight:700' },
+              isAr ? `مدين — مرحّل ${balance.toLocaleString('ar-SA')} ر.س للشهر التالي`
+                   : `In debt — ${balance} SAR carried to next month`)
           ]);
         }
+        const recovered = r.carried_debt_applied || 0;
         return el('div', { style: 'background:rgba(2,132,199,0.08);padding:4px 8px;border-radius:6px;display:inline-block' }, [
-          el('b', { style: 'color:#0284c7;font-size:13px' }, `${net.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`)
-        ]);
+          el('b', { style: 'color:#0284c7;font-size:13px' }, `${net.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`),
+          recovered > 0
+            ? el('small', { style: 'display:block;color:#0f766e;font-size:10px;font-weight:700' },
+                isAr ? `بعد سداد مديونية ${recovered.toLocaleString('ar-SA')} ر.س`
+                     : `after settling ${recovered} SAR of debt`)
+            : null
+        ].filter(Boolean));
       }},
       { key: 'actions', label: isAr ? 'كشف الحساب' : 'Statement', render: (_, r) => el('button', {
         class: 'btn btn-ghost btn-small',

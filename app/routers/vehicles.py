@@ -21,7 +21,6 @@ from ..models.entities import (
 )
 from .auth import get_current_user
 
-
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 MANAGE_ROLES = {
     UserRole.COMPANY,

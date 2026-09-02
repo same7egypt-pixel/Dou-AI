@@ -11,7 +11,6 @@ from ..models import entities as ent
 from ..services.workforce_scope import supervisor_courier_scope
 from .auth import get_current_user
 
-
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 MANAGE_ROLES = {

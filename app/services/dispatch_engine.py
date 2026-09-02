@@ -7,6 +7,7 @@
 """
 
 import math
+
 from sqlalchemy.orm import Session
 
 from ..config import LONG_DISTANCE_KM

@@ -1,20 +1,23 @@
 """وحدات HR: المشرفون + المناديب + المستندات + السجل اليومي + الإجازات + البونص.
 الأدمن يدير كل شيء، والمشرف يدير مناديب مجموعته فقط، والمندوب يخدم نفسه."""
 
-from datetime import datetime, date, timedelta
-from typing import Optional, List, Dict, Any
 import csv
 import io
 import json
-from pydantic import BaseModel
+from datetime import date, datetime, timedelta
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy import text, or_, and_, func
+from pydantic import BaseModel
+from sqlalchemy import and_, func, or_, text
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models.entities import (
     Attendance,
+    AttendanceDeductionPolicy,
+    AttendanceEvent,
     AuditLog,
     BonusPlan,
     BroadcastMessage,
@@ -22,42 +25,23 @@ from ..models.entities import (
     ContractBranch,
     ContractBranchSupervisor,
     Courier,
+    CourierDocumentSubmission,
     CourierRating,
     DailyLog,
+    EmployeeRequest,
     GeoCity,
     LeaveRequest,
+    PayrollAdjustment,
+    PayrollPeriod,
+    PayrollSnapshot,
     PerformanceNote,
     Project,
+    ProjectTransfer,
+    SupervisorAssignmentRequest,
     Tenant,
     TenantOperatingCity,
     User,
     UserRole,
-    SupervisorAssignmentRequest,
-    ProjectTransfer,
-    PayrollAdjustment,
-    EmployeeRequest,
-    CourierDocumentSubmission,
-    AttendanceDeductionPolicy,
-    AttendanceEvent,
-    PayrollPeriod,
-    PayrollSnapshot,
-)
-from .auth import get_current_user, hash_password
-from ..services.operating_structure import (
-    ensure_tenant_operating_city,
-    find_or_create_city,
-    operating_city_counts,
-    require_active_tenant_city,
-    resolve_active_tenant_city_by_name,
-)
-from ..services.financial_calculations import (
-    bonus_plan_for_courier,
-    calculate_target_bonus as _calculate_target_bonus,
-    calculate_courier_bonus,
-    calculate_payroll_preview,
-    financial_rows,
-    finalize_payroll_period,
-    payroll_rows,
 )
 from ..services.attendance_policy import (
     CALCULATION_METHODS,
@@ -66,7 +50,26 @@ from ..services.attendance_policy import (
     finalized_period,
     reconcile_absences_for_date,
 )
+from ..services.financial_calculations import (
+    bonus_plan_for_courier,
+    calculate_courier_bonus,
+    calculate_payroll_preview,
+    finalize_payroll_period,
+    financial_rows,
+    payroll_rows,
+)
+from ..services.financial_calculations import (
+    calculate_target_bonus as _calculate_target_bonus,
+)
+from ..services.operating_structure import (
+    ensure_tenant_operating_city,
+    find_or_create_city,
+    operating_city_counts,
+    require_active_tenant_city,
+    resolve_active_tenant_city_by_name,
+)
 from ..services.workforce_scope import supervisor_courier_scope
+from .auth import get_current_user, hash_password
 
 router = APIRouter(prefix="/hr", tags=["hr"])
 
@@ -3199,8 +3202,12 @@ def hr_payroll(
         "advances": 0.0,
         "other_deductions": 0.0,
         "deductions": 0.0,
+        "carried_debt_applied": 0.0,
+        "debt_generated": 0.0,
+        "debt_balance": 0.0,
         "total": 0.0,
     }
+    riders_in_debt = 0
     for row in calculated:
         courier = couriers.get(row.get("courier_id") or row.get("id"))
         if not courier:
@@ -3266,6 +3273,16 @@ def hr_payroll(
                 "advance_deduction": round(advance_ded, 2),
                 "other_deductions": round(other_ded, 2),
                 "deductions": round(deductions, 2),
+                "net_before_debt": round(float(row.get("net_before_debt") or total), 2),
+                "carried_debt_total": round(
+                    float(row.get("carried_debt_total") or 0.0), 2
+                ),
+                "carried_debt_applied": round(
+                    float(row.get("carried_debt_applied") or 0.0), 2
+                ),
+                "debt_generated": round(float(row.get("debt_generated") or 0.0), 2),
+                "debt_balance": round(float(row.get("debt_balance") or 0.0), 2),
+                "is_in_debt": bool(row.get("is_in_debt")),
                 "total": round(total, 2),
                 "average_per_order": round(per_order_rate, 2),
                 "itemized_breakdown": row.get("itemized_breakdown"),
@@ -3283,6 +3300,11 @@ def hr_payroll(
         totals["advances"] += advance_ded
         totals["other_deductions"] += other_ded
         totals["deductions"] += deductions
+        totals["carried_debt_applied"] += float(row.get("carried_debt_applied") or 0.0)
+        totals["debt_generated"] += float(row.get("debt_generated") or 0.0)
+        totals["debt_balance"] += float(row.get("debt_balance") or 0.0)
+        if row.get("is_in_debt"):
+            riders_in_debt += 1
         totals["total"] += total
 
     return {
@@ -3296,6 +3318,7 @@ def hr_payroll(
         "rows": rows,
         "totals": {key: round(value, 2) for key, value in totals.items()},
         "couriers_count": len(rows),
+        "riders_in_debt": riders_in_debt,
     }
 
 

@@ -11,7 +11,6 @@ from ..database import get_db
 from ..models import entities as ent
 from .auth import get_current_user
 
-
 router = APIRouter(prefix="/leave", tags=["leave"])
 
 MANAGE_ROLES = {
@@ -503,7 +502,7 @@ def admin_decide(
 def _release_pending_days(db, request: ent.LeaveRequest):
     """Release pending days when a request is rejected — uses atomic UPDATE."""
     days = (request.to_date - request.from_date).days + 1
-    from sqlalchemy import update, case
+    from sqlalchemy import case, update
 
     new_pending = case(
         (ent.LeaveEntitlement.pending_days - days < 0, 0),
@@ -524,7 +523,7 @@ def _release_pending_days(db, request: ent.LeaveRequest):
 def _approve_pending_days(db, request: ent.LeaveRequest):
     """Move pending days to used when a request is approved — uses atomic UPDATE."""
     days = (request.to_date - request.from_date).days + 1
-    from sqlalchemy import update, case
+    from sqlalchemy import case, update
 
     new_pending = case(
         (ent.LeaveEntitlement.pending_days - days < 0, 0),

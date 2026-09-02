@@ -7,12 +7,12 @@ import hashlib
 import io
 import json
 from datetime import date, datetime
+from typing import Optional, Tuple
 
 from sqlalchemy.orm import Session
 
 from ..models.entities import Courier, DailyLog, OperationalImportBatch, Project
 from .rider_management import canonical_phone
-from typing import Optional, Tuple
 
 PERFORMANCE_HEADERS = ["rider_phone", "date", "project", "completed_orders", "notes"]
 

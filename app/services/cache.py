@@ -1,10 +1,11 @@
 """Redis caching service with graceful fallback."""
 from __future__ import annotations
-import json
+
 import hashlib
-from functools import wraps
-from typing import Optional, Callable, Any
+import json
 import os
+from functools import wraps
+from typing import Callable, Optional
 
 _redis = None
 _redis_initialized = False

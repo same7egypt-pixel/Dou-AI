@@ -6,9 +6,9 @@ from ..models.entities import Merchant, Product, User, UserRole
 from ..schemas.dou import (
     MerchantCreate,
     MerchantOut,
+    PatchIn,
     ProductCreate,
     ProductOut,
-    PatchIn,
 )
 from .auth import get_current_user
 

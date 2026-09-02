@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 
 from ..database import get_db
-from ..models import entities as ent, salary as sal
+from ..models import entities as ent
+from ..models import salary as sal
 from .auth import get_current_user
-
 
 router = APIRouter(prefix="/salary", tags=["salary"])
 

@@ -1,17 +1,19 @@
-from datetime import datetime, timedelta, timezone
 from collections import defaultdict, deque
+from datetime import datetime, timedelta, timezone
 from threading import Lock
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from fastapi.security import OAuth2PasswordBearer
+
 import bcrypt
 import jwt
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ..config import SECRET_KEY, ENABLE_PUBLIC_COMPANY_SIGNUP
+from ..config import ENABLE_PUBLIC_COMPANY_SIGNUP, SECRET_KEY
 from ..database import get_db
 from ..models.entities import Country, Fleet, Tenant, User, UserRole
 from ..schemas.dou import CompanyRegisterIn, CompanyRegisterOut, LoginIn, TokenOut
+from ..services.cache import get_redis
 
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 7
@@ -39,6 +41,51 @@ def _prune_failures(key: str, now: datetime):
     while attempts and attempts[0] < cutoff:
         attempts.popleft()
     return attempts
+
+
+def _login_failure_count(key: str, now: datetime) -> int:
+    """Failed attempts inside the window, shared across workers when Redis is up.
+
+    Per-process counters let an attacker get ``LOGIN_MAX_FAILURES`` tries per
+    uvicorn worker and reset the budget by restarting the app, so Redis is the
+    real throttle and the in-process deque is only the fallback.
+    """
+    client = get_redis()
+    if client is None:
+        with _login_lock:
+            return len(_prune_failures(key, now))
+    try:
+        return int(client.get(f"login_fail:{key}") or 0)
+    except Exception:
+        with _login_lock:
+            return len(_prune_failures(key, now))
+
+
+def _record_login_failure(key: str, now: datetime) -> None:
+    client = get_redis()
+    if client is not None:
+        try:
+            redis_key = f"login_fail:{key}"
+            pipe = client.pipeline()
+            pipe.incr(redis_key)
+            pipe.expire(redis_key, LOGIN_WINDOW_SECONDS)
+            pipe.execute()
+            return
+        except Exception:
+            pass
+    with _login_lock:
+        _prune_failures(key, now).append(now.timestamp())
+
+
+def _clear_login_failures(key: str) -> None:
+    client = get_redis()
+    if client is not None:
+        try:
+            client.delete(f"login_fail:{key}")
+        except Exception:
+            pass
+    with _login_lock:
+        _login_failures.pop(key, None)
 
 
 def hash_password(password: str) -> str:
@@ -147,20 +194,15 @@ def login(payload: LoginIn, db: Session = Depends(get_db), request: Request = No
         if request
         else f"direct:{payload.phone.strip()}"
     )
-    with _login_lock:
-        if len(_prune_failures(key, now)) >= LOGIN_MAX_FAILURES:
-            raise HTTPException(
-                429, "محاولات دخول كثيرة. انتظر 10 دقائق ثم حاول مرة أخرى"
-            )
+    if _login_failure_count(key, now) >= LOGIN_MAX_FAILURES:
+        raise HTTPException(429, "محاولات دخول كثيرة. انتظر 10 دقائق ثم حاول مرة أخرى")
     user = db.query(User).filter(User.phone == payload.phone).first()
     if not user or not verify_password(payload.password, user.password_hash):
-        with _login_lock:
-            _prune_failures(key, now).append(now.timestamp())
+        _record_login_failure(key, now)
         raise HTTPException(401, "Invalid phone or password")
     if not user.is_active:
         raise HTTPException(403, "Account disabled")
-    with _login_lock:
-        _login_failures.pop(key, None)
+    _clear_login_failures(key)
     user.last_login_at = now
     if user.tenant_id:
         tenant = db.get(Tenant, user.tenant_id)

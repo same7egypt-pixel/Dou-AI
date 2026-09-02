@@ -1,7 +1,7 @@
 """W10.5: Operator domain and commercial settlement router."""
 
 from datetime import date, datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import entities as ent
 from .auth import get_current_user
-
 
 router = APIRouter(prefix="/analytics/operators", tags=["operators"])
 

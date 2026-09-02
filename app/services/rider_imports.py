@@ -11,7 +11,7 @@ import hashlib
 import io
 import json
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional, Tuple
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -25,11 +25,10 @@ from ..models.entities import (
     UserRole,
 )
 from .operating_structure import (
-    resolve_active_tenant_city_by_name,
     require_branch_assignment,
+    resolve_active_tenant_city_by_name,
 )
 from .rider_management import canonical_phone, create_rider_record
-from typing import Optional, Tuple
 
 RIDER_IMPORT_HEADERS = [
     "name",

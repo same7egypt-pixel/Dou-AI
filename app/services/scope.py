@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 from sqlalchemy.orm import Query, Session
 
 from ..models import entities as ent

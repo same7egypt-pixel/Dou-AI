@@ -1,19 +1,22 @@
-version: "3.8"
-
+# DOU Fleet OS — production stack.
+# Every secret is required from the environment (a .env file next to this
+# compose file, mode 600). There are deliberately no inline defaults: a
+# guessable fallback password is worse than a container that refuses to start.
 services:
   db:
     image: postgres:15-alpine
     restart: always
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-dou_prod}
-      POSTGRES_USER: ${POSTGRES_USER:-dou_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_prod_password_32bytes}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 24)}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Loopback only. The app reaches the database over the compose network.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-dou_user} -d $${POSTGRES_DB:-dou_prod}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,27 +25,36 @@ services:
     image: redis:7-alpine
     restart: always
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   app:
     build: .
     restart: always
     environment:
       APP_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-dou_user}:${POSTGRES_PASSWORD:-secure_prod_password_32bytes}@db:5432/${POSTGRES_DB:-dou_prod}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-minimum-32-bytes}
-      ADMIN_KEY: ${ADMIN_KEY:-admin-secret-key-prod-minimum-16b}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env (openssl rand -hex 32)}
+      ADMIN_KEY: ${ADMIN_KEY:?set ADMIN_KEY in .env (openssl rand -hex 16)}
       STORAGE_PROVIDER: ${STORAGE_PROVIDER:-LOCAL}
+      S3_BUCKET: ${S3_BUCKET:-}
+      AWS_REGION: ${AWS_REGION:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
-    volumes:
-      - .:/app
+        condition: service_healthy
+    # No source bind mount: the container runs the code baked into the image, so
+    # a deploy is always "build a new image", never "copy files over a running
+    # one". Use `docker compose up -d --build` to release.
     ports:
       - "127.0.0.1:8000:8000"
 

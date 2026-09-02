@@ -1,6 +1,8 @@
 """Mixins for SQLAlchemy models."""
 from __future__ import annotations
+
 from datetime import datetime, timezone
+
 from sqlalchemy import Column, DateTime
 from sqlalchemy.orm import declarative_mixin
 

@@ -13,7 +13,6 @@ from fastapi import HTTPException
 
 from .reportspec import Period, ReportEntity, ReportMetric, ReportOperation, ReportSpec
 
-
 CustomerType = Literal["LOGISTICS_OPERATOR", "DELIVERY_PLATFORM", "ANY"]
 
 ReportSource = Literal["NATIVE", "METABASE"]

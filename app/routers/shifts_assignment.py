@@ -17,7 +17,6 @@ from .shifts import (
     _shift_json,
 )
 
-
 router = APIRouter(prefix="/shifts", tags=["shifts"])
 
 STAFF_ROLES = (

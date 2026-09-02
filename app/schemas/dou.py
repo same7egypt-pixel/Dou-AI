@@ -1,5 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LoginIn(BaseModel):

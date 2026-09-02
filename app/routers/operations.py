@@ -14,7 +14,6 @@ from ..models import entities as ent
 from ..services.workforce_scope import supervisor_courier_scope
 from .auth import get_current_user
 
-
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 
 MANAGE_ROLES = {
@@ -513,7 +512,7 @@ def needs_attention_deterministic(
         and getattr(tenant, "customer_type", "LOGISTICS_OPERATOR")
         == "DELIVERY_PLATFORM"
     ):
-        from app.models.entities import RiderAssignment, CommercialSettlement
+        from app.models.entities import CommercialSettlement, RiderAssignment
 
         unassigned = (
             db.query(func.count(ent.Courier.id))

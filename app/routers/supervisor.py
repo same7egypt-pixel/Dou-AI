@@ -13,7 +13,6 @@ from ..services.workforce_scope import supervisor_courier_scope
 from .auth import get_current_user
 from .shifts import _assigned_courier_ids, _shift_json
 
-
 router = APIRouter(prefix="/supervisor", tags=["supervisor"])
 
 SUPERVISOR_ROLES = {

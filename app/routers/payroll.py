@@ -1,7 +1,7 @@
 """W9: Payroll & Financial Operations — server-side payroll aggregation."""
 
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,7 +10,6 @@ from sqlalchemy import func
 from ..database import get_db
 from ..models import entities as ent
 from .auth import get_current_user
-
 
 router = APIRouter(prefix="/analytics/payroll", tags=["payroll"])
 

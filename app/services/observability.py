@@ -1,11 +1,12 @@
 """Observability, Sentry integration, and structured logging."""
 from __future__ import annotations
+
 import logging
+import os
 import time
 import uuid
-from typing import Optional
 from contextlib import contextmanager
-import os
+from typing import Optional
 
 SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
 APP_ENV = os.getenv("APP_ENV", "development").strip()

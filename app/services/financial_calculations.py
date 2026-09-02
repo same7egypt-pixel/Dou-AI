@@ -7,9 +7,9 @@ attendance deductions because no company deduction policy exists yet.
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from datetime import date, datetime
-import json
 from typing import Optional
 
 from sqlalchemy import or_
@@ -20,6 +20,7 @@ from ..models.entities import (
     Contract,
     ContractBranch,
     Courier,
+    CourierDebt,
     DailyLog,
     OperationalFinancialSnapshot,
     PayrollAdjustment,
@@ -36,6 +37,55 @@ def month_bounds(month: str) -> tuple[date, date]:
         raise ValueError("صيغة الشهر يجب أن تكون YYYY-MM")
     end = date(year + 1, 1, 1) if number == 12 else date(year, number + 1, 1)
     return start, end
+
+
+def open_debts_for(
+    db: Session, tenant_id: int, courier_ids: list[int], month: str
+) -> dict[int, list[CourierDebt]]:
+    """Unsettled debt carried in from months strictly before ``month``.
+
+    ``origin_month`` is a zero-padded ``YYYY-MM`` string, so lexical ordering
+    matches chronological ordering.
+    """
+    if not courier_ids:
+        return {}
+    grouped: dict[int, list[CourierDebt]] = defaultdict(list)
+    for row in (
+        db.query(CourierDebt)
+        .filter(
+            CourierDebt.tenant_id == tenant_id,
+            CourierDebt.courier_id.in_(courier_ids),
+            CourierDebt.status == "OPEN",
+            CourierDebt.remaining > 0,
+            CourierDebt.origin_month < month,
+        )
+        .order_by(CourierDebt.origin_month, CourierDebt.id)
+        .all()
+    ):
+        grouped[row.courier_id].append(row)
+    return grouped
+
+
+def apply_debt_settlement(net_before_debt: float, carried_debt: float) -> dict:
+    """Split a month's raw net into what is paid, what settles old debt, and what rolls over.
+
+    A rider is never paid a negative amount: the shortfall becomes debt that is
+    deducted automatically from later months.
+    """
+    net_before_debt = round(float(net_before_debt or 0.0), 2)
+    carried_debt = max(round(float(carried_debt or 0.0), 2), 0.0)
+    applied = round(min(max(net_before_debt, 0.0), carried_debt), 2)
+    net_after = round(net_before_debt - applied, 2)
+    generated = round(-net_after, 2) if net_after < 0 else 0.0
+    net_pay = round(max(net_after, 0.0), 2)
+    return {
+        "carried_debt_total": carried_debt,
+        "carried_debt_applied": applied,
+        "debt_generated": generated,
+        "debt_balance": round(carried_debt - applied + generated, 2),
+        "net_before_debt": net_before_debt,
+        "net_pay": net_pay,
+    }
 
 
 def calculate_plan_earnings(orders: int, plan: BonusPlan) -> dict:
@@ -361,144 +411,20 @@ def _legacy_compensation_contract(db: Session, courier: Courier) -> Optional[Con
 
 
 def calculate_payroll_preview(db: Session, courier: Courier, month: str) -> dict:
-    month_bounds(month)
-    compensation = _legacy_compensation_contract(db, courier)
-    base_salary = float(
-        (
-            compensation.base_salary
-            if (compensation and compensation.base_salary)
-            else courier.base_salary
-        )
-        or 0
-    )
-    per_delivery_rate = float(
-        (
-            compensation.per_delivery_rate
-            if (compensation and compensation.per_delivery_rate)
-            else courier.per_delivery_rate
-        )
-        or 0
-    )
-    bonus = calculate_courier_bonus(db, courier, month)
-    delivery_pay = round(bonus["orders"] * per_delivery_rate, 2)
-    adjustments = (
-        db.query(PayrollAdjustment)
-        .filter(
-            PayrollAdjustment.tenant_id == courier.tenant_id,
-            PayrollAdjustment.courier_id == courier.id,
-            PayrollAdjustment.month == month,
-            or_(
-                PayrollAdjustment.status == "APPROVED",
-                PayrollAdjustment.status.is_(None),
-            ),
-        )
-        .all()
-    )
+    """Payroll for one rider, read through the same path as the payroll sheet.
 
-    # Itemize additions and deductions
-    overtime_pay = round(
-        sum(float(item.amount or 0) for item in adjustments if item.kind == "OVERTIME"),
-        2,
-    )
-    other_additions = round(
-        sum(
-            float(item.amount or 0)
-            for item in adjustments
-            if item.kind in ("BONUS", "ALLOWANCE", "OTHER_EARNING")
-        ),
-        2,
-    )
-    additions = round(overtime_pay + other_additions, 2)
-
-    absence_deduction = round(
-        sum(float(item.amount or 0) for item in adjustments if item.kind == "ABSENCE"),
-        2,
-    )
-    late_deduction = round(
-        sum(
-            float(item.amount or 0)
-            for item in adjustments
-            if item.kind in ("LATE", "EARLY_LEAVE")
-        ),
-        2,
-    )
-    advance_deduction = round(
-        sum(
-            float(item.amount or 0)
-            for item in adjustments
-            if item.kind in ("ADVANCE", "LOAN")
-        ),
-        2,
-    )
-    other_deduction = round(
-        sum(
-            float(item.amount or 0)
-            for item in adjustments
-            if item.kind
-            in ("PENALTY", "DAMAGE", "VIOLATION", "DEDUCTION", "OTHER_DEDUCTION")
-            or item.kind
-            not in (
-                "OVERTIME",
-                "BONUS",
-                "ALLOWANCE",
-                "OTHER_EARNING",
-                "ABSENCE",
-                "LATE",
-                "EARLY_LEAVE",
-                "ADVANCE",
-                "LOAN",
-            )
-        ),
-        2,
-    )
-    deductions = round(
-        absence_deduction + late_deduction + advance_deduction + other_deduction, 2
-    )
-
-    gross_pay = round(
-        base_salary + delivery_pay + float(bonus.get("earned", 0) or 0) + additions, 2
-    )
-    net_pay = round(gross_pay - deductions, 2)
-
-    itemized = {
-        "base_salary": round(base_salary, 2),
-        "orders_count": bonus["orders"],
-        "per_delivery_rate": round(per_delivery_rate, 2),
-        "delivery_pay": delivery_pay,
-        "target_bonus": round(float(bonus.get("earned", 0) or 0), 2),
-        "overtime_pay": overtime_pay,
-        "other_additions": other_additions,
-        "gross_pay": gross_pay,
-        "absence_deduction": absence_deduction,
-        "late_deduction": late_deduction,
-        "advance_deduction": advance_deduction,
-        "other_deduction": other_deduction,
-        "total_deductions": deductions,
-        "net_pay": net_pay,
-    }
-
-    return {
-        "courier_id": courier.id,
-        "project_id": courier.primary_project_id,
-        "contract_branch_id": courier.contract_branch_id,
-        "base_salary": round(base_salary, 2),
-        "per_delivery_rate": round(per_delivery_rate, 2),
-        "eligible_orders": bonus["orders"],
-        "delivery_pay": delivery_pay,
-        "bonus": bonus,
-        "additions": additions,
-        "deductions": deductions,
-        "gross_pay": gross_pay,
-        "absence_deduction": absence_deduction,
-        "late_deduction": late_deduction,
-        "advance_deduction": advance_deduction,
-        "other_deduction": other_deduction,
-        "net_pay": net_pay,
-        "itemized_breakdown": itemized,
-        "compensation_source": "legacy_rider_contract"
-        if compensation
-        else "rider_profile",
-    }
+    This delegates to :func:`payroll_rows` on purpose. A separate single-rider
+    calculation used to exist here and silently disagreed with the sheet that
+    actually pays: it ignored accountant order overrides, recomputed finalized
+    months instead of reading their snapshot, and priced FLAT_PER_ORDER plans
+    differently. One path removes that whole class of divergence.
+    """
+    rows, _ = payroll_rows(db, courier.tenant_id, month, courier_ids=[courier.id])
+    for row in rows:
+        if row["courier_id"] == courier.id:
+            return row
+    # Rider has no snapshot in an already finalized month (hired afterwards).
+    return calculate_payroll_previews(db, [courier], month)[0]
 
 
 def calculate_payroll_previews(
@@ -551,6 +477,7 @@ def calculate_payroll_previews(
     bonuses = calculate_courier_bonuses(
         db, couriers, month, orders_override=orders_override
     )
+    debts_by_courier = open_debts_for(db, tenant_id, ids, month)
     rows = []
     for courier in couriers:
         compensation = next(
@@ -671,7 +598,15 @@ def calculate_payroll_previews(
             base_salary + delivery_pay + target_bonus_earned + additions,
             2,
         )
-        net_pay = round(gross_pay - deductions, 2)
+        carried_debt = round(
+            sum(
+                float(debt.remaining or 0.0)
+                for debt in debts_by_courier.get(courier.id, [])
+            ),
+            2,
+        )
+        settlement = apply_debt_settlement(gross_pay - deductions, carried_debt)
+        net_pay = settlement["net_pay"]
 
         itemized = {
             "base_salary": round(base_salary, 2),
@@ -690,6 +625,11 @@ def calculate_payroll_previews(
             "advance_deduction": advance_deduction,
             "other_deduction": other_deduction,
             "total_deductions": deductions,
+            "net_before_debt": settlement["net_before_debt"],
+            "carried_debt_total": settlement["carried_debt_total"],
+            "carried_debt_applied": settlement["carried_debt_applied"],
+            "debt_generated": settlement["debt_generated"],
+            "debt_balance": settlement["debt_balance"],
             "net_pay": net_pay,
         }
 
@@ -713,6 +653,12 @@ def calculate_payroll_previews(
                 "late_deduction": late_deduction,
                 "advance_deduction": advance_deduction,
                 "other_deduction": other_deduction,
+                "net_before_debt": settlement["net_before_debt"],
+                "carried_debt_total": settlement["carried_debt_total"],
+                "carried_debt_applied": settlement["carried_debt_applied"],
+                "debt_generated": settlement["debt_generated"],
+                "debt_balance": settlement["debt_balance"],
+                "is_in_debt": settlement["debt_balance"] > 0,
                 "net_pay": net_pay,
                 "itemized_breakdown": itemized,
                 "compensation_source": "legacy_rider_contract"
@@ -743,7 +689,7 @@ def branch_financial_preview(
     rows = (
         payroll_rows
         if payroll_rows is not None
-        else [calculate_payroll_preview(db, courier, month) for courier in couriers]
+        else calculate_payroll_previews(db, couriers, month)
     )
     rows = [row for row in rows if row.get("contract_branch_id") == branch.id]
     eligible_orders = sum(int(row["eligible_orders"]) for row in rows)
@@ -765,18 +711,31 @@ def branch_financial_preview(
     }
 
 
-def payroll_rows(db: Session, tenant_id: int, month: str) -> tuple[list[dict], bool]:
+def payroll_rows(
+    db: Session,
+    tenant_id: int,
+    month: str,
+    courier_ids: Optional[list[int]] = None,
+) -> tuple[list[dict], bool]:
+    """Authoritative payroll rows for a month, plus whether the month is finalized.
+
+    ``courier_ids`` narrows the computation to specific riders without changing
+    any amount, so a single-rider view does not pay the cost of the whole tenant.
+    """
     period = (
         db.query(PayrollPeriod)
         .filter(PayrollPeriod.tenant_id == tenant_id, PayrollPeriod.month == month)
         .first()
     )
     if period and period.status == "FINALIZED":
-        snapshots = (
-            db.query(PayrollSnapshot)
-            .filter(PayrollSnapshot.payroll_period_id == period.id)
-            .all()
+        snapshot_query = db.query(PayrollSnapshot).filter(
+            PayrollSnapshot.payroll_period_id == period.id
         )
+        if courier_ids is not None:
+            snapshot_query = snapshot_query.filter(
+                PayrollSnapshot.courier_id.in_(courier_ids)
+            )
+        snapshots = snapshot_query.all()
         result_rows = []
         for item in snapshots:
             c_data = json.loads(item.calculation_data or "{}")
@@ -840,6 +799,14 @@ def payroll_rows(db: Session, tenant_id: int, month: str) -> tuple[list[dict], b
                     "other_deduction": itemized.get(
                         "other_deduction", round(float(item.deductions or 0), 2)
                     ),
+                    "net_before_debt": itemized.get(
+                        "net_before_debt", round(float(item.net_pay or 0), 2)
+                    ),
+                    "carried_debt_total": itemized.get("carried_debt_total", 0.0),
+                    "carried_debt_applied": itemized.get("carried_debt_applied", 0.0),
+                    "debt_generated": itemized.get("debt_generated", 0.0),
+                    "debt_balance": itemized.get("debt_balance", 0.0),
+                    "is_in_debt": float(itemized.get("debt_balance", 0.0) or 0.0) > 0,
                     "net_pay": round(float(item.net_pay or 0), 2),
                     "itemized_breakdown": itemized,
                     "finalized": True,
@@ -858,15 +825,69 @@ def payroll_rows(db: Session, tenant_id: int, month: str) -> tuple[list[dict], b
         except Exception:
             orders_override = None
 
-    couriers = (
-        db.query(Courier)
-        .filter(Courier.tenant_id == tenant_id)
-        .order_by(Courier.name)
-        .all()
-    )
+    courier_query = db.query(Courier).filter(Courier.tenant_id == tenant_id)
+    if courier_ids is not None:
+        courier_query = courier_query.filter(Courier.id.in_(courier_ids))
+    couriers = courier_query.order_by(Courier.name).all()
     return calculate_payroll_previews(
         db, couriers, month, orders_override=orders_override
     ), False
+
+
+def _persist_debt_settlement(
+    db: Session, tenant_id: int, month: str, rows: list[dict]
+) -> None:
+    """Write the debt movement a finalized month implies.
+
+    Preview never touches these records — only finalization does — so reading a
+    payroll sheet stays free of side effects. Older debts settle first so a
+    rider clears the longest-standing balance before a newer one.
+    """
+    debts_by_courier = open_debts_for(
+        db, tenant_id, [row["courier_id"] for row in rows], month
+    )
+    for row in rows:
+        applied = round(float(row.get("carried_debt_applied") or 0.0), 2)
+        for debt in debts_by_courier.get(row["courier_id"], []):
+            if applied <= 0:
+                break
+            take = min(round(float(debt.remaining or 0.0), 2), applied)
+            debt.remaining = round(float(debt.remaining or 0.0) - take, 2)
+            applied = round(applied - take, 2)
+            if debt.remaining <= 0:
+                debt.remaining = 0.0
+                debt.status = "SETTLED"
+                debt.settled_month = month
+
+        generated = round(float(row.get("debt_generated") or 0.0), 2)
+        if generated <= 0:
+            continue
+        existing = (
+            db.query(CourierDebt)
+            .filter(
+                CourierDebt.tenant_id == tenant_id,
+                CourierDebt.courier_id == row["courier_id"],
+                CourierDebt.origin_month == month,
+            )
+            .first()
+        )
+        if existing:
+            existing.amount = generated
+            existing.remaining = generated
+            existing.status = "OPEN"
+            existing.settled_month = None
+        else:
+            db.add(
+                CourierDebt(
+                    tenant_id=tenant_id,
+                    courier_id=row["courier_id"],
+                    origin_month=month,
+                    amount=generated,
+                    remaining=generated,
+                    status="OPEN",
+                    note="ترحيل تلقائي: السلف والخصومات تجاوزت مستحقات الشهر",
+                )
+            )
 
 
 def finalize_payroll_period(
@@ -910,6 +931,7 @@ def finalize_payroll_period(
     rows = calculate_payroll_previews(
         db, couriers, month, orders_override=orders_override
     )
+    _persist_debt_settlement(db, tenant_id, month, rows)
     for row in rows:
         db.add(
             PayrollSnapshot(

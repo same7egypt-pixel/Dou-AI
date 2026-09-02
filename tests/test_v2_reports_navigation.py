@@ -9,12 +9,18 @@ MAIN_CSS = ROOT / "frontend-v2" / "shared" / "styles" / "main.css"
 
 
 def test_reports_v2_starts_with_three_workflows():
+    """Reports opens on driver targets, with the three tabs the 360 view defines.
+
+    This replaced an earlier "overview" landing layout; the screen still offers
+    exactly three workflows, so the guard is kept and pointed at the current set.
+    """
     source = REPORTS_JS.read_text(encoding="utf-8")
-    assert "let activeSubTab = 'overview'" in source
-    assert "تسجيلات المندوبين" in source
-    assert "تقرير أداء الشركة اليومي" in source
-    assert "المنصات المتصلة بالـ API" in source
-    assert "renderReportsOverviewLayout" in source
+    assert "let activeSubTab = 'driver_targets'" in source
+    for tab in ("driver_targets", "platform_facts", "dashboards"):
+        assert f"'data-tab': '{tab}'" in source
+    assert "تارجت وإنجاز السائقين" in source
+    assert "أداء المنصات" in source
+    assert "لوحات التحليل" in source
 
 
 def test_report_links_use_catalog_id_and_stable_download_routes():

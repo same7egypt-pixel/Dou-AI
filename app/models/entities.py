@@ -1,22 +1,24 @@
 import enum
-from datetime import datetime, date, timezone
+from datetime import date, datetime, timezone
+
 from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Float,
     Boolean,
-    Text,
-    DateTime,
-    Date,
-    ForeignKey,
-    Enum,
-    UniqueConstraint,
-    Index,
     CheckConstraint,
+    Column,
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
     Numeric,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
+
 from ..database import Base
 
 
@@ -1969,6 +1971,35 @@ class PayrollAdjustment(Base):
     status = Column(String(20), nullable=False, default="APPROVED")  # APPROVED / VOID
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=utcnow)
+
+
+class CourierDebt(Base):
+    """مديونية مرحّلة على مندوب.
+
+    تُنشأ عند إقفال شهر خرج فيه صافي المندوب سالبًا (السلف والخصومات تجاوزت
+    مستحقاته). يُصرف له صفر في ذلك الشهر، ويُسجل الفارق هنا ليُخصم تلقائيًا من
+    الأشهر التالية حتى السداد الكامل.
+    """
+
+    __tablename__ = "courier_debts"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "courier_id", "origin_month", name="uq_courier_debt_origin"
+        ),
+        Index("ix_courier_debt_open", "tenant_id", "courier_id", "status"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    courier_id = Column(Integer, ForeignKey("couriers.id"), nullable=False, index=True)
+    origin_month = Column(String(7), nullable=False)  # الشهر الذي نشأت فيه المديونية
+    amount = Column(Float, nullable=False, default=0.0)  # المبلغ الأصلي
+    remaining = Column(Float, nullable=False, default=0.0)  # المتبقي غير المسدد
+    status = Column(String(20), nullable=False, default="OPEN")  # OPEN / SETTLED
+    settled_month = Column(String(7))  # الشهر الذي اكتمل فيه السداد
+    note = Column(String(300))
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
 
 class KPIDefinition(Base):

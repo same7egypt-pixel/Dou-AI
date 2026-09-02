@@ -202,10 +202,15 @@ def test_supervisor_assignment_links_operational_and_financial_chain():
         )
         assert payroll["bonus"]["source"] == "branch"
         assert payroll["bonus"]["orders"] == 10
-        assert payroll["bonus"]["earned"] == 90
+        # A FLAT_PER_ORDER plan prices the rider's orders instead of the rate on
+        # the rider profile, so the 9/order plan shows up as delivery pay and the
+        # profile's 6/order is not added on top. Paying both would pay the same
+        # delivery twice.
+        assert payroll["bonus"]["earned"] == 0
         assert payroll["itemized_breakdown"]["base_salary"] == 2000
-        assert payroll["itemized_breakdown"]["delivery_pay"] == 60
-        assert payroll["itemized_breakdown"]["net_pay"] == 2150
+        assert payroll["itemized_breakdown"]["delivery_pay"] == 90
+        assert payroll["itemized_breakdown"]["target_bonus"] == 0
+        assert payroll["itemized_breakdown"]["net_pay"] == 2090
         assert (
             db.query(Attendance).filter(Attendance.courier_id == rider.id).count()
             == 1

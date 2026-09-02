@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..models import entities as ent
 from ..services.analytics_freshness import get_freshness
 from .auth import get_current_user
-from ..models import entities as ent
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 

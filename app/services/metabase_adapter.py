@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 import requests
-
 from fastapi import HTTPException
 
 from .metabase_registry import get_question

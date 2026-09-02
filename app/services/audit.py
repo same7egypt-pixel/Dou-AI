@@ -1,9 +1,12 @@
 """Centralized audit logging service."""
 from __future__ import annotations
+
 import json
 from datetime import datetime, timezone
-from typing import Optional, Any
+from typing import Optional
+
 from sqlalchemy.orm import Session
+
 from ..models import entities as ent
 
 

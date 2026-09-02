@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 import time
 from collections import defaultdict
 from threading import Lock
-from fastapi import Request, HTTPException
+
+from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 

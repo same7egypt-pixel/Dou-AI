@@ -4,8 +4,9 @@ Handles dedicated rider invoicing for commercial clients (e.g. Restaurants, Dark
 calculates billed amounts vs courier payroll cost, and computes gross profit margins.
 """
 
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -13,7 +14,6 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import entities as ent
 from .auth import get_current_user
-
 
 router = APIRouter(prefix="/client-invoices", tags=["client-invoices"])
 
