@@ -484,23 +484,6 @@ def driver_targets_progress(
         "contracts": contract_rows,
         "filter_options": filter_options,
     }
-        "month": selected_month,
-        "days_in_month": days_in_month,
-        "day_of_month": day_of_month,
-        "remaining_days": remaining_days,
-        "summary": {
-            "total_couriers": len(couriers),
-            "total_today_orders": total_today_orders,
-            "total_month_orders": total_month_orders,
-            "avg_orders_per_courier": round(
-                total_month_orders / max(1, len(couriers)), 1
-            ),
-            "achieved_count": achieved_count,
-            "on_track_count": on_track_count,
-            "at_risk_count": at_risk_count,
-        },
-        "rows": rows,
-    }
 
 
 def _generate_metabase_embed_url(
