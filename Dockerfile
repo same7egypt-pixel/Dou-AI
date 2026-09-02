@@ -26,6 +26,7 @@ COPY frontend-v2 ./frontend-v2
 COPY static ./static
 COPY tools ./tools
 COPY scripts ./scripts
+COPY analytics_views.sql .
 COPY alembic.ini .
 COPY alembic ./alembic
 COPY seed.py .
