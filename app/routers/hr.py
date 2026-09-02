@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 import csv
 import io
 import json
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text, or_, and_, func
