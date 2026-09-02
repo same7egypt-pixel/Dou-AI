@@ -29,11 +29,14 @@ READ_ROLES = {
     ent.UserRole.PROJECT_MANAGER,
 }
 
-METABASE_EMBEDDING_SECRET_KEY = os.getenv(
-    "METABASE_EMBEDDING_SECRET_KEY",
-    "a0bf24b622703a7b0da3d379d54dcea58b9b1fd6e2796b1abce80506fb2346c5",
-).strip()
+METABASE_EMBEDDING_SECRET_KEY = os.getenv("METABASE_EMBEDDING_SECRET_KEY", "").strip()
 METABASE_SITE_URL = os.getenv("METABASE_URL", "http://localhost:3000")
+# Signed embeds are short-lived on purpose: the URL carries the tenant lock, so
+# a leaked link is a leaked slice of data until it expires.
+METABASE_EMBED_TTL_SECONDS = int(os.getenv("METABASE_EMBED_TTL_SECONDS", "900"))
+# The dashboard filter Metabase must have marked as Locked. A parameter that is
+# merely present is ignored, and the dashboard renders every tenant's rows.
+METABASE_TENANT_PARAM = os.getenv("METABASE_TENANT_PARAM", "tenant_id")
 ALLOWED_METABASE_DASHBOARD_IDS = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
 
 
@@ -514,24 +517,36 @@ def driver_targets_progress(
     }
 
 
-def _generate_metabase_embed_url(
-    dashboard_id: int, tenant_id: Optional[int] = None
-) -> str:
-    """Generate signed JWT embed URL for Metabase dashboard."""
+def _generate_metabase_embed_url(dashboard_id: int, tenant_id: Optional[int]) -> str:
+    """Signed Metabase embed URL, locked to one tenant.
+
+    The tenant is pinned inside the signed payload rather than passed in the
+    query string, so the viewer cannot widen it. This function used to send an
+    empty ``params`` map while accepting a tenant argument it never used, which
+    renders the dashboard across every tenant's rows.
+
+    The corresponding dashboard filter in Metabase must be marked **Locked**.
+    A parameter that is merely present is ignored by Metabase, and the lock is
+    silently lost.
+    """
     if dashboard_id not in ALLOWED_METABASE_DASHBOARD_IDS:
         raise HTTPException(404, "Unknown analytics dashboard")
-    secret = (
-        METABASE_EMBEDDING_SECRET_KEY
-        or "a0bf24b622703a7b0da3d379d54dcea58b9b1fd6e2796b1abce80506fb2346c5"
-    )
+    if not METABASE_EMBEDDING_SECRET_KEY:
+        # Fail closed. A hardcoded fallback key lets anyone holding the source
+        # forge a token for any dashboard.
+        raise HTTPException(503, "التحليلات غير مهيأة: METABASE_EMBEDDING_SECRET_KEY غير مضبوط")
+    if not tenant_id:
+        # Platform-wide access would need its own deliberate dashboard, not an
+        # unlocked copy of a tenant one.
+        raise HTTPException(403, "التحليلات المضمّنة تتطلب حساب شركة محدد")
+
     payload = {
         "resource": {"dashboard": dashboard_id},
-        "params": {},
-        "exp": int(time.time()) + (24 * 60 * 60),  # 24 hours expiry using true POSIX epoch
+        "params": {METABASE_TENANT_PARAM: int(tenant_id)},
+        "exp": int(time.time()) + METABASE_EMBED_TTL_SECONDS,
     }
-    token = jwt.encode(payload, secret, algorithm="HS256")
+    token = jwt.encode(payload, METABASE_EMBEDDING_SECRET_KEY, algorithm="HS256")
     return f"{METABASE_SITE_URL}/embed/dashboard/{token}#bordered=false&titled=false"
-
 
 
 @router.get("/catalog")

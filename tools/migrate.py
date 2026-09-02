@@ -1,8 +1,7 @@
 """Run versioned DOU database migrations before the web process starts."""
-from pathlib import Path
-from contextlib import contextmanager
 import sys
-
+from contextlib import contextmanager
+from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -14,13 +13,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) in sys.path:
     sys.path.remove(str(REPO_ROOT))
 
-from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
 from sqlalchemy import inspect, text  # noqa: E402
+
+from alembic import command  # noqa: E402
 
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from app.analytics_views import create_analytics_views  # noqa: E402
 from app.database import engine  # noqa: E402
 from app.db_maintenance import initialize_database  # noqa: E402
 
@@ -59,6 +60,11 @@ def migrate() -> None:
             command.stamp(config, "head")
         else:
             command.upgrade(config, "head")
+
+        # Recreated on every deploy, after the schema is settled. They are
+        # derived objects with no data of their own, so rebuilding them is
+        # always safe and makes editing analytics_views.sql a normal deploy.
+        create_analytics_views(engine)
 
 
 if __name__ == "__main__":
