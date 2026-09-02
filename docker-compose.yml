@@ -7,9 +7,9 @@ services:
     image: postgres:15-alpine
     restart: always
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-dou_fleet_db}
-      POSTGRES_USER: ${POSTGRES_USER:-dou_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dou_secure_pass_2026}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 24)}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -36,14 +36,15 @@ services:
   app:
     build: .
     restart: always
-    volumes:
-      - .:/app
+    # No source bind mount: the container runs the code baked into its image,
+    # so a release is always a rebuild and never a file copy onto a running
+    # container. Deploy with `docker compose up -d --build`.
     environment:
       APP_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-dou_user}:${POSTGRES_PASSWORD:-dou_secure_pass_2026}@db:5432/${POSTGRES_DB:-dou_fleet_db}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:-dou_fleet_jwt_secret_key_prod_2026_super_secure}
-      ADMIN_KEY: ${ADMIN_KEY:-dou_admin_key_2026}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env (openssl rand -hex 32)}
+      ADMIN_KEY: ${ADMIN_KEY:?set ADMIN_KEY in .env (openssl rand -hex 16)}
       STORAGE_PROVIDER: ${STORAGE_PROVIDER:-LOCAL}
       S3_BUCKET: ${S3_BUCKET:-}
       AWS_REGION: ${AWS_REGION:-}

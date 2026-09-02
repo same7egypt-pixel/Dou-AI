@@ -53,10 +53,11 @@ def bootstrap_admin_from_environment() -> None:
 
 def initialize_database() -> None:
     """Apply schema setup, compatibility migrations, and controlled backfills."""
-    try:
-        Base.metadata.create_all(bind=engine)
-    except Exception as e:
-        print(f"⚠️ Metadata create_all notice (safe to continue): {e}")
+    # Not wrapped in try/except. create_all already skips objects that exist
+    # (checkfirst), so a failure here means something genuinely wrong with the
+    # database, and continuing would boot the app against an incomplete schema
+    # while printing that everything is fine.
+    Base.metadata.create_all(bind=engine)
     run_migrations(engine)
     with SessionLocal() as migration_db:
         city_backfill = backfill_operating_cities(migration_db)

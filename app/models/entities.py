@@ -169,6 +169,17 @@ class Courier(Base):
     """مندوب شركة لوجستية أو فريلانسر."""
 
     __tablename__ = "couriers"
+    __table_args__ = (
+        # Every scoped read starts from the tenant; supervisor and branch are the
+        # two narrowings layered on top of it. These must be declared here as
+        # well as in the migration: a fresh install gets its schema from
+        # create_all and would otherwise have no index on couriers at all.
+        # Migration 0022 creates them with if_not_exists, so the two paths do
+        # not collide.
+        Index("ix_couriers_tenant_id", "tenant_id"),
+        Index("ix_couriers_tenant_supervisor", "tenant_id", "supervisor_id"),
+        Index("ix_couriers_tenant_branch", "tenant_id", "contract_branch_id"),
+    )
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"))
