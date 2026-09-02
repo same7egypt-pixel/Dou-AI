@@ -44,7 +44,6 @@ def calculate_plan_earnings(orders: int, plan: BonusPlan) -> dict:
 
     if plan_type == "FLAT_PER_ORDER":
         rate = max(float(getattr(plan, "flat_order_rate", 0.0) or 0.0), 0.0)
-        earned = orders * rate
         return {
             "plan_type": "FLAT_PER_ORDER",
             "achieved": True,
@@ -55,7 +54,7 @@ def calculate_plan_earnings(orders: int, plan: BonusPlan) -> dict:
             "flat_order_rate": rate,
             "remaining_orders": 0,
             "over_orders": orders,
-            "earned": round(earned, 2),
+            "earned": 0.0,
         }
 
     # TARGET_TIER
@@ -891,13 +890,26 @@ def finalize_payroll_period(
         period = PayrollPeriod(tenant_id=tenant_id, month=month, status="DRAFT")
         db.add(period)
         db.flush()
+    orders_override = None
+    if period and period.draft_overrides:
+        try:
+            parsed = json.loads(period.draft_overrides)
+            if isinstance(parsed, dict) and "orders" in parsed:
+                orders_override = {int(k): int(v) for k, v in parsed["orders"].items()}
+            elif isinstance(parsed, dict):
+                orders_override = {int(k): int(v) for k, v in parsed.items()}
+        except Exception:
+            orders_override = None
+
     couriers = (
         db.query(Courier)
         .filter(Courier.tenant_id == tenant_id)
         .order_by(Courier.id)
         .all()
     )
-    rows = [calculate_payroll_preview(db, courier, month) for courier in couriers]
+    rows = calculate_payroll_previews(
+        db, couriers, month, orders_override=orders_override
+    )
     for row in rows:
         db.add(
             PayrollSnapshot(
@@ -916,6 +928,9 @@ def finalize_payroll_period(
                     {
                         "bonus": row["bonus"],
                         "eligible_orders": row["eligible_orders"],
+                        "driver_orders": row.get("driver_orders", row["eligible_orders"]),
+                        "approved_orders": row.get("approved_orders", row["eligible_orders"]),
+                        "is_overridden": row.get("is_overridden", False),
                         "per_delivery_rate": row["per_delivery_rate"],
                         "compensation_source": row["compensation_source"],
                         "itemized_breakdown": row.get("itemized_breakdown"),

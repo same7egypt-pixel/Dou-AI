@@ -83,6 +83,27 @@ def driver_targets_progress(
         ent.Courier.tenant_id == tenant_id,
         ent.Courier.employment_status == "ACTIVE",
     )
+    if user.role == ent.UserRole.SUPERVISOR:
+        sup_branches = [
+            link.contract_branch_id
+            for link in db.query(ent.ContractBranchSupervisor)
+            .filter(ent.ContractBranchSupervisor.user_id == user.id)
+            .all()
+        ]
+        direct_branches = [
+            b.id
+            for b in db.query(ent.ContractBranch)
+            .filter(ent.ContractBranch.supervisor_id == user.id)
+            .all()
+        ]
+        allowed_branches = set(sup_branches + direct_branches)
+        if allowed_branches:
+            couriers_q = couriers_q.filter(
+                ent.Courier.contract_branch_id.in_(allowed_branches)
+            )
+        else:
+            couriers_q = couriers_q.filter(ent.Courier.supervisor_id == user.id)
+
     if branch_id:
         couriers_q = couriers_q.filter(ent.Courier.contract_branch_id == branch_id)
 
