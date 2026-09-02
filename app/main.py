@@ -13,7 +13,6 @@ from .database import get_db
 from .middleware.rate_limit import RateLimitMiddleware
 from .middleware.security_headers import SecurityHeadersMiddleware
 from .middleware.size_limit import RequestSizeLimitMiddleware
-from .services.observability import init_sentry
 from .routers import (
     admin,
     analytics,
@@ -52,6 +51,7 @@ from .routers import (
     vehicles,
     workforce,
 )
+from .services.observability import init_sentry
 
 app = FastAPI(title="DOU Platform API", version="0.2.0")
 
