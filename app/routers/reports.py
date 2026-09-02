@@ -15,6 +15,13 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import entities as ent
+from ..models.entities import Capability
+from ..services.entitlements import capabilities_for
+from ..services.vendor_scorecard import (
+    compliance_wall,
+    horizon_from,
+    vendor_scorecard,
+)
 from .auth import get_current_user
 
 router = APIRouter(prefix="/analytics/reports", tags=["reports"])
@@ -547,6 +554,45 @@ def _generate_metabase_embed_url(dashboard_id: int, tenant_id: Optional[int]) ->
     }
     token = jwt.encode(payload, METABASE_EMBEDDING_SECRET_KEY, algorithm="HS256")
     return f"{METABASE_SITE_URL}/embed/dashboard/{token}#bordered=false&titled=false"
+
+
+def _platform_scope(user: ent.User, db: Session) -> int:
+    """Tenant id for a caller entitled to manage vendors.
+
+    Enforced here rather than by hiding a menu item: the sidebar reflects the
+    same capability, but hiding a screen is presentation, not authorization.
+    """
+    tenant_id = _tenant_id(user)
+    tenant = db.get(ent.Tenant, tenant_id)
+    if Capability.MANAGE_OPERATORS.value not in capabilities_for(tenant):
+        raise HTTPException(403, "هذه الشاشة متاحة لحسابات منصات التوصيل فقط")
+    return tenant_id
+
+
+@router.get("/vendors/scorecard")
+def vendors_scorecard(
+    month: Optional[str] = Query(None),
+    horizon_days: Optional[int] = Query(None),
+    user: ent.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Per-vendor supply, attendance, compliance and delivered orders."""
+    tenant_id = _platform_scope(user, db)
+    # Unwrap Query defaults so the service can also be called directly.
+    month, horizon_days = _convert_query_objects(month, horizon_days)
+    return vendor_scorecard(db, tenant_id, month=month, horizon=horizon_from(horizon_days))
+
+
+@router.get("/vendors/compliance")
+def vendors_compliance(
+    horizon_days: Optional[int] = Query(None),
+    user: ent.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Lapsed and lapsing rider documents across every vendor, soonest first."""
+    tenant_id = _platform_scope(user, db)
+    (horizon_days,) = _convert_query_objects(horizon_days)
+    return compliance_wall(db, tenant_id, horizon=horizon_from(horizon_days))
 
 
 @router.get("/catalog")

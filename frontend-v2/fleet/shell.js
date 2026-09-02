@@ -17,6 +17,7 @@ const VIEW_LABELS_AR = {
   capacity: 'تخطيط السعة',
   reports: 'التقارير والتحليلات',
   payroll: 'الرواتب والعمليات المالية',
+  vendors: 'المورّدون والالتزام',
   douai: 'مساعد DOU AI',
 };
 
@@ -29,6 +30,7 @@ const VIEW_LABELS_EN = {
   capacity: 'Capacity Planning',
   reports: 'Reports & Analytics',
   payroll: 'Payroll & Settlements',
+  vendors: 'Vendors & Compliance',
   douai: 'DOU AI Assistant',
 };
 
@@ -43,6 +45,7 @@ const VIEW_ICONS = {
   capacity: '◫',
   reports: '📊',
   payroll: '💰',
+  vendors: '🤝',
   douai: '✨',
 };
 
@@ -51,6 +54,7 @@ const VIEW_GROUPS_AR = [
   { group: 'القوى العاملة', views: ['riders'] },
   { group: 'العمليات', views: ['shifts', 'capacity'] },
   { group: 'الأداء والامتثال', views: ['needsAttention', 'reports'] },
+  { group: 'شبكة المورّدين', views: ['vendors'] },
   { group: 'المالية', views: ['payroll'] },
   { group: 'المساعد الذكي', views: ['douai'] },
 ];
@@ -60,6 +64,7 @@ const VIEW_GROUPS_EN = [
   { group: 'WORKFORCE', views: ['riders'] },
   { group: 'OPERATIONS', views: ['shifts', 'capacity'] },
   { group: 'PERFORMANCE & COMPLIANCE', views: ['needsAttention', 'reports'] },
+  { group: 'VENDOR NETWORK', views: ['vendors'] },
   { group: 'FINANCE', views: ['payroll'] },
   { group: 'AI ASSISTANT', views: ['douai'] },
 ];
@@ -203,7 +208,7 @@ function renderSidebar() {
   // A screen the account cannot use is absent, not disabled: a payroll screen
   // on a delivery platform would either sit empty or imply a financial
   // decision the platform does not make -- its vendors pay the riders.
-  const REQUIRES = { payroll: 'RIDER_PAYROLL' };
+  const REQUIRES = { payroll: 'RIDER_PAYROLL', vendors: 'MANAGE_OPERATORS' };
   const permitted = (v) => !REQUIRES[v] || can(REQUIRES[v]);
 
   groups.forEach((g) => {
