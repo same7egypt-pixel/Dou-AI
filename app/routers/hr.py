@@ -3230,10 +3230,15 @@ def hr_payroll(
         driver_orders = int(row.get("driver_orders", orders) or 0)
         approved_orders = int(row.get("approved_orders", orders) or 0)
         is_overridden = bool(row.get("is_overridden", False))
-        per_order_rate = float(
-            row.get("per_delivery_rate")
-            or (round(delivery / orders, 2) if orders else 0)
-        )
+
+        if approved_orders > 0 and delivery > 0:
+            per_order_rate = round(delivery / approved_orders, 2)
+        else:
+            per_order_rate = float(
+                row.get("per_delivery_rate")
+                or getattr(courier, "per_delivery_rate", 0)
+                or 0.0
+            )
 
         rows.append(
             {

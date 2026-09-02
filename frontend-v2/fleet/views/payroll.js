@@ -191,14 +191,21 @@ async function renderPayrollLedger(container, mainContainer) {
     // 3. KPI Summary Cards
     const grossTotal = totals.gross || totals.total || (totals.fixed || 0) + (totals.delivery || 0) + (totals.bonus || 0) + (totals.additions || 0) || 0;
     const deductionsTotal = totals.deductions || (totals.absences || 0) + (totals.late || 0) + (totals.advances || 0) + (totals.other_deductions || 0) || 0;
-    const netTotal = totals.total || grossTotal - deductionsTotal;
+    const netTotal = totals.total ?? (grossTotal - deductionsTotal);
     const curr = isAr ? ' ر.س' : ' SAR';
+
+    const bankDisbursement = rows.reduce((acc, r) => acc + Math.max(0, r.total || 0), 0);
+    const totalRemainingAdvances = rows.reduce((acc, r) => acc + (r.total < 0 ? Math.abs(r.total) : 0), 0);
+
+    const netSubtext = totalRemainingAdvances > 0
+      ? (isAr ? `صرف بنكي للمستحقين: ${bankDisbursement.toLocaleString('ar-SA')} ر.س · سلف مستحقة للشركة: ${totalRemainingAdvances.toLocaleString('ar-SA')} ر.س` : `Bank Payable: ${bankDisbursement} SAR · Unrecovered Loans: ${totalRemainingAdvances} SAR`)
+      : (isAr ? 'جاهز للتحويل والصرف البنكي' : 'Ready for bank disbursement');
 
     container.append(el('div', { class: 'cards' }, [
       metricCard(`${(grossTotal || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`, isAr ? 'إجمالي الاستحقاقات (Gross)' : 'Gross Earnings', 'blue', null, isAr ? 'أساسي + إنتاجية طلبات + بونص' : 'Base + Delivery Pay + Bonus'),
       metricCard(data.couriers_count || rows.length || 0, isAr ? 'مناديب المسير المكتمل' : 'Total Eligible Drivers', 'blue', null, isAr ? 'كافة السائقين المسجلين' : 'All active registered drivers'),
       metricCard(`${(deductionsTotal || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`, isAr ? 'إجمالي الاستقطاعات' : 'Total Deductions', deductionsTotal > 0 ? 'alert' : 'blue', null, isAr ? 'غياب + تأخير + سلف + مخالفات' : 'Absence + Late + Advances + Penalties'),
-      metricCard(`${(netTotal || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`, isAr ? 'صافي حساب المسير (Net)' : 'Net Payable', 'trend', null, isAr ? 'جاهز للتحويل والصرف البنكي' : 'Ready for bank disbursement'),
+      metricCard(`${(netTotal || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`, isAr ? 'صافي حساب المسير (Net)' : 'Net Settlement', netTotal < 0 ? 'alert' : 'trend', null, netSubtext),
     ]));
 
     if (!rows.length) {
@@ -256,10 +263,14 @@ async function renderPayrollLedger(container, mainContainer) {
         ]);
       }},
       { key: 'fixed', label: isAr ? 'الأساسي والبدلات' : 'Base & Allowances', render: (v) => `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}` },
-      { key: 'delivery', label: isAr ? 'أجر الطلبات' : 'Delivery Earnings', render: (v, r) => el('div', {}, [
-        el('b', { style: 'color:var(--primary)' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`),
-        el('small', { style: 'display:block;color:var(--muted);font-size:10px' }, `${(r.approved_orders ?? r.orders ?? 0)} ${isAr ? 'طلب' : 'orders'} × ${r.per_delivery_rate || r.average_per_order || 0}${curr}`)
-      ]) },
+      { key: 'delivery', label: isAr ? 'أجر الطلبات' : 'Delivery Earnings', render: (v, r) => {
+        const orders = r.approved_orders ?? r.orders ?? 0;
+        const rate = r.per_delivery_rate || (orders > 0 ? Math.round((v / orders) * 100) / 100 : 0);
+        return el('div', {}, [
+          el('b', { style: 'color:var(--primary)' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`),
+          el('small', { style: 'display:block;color:var(--muted);font-size:10px' }, `${orders} ${isAr ? 'طلب' : 'orders'} × ${rate}${curr}`)
+        ]);
+      }},
       { key: 'bonus', label: isAr ? 'حافز التارجت' : 'Target Bonus', render: (v) => (v > 0 ? el('span', { style: 'color:#16a34a;font-weight:700' }, `+${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`) : `0${curr}`) },
       { key: 'gross', label: isAr ? 'إجمالي الاستحقاق' : 'Gross Total', render: (v, r) => {
         const val = v || (r.fixed || 0) + (r.delivery || 0) + (r.bonus || 0) + (r.additions || 0);
@@ -273,9 +284,18 @@ async function renderPayrollLedger(container, mainContainer) {
         const adv = (r.advance_deduction || 0) + (r.other_deductions || 0);
         return adv > 0 ? el('span', { style: 'color:#e11d48;font-weight:600' }, `-${adv.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`) : `0${curr}`;
       }},
-      { key: 'total', label: isAr ? 'صافي حساب المندوب' : 'Net Settlement', render: (v) => el('div', { style: 'background:rgba(2,132,199,0.08);padding:4px 8px;border-radius:6px;display:inline-block' }, [
-        el('b', { style: 'color:#0284c7;font-size:13px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`)
-      ]) },
+      { key: 'total', label: isAr ? 'صافي حساب المندوب' : 'Net Settlement', render: (v) => {
+        const net = v || 0;
+        if (net < 0) {
+          return el('div', { style: 'background:rgba(220,38,38,0.08);padding:4px 8px;border-radius:6px;display:inline-block;border:1px solid rgba(220,38,38,0.25)' }, [
+            el('b', { style: 'color:#dc2626;font-size:13px' }, `${net.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`),
+            el('small', { style: 'display:block;color:#dc2626;font-size:10px;font-weight:700' }, isAr ? 'مدين (متبقي سلفة)' : 'Over-advanced / Debt')
+          ]);
+        }
+        return el('div', { style: 'background:rgba(2,132,199,0.08);padding:4px 8px;border-radius:6px;display:inline-block' }, [
+          el('b', { style: 'color:#0284c7;font-size:13px' }, `${net.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`)
+        ]);
+      }},
       { key: 'actions', label: isAr ? 'كشف الحساب' : 'Statement', render: (_, r) => el('button', {
         class: 'btn btn-ghost btn-small',
         style: 'color:#0284c7;font-weight:700',
