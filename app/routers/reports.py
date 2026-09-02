@@ -102,7 +102,7 @@ def driver_targets_progress(
     branch_to_supervisors = defaultdict(list)
     for link in branch_supervisor_links:
         if link.contract_branch_id in branch_map:
-            branch_to_supervisors[link.contract_branch_id].append(link.user_id)
+            branch_to_supervisors[link.contract_branch_id].append(link.supervisor_id)
 
     # Filter Options for Frontend Selectors
     cities_set = sorted({b.city for b in branches_db if b.city})
@@ -139,7 +139,7 @@ def driver_targets_progress(
         sup_branches = [
             link.contract_branch_id
             for link in branch_supervisor_links
-            if link.user_id == user.id
+            if link.supervisor_id == user.id
         ]
         direct_branches = [
             b.id for b in branches_db if b.supervisor_id == user.id
