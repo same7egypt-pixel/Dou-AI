@@ -17,6 +17,11 @@ from ..database import get_db
 from ..models import entities as ent
 from ..models.entities import Capability
 from ..services.entitlements import capabilities_for
+from ..services.vendor_portal import (
+    grants_for_vendor,
+    vendor_compliance,
+    vendor_standing,
+)
 from ..services.vendor_scorecard import (
     compliance_wall,
     horizon_from,
@@ -593,6 +598,61 @@ def vendors_compliance(
     tenant_id = _platform_scope(user, db)
     (horizon_days,) = _convert_query_objects(horizon_days)
     return compliance_wall(db, tenant_id, horizon=horizon_from(horizon_days))
+
+
+@router.get("/vendor-portal/standing")
+def vendor_portal_standing(
+    platform_tenant_id: Optional[int] = Query(None),
+    month: Optional[str] = Query(None),
+    user: ent.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """The vendor's own numbers with a platform, and its rank among peers.
+
+    No capability check on the caller: the grant itself is the authorization,
+    and a vendor with no grant simply gets granted=false. Requiring a capability
+    here as well would mean a platform could open the portal and the vendor
+    still see nothing until someone edited its own plan.
+    """
+    tenant_id = _tenant_id(user)
+    platform_tenant_id, month = _convert_query_objects(platform_tenant_id, month)
+    return vendor_standing(db, tenant_id, platform_tenant_id, month=month)
+
+
+@router.get("/vendor-portal/compliance")
+def vendor_portal_compliance(
+    platform_tenant_id: Optional[int] = Query(None),
+    horizon_days: Optional[int] = Query(None),
+    user: ent.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """The vendor's own lapsed documents inside a platform's account."""
+    tenant_id = _tenant_id(user)
+    platform_tenant_id, horizon_days = _convert_query_objects(
+        platform_tenant_id, horizon_days
+    )
+    return vendor_compliance(
+        db, tenant_id, platform_tenant_id, horizon=horizon_from(horizon_days)
+    )
+
+
+@router.get("/vendor-portal/platforms")
+def vendor_portal_platforms(
+    user: ent.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Platforms that currently grant this vendor a view of its own slice."""
+    tenant_id = _tenant_id(user)
+    return {
+        "platforms": [
+            {
+                "platform_tenant_id": g.platform_tenant_id,
+                "platform": g.platform_name,
+                "expires": g.valid_to.isoformat() if g.valid_to else None,
+            }
+            for g in grants_for_vendor(db, tenant_id)
+        ]
+    }
 
 
 @router.get("/catalog")

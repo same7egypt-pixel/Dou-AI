@@ -1,15 +1,19 @@
 """Wave 4 router — platform governance, integration, security, scale."""
 
 import hashlib
+import json
 import secrets
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import entities as ent
+from ..models.entities import Capability
+from ..services.entitlements import VENDOR_PORTAL, capabilities_for
 from .auth import get_current_user
 
 router = APIRouter(prefix="/enterprise", tags=["enterprise"])
@@ -305,6 +309,81 @@ def list_delegated_scopes(
 
 
 # ---------- partner credentials ----------
+
+
+@router.post("/operators/{operator_id}/portal", status_code=200)
+def set_operator_portal(
+    operator_id: int,
+    payload: dict,
+    user: ent.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Open or close the vendor portal for one operator.
+
+    A single call rather than making the platform hand-craft a delegated scope:
+    opening is what the platform is paying for, and it should not require
+    knowing the scope vocabulary. Closing expires the grant rather than deleting
+    it, so the audit trail survives and nothing has to be cleaned up - the
+    vendor's access stops because the read resolves to nothing, not because data
+    moved.
+    """
+    tenant_id = _tenant_id(user)
+    tenant = db.get(ent.Tenant, tenant_id)
+    caps = capabilities_for(tenant)
+    if Capability.MANAGE_OPERATORS.value not in caps:
+        raise HTTPException(403, "هذه العملية متاحة لحسابات منصات التوصيل فقط")
+    if VENDOR_PORTAL not in caps:
+        raise HTTPException(
+            402, "بوابة المورّدين إضافة مدفوعة غير مفعّلة على باقة حسابك"
+        )
+
+    link = (
+        db.query(ent.PlatformOperator)
+        .filter(
+            ent.PlatformOperator.id == operator_id,
+            ent.PlatformOperator.tenant_id == tenant_id,
+        )
+        .first()
+    )
+    if not link:
+        raise HTTPException(404, "المشغّل غير موجود ضمن حسابك")
+
+    today = date.today()
+    enable = bool(payload.get("enabled", True))
+    existing = (
+        db.query(ent.DelegatedScope)
+        .filter(
+            ent.DelegatedScope.tenant_id == tenant_id,
+            ent.DelegatedScope.platform_operator_id == link.id,
+        )
+        .order_by(ent.DelegatedScope.valid_from.desc())
+        .first()
+    )
+
+    if not enable:
+        if existing and (existing.valid_to is None or existing.valid_to >= today):
+            existing.valid_to = today - timedelta(days=1)
+            db.commit()
+        return {"ok": True, "operator_id": link.id, "portal": "CLOSED"}
+
+    permissions = json.dumps(["READ_OWN_SLICE", "READ_OWN_RANKING"], ensure_ascii=False)
+    if existing and (existing.valid_to is None or existing.valid_to >= today):
+        existing.permissions = permissions
+        existing.valid_to = payload.get("valid_to") or None
+    else:
+        db.add(
+            ent.DelegatedScope(
+                tenant_id=tenant_id,
+                platform_operator_id=link.id,
+                scope_type="OPERATOR",
+                scope_id=link.operator_tenant_id,
+                permissions=permissions,
+                valid_from=today,
+                valid_to=payload.get("valid_to") or None,
+            )
+        )
+    db.commit()
+    return {"ok": True, "operator_id": link.id, "portal": "OPEN"}
 
 
 @router.post("/credentials", status_code=201)
