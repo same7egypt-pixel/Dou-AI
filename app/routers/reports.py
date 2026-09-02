@@ -10,6 +10,7 @@ import io
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -92,7 +93,7 @@ def driver_targets_progress(
 
     supervisors_db = db.query(ent.User).filter(
         ent.User.tenant_id == tenant_id,
-        ent.User.role.in_([ent.UserRole.SUPERVISOR, ent.UserRole.FLEET_SUPERVISOR]),
+        ent.User.role.in_([ent.UserRole.SUPERVISOR, ent.UserRole.OPERATIONS, ent.UserRole.PROJECT_MANAGER]),
     ).all()
     supervisor_map = {s.id: s for s in supervisors_db}
 
