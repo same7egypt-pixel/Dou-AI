@@ -4116,8 +4116,8 @@ def update_contract(
                 )
             project = db.get(Project, branch.project_id) if branch.project_id else None
             if project:
-                supervisor_name = supervisor.name if supervisor else "بدون مشرف"
-                project.name = f"{ct.name} — {city_ref.name} — {supervisor_name}"
+                # Project identity must remain stable when supervisors change. Renaming it
+                # here can collide with historical/inactive projects and breaks reporting.
                 project.manager_id = supervisor.id if supervisor else None
             for courier in (
                 db.query(Courier).filter(Courier.contract_branch_id == branch.id).all()

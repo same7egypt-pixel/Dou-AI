@@ -50,6 +50,7 @@ def test_supervisor_assignment_links_operational_and_financial_chain():
             tenant_id=tenant.id,
         )
         supervisor = User(
+            name="Primary Supervisor",
             phone="sup-life",
             password_hash="x",
             role=UserRole.SUPERVISOR,
@@ -110,6 +111,7 @@ def test_supervisor_assignment_links_operational_and_financial_chain():
         assert rider.supervisor_id == supervisor.id
 
         second_supervisor = User(
+            name="Second Supervisor",
             phone="sup-life-2",
             password_hash="x",
             role=UserRole.SUPERVISOR,
@@ -117,6 +119,13 @@ def test_supervisor_assignment_links_operational_and_financial_chain():
             is_active=True,
         )
         db.add(second_supervisor)
+        db.add(
+            Project(
+                tenant_id=tenant.id,
+                name=f"{contract.name} — {city.name} — {supervisor.name}",
+                is_active=False,
+            )
+        )
         db.commit()
         update_contract(
             contract.id,
