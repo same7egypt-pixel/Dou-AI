@@ -169,13 +169,6 @@ class Courier(Base):
     """مندوب شركة لوجستية أو فريلانسر."""
 
     __tablename__ = "couriers"
-    __table_args__ = (
-        # Every scoped read starts from the tenant; supervisor and branch are the
-        # two narrowings layered on top of it (workforce scoping, branch margins).
-        Index("ix_couriers_tenant_id", "tenant_id"),
-        Index("ix_couriers_tenant_supervisor", "tenant_id", "supervisor_id"),
-        Index("ix_couriers_tenant_branch", "tenant_id", "contract_branch_id"),
-    )
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"))
