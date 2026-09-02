@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base
 from app.models.entities import (
     CommercialSettlement, Courier, CourierType, Country, ExternalOperatorIdentity,
-    GeoCity, GeoCountry, NormalizedDeliveryFact, OperatorAgreement, RiderAssignment,
+    DailyLog, GeoCity, GeoCountry, NormalizedDeliveryFact, OperatorAgreement, RiderAssignment,
     SourcePlatform, Tenant, User, UserRole,
 )
 from app.routers import operators as operators_router
@@ -207,17 +207,23 @@ def test_commercial_settlement_decimal_precision(db):
 
 
 def test_commercial_settlement_with_orders(db):
-    """Test settlement calculation with eligible orders."""
+    """Settlement bills for the orders the platform recorded under the operator.
+
+    This used to seed NormalizedDeliveryFact rows inside the *operator's* tenant
+    and assert they were billed. That encoded a cross-tenant read with no grant
+    behind it, against a table nothing populates in practice, so real
+    settlements computed zero while the vendor scorecard beside them showed real
+    orders. Billing now reads the platform's own daily logs, grouped by
+    operator, which is the same source and grouping the scorecard uses.
+    """
     platform = make_platform_tenant(db)
     admin = make_admin(db, tenant_id=platform.id)
     operator = make_operator_tenant(db, "OperatorA")
     rider = make_rider(db, tenant_id=platform.id)
-    sp = make_source_platform(db)
-    
-    # Link operator to platform
+    make_source_platform(db)
+
     link_platform_operator(db, platform, operator)
-    
-    # Create agreement
+
     agreement = OperatorAgreement(
         tenant_id=platform.id, operator_id=operator.id,
         name="Test Agreement", compensation_model="PER_COMPLETED_ORDER",
@@ -225,24 +231,27 @@ def test_commercial_settlement_with_orders(db):
         effective_from=date.today(), status="ACTIVE",
     )
     db.add(agreement)
-    
-    # Create normalized delivery facts
-    for i in range(100):
-        fact = NormalizedDeliveryFact(
-            tenant_id=operator.id, source_platform_id=sp.id,
-            source_delivery_id=f"DEL_{i}", courier_id=rider.id,
-            event_type="COMPLETED", event_date=date.today(),
-            idempotency_key=f"idemp_{i}",
+
+    # The rider works for this operator, and the platform recorded 100 orders.
+    db.add(
+        RiderAssignment(
+            tenant_id=platform.id, courier_id=rider.id, operator_id=operator.id,
+            effective_from=date.today(), status="ACTIVE",
         )
-        db.add(fact)
+    )
+    db.add(
+        DailyLog(
+            tenant_id=platform.id, courier_id=rider.id,
+            log_date=date.today(), orders_count=100,
+        )
+    )
     db.commit()
-    
-    # Calculate settlement for current month
+
     current_month = date.today().strftime("%Y-%m")
     calc = operators_router.calculate_operator_settlement(
         operator.id, current_month, admin, db
     )
-    
+
     assert calc["eligible_orders"] == 100
     assert calc["base_amount"] == 800.0  # 100 * 8.00
 

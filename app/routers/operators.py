@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import entities as ent
+from ..services.vendor_scorecard import eligible_orders_for_operator
 from .auth import get_current_user
 
 router = APIRouter(prefix="/analytics/operators", tags=["operators"])
@@ -89,20 +90,13 @@ def calculate_operator_settlement(
     if not agreement:
         raise HTTPException(404, "No active agreement for operator")
 
-    # Count eligible orders for the period
-    eligible_orders = (
-        db.query(func.count(ent.NormalizedDeliveryFact.id))
-        .filter(
-            ent.NormalizedDeliveryFact.tenant_id == operator_id,
-            ent.NormalizedDeliveryFact.event_date
-            >= date.fromisoformat(period_month + "-01"),
-            ent.NormalizedDeliveryFact.event_date < _end_of_month(period_month),
-            ent.NormalizedDeliveryFact.event_type == "COMPLETED",
-        )
-        .scalar()
-        or 0
+    # Same source and same grouping as the vendor scorecard. Counting inside
+    # the operator's own tenant would be a cross-tenant read with no grant
+    # behind it, and it pointed at a table nothing fills, so every settlement
+    # came out zero while the scorecard showed real orders.
+    eligible_orders = eligible_orders_for_operator(
+        db, tenant_id, operator_id, period_month
     )
-
     # Calculate amounts using Decimal
     base_amount = Decimal(str(eligible_orders)) * agreement.rate
 

@@ -260,3 +260,39 @@ def horizon_from(value: int | None) -> int:
     except (TypeError, ValueError):
         return DEFAULT_HORIZON_DAYS
     return max(1, min(days, 180))
+
+
+def eligible_orders_for_operator(
+    db: Session, tenant_id: int, operator_id: int, period_month: str
+) -> int:
+    """Delivered orders a platform owes an operator for, in one month.
+
+    Counted from the platform's own tenant and grouped by operator, which is the
+    same source and the same grouping the vendor scorecard shows. Settlement
+    previously counted rows inside the *operator's* tenant instead: a read
+    across a tenant boundary with no grant behind it, against a table nothing
+    populates, so every settlement computed zero while the scorecard beside it
+    showed real orders.
+    """
+    year, month_number = (int(part) for part in period_month.split("-", 1))
+    start = date(year, month_number, 1)
+    end = date(year + 1, 1, 1) if month_number == 12 else date(year, month_number + 1, 1)
+
+    rider_ids = [
+        courier_id
+        for courier_id, mapped in _rider_operator_map(db, tenant_id).items()
+        if mapped == operator_id
+    ]
+    if not rider_ids:
+        return 0
+
+    return sum(
+        max(int(count or 0), 0)
+        for (count,) in db.query(DailyLog.orders_count)
+        .filter(
+            DailyLog.courier_id.in_(rider_ids),
+            DailyLog.log_date >= start,
+            DailyLog.log_date < end,
+        )
+        .all()
+    )
