@@ -9,7 +9,7 @@ export async function loadTenants(container) {
       el('div', { class: 'kicker' }, 'إدارة الشركات'),
       el('h1', { text: 'الشركات المشتركة' })
     ]),
-    el('button', { class: 'btn-ghost', onclick: () => loadTenants(container) }, '↻ تحديث')
+    el('button', { class: 'btn btn-ghost', onclick: () => loadTenants(container) }, '↻ تحديث')
   ]));
   const body = el('div', {}, [loadingState('جاري تحميل الشركات...')]);
   container.append(body);
@@ -41,7 +41,7 @@ export async function loadTenants(container) {
       { key: 'country', label: 'البلد' },
       { key: 'currency', label: 'العملة' },
       { key: 'status', label: 'الحالة', render: (v, row) => badge(row.subscription_status || v || 'ACTIVE', (row.subscription_status === 'ACTIVE' || v === 'ACTIVE') ? 'green' : 'amber') },
-      { key: 'actions', label: 'إجراء', render: (_, row) => el('button', { class: 'btn-ghost btn-small', onclick: () => showTenantDetails(row) }, 'تفاصيل') },
+      { key: 'actions', label: 'إجراء', render: (_, row) => el('button', { class: 'btn btn-ghost btn-small', onclick: () => showTenantDetails(row) }, 'تفاصيل') },
     ], rows));
   } catch (e) { body.replaceWith(errorState('تعذر التحميل: ' + e.message)); }
 }

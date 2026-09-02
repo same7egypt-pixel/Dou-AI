@@ -1,7 +1,27 @@
 // scripts/full_functions_test.mjs — Comprehensive Functions Test Suite for DOU Fleet OS
+//
+// Target defaults to the local staging stack, never production. This suite logs
+// in, reads tenant data and exercises write paths; pointing it at the live site
+// means running it against real customer records. To aim it somewhere else:
+//
+//   DOU_TEST_URL=http://127.0.0.1:8001 node scripts/full_functions_test.mjs
+//
+// Running it against production requires saying so explicitly:
+//
+//   DOU_TEST_URL=https://dou.delivery DOU_ALLOW_PRODUCTION=yes node scripts/...
 import { chromium } from 'playwright';
 
-const LIVE_URL = 'https://dou.delivery';
+const LIVE_URL = process.env.DOU_TEST_URL || 'http://127.0.0.1:8001';
+
+if (LIVE_URL.includes('dou.delivery') && process.env.DOU_ALLOW_PRODUCTION !== 'yes') {
+  console.error(
+    `\nRefusing to run against ${LIVE_URL}.\n` +
+    'This suite signs in and exercises write paths, so it belongs on staging.\n' +
+    'Start staging with:  docker compose --profile staging up -d\n' +
+    'If you really mean production, set DOU_ALLOW_PRODUCTION=yes.\n'
+  );
+  process.exit(1);
+}
 const CREDENTIALS = {
   fleetAdmin: { phone: '966581112233', password: 'dou123456', role: 'FLEET_ADMIN' },
   opsManager: { phone: '966500000000', password: 'dou123456', role: 'OPERATIONS' },
@@ -252,9 +272,15 @@ async function runAllTests() {
     record('UI_E2E', 'Web App Authentication & Shell Load', isLoggedIn, 'Shell loaded successfully');
 
     // 7.2 Command Center View
+    // Wait for the cards themselves, not a fixed delay. A flat 1s was enough on
+    // a warm production box and not enough on a single-worker staging one, so
+    // this step failed intermittently for no product reason.
     await page.click('.nav-item[data-view="commandCenter"]');
-    await page.waitForTimeout(1000);
-    const hasCards = await page.locator('.metric-card, .card').first().isVisible();
+    // waitFor actually waits; isVisible() returns immediately on whatever is
+    // in the DOM at that instant, which is why a fixed sleep was needed before
+    // and why it failed on a slower box.
+    const hasCards = await page.locator('.metric-card, .card').first()
+      .waitFor({ state: 'visible', timeout: 15000 }).then(() => true).catch(() => false);
     record('UI_E2E', 'Command Center Navigation & KPI Cards', hasCards, 'KPIs visible');
 
     // 7.3 Couriers / Workforce View

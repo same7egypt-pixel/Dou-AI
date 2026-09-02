@@ -93,7 +93,7 @@ async function renderCapacityPlanning(contentArea, mainContainer, isPlatform) {
     el('input', { id: 'cap-scope-id', type: 'number', placeholder: isAr ? 'رقم النطاق' : 'Scope ID', onchange: () => loadCapacityMetrics(contentArea, isPlatform) }),
     el('input', { id: 'cap-required', type: 'number', placeholder: isAr ? 'عدد مطلوب' : 'Required Count', min: '0' }),
     el('input', { id: 'cap-effective', type: 'date', value: new Date().toISOString().slice(0, 10) }),
-    el('button', { class: 'btn-blue', onclick: () => saveRequirement(mainContainer) }, isAr ? 'حفظ الاحتياج' : 'Save Requirement'),
+    el('button', { class: 'btn btn-blue', onclick: () => saveRequirement(mainContainer) }, isAr ? 'حفظ الاحتياج' : 'Save Requirement'),
   ]);
   contentArea.append(filters);
 
@@ -891,7 +891,7 @@ async function saveRequirement(container) {
   if (!scopeType || !scopeId || !effectiveFrom || required < 0 || document.getElementById('cap-required').value === '') {
     modal('تنبيه', el('div', {}, [
       el('p', { style: 'color:var(--amber)' }, '⚠️ يرجى اختيار نوع ورقم النطاق وتاريخ السريان والعدد المطلوب.'),
-      el('button', { class: 'btn-ghost', onclick: () => document.querySelector('.modal-overlay')?.remove() }, 'حسناً')
+      el('button', { class: 'btn btn-ghost', onclick: () => document.querySelector('.modal-overlay')?.remove() }, 'حسناً')
     ]));
     return;
   }
@@ -922,7 +922,7 @@ async function renderPlatformSettlements(contentArea, container, isAdmin) {
         { key: 'status', label: 'الحالة', render: (v) => badge(v, v === 'APPROVED' ? 'green' : v === 'NEEDS_REVIEW' ? 'amber' : 'gray') },
         { key: 'actions', label: 'إجراء', render: (_, r) => {
           if (r.status !== 'APPROVED' && isAdmin) {
-            return el('button', { class: 'btn-green btn-small', onclick: () => approveSettlement(r.id, container) }, 'اعتماد التسوية');
+            return el('button', { class: 'btn btn-green btn-small', onclick: () => approveSettlement(r.id, container) }, 'اعتماد التسوية');
           }
           return r.status === 'APPROVED' ? '✅ معتمدة' : '—';
         }},
@@ -941,7 +941,7 @@ async function approveSettlement(id, container) {
   } catch (e) {
     modal('خطأ في الاعتماد', el('div', {}, [
       el('p', { style: 'color:var(--red)' }, 'تعذر اعتماد التسوية: ' + e.message),
-      el('button', { class: 'btn-ghost', onclick: () => document.querySelector('.modal-overlay')?.remove() }, 'إغلاق')
+      el('button', { class: 'btn btn-ghost', onclick: () => document.querySelector('.modal-overlay')?.remove() }, 'إغلاق')
     ]));
   }
 }
@@ -952,7 +952,7 @@ async function openCalculateSettlementModal(container) {
     if (!operators || !operators.length) {
       modal('حساب تسوية مشغل', el('div', {}, [
         el('p', { style: 'color:var(--amber)' }, '⚠️ لا يوجد مشغلون مسجلون في المنصة.'),
-        el('button', { class: 'btn-ghost', onclick: () => document.querySelector('.modal-overlay')?.remove() }, 'إغلاق')
+        el('button', { class: 'btn btn-ghost', onclick: () => document.querySelector('.modal-overlay')?.remove() }, 'إغلاق')
       ]));
       return;
     }
@@ -967,8 +967,8 @@ async function openCalculateSettlementModal(container) {
       formRow([inputField('cs-reason', 'سبب التعديل اليدوي', { placeholder: 'مثال: مكافأة حملة خاصة' })]),
       el('div', { id: 'cs-preview', style: 'margin:12px 0' }),
       el('div', { style: 'display:flex;gap:8px' }, [
-        el('button', { type: 'button', class: 'btn-ghost', onclick: () => calculatePreview() }, 'معاينة الحساب'),
-        el('button', { type: 'submit', class: 'btn-blue' }, 'حفظ التسوية'),
+        el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => calculatePreview() }, 'معاينة الحساب'),
+        el('button', { type: 'submit', class: 'btn btn-blue' }, 'حفظ التسوية'),
       ]),
       el('span', { id: 'cs-msg', class: 'msg' })
     ]);

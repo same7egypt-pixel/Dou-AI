@@ -20,7 +20,7 @@ export async function loadPayroll(container) {
     ]),
     el('div', { class: 'header-actions' }, [
       el('button', { class: 'btn btn-ghost', onclick: () => loadPayroll(container) }, `↻ ${t('تحديث البيانات')}`),
-      el('button', { class: 'btn-ai', onclick: () => openAIDrawer(isAr ? 'تقرير الرواتب' : 'Payroll report') }, [
+      el('button', { class: 'btn btn-ai', onclick: () => openAIDrawer(isAr ? 'تقرير الرواتب' : 'Payroll report') }, [
         el('span', { text: '✨' }),
         el('span', { text: isAr ? 'استفسار مالي ذكي' : 'Smart Financial Query' })
       ]),

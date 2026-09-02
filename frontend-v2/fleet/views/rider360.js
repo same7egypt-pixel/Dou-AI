@@ -20,24 +20,13 @@ export async function loadRider360(container, riderId = null) {
   const initialTab = window.__rider360InitialTab || 'profile';
   window.__rider360InitialTab = null;
 
-  const TABS = [
-    { id: 'profile', label: isAr ? 'الملف الشخصي' : 'Profile' },
-    { id: 'documents', label: isAr ? 'المستندات' : 'Documents' },
-    { id: 'shifts', label: isAr ? 'الورديات' : 'Shifts' },
-    { id: 'attendance', label: isAr ? 'الحضور' : 'Attendance' },
-    { id: 'performance', label: isAr ? 'الأداء' : 'Performance' },
-    { id: 'targets', label: isAr ? 'الأهداف' : 'Targets' },
-    { id: 'payroll', label: isAr ? 'الراتب' : 'Payroll' },
-    { id: 'leave', label: isAr ? 'الإجازات' : 'Leaves' },
-  ];
-
   container.innerHTML = '';
   container.append(el('div', { class: 'header' }, [
     el('div', {}, [
       el('div', { class: 'kicker' }, isAr ? 'الملف التشغيلي الموحد' : 'Unified Operational Workspace'),
       el('h1', { text: isAr ? '◎ ملف السائق 360' : '◎ Driver 360 Profile' })
     ]),
-    el('button', { class: 'btn-ghost', onclick: () => go('riders') }, isAr ? 'العودة للسائقين' : '← Back to Drivers'),
+    el('button', { class: 'btn btn-ghost', onclick: () => go('riders') }, isAr ? 'العودة للسائقين' : '← Back to Drivers'),
   ]));
 
   const riderSelectorCard = el('div', { class: 'card', style: 'padding:14px 18px;margin-bottom:16px;background:var(--card);border:1px solid var(--border);border-radius:12px' });
@@ -92,8 +81,26 @@ export async function loadRider360(container, riderId = null) {
   }
 }
 
+// Module scope on purpose. This list used to be declared inside the render
+// function while renderTabs read it from here, so every visit to Driver 360
+// threw "TABS is not defined". The throw happened inside a try block, so the
+// screen reported "تعذر تحميل السائقين" and the real cause never surfaced.
+function riderTabs() {
+  const isAr = getLang() === 'ar';
+  return [
+    { id: 'profile', label: isAr ? 'الملف الشخصي' : 'Profile' },
+    { id: 'documents', label: isAr ? 'المستندات' : 'Documents' },
+    { id: 'shifts', label: isAr ? 'الورديات' : 'Shifts' },
+    { id: 'attendance', label: isAr ? 'الحضور' : 'Attendance' },
+    { id: 'performance', label: isAr ? 'الأداء' : 'Performance' },
+    { id: 'targets', label: isAr ? 'الأهداف' : 'Targets' },
+    { id: 'payroll', label: isAr ? 'الراتب' : 'Payroll' },
+    { id: 'leave', label: isAr ? 'الإجازات' : 'Leaves' },
+  ];
+}
+
 function renderTabs(container, content, startTab = 'profile') {
-  const tabs = el('div', { class: 'tabs' }, TABS.map((t) => el('button', { class: `tab ${t.id === startTab ? 'active' : ''}`, 'data-tab': t.id, onclick: () => switchTab(t.id) }, t.label)));
+  const tabs = el('div', { class: 'tabs' }, riderTabs().map((t) => el('button', { class: `tab ${t.id === startTab ? 'active' : ''}`, 'data-tab': t.id, onclick: () => switchTab(t.id) }, t.label)));
   const pane = el('div', { class: 'tab-pane' }, [loadingState('جاري تحميل البيانات...')]);
   content.replaceWith(el('div', {}, [tabs, pane]));
   switchTab(startTab);
@@ -163,10 +170,10 @@ async function renderProfile() {
       fieldPair('المشرف', profile.supervisor_id || '—'),
     ]),
     canManage ? el('div', { style: 'margin-top:14px;display:flex;gap:8px;flex-wrap:wrap' }, [
-      el('button', { class: 'btn-blue btn-small', onclick: () => assignVehicle() }, 'إسناد / تغيير مركبة'),
-      ['NEW', 'INCOMPLETE'].includes(readiness?.onboarding_status) ? el('button', { class: 'btn-ghost btn-small', onclick: () => transitionReadiness('SUBMIT_FOR_REVIEW') }, 'إرسال للمراجعة') : null,
-      readiness?.onboarding_status === 'READY_FOR_REVIEW' ? el('button', { class: 'btn-green btn-small', onclick: () => transitionReadiness('ACTIVATE') }, 'تفعيل للعمل') : null,
-      readiness?.onboarding_status === 'READY_FOR_REVIEW' ? el('button', { class: 'btn-red btn-small', onclick: () => transitionReadiness('REJECT') }, 'إعادة للاستكمال') : null,
+      el('button', { class: 'btn btn-blue btn-small', onclick: () => assignVehicle() }, 'إسناد / تغيير مركبة'),
+      ['NEW', 'INCOMPLETE'].includes(readiness?.onboarding_status) ? el('button', { class: 'btn btn-ghost btn-small', onclick: () => transitionReadiness('SUBMIT_FOR_REVIEW') }, 'إرسال للمراجعة') : null,
+      readiness?.onboarding_status === 'READY_FOR_REVIEW' ? el('button', { class: 'btn btn-green btn-small', onclick: () => transitionReadiness('ACTIVATE') }, 'تفعيل للعمل') : null,
+      readiness?.onboarding_status === 'READY_FOR_REVIEW' ? el('button', { class: 'btn btn-red btn-small', onclick: () => transitionReadiness('REJECT') }, 'إعادة للاستكمال') : null,
     ]) : null,
   ]));
   wrap.append(el('div', { class: 'card' }, [
@@ -192,8 +199,8 @@ async function renderDocuments() {
     { key: 'status', label: 'الحالة', render: (v) => badge(v, v === 'VALID' ? 'green' : v === 'PENDING' ? 'amber' : 'red') },
     { key: 'expiry_date', label: 'الانتهاء' },
     { key: 'actions', label: 'إجراء', render: (_, row) => row.status === 'PENDING' && canManage ? el('div', { class: 'inline-actions' }, [
-      el('button', { class: 'btn-green btn-small', onclick: () => window.decideDoc(row.id, 'VALID') }, 'اعتماد'),
-      el('button', { class: 'btn-red btn-small', onclick: () => window.decideDoc(row.id, 'REJECTED') }, 'رفض'),
+      el('button', { class: 'btn btn-green btn-small', onclick: () => window.decideDoc(row.id, 'VALID') }, 'اعتماد'),
+      el('button', { class: 'btn btn-red btn-small', onclick: () => window.decideDoc(row.id, 'REJECTED') }, 'رفض'),
     ]) : '—' },
   ], docs));
   return wrap;
@@ -204,14 +211,14 @@ async function renderShifts() {
   const shifts = await api.get(`/shifts/riders/${id}/shifts`);
   const wrap = el('div', {});
   const canManage = ['COMPANY', 'COMPANY_ADMIN', 'OPERATIONS', 'HR'].includes(getCurrentRole());
-  if (canManage) wrap.append(el('button', { class: 'btn-blue', style: 'margin-bottom:12px', onclick: () => assignShift() }, 'إسناد وردية'));
+  if (canManage) wrap.append(el('button', { class: 'btn btn-blue', style: 'margin-bottom:12px', onclick: () => assignShift() }, 'إسناد وردية'));
   if (!shifts?.length) { wrap.append(emptyState('لا ورديات مسندة.')); return wrap; }
   wrap.append(table([
     { key: 'name', label: 'الوردية' },
     { key: 'start_time', label: 'من' },
     { key: 'end_time', label: 'إلى' },
     { key: 'status', label: 'الحالة', render: (v) => badge(v, v === 'ACTIVE' ? 'green' : 'gray') },
-    { key: 'actions', label: 'إجراء', render: (_, row) => canManage ? el('button', { class: 'btn-red btn-small', onclick: () => window.removeShift(row.id) }, 'إزالة') : '—' },
+    { key: 'actions', label: 'إجراء', render: (_, row) => canManage ? el('button', { class: 'btn btn-red btn-small', onclick: () => window.removeShift(row.id) }, 'إزالة') : '—' },
   ], shifts));
   return wrap;
 }
@@ -227,7 +234,7 @@ async function renderAttendance() {
     { key: 'check_in', label: 'الدخول', render: (v) => v ? new Date(v).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—' },
     { key: 'check_out', label: 'الخروج', render: (v) => v ? new Date(v).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—' },
     { key: 'status', label: 'الحالة', render: (v) => badge(v, v === 'PRESENT' ? 'green' : v === 'LATE' ? 'amber' : 'red') },
-    { key: 'actions', label: 'تصحيح', render: (_, r) => el('button', { class: 'btn-ghost btn-small', onclick: () => window.correctAtt(r.id) }, 'تصحيح') },
+    { key: 'actions', label: 'تصحيح', render: (_, r) => el('button', { class: 'btn btn-ghost btn-small', onclick: () => window.correctAtt(r.id) }, 'تصحيح') },
   ], rows));
   return wrap;
 }
@@ -253,7 +260,7 @@ async function renderTargets() {
   const targets = await api.get(`/analytics/targets?scope_type=RIDER&scope_id=${id}`);
   const wrap = el('div', {});
   const canManage = ['COMPANY', 'COMPANY_ADMIN', 'OPERATIONS', 'HR'].includes(getCurrentRole());
-  if (canManage) wrap.append(el('button', { class: 'btn-blue', style: 'margin-bottom:12px', onclick: () => setTarget() }, 'تحديد / تعديل هدف'));
+  if (canManage) wrap.append(el('button', { class: 'btn btn-blue', style: 'margin-bottom:12px', onclick: () => setTarget() }, 'تحديد / تعديل هدف'));
   if (!targets?.length) { wrap.append(emptyState('لا أهداف محددة.')); return wrap; }
   wrap.append(table([
     { key: 'target_type', label: 'الهدف' },
@@ -291,7 +298,7 @@ async function renderLeave() {
 
   const topBar = el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px' }, [
     el('h3', { text: '🌴 سجل وإدارة الإجازات' }),
-    canManage ? el('button', { class: 'btn-blue', id: 'btn-request-leave', onclick: () => window.openRequestLeaveModal(id) }, '+ طلب إجازة') : null,
+    canManage ? el('button', { class: 'btn btn-blue', id: 'btn-request-leave', onclick: () => window.openRequestLeaveModal(id) }, '+ طلب إجازة') : null,
   ]);
   wrap.append(topBar);
 
@@ -324,8 +331,8 @@ async function renderLeave() {
       { key: 'reason', label: 'السبب', render: (v) => v || '—' },
       { key: 'status', label: 'الحالة', render: (v) => badge(v === 'APPROVED' ? 'معتمد' : v === 'PENDING' ? 'قيد المراجعة' : v === 'SUPERVISOR_APPROVED' ? 'معتمد مبدئياً' : 'مرفوض', v === 'APPROVED' ? 'green' : v.includes('PENDING') || v.includes('SUPERVISOR') ? 'amber' : 'red') },
       { key: 'actions', label: 'إجراء', render: (_, r) => (r.status === 'PENDING' || r.status === 'SUPERVISOR_APPROVED') && canManage ? el('div', { class: 'inline-actions' }, [
-        el('button', { class: 'btn-green btn-small', onclick: () => window.openLeaveDecisionModal(r.id, 'APPROVED') }, 'موافقة'),
-        el('button', { class: 'btn-red btn-small', onclick: () => window.openLeaveDecisionModal(r.id, 'REJECTED') }, 'رفض'),
+        el('button', { class: 'btn btn-green btn-small', onclick: () => window.openLeaveDecisionModal(r.id, 'APPROVED') }, 'موافقة'),
+        el('button', { class: 'btn btn-red btn-small', onclick: () => window.openLeaveDecisionModal(r.id, 'REJECTED') }, 'رفض'),
       ]) : '—' },
     ], leaves));
   } catch (e) {
@@ -351,7 +358,7 @@ window.openRequestLeaveModal = async (courierId) => {
         inputField('leave-to-date', 'إلى تاريخ', { type: 'date', value: todayStr, required: true }),
       ]),
       inputField('leave-reason', 'سبب الإجازة', { type: 'text', placeholder: 'مثال: ظروف عائلية أو سفر', required: true }),
-      el('button', { type: 'submit', class: 'btn-blue', style: 'margin-top:12px' }, 'إرسال طلب الإجازة'),
+      el('button', { type: 'submit', class: 'btn btn-blue', style: 'margin-top:12px' }, 'إرسال طلب الإجازة'),
       el('span', { id: 'leave-req-msg', class: 'msg' })
     ]);
 
@@ -430,7 +437,7 @@ async function assignVehicle() {
     if (!vehicles.length) {
       modal('إسناد مركبة', el('div', {}, [
         el('p', { style: 'color:var(--red)' }, '⚠️ لا توجد مركبات نشطة في الأسطول.'),
-        el('button', { class: 'btn-ghost', onclick: () => document.querySelector('.modal-overlay')?.remove() }, 'إغلاق')
+        el('button', { class: 'btn btn-ghost', onclick: () => document.querySelector('.modal-overlay')?.remove() }, 'إغلاق')
       ]));
       return;
     }
@@ -441,7 +448,7 @@ async function assignVehicle() {
     const content = el('form', {}, [
       formRow([vehicleSelect]),
       formRow([inputField('av-date', 'تاريخ بداية الإسناد', { type: 'date', value: new Date().toISOString().slice(0, 10), required: true })]),
-      el('button', { type: 'submit', class: 'btn-blue' }, 'حفظ الإسناد'),
+      el('button', { type: 'submit', class: 'btn btn-blue' }, 'حفظ الإسناد'),
       el('span', { id: 'av-msg', class: 'msg' })
     ]);
     const m = modal('إسناد مركبة للسائق', content);
@@ -477,7 +484,7 @@ async function transitionReadiness(action) {
   } catch (e) {
     modal('خطأ في انتقال الجاهزية', el('div', {}, [
       el('p', { style: 'color:var(--red)' }, 'تعذر تنفيذ الإجراء: ' + e.message),
-      el('button', { class: 'btn-ghost', onclick: () => document.querySelector('.modal-overlay')?.remove() }, 'إغلاق')
+      el('button', { class: 'btn btn-ghost', onclick: () => document.querySelector('.modal-overlay')?.remove() }, 'إغلاق')
     ]));
   }
 }
@@ -488,7 +495,7 @@ async function assignShift() {
     if (!shifts.length) {
       modal('إسناد وردية', el('div', {}, [
         el('p', { style: 'color:var(--red)' }, '⚠️ لا توجد ورديات متاحة. أنشئ وردية أولاً من جدول الورديات.'),
-        el('button', { class: 'btn-ghost', onclick: () => document.querySelector('.modal-overlay')?.remove() }, 'إغلاق')
+        el('button', { class: 'btn btn-ghost', onclick: () => document.querySelector('.modal-overlay')?.remove() }, 'إغلاق')
       ]));
       return;
     }
@@ -498,7 +505,7 @@ async function assignShift() {
     })));
     const content = el('form', {}, [
       formRow([shiftSelect]),
-      el('button', { type: 'submit', class: 'btn-blue' }, 'إسناد الوردية'),
+      el('button', { type: 'submit', class: 'btn btn-blue' }, 'إسناد الوردية'),
       el('span', { id: 'as-msg', class: 'msg' })
     ]);
     const m = modal('إسناد وردية للسائق', content);
@@ -534,7 +541,7 @@ async function setTarget() {
     formRow([
       inputField('st-val', 'قيمة الهدف المطلوب', { type: 'number', min: 1, value: 100, required: true }),
     ]),
-    el('button', { type: 'submit', class: 'btn-blue' }, 'حفظ الهدف'),
+    el('button', { type: 'submit', class: 'btn btn-blue' }, 'حفظ الهدف'),
     el('span', { id: 'st-msg', class: 'msg' })
   ]);
   const m = modal('تحديد هدف للسائق', content);

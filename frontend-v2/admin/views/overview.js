@@ -4,7 +4,7 @@ import { el, loadingState, errorState, metricCard } from '../../shared/component
 
 export async function loadOverview(container) {
   container.innerHTML = '';
-  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'لوحة قيادة المنصة'), el('h1', { text: 'لوحة القيادة' })]), el('button', { class: 'btn-ghost', onclick: () => loadOverview(container) }, '↻ تحديث')]));
+  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'لوحة قيادة المنصة'), el('h1', { text: 'لوحة القيادة' })]), el('button', { class: 'btn btn-ghost', onclick: () => loadOverview(container) }, '↻ تحديث')]));
   const body = el('div', {}, [loadingState('جاري التحميل...')]);
   container.append(body);
   try {

@@ -80,7 +80,7 @@ export async function loadNeedsAttention(container) {
     ]),
     el('div', { class: 'header-actions' }, [
       el('button', { class: 'btn btn-ghost', onclick: () => loadNeedsAttention(container) }, isAr ? '↻ تحديث' : '↻ Refresh'),
-      el('button', { class: 'btn-ai', onclick: () => openAIDrawer(isAr ? 'ما الذي يحتاج انتباهي اليوم؟' : 'What needs my attention today?') }, [
+      el('button', { class: 'btn btn-ai', onclick: () => openAIDrawer(isAr ? 'ما الذي يحتاج انتباهي اليوم؟' : 'What needs my attention today?') }, [
         el('span', { text: '✨' }),
         el('span', { text: isAr ? 'تحليل الاستثناءات' : 'Analyze Exceptions' })
       ]),

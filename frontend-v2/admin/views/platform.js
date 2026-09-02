@@ -4,7 +4,7 @@ import { el, loadingState, emptyState, errorState, metricCard, table } from '../
 
 export async function loadRevenue(container) {
   container.innerHTML = '';
-  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'المالية'), el('h1', { text: 'التحصيل والإيرادات' })]), el('button', { class: 'btn-ghost', onclick: () => loadRevenue(container) }, '↻ تحديث')]));
+  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'المالية'), el('h1', { text: 'التحصيل والإيرادات' })]), el('button', { class: 'btn btn-ghost', onclick: () => loadRevenue(container) }, '↻ تحديث')]));
   const body = el('div', {}, [loadingState('جاري التحميل...')]);
   container.append(body);
   try {
@@ -20,13 +20,13 @@ export async function loadRevenue(container) {
 
 export async function loadPlans(container) {
   container.innerHTML = '';
-  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'الباقات'), el('h1', { text: 'الباقات والأسعار' })]), el('button', { class: 'btn-ghost', onclick: () => loadPlans(container) }, '↻ تحديث')]));
+  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'الباقات'), el('h1', { text: 'الباقات والأسعار' })]), el('button', { class: 'btn btn-ghost', onclick: () => loadPlans(container) }, '↻ تحديث')]));
   container.append(el('div', {}, [emptyState('إدارة الباقات من إدارة DOU — تواصل مع الدعم للتعديلات.')]));
 }
 
 export async function loadUsage(container) {
   container.innerHTML = '';
-  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'الاستخدام'), el('h1', { text: 'الاستخدام والحدود' })]), el('button', { class: 'btn-ghost', onclick: () => loadUsage(container) }, '↻ تحديث')]));
+  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'الاستخدام'), el('h1', { text: 'الاستخدام والحدود' })]), el('button', { class: 'btn btn-ghost', onclick: () => loadUsage(container) }, '↻ تحديث')]));
   const body = el('div', {}, [loadingState('جاري التحميل...')]);
   container.append(body);
   try {
@@ -38,7 +38,7 @@ export async function loadUsage(container) {
 
 export async function loadHealth(container) {
   container.innerHTML = '';
-  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'صحة المنصة'), el('h1', { text: 'صحة المنصة' })]), el('button', { class: 'btn-ghost', onclick: () => loadHealth(container) }, '↻ تحديث')]));
+  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'صحة المنصة'), el('h1', { text: 'صحة المنصة' })]), el('button', { class: 'btn btn-ghost', onclick: () => loadHealth(container) }, '↻ تحديث')]));
   const body = el('div', {}, [loadingState('جاري الفحص...')]);
   container.append(body);
   try {
@@ -50,13 +50,13 @@ export async function loadHealth(container) {
 
 export async function loadIntegrations(container) {
   container.innerHTML = '';
-  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'التكاملات'), el('h1', { text: 'التكاملات والويبهوكات' })]), el('button', { class: 'btn-ghost', onclick: () => loadIntegrations(container) }, '↻ تحديث')]));
+  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'التكاملات'), el('h1', { text: 'التكاملات والويبهوكات' })]), el('button', { class: 'btn btn-ghost', onclick: () => loadIntegrations(container) }, '↻ تحديث')]));
   container.append(el('div', {}, [emptyState('إدارة التكاملات من إعدادات النظام — تواصل مع الدعم للتعديلات.')]));
 }
 
 export async function loadAudit(container) {
   container.innerHTML = '';
-  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'السجل'), el('h1', { text: 'سجل إدارة DOU' })]), el('button', { class: 'btn-ghost', onclick: () => loadAudit(container) }, '↻ تحديث')]));
+  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'السجل'), el('h1', { text: 'سجل إدارة DOU' })]), el('button', { class: 'btn btn-ghost', onclick: () => loadAudit(container) }, '↻ تحديث')]));
   const body = el('div', {}, [loadingState('جاري التحميل...')]);
   container.append(body);
   try {
@@ -69,6 +69,6 @@ export async function loadAudit(container) {
 
 export async function loadSettings(container) {
   container.innerHTML = '';
-  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'الإعدادات'), el('h1', { text: 'إعدادات النظام' })]), el('button', { class: 'btn-ghost', onclick: () => loadSettings(container) }, '↻ تحديث')]));
+  container.append(el('div', { class: 'header' }, [el('div', {}, [el('div', { class: 'kicker' }, 'الإعدادات'), el('h1', { text: 'إعدادات النظام' })]), el('button', { class: 'btn btn-ghost', onclick: () => loadSettings(container) }, '↻ تحديث')]));
   container.append(el('div', {}, [emptyState('إعدادات النظام تُدار من قبل فريق DOU — تواصل مع الدعم للتعديلات.')]));
 }

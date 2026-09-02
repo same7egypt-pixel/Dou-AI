@@ -29,7 +29,7 @@ export async function openNotificationsModal() {
           el('b', { text: n.title }),
           el('p', { style: 'margin:4px 0;font-size:13px;color:var(--text-sub)' }, n.message),
           isUnread ? el('button', {
-            class: 'btn-ghost btn-small',
+            class: 'btn btn-ghost btn-small',
             onclick: async (e) => {
               const btn = e.currentTarget || e.target;
               btn.disabled = true;

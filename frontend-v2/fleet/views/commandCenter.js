@@ -15,7 +15,7 @@ export async function loadCommandCenter(container) {
     ]),
     el('div', { class: 'header-actions' }, [
       el('button', { class: 'btn btn-ghost', onclick: () => loadCommandCenter(container) }, `↻ ${t('تحديث البيانات')}`),
-      el('button', { class: 'btn-ai', onclick: () => openAIDrawer() }, [
+      el('button', { class: 'btn btn-ai', onclick: () => openAIDrawer() }, [
         el('span', { text: '✨' }),
         el('span', { text: isAr ? 'استفسار ذكي' : 'Smart Query' })
       ]),

@@ -330,7 +330,7 @@ function renderTopBar() {
   // 4. AI & Notifications
   topActions.push(
     el('button', {
-      class: 'btn-ai',
+      class: 'btn btn-ai',
       id: 'btn-open-ai-drawer',
       onclick: () => openAIDrawer()
     }, [

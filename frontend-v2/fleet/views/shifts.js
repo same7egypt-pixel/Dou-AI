@@ -74,12 +74,12 @@ function renderActiveTab(contentArea, headerActions, canManage) {
 
   if (currentTab === 'shifts') {
     if (canManage) {
-      headerActions.append(el('button', { class: 'btn-blue', onclick: () => openAddShift() }, isAr ? '+ إنشاء وردية' : '+ Create Shift'));
+      headerActions.append(el('button', { class: 'btn btn-blue', onclick: () => openAddShift() }, isAr ? '+ إنشاء وردية' : '+ Create Shift'));
     }
     renderShiftsTab(contentArea, canManage);
   } else if (currentTab === 'attendance') {
     if (canManage) {
-      headerActions.append(el('button', { class: 'btn-ghost', onclick: () => openAttendancePoliciesModal() }, isAr ? '⚙️ سياسات خصم الحضور' : '⚙️ Attendance Deduction Policies'));
+      headerActions.append(el('button', { class: 'btn btn-ghost', onclick: () => openAttendancePoliciesModal() }, isAr ? '⚙️ سياسات خصم الحضور' : '⚙️ Attendance Deduction Policies'));
     }
     renderAttendanceTab(contentArea, headerActions);
   } else if (currentTab === 'corrections') {
@@ -119,11 +119,11 @@ async function renderShiftsTab(container, canManage) {
         const count = row.courier_ids ? row.courier_ids.length : 0;
         return el('div', { style: 'display:flex;gap:6px;align-items:center' }, [
           canManage ? el('button', {
-            class: 'btn-blue btn-small',
+            class: 'btn btn-blue btn-small',
             onclick: () => window.assignRiderToShift(row.id, row.name)
           }, isAr ? '➕ إسناد سائق' : '➕ Assign Driver') : null,
           el('button', {
-            class: 'btn-ghost btn-small',
+            class: 'btn btn-ghost btn-small',
             onclick: () => window.viewShiftRidersModal(row.id, row.name)
           }, isAr ? `👥 المناديب (${count})` : `👥 Drivers (${count})`)
         ].filter(Boolean));
@@ -146,8 +146,8 @@ function openAddShift() {
       inputField('shift-req', 'عدد السائقين المطلوب:', { type: 'number', min: '1', value: '2' }),
     ]),
     el('div', { style: 'display:flex;justify-content:flex-end;gap:8px;margin-top:10px' }, [
-      el('button', { type: 'button', class: 'btn-ghost', onclick: () => m.remove() }, 'إلغاء'),
-      el('button', { type: 'submit', class: 'btn-blue' }, '💾 حفظ وطرح الوردية')
+      el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => m.remove() }, 'إلغاء'),
+      el('button', { type: 'submit', class: 'btn btn-blue' }, '💾 حفظ وطرح الوردية')
     ]),
     el('span', { id: 'shift-msg', class: 'msg' }),
   ]);
@@ -280,7 +280,7 @@ window.assignRiderToShift = async (shiftId, shiftName = '') => {
             ])
           ]),
           el('button', {
-            class: 'btn-blue btn-small',
+            class: 'btn btn-blue btn-small',
             style: 'white-space:nowrap',
             onclick: async () => {
               statusMsg.style.color = 'var(--primary)';
@@ -337,7 +337,7 @@ window.viewShiftRidersModal = async (shiftId, shiftName = '') => {
             el('div', { style: 'font-size:11px;color:var(--muted);margin-top:2px' }, `📱 ${r.phone || '—'}`)
           ]),
           el('button', {
-            class: 'btn-ghost btn-small',
+            class: 'btn btn-ghost btn-small',
             style: 'color:#dc2626',
             onclick: async () => {
               if (!confirm(`هل أنت متأكد من إزالة السائق ${r.name} من هذه الوردية؟`)) return;
@@ -357,8 +357,8 @@ window.viewShiftRidersModal = async (shiftId, shiftName = '') => {
     }
 
     body.append(el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)' }, [
-      el('button', { class: 'btn-blue btn-small', onclick: () => { m.remove(); window.assignRiderToShift(shiftId, shiftName); } }, '➕ إضافة سائق آخر'),
-      el('button', { class: 'btn-ghost btn-small', onclick: () => m.remove() }, 'إغلاق')
+      el('button', { class: 'btn btn-blue btn-small', onclick: () => { m.remove(); window.assignRiderToShift(shiftId, shiftName); } }, '➕ إضافة سائق آخر'),
+      el('button', { class: 'btn btn-ghost btn-small', onclick: () => m.remove() }, 'إغلاق')
     ]));
 
     const m = modal('👥 المناديب المسندين للوردية', body);
@@ -456,7 +456,7 @@ async function renderAttendanceTab(container, headerActions) {
       class: `btn-ghost btn-small ${selectedAttendanceDate === yesterdayStr ? 'active' : ''}`,
       onclick: () => { selectedAttendanceDate = yesterdayStr; refreshAttendance(); }
     }, isAr ? 'أمس' : 'Yesterday'),
-    el('button', { class: 'btn-ghost btn-small', onclick: () => refreshAttendance() }, `↻ ${t('تحديث')}`)
+    el('button', { class: 'btn btn-ghost btn-small', onclick: () => refreshAttendance() }, `↻ ${t('تحديث')}`)
   );
 
   const controls = el('div', { class: 'filters', style: 'display:flex;gap:12px;align-items:center;margin-bottom:16px' }, [
@@ -670,7 +670,7 @@ async function renderCorrectionsTab(container, canManage) {
         { key: 'actions', label: 'الإجراء والملاحظات', render: (_, row) => {
           if (row.status === 'PENDING' && canManage) {
             return el('button', {
-              class: 'btn-blue btn-small',
+              class: 'btn btn-blue btn-small',
               onclick: () => openReviewCorrectionModal(row, refreshCorrections)
             }, 'مراجعة واتخاذ قرار');
           }
@@ -711,11 +711,11 @@ function openReviewCorrectionModal(corr, onReviewed) {
     ]),
     el('div', { style: 'display:flex;gap:8px;justify-content:flex-end' }, [
       el('button', {
-        class: 'btn-green',
+        class: 'btn btn-green',
         onclick: async () => submitDecision(corr.id, 'APPROVED', m, onReviewed)
       }, '✅ اعتماد التصحيح'),
       el('button', {
-        class: 'btn-red',
+        class: 'btn btn-red',
         onclick: async () => submitDecision(corr.id, 'REJECTED', m, onReviewed)
       }, '❌ رفض التصحيح'),
     ]),
@@ -770,7 +770,7 @@ async function renderLeavesTab(container, headerActions, canManage) {
 
   headerActions.append(
     filterSelect,
-    el('button', { class: 'btn-ghost', onclick: () => refreshLeaves() }, '↻ تحديث')
+    el('button', { class: 'btn btn-ghost', onclick: () => refreshLeaves() }, '↻ تحديث')
   );
 
   const infoBanner = el('div', {
@@ -894,7 +894,7 @@ async function renderLeavesTab(container, headerActions, canManage) {
         { key: 'actions', label: 'الإجراء', render: (_, r) => {
           if (canManage && (r.status === 'PENDING' || r.status === 'SUPERVISOR_APPROVED')) {
             return el('button', {
-              class: 'btn-blue btn-small',
+              class: 'btn btn-blue btn-small',
               onclick: () => openCentralLeaveDecisionModal(r, () => refreshLeaves())
             }, '⚡ اتخاذ قرار');
           }
@@ -932,12 +932,12 @@ function openCentralLeaveDecisionModal(req, onReviewed) {
     ]),
     el('div', { style: 'display:flex;gap:8px;justify-content:flex-end' }, [
       el('button', {
-        class: 'btn-green',
+        class: 'btn btn-green',
         style: 'background:#16a34a;color:#fff;font-weight:700;padding:8px 16px;border-radius:8px;border:0;cursor:pointer',
         onclick: async () => submitCentralLeaveDecision(req.id, 'APPROVED', m, onReviewed)
       }, '✅ اعتماد الإجازة'),
       el('button', {
-        class: 'btn-red',
+        class: 'btn btn-red',
         style: 'background:#dc2626;color:#fff;font-weight:700;padding:8px 16px;border-radius:8px;border:0;cursor:pointer',
         onclick: async () => submitCentralLeaveDecision(req.id, 'REJECTED', m, onReviewed)
       }, '❌ رفض الإجازة'),

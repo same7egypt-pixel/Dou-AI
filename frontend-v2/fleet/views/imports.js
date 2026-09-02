@@ -9,8 +9,8 @@ let performanceImportBatch = null;
 export function renderBulkImportWorkflow({ onRidersImported = null, onPerformanceImported = null } = {}) {
   const isAr = getLang() === 'ar';
   const tabs = el('div', { class: 'filters', style: 'margin-bottom:16px' }, [
-    el('button', { class: 'btn-blue import-tab', type: 'button', 'data-import-tab': 'riders' }, isAr ? 'استيراد السائقين' : 'Import Drivers'),
-    el('button', { class: 'btn-ghost import-tab', type: 'button', 'data-import-tab': 'performance' }, isAr ? 'استيراد الأداء' : 'Import Performance'),
+    el('button', { class: 'btn btn-blue import-tab', type: 'button', 'data-import-tab': 'riders' }, isAr ? 'استيراد السائقين' : 'Import Drivers'),
+    el('button', { class: 'btn btn-ghost import-tab', type: 'button', 'data-import-tab': 'performance' }, isAr ? 'استيراد الأداء' : 'Import Performance'),
   ]);
 
   const ridersTab = renderImportTab({
@@ -52,7 +52,9 @@ export function renderBulkImportWorkflow({ onRidersImported = null, onPerformanc
     btn.addEventListener('click', () => {
       const active = btn.dataset.importTab;
       tabs.querySelectorAll('.import-tab').forEach((b) => {
-        b.className = `${b.dataset.importTab === active ? 'btn-blue' : 'btn-ghost'} import-tab`;
+        // Keep the base `btn` class: the colour modifiers carry no padding or
+        // radius of their own, so dropping it renders an unstyled control.
+        b.className = `btn ${b.dataset.importTab === active ? 'btn-blue' : 'btn-ghost'} import-tab`;
       });
       ridersTab.style.display = active === 'riders' ? '' : 'none';
       performanceTab.style.display = active === 'performance' ? '' : 'none';
@@ -70,17 +72,17 @@ export function openBulkImportModal(options = {}) {
 function renderImportTab(config) {
   const isAr = getLang() === 'ar';
   const result = el('div', { id: config.resultId, style: 'margin-top:14px' });
-  const confirm = el('button', { id: config.confirmId, type: 'button', class: 'btn-blue', style: 'display:none' }, isAr ? 'تأكيد الاستيراد' : 'Confirm Import');
+  const confirm = el('button', { id: config.confirmId, type: 'button', class: 'btn btn-blue', style: 'display:none' }, isAr ? 'تأكيد الاستيراد' : 'Confirm Import');
 
   const card = el('div', { class: 'card import-tab-content', 'data-import-content': config.tab }, [
     el('h3', { text: config.title }),
     el('p', { style: 'color:var(--muted);margin-top:-4px' }, config.description),
     formRow([
-      el('button', { type: 'button', class: 'btn-ghost', onclick: () => downloadTemplate(config.templatePath, config.templateName) }, isAr ? 'تنزيل القالب' : 'Download Template'),
+      el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => downloadTemplate(config.templatePath, config.templateName) }, isAr ? 'تنزيل القالب' : 'Download Template'),
       el('input', { id: config.fileId, type: 'file', accept: '.csv,text/csv,.xlsx,.xls' }),
     ]),
     formRow([
-      el('button', { type: 'button', class: 'btn-ghost', onclick: () => previewImport(config) }, isAr ? 'معاينة' : 'Preview'),
+      el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => previewImport(config) }, isAr ? 'معاينة' : 'Preview'),
       confirm,
     ]),
     result,

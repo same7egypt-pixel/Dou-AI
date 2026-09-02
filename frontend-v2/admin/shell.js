@@ -67,7 +67,7 @@ function renderUserCard() {
     el('div', { class: 'user-photo' }, '✓'),
     el('b', { text: user?.name || (isAr ? 'فريق DOU' : 'DOU Team') }),
     el('small', { text: tenant?.name || (isAr ? 'إدارة المنصة' : 'Platform Operations') }),
-    el('button', { class: 'btn-ghost btn-small btn-full', onclick: () => { api.logout(); location.reload(); } }, isAr ? '🚪 خروج' : '🚪 Log Out'),
+    el('button', { class: 'btn btn-ghost btn-small btn-full', onclick: () => { api.logout(); location.reload(); } }, isAr ? '🚪 خروج' : '🚪 Log Out'),
   ]);
 }
 
