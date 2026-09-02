@@ -624,7 +624,7 @@ async function openAddBranchToContractModal(contract, mainContainer) {
         })
       ]),
       el('div', {}, [
-        el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px' }, 'المشرف المسؤول:'),
+        el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px' }, 'المشرف المراد إضافته للفرع:'),
         searchableSelect({
           id: 'branch-sup-select',
           placeholder: '🔍 ابحث عن المشرف المسؤول...',
@@ -644,7 +644,7 @@ async function openAddBranchToContractModal(contract, mainContainer) {
       ])
     ]);
 
-    const m = modal('➕ إضافة فرع تشغيلي جديد', content);
+    const m = modal('➕ إضافة فرع أو مشرف لنفس المدينة', content);
     content.onsubmit = async (e) => {
       e.preventDefault();
       const cityId = document.getElementById('branch-city-select').value;
@@ -655,20 +655,36 @@ async function openAddBranchToContractModal(contract, mainContainer) {
         id: b.id,
         city_id: b.city_id,
         city: b.city,
-        supervisor_id: b.supervisor_id
+        supervisor_id: b.supervisor_id,
+        supervisor_ids: b.supervisor_ids || (b.supervisor_id ? [b.supervisor_id] : [])
       }));
 
-      updatedBranches.push({
-        city_id: Number(cityId),
-        city: cityObj ? cityObj.name : 'الفرع الجديد',
-        supervisor_id: supId ? Number(supId) : null
-      });
+      const existingBranch = updatedBranches.find(b => Number(b.city_id) === Number(cityId));
+      if (existingBranch) {
+        if (!supId) {
+          alert('هذا الفرع موجود بالفعل. اختر المشرف الجديد المراد إضافته.');
+          return;
+        }
+        const supervisorId = Number(supId);
+        if (existingBranch.supervisor_ids.includes(supervisorId)) {
+          alert('هذا المشرف معيّن بالفعل على الفرع.');
+          return;
+        }
+        existingBranch.supervisor_ids.push(supervisorId);
+      } else {
+        updatedBranches.push({
+          city_id: Number(cityId),
+          city: cityObj ? cityObj.name : 'الفرع الجديد',
+          supervisor_id: supId ? Number(supId) : null,
+          supervisor_ids: supId ? [Number(supId)] : []
+        });
+      }
 
       try {
         await api.patch(`/hr/contracts/${contract.id}`, {
           branches: updatedBranches
         });
-        alert('✅ تم إضافة الفرع بنجاح.');
+        alert(existingBranch ? '✅ تم إضافة المشرف إلى نفس الفرع بنجاح.' : '✅ تم إضافة الفرع بنجاح.');
         m.remove();
         loadCapacity(mainContainer);
       } catch (err) {

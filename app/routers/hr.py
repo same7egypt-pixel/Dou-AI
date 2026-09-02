@@ -3713,6 +3713,21 @@ def hr_contracts(user: User = Depends(get_current_user), db: Session = Depends(g
                 "supervisor": db.get(User, b.supervisor_id).name
                 if b.supervisor_id and db.get(User, b.supervisor_id)
                 else None,
+                "supervisor_ids": [
+                    link.supervisor_id
+                    for link in db.query(ContractBranchSupervisor)
+                    .filter(ContractBranchSupervisor.contract_branch_id == b.id)
+                    .all()
+                ]
+                or ([b.supervisor_id] if b.supervisor_id else []),
+                "supervisors": [
+                    {"id": link.supervisor_id, "name": supervisor.name}
+                    for link in db.query(ContractBranchSupervisor)
+                    .filter(ContractBranchSupervisor.contract_branch_id == b.id)
+                    .all()
+                    for supervisor in [db.get(User, link.supervisor_id)]
+                    if supervisor and supervisor.is_active
+                ],
                 "couriers_count": db.query(Courier)
                 .filter(Courier.contract_branch_id == b.id)
                 .count(),
@@ -4036,13 +4051,26 @@ def update_contract(
             branch = existing.get(int(branch_id)) if branch_id else None
             if branch_id and not branch:
                 raise HTTPException(404, "فرع العقد غير موجود")
-            supervisor_id = item.get("supervisor_id")
-            supervisor = db.get(User, int(supervisor_id)) if supervisor_id else None
-            if supervisor and (
-                supervisor.tenant_id != user.tenant_id
-                or supervisor.role != UserRole.SUPERVISOR
-            ):
-                raise HTTPException(400, "مشرف الفرع غير صالح")
+            raw_supervisor_ids = item.get("supervisor_ids")
+            if raw_supervisor_ids is None:
+                raw_supervisor_ids = (
+                    [item.get("supervisor_id")] if item.get("supervisor_id") else []
+                )
+            if not isinstance(raw_supervisor_ids, list):
+                raise HTTPException(400, "قائمة مشرفي الفرع غير صالحة")
+            supervisors = []
+            for raw_supervisor_id in dict.fromkeys(raw_supervisor_ids):
+                if not raw_supervisor_id:
+                    continue
+                supervisor = db.get(User, int(raw_supervisor_id))
+                if not supervisor or (
+                    supervisor.tenant_id != user.tenant_id
+                    or supervisor.role != UserRole.SUPERVISOR
+                    or not supervisor.is_active
+                ):
+                    raise HTTPException(400, "مشرف الفرع غير صالح")
+                supervisors.append(supervisor)
+            supervisor = supervisors[0] if supervisors else None
             if not branch:
                 supervisor_name = supervisor.name if supervisor else "بدون مشرف"
                 project = Project(
@@ -4074,6 +4102,18 @@ def update_contract(
                 if old_city != city_ref.name or old_supervisor != branch.supervisor_id:
                     changes.append(f"فرع {old_city} → {city_ref.name}")
             handled.add(branch.id)
+            db.query(ContractBranchSupervisor).filter(
+                ContractBranchSupervisor.contract_branch_id == branch.id
+            ).delete(synchronize_session=False)
+            for assigned_supervisor in supervisors:
+                db.add(
+                    ContractBranchSupervisor(
+                        tenant_id=user.tenant_id,
+                        contract_branch_id=branch.id,
+                        supervisor_id=assigned_supervisor.id,
+                        is_primary=(assigned_supervisor.id == branch.supervisor_id),
+                    )
+                )
             project = db.get(Project, branch.project_id) if branch.project_id else None
             if project:
                 supervisor_name = supervisor.name if supervisor else "بدون مشرف"
@@ -4085,7 +4125,9 @@ def update_contract(
                 courier.contract_id = ct.id
                 courier.city_id = city_ref.id
                 courier.work_city = city_ref.name
-                courier.supervisor_id = supervisor.id if supervisor else None
+                valid_supervisor_ids = {row.id for row in supervisors}
+                if courier.supervisor_id not in valid_supervisor_ids:
+                    courier.supervisor_id = supervisor.id if supervisor else None
                 if project:
                     courier.primary_project_id = project.id
                     courier.platform = project.name

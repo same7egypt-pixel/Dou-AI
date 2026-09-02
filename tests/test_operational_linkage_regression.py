@@ -11,6 +11,7 @@ from app.models.entities import (
     BonusPlan,
     Contract,
     ContractBranch,
+    ContractBranchSupervisor,
     Country,
     Courier,
     CourierType,
@@ -24,7 +25,7 @@ from app.models.entities import (
     UserRole,
 )
 from app.routers.fleet import update_courier
-from app.routers.hr import delete_contract_branch, hr_contracts
+from app.routers.hr import delete_contract_branch, hr_contracts, update_contract
 from app.routers.vehicles import (
     VehicleAssignmentCreate,
     VehicleCreate,
@@ -107,6 +108,43 @@ def test_supervisor_assignment_links_operational_and_financial_chain():
         assert rider.contract_branch_id == branch.id
         assert rider.primary_project_id == project.id
         assert rider.supervisor_id == supervisor.id
+
+        second_supervisor = User(
+            phone="sup-life-2",
+            password_hash="x",
+            role=UserRole.SUPERVISOR,
+            tenant_id=tenant.id,
+            is_active=True,
+        )
+        db.add(second_supervisor)
+        db.commit()
+        update_contract(
+            contract.id,
+            {
+                "branches": [
+                    {
+                        "id": branch.id,
+                        "city_id": city.id,
+                        "supervisor_ids": [supervisor.id, second_supervisor.id],
+                    }
+                ]
+            },
+            admin,
+            db,
+        )
+        db.refresh(rider)
+        assert rider.supervisor_id == supervisor.id
+        assert {
+            row.supervisor_id
+            for row in db.query(ContractBranchSupervisor)
+            .filter(ContractBranchSupervisor.contract_branch_id == branch.id)
+            .all()
+        } == {supervisor.id, second_supervisor.id}
+        listed_branch = hr_contracts(admin, db)["rows"][0]["branches"][0]
+        assert set(listed_branch["supervisor_ids"]) == {
+            supervisor.id,
+            second_supervisor.id,
+        }
 
         vehicle = create_vehicle(
             VehicleCreate(plate_number="LIFE 100", vehicle_type="Motorcycle"),
