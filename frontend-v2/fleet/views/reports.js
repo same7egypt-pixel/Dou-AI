@@ -77,16 +77,35 @@ function renderSubTab(contentArea) {
 // TAB 1: تارجت وإنجاز السائقين اليومي والشهري (DRIVER TARGETS & DAILY TRACKER)
 // ─────────────────────────────────────────────────────────────────────────────
 async function renderDriverTargetsTab(container) {
+// ─────────────────────────────────────────────────────────────────────────────
+// TAB 1: تارجت وإنجاز السائقين والتشغيل الميداني 360° (360° TARGETS & PERFORMANCE INTELLIGENCE)
+// ─────────────────────────────────────────────────────────────────────────────
+let current360Level = 'couriers'; // 'couriers' | 'supervisors' | 'branches' | 'contracts'
+let filterContractId = '';
+let filterBranchId = '';
+let filterSupervisorId = '';
+let filterCity = '';
+let filterStatus = '';
+let filterSearch = '';
+
+async function renderDriverTargetsTab(container) {
   const isAr = getLang() === 'ar';
   container.innerHTML = '';
-  const body = el('div', {}, [loadingState(isAr ? 'جاري تجميع بيانات الحضور ووتيرة تارجت السائقين...' : 'Loading driver targets and pacing...')]);
+  const body = el('div', {}, [loadingState(isAr ? 'جاري تجهيز الرؤية التشغيلية 360° وتجميع التارجت...' : 'Loading 360° operational intelligence and targets...')]);
   container.append(body);
 
   try {
-    const data = await api.get(`/analytics/reports/driver-targets?month=${currentDriverTargetsMonth}`);
+    let url = `/analytics/reports/driver-targets?month=${currentDriverTargetsMonth}`;
+    if (filterContractId) url += `&contract_id=${filterContractId}`;
+    if (filterBranchId) url += `&branch_id=${filterBranchId}`;
+    if (filterSupervisorId) url += `&supervisor_id=${filterSupervisorId}`;
+    if (filterCity) url += `&city=${encodeURIComponent(filterCity)}`;
+    if (filterStatus) url += `&status=${filterStatus}`;
+
+    const data = await api.get(url);
     body.replaceWith(renderDriverTargetsLayout(data, container));
   } catch (e) {
-    body.replaceWith(errorState('تعذر تحميل تقرير تارجت السائقين: ' + e.message, () => renderDriverTargetsTab(container)));
+    body.replaceWith(errorState('تعذر تحميل الرؤية التشغيلية: ' + e.message, () => renderDriverTargetsTab(container)));
   }
 }
 
@@ -94,62 +113,128 @@ function renderDriverTargetsLayout(data, container) {
   const isAr = getLang() === 'ar';
   const wrap = el('div', {});
   const summary = data.summary || {};
-  let rows = data.rows || [];
-  let filterSearch = '';
-  let filterStatus = '';
+  const filterOpts = data.filter_options || { contracts: [], cities: [], branches: [], supervisors: [] };
+  let couriers = data.rows || [];
+  let supervisors = data.supervisors || [];
+  let branches = data.branches || [];
+  let contracts = data.contracts || [];
 
-  // 1. Toolbar & Filters
+  // 1. Level View Selector (360 Degree Perspective Tabs)
+  const levelTabs = el('div', { style: 'display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap' }, [
+    el('button', {
+      class: `btn ${current360Level === 'couriers' ? 'btn-primary' : 'btn-ghost'} btn-small`,
+      style: current360Level === 'couriers' ? 'font-weight:700' : '',
+      onclick: () => { current360Level = 'couriers'; update360Content(); }
+    }, isAr ? '👤 أداء المناديب والميدان' : '👤 Couriers Performance'),
+    el('button', {
+      class: `btn ${current360Level === 'supervisors' ? 'btn-primary' : 'btn-ghost'} btn-small`,
+      style: current360Level === 'supervisors' ? 'font-weight:700' : '',
+      onclick: () => { current360Level = 'supervisors'; update360Content(); }
+    }, isAr ? `👔 أداء المشرفين والمجموعات (${summary.supervisors_count || supervisors.length})` : `👔 Supervisors & Teams (${summary.supervisors_count || supervisors.length})`),
+    el('button', {
+      class: `btn ${current360Level === 'branches' ? 'btn-primary' : 'btn-ghost'} btn-small`,
+      style: current360Level === 'branches' ? 'font-weight:700' : '',
+      onclick: () => { current360Level = 'branches'; update360Content(); }
+    }, isAr ? `🏙️ أداء المدن والفروع (${summary.branches_count || branches.length})` : `🏙️ Cities & Branches (${summary.branches_count || branches.length})`),
+    el('button', {
+      class: `btn ${current360Level === 'contracts' ? 'btn-primary' : 'btn-ghost'} btn-small`,
+      style: current360Level === 'contracts' ? 'font-weight:700' : '',
+      onclick: () => { current360Level = 'contracts'; update360Content(); }
+    }, isAr ? `🏢 أداء كامل العقود والمشاريع (${summary.contracts_count || contracts.length})` : `🏢 Contracts & Projects (${summary.contracts_count || contracts.length})`),
+  ]);
+  wrap.append(levelTabs);
+
+  // 2. Multi-Dimensional Filter Toolbar
   const monthInput = el('input', {
     type: 'month',
     value: currentDriverTargetsMonth,
-    style: 'padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text)',
+    style: 'padding:5px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text)',
     onchange: (e) => {
       currentDriverTargetsMonth = e.target.value;
       renderDriverTargetsTab(container);
     }
   });
 
-  const searchInput = el('input', {
-    type: 'text',
-    placeholder: isAr ? '🔍 بحث باسم السائق أو الجوال...' : '🔍 Search driver or phone...',
-    style: 'padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--text);min-width:220px',
-    oninput: (e) => {
-      filterSearch = e.target.value.trim().toLowerCase();
-      updateTable();
+  const contractSelect = el('select', {
+    class: 'form-control',
+    style: 'padding:5px 10px;min-width:140px;width:auto;font-size:12px',
+    onchange: (e) => {
+      filterContractId = e.target.value;
+      renderDriverTargetsTab(container);
     }
-  });
+  }, [
+    el('option', { value: '', text: isAr ? '🏢 كل العقود' : '🏢 All Contracts' }),
+    ...(filterOpts.contracts || []).map(c => el('option', { value: String(c.id), text: c.name, selected: String(c.id) === filterContractId }))
+  ]);
+
+  const citySelect = el('select', {
+    class: 'form-control',
+    style: 'padding:5px 10px;min-width:130px;width:auto;font-size:12px',
+    onchange: (e) => {
+      filterCity = e.target.value;
+      renderDriverTargetsTab(container);
+    }
+  }, [
+    el('option', { value: '', text: isAr ? '🏙️ كل المدن' : '🏙️ All Cities' }),
+    ...(filterOpts.cities || []).map(ct => el('option', { value: ct, text: ct, selected: ct === filterCity }))
+  ]);
+
+  const supervisorSelect = el('select', {
+    class: 'form-control',
+    style: 'padding:5px 10px;min-width:140px;width:auto;font-size:12px',
+    onchange: (e) => {
+      filterSupervisorId = e.target.value;
+      renderDriverTargetsTab(container);
+    }
+  }, [
+    el('option', { value: '', text: isAr ? '👔 كل المشرفين' : '👔 All Supervisors' }),
+    ...(filterOpts.supervisors || []).map(s => el('option', { value: String(s.id), text: s.name, selected: String(s.id) === filterSupervisorId }))
+  ]);
 
   const statusSelect = el('select', {
     class: 'form-control',
-    style: 'padding:6px 12px;min-width:160px;width:auto',
+    style: 'padding:5px 10px;min-width:130px;width:auto;font-size:12px',
     onchange: (e) => {
       filterStatus = e.target.value;
-      updateTable();
+      renderDriverTargetsTab(container);
     }
   }, [
-    el('option', { value: '', text: isAr ? 'كل الحالات' : 'All Statuses' }),
-    el('option', { value: 'ACHIEVED', text: isAr ? '🏆 حقق التارجت' : '🏆 Target Achieved' }),
-    el('option', { value: 'ON_TRACK', text: isAr ? '🟢 على وتيرة الإنجاز' : '🟢 On Track' }),
-    el('option', { value: 'AT_RISK', text: isAr ? '🔴 متأخر عن التارجت' : '🔴 At Risk / Behind' }),
+    el('option', { value: '', text: isAr ? '🎯 كل الحالات' : '🎯 All Statuses' }),
+    el('option', { value: 'ACHIEVED', text: isAr ? '🏆 حقق التارجت' : '🏆 Achieved', selected: filterStatus === 'ACHIEVED' }),
+    el('option', { value: 'ON_TRACK', text: isAr ? '🟢 على الوتيرة' : '🟢 On Track', selected: filterStatus === 'ON_TRACK' }),
+    el('option', { value: 'AT_RISK', text: isAr ? '🔴 متأخر عن التارجت' : '🔴 At Risk', selected: filterStatus === 'AT_RISK' }),
   ]);
 
-  const toolbar = el('div', { class: 'card', style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 18px;margin-bottom:16px;background:var(--card);border:1px solid var(--border)' }, [
-    el('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap' }, [
-      el('label', { style: 'font-size:13px;font-weight:700;color:var(--text)' }, isAr ? '📅 الشهر:' : '📅 Month:'),
+  const searchInput = el('input', {
+    type: 'text',
+    placeholder: isAr ? '🔍 بحث بالاسم، المشرف، المدينة...' : '🔍 Search name, supervisor, city...',
+    style: 'padding:5px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);min-width:190px',
+    oninput: (e) => {
+      filterSearch = e.target.value.trim().toLowerCase();
+      update360Content();
+    }
+  });
+
+  const toolbar = el('div', { class: 'card', style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:10px 16px;margin-bottom:16px;background:var(--card);border:1px solid var(--border)' }, [
+    el('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap' }, [
+      el('label', { style: 'font-size:12px;font-weight:700;color:var(--text)' }, isAr ? '📅 الشهر:' : '📅 Month:'),
       monthInput,
-      searchInput,
+      contractSelect,
+      citySelect,
+      supervisorSelect,
       statusSelect,
+      searchInput,
     ]),
-    el('div', { style: 'display:flex;gap:8px' }, [
+    el('div', { style: 'display:flex;gap:6px' }, [
       el('button', {
         class: 'btn btn-ghost btn-small',
-        onclick: () => exportDriverTargetsCsv(data.month, rows)
-      }, isAr ? '⬇ تصدير Excel / CSV' : '⬇ Export CSV')
+        onclick: () => exportActiveLevelCsv(data)
+      }, isAr ? '⬇ تصدير CSV' : '⬇ Export CSV')
     ])
   ]);
   wrap.append(toolbar);
 
-  // 2. Summary KPI Cards
+  // 3. Summary KPI Cards
   const cards = el('div', { class: 'cards', style: 'margin-bottom:16px' }, [
     metricCard(`${(summary.total_month_orders || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`, isAr ? 'إجمالي طلبات الشهر (الأسطول)' : 'Fleet Monthly Orders', 'blue', null, isAr ? 'المسجل تراكمياً من السائقين' : 'Month-to-date total'),
     metricCard(`${(summary.total_today_orders || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`, isAr ? 'طلبات اليوم المنجزة' : 'Today Orders', 'trend', null, isAr ? 'من تطبيق السائق الميداني' : 'Logged today'),
@@ -159,33 +244,60 @@ function renderDriverTargetsLayout(data, container) {
   ]);
   wrap.append(cards);
 
-  // 3. Table Container
+  // 4. Dynamic 360 Table Container
   const tableContainer = el('div', { class: 'card', style: 'padding:16px;background:var(--card);border:1px solid var(--border);border-radius:12px' });
   wrap.append(tableContainer);
 
-  function getFilteredRows() {
-    return rows.filter((r) => {
-      if (filterStatus && r.status !== filterStatus) return false;
+  function update360Content() {
+    // Update button active styles
+    levelTabs.querySelectorAll('button').forEach((b, idx) => {
+      const isCurrent = (idx === 0 && current360Level === 'couriers') ||
+                        (idx === 1 && current360Level === 'supervisors') ||
+                        (idx === 2 && current360Level === 'branches') ||
+                        (idx === 3 && current360Level === 'contracts');
+      b.className = `btn ${isCurrent ? 'btn-primary' : 'btn-ghost'} btn-small`;
+      b.style.fontWeight = isCurrent ? '700' : 'normal';
+    });
+
+    tableContainer.innerHTML = '';
+
+    if (current360Level === 'couriers') {
+      renderCouriersLevelTable();
+    } else if (current360Level === 'supervisors') {
+      renderSupervisorsLevelTable();
+    } else if (current360Level === 'branches') {
+      renderBranchesLevelTable();
+    } else if (current360Level === 'contracts') {
+      renderContractsLevelTable();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // LEVEL 1: COURIERS VIEW
+  // ─────────────────────────────────────────────────────────────
+  function renderCouriersLevelTable() {
+    const filtered = couriers.filter((r) => {
       if (filterSearch) {
-        const text = `${r.name || ''} ${r.phone || ''} ${r.branch_name || ''}`.toLowerCase();
-        if (!text.includes(filterSearch)) return false;
+        const txt = `${r.name || ''} ${r.phone || ''} ${r.branch_name || ''} ${r.city || ''} ${r.supervisor_name || ''} ${r.contract_name || ''}`.toLowerCase();
+        if (!txt.includes(filterSearch)) return false;
       }
       return true;
     });
-  }
-
-  function updateTable() {
-    const filtered = getFilteredRows();
-    tableContainer.innerHTML = '';
 
     const columns = [
-      { key: 'name', label: isAr ? 'السائق والفرع' : 'Driver & Branch', render: (v, r) => el('div', {}, [
+      { key: 'name', label: isAr ? 'السائق والبيانات' : 'Driver Details', render: (v, r) => el('div', {}, [
         el('b', { style: 'display:block;color:var(--text);font-size:13px' }, v || '—'),
-        el('div', { style: 'color:var(--muted);font-size:11px;display:flex;gap:6px' }, [
+        el('div', { style: 'color:var(--muted);font-size:11px;display:flex;gap:4px;flex-wrap:wrap;margin-top:2px' }, [
           el('span', {}, r.phone || ''),
+          el('span', {}, '•'),
+          el('span', { style: 'color:#0284c7;font-weight:600' }, r.city || 'الرياض'),
           el('span', {}, '•'),
           el('span', {}, r.branch_name || 'الفرع الرئيسي')
         ])
+      ]) },
+      { key: 'supervisor_name', label: isAr ? 'المشرف والعقد' : 'Supervisor & Contract', render: (v, r) => el('div', {}, [
+        el('div', { style: 'font-weight:700;color:var(--text);font-size:12px' }, `👔 ${v || 'مشرف عام'}`),
+        el('div', { style: 'color:var(--muted);font-size:11px;margin-top:2px' }, `🏢 ${r.contract_name || 'عقد عام'}`)
       ]) },
       { key: 'checked_in', label: isAr ? 'حضور اليوم' : 'Today Attendance', render: (v, r) => {
         if (v) {
@@ -199,16 +311,16 @@ function renderDriverTargetsLayout(data, container) {
       { key: 'today_orders', label: isAr ? 'طلبات اليوم' : 'Today Orders', render: (v) => el('div', { style: 'text-align:center' }, [
         el('span', { class: 'badge badge-blue', style: 'font-weight:700;font-size:12px;padding:3px 8px' }, `📱 ${v || 0}`),
       ]) },
-      { key: 'month_orders', label: isAr ? 'إجمالي الشهر التراكمي' : 'Month Total', render: (v) => el('div', { style: 'text-align:center' }, [
+      { key: 'month_orders', label: isAr ? 'إجمالي الشهر' : 'Month Total', render: (v) => el('div', { style: 'text-align:center' }, [
         el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
       ]) },
-      { key: 'monthly_target', label: isAr ? 'التارجت المستهدف' : 'Target', render: (v) => el('div', { style: 'text-align:center' }, [
+      { key: 'monthly_target', label: isAr ? 'التارجت' : 'Target', render: (v) => el('div', { style: 'text-align:center' }, [
         el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${v || 400} طلب`),
       ]) },
       { key: 'achievement_pct', label: isAr ? 'نسبة الإنجاز' : 'Achievement %', render: (v) => {
         const pct = Math.min(100, Math.max(0, v || 0));
         const color = pct >= 100 ? '#16a34a' : (pct >= 60 ? '#0284c7' : '#dc2626');
-        return el('div', { style: 'min-width:110px' }, [
+        return el('div', { style: 'min-width:100px' }, [
           el('div', { style: 'display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:3px' }, [
             el('span', { style: `color:${color}` }, `${v || 0}%`),
             el('span', { style: 'color:var(--muted)' }, `${pct}/100`)
@@ -218,17 +330,12 @@ function renderDriverTargetsLayout(data, container) {
           ])
         ]);
       }},
-      { key: 'remaining_orders', label: isAr ? 'المتبقي للتارجت' : 'Remaining', render: (v) => el('div', { style: 'text-align:center' }, [
-        v === 0 
-          ? el('span', { style: 'color:#16a34a;font-weight:700;font-size:12px' }, isAr ? '🎉 اكتمل' : '🎉 Done') 
-          : el('span', { style: 'color:#ea580c;font-weight:700;font-size:12px' }, `${v} طلب`)
-      ]) },
-      { key: 'required_daily_rate', label: isAr ? 'المعدل اليومي المطلوب' : 'Daily Run-Rate', render: (v, r) => el('div', { style: 'text-align:center' }, [
+      { key: 'required_daily_rate', label: isAr ? 'المعدل المطلوب' : 'Daily Rate', render: (v, r) => el('div', { style: 'text-align:center' }, [
         r.remaining_orders === 0
-          ? el('span', { style: 'color:var(--muted);font-size:11px' }, '—')
-          : el('b', { style: 'color:#0284c7;font-size:12px' }, `${v} ${isAr ? 'طلب/يوم' : 'ord/day'}`)
+          ? el('span', { style: 'color:#16a34a;font-weight:700;font-size:11px' }, isAr ? '🎉 اكتمل' : '🎉 Done')
+          : el('b', { style: 'color:#0284c7;font-size:12px' }, `${v} ${isAr ? 'ط/يوم' : 'ord/d'}`)
       ]) },
-      { key: 'status', label: isAr ? 'حالة الالتزام' : 'Pacing Status', render: (v) => {
+      { key: 'status', label: isAr ? 'الحالة' : 'Status', render: (v) => {
         if (v === 'ACHIEVED') return el('span', { class: 'badge badge-green', style: 'font-weight:700' }, isAr ? '🏆 محقق التارجت' : '🏆 Achieved');
         if (v === 'ON_TRACK') return el('span', { class: 'badge badge-blue', style: 'font-weight:700' }, isAr ? '🟢 على الوتيرة' : '🟢 On Track');
         return el('span', { class: 'badge badge-alert', style: 'font-weight:700' }, isAr ? '🔴 يحتاج دعم' : '🔴 At Risk');
@@ -237,47 +344,336 @@ function renderDriverTargetsLayout(data, container) {
 
     tableContainer.append(el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px' }, [
       el('div', {}, [
-        el('h3', { style: 'margin:0;font-size:15px;color:var(--text)' }, isAr ? `متابعة إنجاز وتارجت السائقين لشهر (${data.month || currentDriverTargetsMonth})` : `Driver Monthly Target & Progress (${data.month})`),
+        el('h3', { style: 'margin:0;font-size:15px;color:var(--text)' }, isAr ? `أداء وتارجت المناديب الميدانيين لشهر (${data.month})` : `Couriers Performance & Target Pace (${data.month})`),
         el('p', { style: 'margin:2px 0 0 0;font-size:11px;color:var(--muted)' }, isAr ? `المتبقي على نهاية الشهر: ${data.remaining_days || 1} يوم عمل` : `${data.remaining_days || 1} days remaining in month`)
       ]),
       el('span', { style: 'font-size:12px;color:var(--muted)' }, isAr ? `عدد السائقين: ${filtered.length}` : `Count: ${filtered.length}`)
     ]));
 
     if (!filtered.length) {
-      tableContainer.append(emptyState(isAr ? 'لا توجد بيانات مطابقة لخيارات البحث.' : 'No matching driver records found.'));
+      tableContainer.append(emptyState(isAr ? 'لا توجد بيانات مطابقة لخيارات الفلترة.' : 'No matching driver records found.'));
     } else {
       tableContainer.append(table(columns, filtered));
     }
   }
 
-  updateTable();
+  // ─────────────────────────────────────────────────────────────
+  // LEVEL 2: SUPERVISORS & TEAMS VIEW
+  // ─────────────────────────────────────────────────────────────
+  function renderSupervisorsLevelTable() {
+    const filtered = supervisors.filter((s) => {
+      if (filterSearch) {
+        const txt = `${s.name || ''} ${s.phone || ''} ${(s.branches || []).join(' ')} ${(s.cities || []).join(' ')} ${(s.contracts || []).join(' ')}`.toLowerCase();
+        if (!txt.includes(filterSearch)) return false;
+      }
+      return true;
+    });
+
+    const columns = [
+      { key: 'name', label: isAr ? 'المشرف المسؤول' : 'Supervisor', render: (v, r) => el('div', {}, [
+        el('b', { style: 'display:block;color:var(--text);font-size:13px' }, `👔 ${v || 'مشرف'}`),
+        el('div', { style: 'color:var(--muted);font-size:11px;margin-top:2px' }, r.phone || '—')
+      ]) },
+      { key: 'cities', label: isAr ? 'نطاق الإشراف والمدن' : 'Assigned Cities & Branches', render: (_, r) => el('div', {}, [
+        el('div', { style: 'display:flex;gap:4px;flex-wrap:wrap' }, (r.cities || []).map(city => el('span', { class: 'badge badge-blue', style: 'font-size:10px' }, city))),
+        el('small', { style: 'display:block;color:var(--muted);font-size:10px;margin-top:2px' }, (r.branches || []).join(' · ') || 'جميع الفروع')
+      ]) },
+      { key: 'couriers_count', label: isAr ? 'فريق المناديب' : 'Team Size', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('b', { style: 'font-size:13px;color:var(--text)' }, `${v || 0} سائق`)
+      ]) },
+      { key: 'attendance_rate', label: isAr ? 'حضور الفريق اليوم' : 'Today Team Attendance', render: (v, r) => el('div', { style: 'text-align:center' }, [
+        el('span', { class: `badge ${v >= 80 ? 'badge-green' : (v >= 50 ? 'badge-blue' : 'badge-alert')}`, style: 'font-weight:700;font-size:11px' }, `${r.checked_in_count || 0} من ${r.couriers_count || 0} (${v || 0}%)`),
+      ]) },
+      { key: 'today_orders', label: isAr ? 'طلبات الفريق اليوم' : 'Team Today Orders', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('span', { class: 'badge badge-blue', style: 'font-weight:700;font-size:12px;padding:3px 8px' }, `📱 ${v || 0}`),
+      ]) },
+      { key: 'month_orders', label: isAr ? 'إجمالي طلبات الشهر' : 'Month Orders', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+      ]) },
+      { key: 'monthly_target', label: isAr ? 'تارجت الفريق' : 'Team Target', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+      ]) },
+      { key: 'achievement_pct', label: isAr ? 'نسبة إنجاز الفريق' : 'Achievement %', render: (v) => {
+        const pct = Math.min(100, Math.max(0, v || 0));
+        const color = pct >= 100 ? '#16a34a' : (pct >= 60 ? '#0284c7' : '#dc2626');
+        return el('div', { style: 'min-width:100px' }, [
+          el('div', { style: 'display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:3px' }, [
+            el('span', { style: `color:${color}` }, `${v || 0}%`),
+            el('span', { style: 'color:var(--muted)' }, `${pct}/100`)
+          ]),
+          el('div', { style: 'height:6px;background:rgba(0,0,0,0.06);border-radius:4px;overflow:hidden' }, [
+            el('div', { style: `height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width 0.3s` })
+          ])
+        ]);
+      }},
+      { key: 'required_daily_rate', label: isAr ? 'المعدل اليومي المطلوب' : 'Daily Run-Rate', render: (v, r) => el('div', { style: 'text-align:center' }, [
+        r.remaining_orders === 0
+          ? el('span', { style: 'color:#16a34a;font-weight:700;font-size:11px' }, isAr ? '🎉 اكتمل' : '🎉 Done')
+          : el('b', { style: 'color:#0284c7;font-size:12px' }, `${v} ${isAr ? 'طلب/يوم' : 'ord/d'}`)
+      ]) },
+      { key: 'status', label: isAr ? 'حالة الالتزام' : 'Status', render: (v) => {
+        if (v === 'ACHIEVED') return el('span', { class: 'badge badge-green', style: 'font-weight:700' }, isAr ? '🏆 حقق التارجت' : '🏆 Achieved');
+        if (v === 'ON_TRACK') return el('span', { class: 'badge badge-blue', style: 'font-weight:700' }, isAr ? '🟢 على الوتيرة' : '🟢 On Track');
+        return el('span', { class: 'badge badge-alert', style: 'font-weight:700' }, isAr ? '🔴 يحتاج دعم' : '🔴 At Risk');
+      }}
+    ];
+
+    tableContainer.append(el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px' }, [
+      el('div', {}, [
+        el('h3', { style: 'margin:0;font-size:15px;color:var(--text)' }, isAr ? `متابعة أداء المشرفين والفرق التشغيلية (${filtered.length} مشرف)` : `Supervisors & Teams Performance (${filtered.length})`),
+        el('p', { style: 'margin:2px 0 0 0;font-size:11px;color:var(--muted)' }, isAr ? 'مقارنة إنتاجية وحضور كل مجموعة تابعة لمشرف ومعدل إنجاز التارجت' : 'Compare attendance, productivity, and target pacing across supervisor teams')
+      ]),
+      el('span', { style: 'font-size:12px;color:var(--muted)' }, isAr ? `إجمالي المشرفين: ${filtered.length}` : `Count: ${filtered.length}`)
+    ]));
+
+    if (!filtered.length) {
+      tableContainer.append(emptyState(isAr ? 'لا توجد بيانات مشرفين مطابقة لخيارات الفلترة.' : 'No matching supervisor records.'));
+    } else {
+      tableContainer.append(table(columns, filtered));
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // LEVEL 3: CITIES & BRANCHES VIEW
+  // ─────────────────────────────────────────────────────────────
+  function renderBranchesLevelTable() {
+    const filtered = branches.filter((b) => {
+      if (filterSearch) {
+        const txt = `${b.branch_name || ''} ${b.city || ''} ${(b.supervisors || []).join(' ')} ${(b.contracts || []).join(' ')}`.toLowerCase();
+        if (!txt.includes(filterSearch)) return false;
+      }
+      return true;
+    });
+
+    const columns = [
+      { key: 'city', label: isAr ? 'المدينة والفرع' : 'City & Branch', render: (v, r) => el('div', {}, [
+        el('b', { style: 'display:block;color:var(--text);font-size:13px' }, `🏙️ ${v || 'الرياض'}`),
+        el('div', { style: 'color:var(--muted);font-size:11px;margin-top:2px' }, r.branch_name || 'الفرع الرئيسي')
+      ]) },
+      { key: 'supervisors', label: isAr ? 'المشرف المسؤول' : 'Supervisor', render: (v) => el('div', { style: 'font-size:12px;color:var(--text);font-weight:600' }, (v || []).join(', ') || 'مشرف عام') },
+      { key: 'couriers_count', label: isAr ? 'الأسطول النشط' : 'Active Fleet', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('b', { style: 'font-size:13px;color:var(--text)' }, `${v || 0} سائق`)
+      ]) },
+      { key: 'attendance_rate', label: isAr ? 'حضور اليوم بالفرع' : 'Branch Attendance Today', render: (v, r) => el('div', { style: 'text-align:center' }, [
+        el('span', { class: `badge ${v >= 80 ? 'badge-green' : (v >= 50 ? 'badge-blue' : 'badge-alert')}`, style: 'font-weight:700;font-size:11px' }, `${r.checked_in_count || 0} من ${r.couriers_count || 0} (${v || 0}%)`),
+      ]) },
+      { key: 'today_orders', label: isAr ? 'طلبات الفرع اليوم' : 'Branch Today Orders', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('span', { class: 'badge badge-blue', style: 'font-weight:700;font-size:12px;padding:3px 8px' }, `📱 ${v || 0}`),
+      ]) },
+      { key: 'month_orders', label: isAr ? 'إجمالي الشهر' : 'Month Orders', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+      ]) },
+      { key: 'monthly_target', label: isAr ? 'تارجت المدينة/الفرع' : 'Branch Target', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+      ]) },
+      { key: 'achievement_pct', label: isAr ? 'نسبة الإنجاز' : 'Achievement %', render: (v) => {
+        const pct = Math.min(100, Math.max(0, v || 0));
+        const color = pct >= 100 ? '#16a34a' : (pct >= 60 ? '#0284c7' : '#dc2626');
+        return el('div', { style: 'min-width:100px' }, [
+          el('div', { style: 'display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:3px' }, [
+            el('span', { style: `color:${color}` }, `${v || 0}%`),
+            el('span', { style: 'color:var(--muted)' }, `${pct}/100`)
+          ]),
+          el('div', { style: 'height:6px;background:rgba(0,0,0,0.06);border-radius:4px;overflow:hidden' }, [
+            el('div', { style: `height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width 0.3s` })
+          ])
+        ]);
+      }},
+      { key: 'required_daily_rate', label: isAr ? 'المعدل المطلوب' : 'Daily Rate', render: (v, r) => el('div', { style: 'text-align:center' }, [
+        r.remaining_orders === 0
+          ? el('span', { style: 'color:#16a34a;font-weight:700;font-size:11px' }, isAr ? '🎉 اكتمل' : '🎉 Done')
+          : el('b', { style: 'color:#0284c7;font-size:12px' }, `${v} ${isAr ? 'طلب/يوم' : 'ord/d'}`)
+      ]) },
+      { key: 'status', label: isAr ? 'الحالة' : 'Status', render: (v) => {
+        if (v === 'ACHIEVED') return el('span', { class: 'badge badge-green', style: 'font-weight:700' }, isAr ? '🏆 حقق التارجت' : '🏆 Achieved');
+        if (v === 'ON_TRACK') return el('span', { class: 'badge badge-blue', style: 'font-weight:700' }, isAr ? '🟢 على الوتيرة' : '🟢 On Track');
+        return el('span', { class: 'badge badge-alert', style: 'font-weight:700' }, isAr ? '🔴 يحتاج دعم' : '🔴 At Risk');
+      }}
+    ];
+
+    tableContainer.append(el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px' }, [
+      el('div', {}, [
+        el('h3', { style: 'margin:0;font-size:15px;color:var(--text)' }, isAr ? `أداء المدن والفروع الجغرافية (${filtered.length} فرع)` : `Cities & Branches Operations (${filtered.length})`),
+        el('p', { style: 'margin:2px 0 0 0;font-size:11px;color:var(--muted)' }, isAr ? 'متابعة توزيع الأسطول الميداني والطلبات حسب المدن والمناطق' : 'Track fleet allocation and deliveries across operational cities')
+      ]),
+      el('span', { style: 'font-size:12px;color:var(--muted)' }, isAr ? `إجمالي الفروع: ${filtered.length}` : `Count: ${filtered.length}`)
+    ]));
+
+    if (!filtered.length) {
+      tableContainer.append(emptyState(isAr ? 'لا توجد فروع مطابقة لخيارات الفلترة.' : 'No matching branch records.'));
+    } else {
+      tableContainer.append(table(columns, filtered));
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // LEVEL 4: CONTRACTS & PROJECTS VIEW
+  // ─────────────────────────────────────────────────────────────
+  function renderContractsLevelTable() {
+    const filtered = contracts.filter((c) => {
+      if (filterSearch) {
+        const txt = `${c.contract_name || ''} ${c.client_name || ''} ${(c.cities || []).join(' ')} ${(c.supervisors || []).join(' ')}`.toLowerCase();
+        if (!txt.includes(filterSearch)) return false;
+      }
+      return true;
+    });
+
+    const columns = [
+      { key: 'contract_name', label: isAr ? 'العقد والعميل التجاري' : 'Contract & Client', render: (v, r) => el('div', {}, [
+        el('b', { style: 'display:block;color:var(--text);font-size:13px' }, `🏢 ${v || 'عقد عام'}`),
+        el('div', { style: 'color:var(--primary);font-size:11px;font-weight:700;margin-top:2px' }, `منصة: ${r.client_name || v || 'منصة تجارية'}`)
+      ]) },
+      { key: 'cities', label: isAr ? 'المدن المغطاة' : 'Operating Cities', render: (v) => el('div', { style: 'display:flex;gap:4px;flex-wrap:wrap' }, (v || []).map(city => el('span', { class: 'badge badge-blue', style: 'font-size:10px' }, city))) },
+      { key: 'couriers_count', label: isAr ? 'الأسطول المخصص' : 'Allocated Fleet', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('b', { style: 'font-size:13px;color:var(--text)' }, `${v || 0} سائق`)
+      ]) },
+      { key: 'attendance_rate', label: isAr ? 'حضور الأسطول اليوم' : 'Today Fleet Attendance', render: (v, r) => el('div', { style: 'text-align:center' }, [
+        el('span', { class: `badge ${v >= 80 ? 'badge-green' : (v >= 50 ? 'badge-blue' : 'badge-alert')}`, style: 'font-weight:700;font-size:11px' }, `${r.checked_in_count || 0} من ${r.couriers_count || 0} (${v || 0}%)`),
+      ]) },
+      { key: 'today_orders', label: isAr ? 'طلبات العقد اليوم' : 'Contract Today Orders', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('span', { class: 'badge badge-blue', style: 'font-weight:700;font-size:12px;padding:3px 8px' }, `📱 ${v || 0}`),
+      ]) },
+      { key: 'month_orders', label: isAr ? 'إجمالي طلبات الشهر' : 'Total Month Orders', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+      ]) },
+      { key: 'monthly_target', label: isAr ? 'تارجت العقد المستهدف' : 'Contract Target', render: (v) => el('div', { style: 'text-align:center' }, [
+        el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+      ]) },
+      { key: 'achievement_pct', label: isAr ? 'نسبة إنجاز العقد' : 'Achievement %', render: (v) => {
+        const pct = Math.min(100, Math.max(0, v || 0));
+        const color = pct >= 100 ? '#16a34a' : (pct >= 60 ? '#0284c7' : '#dc2626');
+        return el('div', { style: 'min-width:100px' }, [
+          el('div', { style: 'display:flex;justify-content:space-between;font-size:11px;font-weight:700;margin-bottom:3px' }, [
+            el('span', { style: `color:${color}` }, `${v || 0}%`),
+            el('span', { style: 'color:var(--muted)' }, `${pct}/100`)
+          ]),
+          el('div', { style: 'height:6px;background:rgba(0,0,0,0.06);border-radius:4px;overflow:hidden' }, [
+            el('div', { style: `height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width 0.3s` })
+          ])
+        ]);
+      }},
+      { key: 'required_daily_rate', label: isAr ? 'المعدل المطلوب' : 'Daily Rate', render: (v, r) => el('div', { style: 'text-align:center' }, [
+        r.remaining_orders === 0
+          ? el('span', { style: 'color:#16a34a;font-weight:700;font-size:11px' }, isAr ? '🎉 اكتمل' : '🎉 Done')
+          : el('b', { style: 'color:#0284c7;font-size:12px' }, `${v} ${isAr ? 'طلب/يوم' : 'ord/d'}`)
+      ]) },
+      { key: 'status', label: isAr ? 'الحالة' : 'Status', render: (v) => {
+        if (v === 'ACHIEVED') return el('span', { class: 'badge badge-green', style: 'font-weight:700' }, isAr ? '🏆 حقق التارجت' : '🏆 Achieved');
+        if (v === 'ON_TRACK') return el('span', { class: 'badge badge-blue', style: 'font-weight:700' }, isAr ? '🟢 على الوتيرة' : '🟢 On Track');
+        return el('span', { class: 'badge badge-alert', style: 'font-weight:700' }, isAr ? '🔴 يحتاج دعم' : '🔴 At Risk');
+      }}
+    ];
+
+    tableContainer.append(el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px' }, [
+      el('div', {}, [
+        el('h3', { style: 'margin:0;font-size:15px;color:var(--text)' }, isAr ? `متابعة أداء العقود والمشاريع التجارية (${filtered.length} عقد)` : `Commercial Contracts & Projects (${filtered.length})`),
+        el('p', { style: 'margin:2px 0 0 0;font-size:11px;color:var(--muted)' }, isAr ? 'متابعة التزام وإنجاز الشركة تجاه عقود المنصات المختلفة (هنقرستيشن، نينجا، إلخ)' : 'Contract SLA fulfillment and target tracking across platforms')
+      ]),
+      el('span', { style: 'font-size:12px;color:var(--muted)' }, isAr ? `إجمالي العقود: ${filtered.length}` : `Count: ${filtered.length}`)
+    ]));
+
+    if (!filtered.length) {
+      tableContainer.append(emptyState(isAr ? 'لا توجد عقود مطابقة لخيارات الفلترة.' : 'No matching contract records.'));
+    } else {
+      tableContainer.append(table(columns, filtered));
+    }
+  }
+
+  update360Content();
   return wrap;
 }
 
-function exportDriverTargetsCsv(month, rows) {
-  if (!rows || !rows.length) return alert('لا توجد بيانات للتصدير.');
-  const headers = ['اسم السائق', 'رقم الجوال', 'الفرع', 'حضور اليوم', 'طلبات اليوم', 'إجمالي الشهر', 'التارجت الشهري', 'نسبة الإنجاز', 'المتبقي', 'المعدل اليومي المطلوب', 'الحالة'];
-  const csvRows = [headers.join(',')];
-  rows.forEach((r) => {
-    csvRows.push([
-      `"${r.name || ''}"`,
-      `"${r.phone || ''}"`,
-      `"${r.branch_name || ''}"`,
-      r.checked_in ? `حاضر (${r.checkin_time || ''})` : 'غائب',
-      r.today_orders || 0,
-      r.month_orders || 0,
-      r.monthly_target || 400,
-      `"${r.achievement_pct || 0}%"`,
-      r.remaining_orders || 0,
-      r.required_daily_rate || 0,
-      r.status === 'ACHIEVED' ? 'محقق التارجت' : (r.status === 'ON_TRACK' ? 'على الوتيرة' : 'يحتاج دعم')
-    ].join(','));
-  });
+function exportActiveLevelCsv(data) {
+  const month = data.month || currentDriverTargetsMonth;
+  let headers = [];
+  let csvRows = [];
+
+  if (current360Level === 'couriers') {
+    headers = ['اسم السائق', 'رقم الجوال', 'المدينة', 'الفرع', 'المشرف', 'العقد', 'حضور اليوم', 'طلبات اليوم', 'إجمالي الشهر', 'التارجت الشهري', 'نسبة الإنجاز', 'المتبقي', 'المعدل اليومي المطلوب', 'الحالة'];
+    csvRows = [headers.join(',')];
+    (data.rows || []).forEach((r) => {
+      csvRows.push([
+        `"${r.name || ''}"`,
+        `"${r.phone || ''}"`,
+        `"${r.city || ''}"`,
+        `"${r.branch_name || ''}"`,
+        `"${r.supervisor_name || ''}"`,
+        `"${r.contract_name || ''}"`,
+        r.checked_in ? `حاضر (${r.checkin_time || ''})` : 'غائب',
+        r.today_orders || 0,
+        r.month_orders || 0,
+        r.monthly_target || 400,
+        `"${r.achievement_pct || 0}%"`,
+        r.remaining_orders || 0,
+        r.required_daily_rate || 0,
+        r.status === 'ACHIEVED' ? 'محقق التارجت' : (r.status === 'ON_TRACK' ? 'على الوتيرة' : 'يحتاج دعم')
+      ].join(','));
+    });
+  } else if (current360Level === 'supervisors') {
+    headers = ['المشرف', 'رقم الجوال', 'المدن والفروع', 'فريق المناديب', 'حضور اليوم', 'طلبات اليوم', 'إجمالي الشهر', 'تارجت الفريق', 'نسبة الإنجاز', 'المتبقي', 'المعدل اليومي', 'الحالة'];
+    csvRows = [headers.join(',')];
+    (data.supervisors || []).forEach((s) => {
+      csvRows.push([
+        `"${s.name || ''}"`,
+        `"${s.phone || ''}"`,
+        `"${(s.cities || []).join(' · ')}"`,
+        s.couriers_count || 0,
+        `"${s.checked_in_count || 0} (${s.attendance_rate || 0}%)"`,
+        s.today_orders || 0,
+        s.month_orders || 0,
+        s.monthly_target || 0,
+        `"${s.achievement_pct || 0}%"`,
+        s.remaining_orders || 0,
+        s.required_daily_rate || 0,
+        s.status === 'ACHIEVED' ? 'محقق التارجت' : (s.status === 'ON_TRACK' ? 'على الوتيرة' : 'يحتاج دعم')
+      ].join(','));
+    });
+  } else if (current360Level === 'branches') {
+    headers = ['المدينة', 'الفرع', 'المشرف', 'الأسطول النشط', 'حضور اليوم', 'طلبات اليوم', 'إجمالي الشهر', 'تارجت الفرع', 'نسبة الإنجاز', 'المتبقي', 'المعدل اليومي', 'الحالة'];
+    csvRows = [headers.join(',')];
+    (data.branches || []).forEach((b) => {
+      csvRows.push([
+        `"${b.city || ''}"`,
+        `"${b.branch_name || ''}"`,
+        `"${(b.supervisors || []).join(' · ')}"`,
+        b.couriers_count || 0,
+        `"${b.checked_in_count || 0} (${b.attendance_rate || 0}%)"`,
+        b.today_orders || 0,
+        b.month_orders || 0,
+        b.monthly_target || 0,
+        `"${b.achievement_pct || 0}%"`,
+        b.remaining_orders || 0,
+        b.required_daily_rate || 0,
+        b.status === 'ACHIEVED' ? 'محقق التارجت' : (b.status === 'ON_TRACK' ? 'على الوتيرة' : 'يحتاج دعم')
+      ].join(','));
+    });
+  } else if (current360Level === 'contracts') {
+    headers = ['العقد', 'العميل/المنصة', 'المدن المغطاة', 'الأسطول المخصص', 'حضور اليوم', 'طلبات اليوم', 'إجمالي الشهر', 'تارجت العقد', 'نسبة الإنجاز', 'المتبقي', 'المعدل اليومي', 'الحالة'];
+    csvRows = [headers.join(',')];
+    (data.contracts || []).forEach((c) => {
+      csvRows.push([
+        `"${c.contract_name || ''}"`,
+        `"${c.client_name || ''}"`,
+        `"${(c.cities || []).join(' · ')}"`,
+        c.couriers_count || 0,
+        `"${c.checked_in_count || 0} (${c.attendance_rate || 0}%)"`,
+        c.today_orders || 0,
+        c.month_orders || 0,
+        c.monthly_target || 0,
+        `"${c.achievement_pct || 0}%"`,
+        c.remaining_orders || 0,
+        c.required_daily_rate || 0,
+        c.status === 'ACHIEVED' ? 'محقق التارجت' : (c.status === 'ON_TRACK' ? 'على الوتيرة' : 'يحتاج دعم')
+      ].join(','));
+    });
+  }
+
+  if (csvRows.length <= 1) return alert('لا توجد بيانات للتصدير.');
   const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `dou_driver_targets_${month}.csv`;
+  a.download = `dou_360_${current360Level}_${month}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

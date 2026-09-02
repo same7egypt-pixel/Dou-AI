@@ -59,11 +59,15 @@ def _convert_query_objects(*args):
 @router.get("/driver-targets")
 def driver_targets_progress(
     month: Optional[str] = Query(None),
+    contract_id: Optional[int] = Query(None),
     branch_id: Optional[int] = Query(None),
+    supervisor_id: Optional[int] = Query(None),
+    city: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
     user: ent.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Operational tracker for driver daily attendance, daily orders, and monthly target pacing."""
+    """360-degree operational performance & target tracker across Couriers, Supervisors, Branches/Cities, and Contracts."""
     tenant_id = _tenant_id(user)
     today = date.today()
     selected_month = month or today.strftime("%Y-%m")
@@ -79,37 +83,105 @@ def driver_targets_progress(
     day_of_month = today.day if selected_month == today.strftime("%Y-%m") else days_in_month
     remaining_days = max(1, days_in_month - day_of_month)
 
+    # 1. Base references (Contracts, Branches, Supervisors) for filter options & metadata
+    contracts_db = db.query(ent.Contract).filter(ent.Contract.tenant_id == tenant_id).all()
+    contract_map = {c.id: c for c in contracts_db}
+
+    branches_db = db.query(ent.ContractBranch).filter(ent.ContractBranch.tenant_id == tenant_id).all()
+    branch_map = {b.id: b for b in branches_db}
+
+    supervisors_db = db.query(ent.User).filter(
+        ent.User.tenant_id == tenant_id,
+        ent.User.role.in_([ent.UserRole.SUPERVISOR, ent.UserRole.FLEET_SUPERVISOR]),
+    ).all()
+    supervisor_map = {s.id: s for s in supervisors_db}
+
+    # Supervisor-branch link mappings
+    branch_supervisor_links = db.query(ent.ContractBranchSupervisor).all()
+    branch_to_supervisors = defaultdict(list)
+    for link in branch_supervisor_links:
+        if link.contract_branch_id in branch_map:
+            branch_to_supervisors[link.contract_branch_id].append(link.user_id)
+
+    # Filter Options for Frontend Selectors
+    cities_set = sorted({b.city for b in branches_db if b.city})
+    filter_options = {
+        "contracts": [
+            {"id": c.id, "name": c.name, "client_name": c.client_name or c.name}
+            for c in contracts_db
+        ],
+        "cities": cities_set,
+        "branches": [
+            {
+                "id": b.id,
+                "name": b.branch_name or b.city or f"فرع #{b.id}",
+                "city": b.city or "الرياض",
+                "contract_id": b.contract_id,
+                "supervisor_id": b.supervisor_id or (branch_to_supervisors.get(b.id, [None])[0]),
+            }
+            for b in branches_db
+        ],
+        "supervisors": [
+            {"id": s.id, "name": s.name or s.phone, "phone": s.phone}
+            for s in supervisors_db
+        ],
+    }
+
+    # 2. Query Couriers with Role Constraints
     couriers_q = db.query(ent.Courier).filter(
         ent.Courier.tenant_id == tenant_id,
         ent.Courier.employment_status == "ACTIVE",
     )
+
+    # Enforce supervisor boundary if calling user is a supervisor
     if user.role == ent.UserRole.SUPERVISOR:
         sup_branches = [
             link.contract_branch_id
-            for link in db.query(ent.ContractBranchSupervisor)
-            .filter(ent.ContractBranchSupervisor.user_id == user.id)
-            .all()
+            for link in branch_supervisor_links
+            if link.user_id == user.id
         ]
         direct_branches = [
-            b.id
-            for b in db.query(ent.ContractBranch)
-            .filter(ent.ContractBranch.supervisor_id == user.id)
-            .all()
+            b.id for b in branches_db if b.supervisor_id == user.id
         ]
         allowed_branches = set(sup_branches + direct_branches)
         if allowed_branches:
-            couriers_q = couriers_q.filter(
-                ent.Courier.contract_branch_id.in_(allowed_branches)
-            )
+            couriers_q = couriers_q.filter(ent.Courier.contract_branch_id.in_(allowed_branches))
         else:
             couriers_q = couriers_q.filter(ent.Courier.supervisor_id == user.id)
 
+    # Applied Request Filters
+    if contract_id:
+        # Match courier.contract_id or branch.contract_id
+        valid_bids = [b.id for b in branches_db if b.contract_id == contract_id]
+        couriers_q = couriers_q.filter(
+            or_(
+                ent.Courier.contract_id == contract_id,
+                ent.Courier.contract_branch_id.in_(valid_bids) if valid_bids else False,
+            )
+        )
     if branch_id:
         couriers_q = couriers_q.filter(ent.Courier.contract_branch_id == branch_id)
+    if city:
+        valid_bids = [b.id for b in branches_db if b.city == city]
+        couriers_q = couriers_q.filter(
+            or_(
+                ent.Courier.contract_branch_id.in_(valid_bids) if valid_bids else False,
+                ent.Courier.zone == city,
+            )
+        )
+    if supervisor_id:
+        sup_bids = [b.id for b in branches_db if b.supervisor_id == supervisor_id or supervisor_id in branch_to_supervisors.get(b.id, [])]
+        couriers_q = couriers_q.filter(
+            or_(
+                ent.Courier.supervisor_id == supervisor_id,
+                ent.Courier.contract_branch_id.in_(sup_bids) if sup_bids else False,
+            )
+        )
 
     couriers = couriers_q.order_by(ent.Courier.name).all()
     c_ids = [c.id for c in couriers]
 
+    # 3. Monthly Daily Logs & Today's Activity
     today_orders = defaultdict(int)
     month_orders = defaultdict(int)
     if c_ids:
@@ -128,6 +200,7 @@ def driver_targets_progress(
             if log.log_date == today:
                 today_orders[log.courier_id] += qty
 
+    # 4. Today Attendance
     today_attendances = {}
     if c_ids:
         today_dt_start = datetime.combine(today, datetime.min.time())
@@ -148,24 +221,18 @@ def driver_targets_progress(
                 "is_late": att.is_late,
             }
 
-    branch_ids = [c.contract_branch_id for c in couriers if c.contract_branch_id]
-    branches = (
-        {
-            b.id: (b.branch_name or b.city or f"فرع #{b.id}")
-            for b in db.query(ent.ContractBranch)
-            .filter(ent.ContractBranch.id.in_(branch_ids))
-            .all()
-        }
-        if branch_ids
-        else {}
-    )
-
-    rows = []
+    # 5. Build Courier-Level Rows & Grouped Aggregators
+    courier_rows = []
     total_month_orders = 0
     total_today_orders = 0
     on_track_count = 0
     at_risk_count = 0
     achieved_count = 0
+
+    # Grouping collectors
+    sup_groups = defaultdict(lambda: {"couriers": [], "today_orders": 0, "month_orders": 0, "target": 0, "checked_in": 0, "branches": set(), "cities": set(), "contracts": set()})
+    branch_groups = defaultdict(lambda: {"couriers": [], "today_orders": 0, "month_orders": 0, "target": 0, "checked_in": 0, "supervisors": set(), "contracts": set()})
+    contract_groups = defaultdict(lambda: {"couriers": [], "today_orders": 0, "month_orders": 0, "target": 0, "checked_in": 0, "branches": set(), "cities": set(), "supervisors": set()})
 
     for c in couriers:
         done = month_orders[c.id]
@@ -183,41 +250,240 @@ def driver_targets_progress(
 
         expected_pace = (day_of_month / days_in_month) * target
         if done >= target:
-            status = "ACHIEVED"
+            c_status = "ACHIEVED"
             achieved_count += 1
         elif done >= expected_pace * 0.85:
-            status = "ON_TRACK"
+            c_status = "ON_TRACK"
             on_track_count += 1
         else:
-            status = "AT_RISK"
+            c_status = "AT_RISK"
             at_risk_count += 1
+
+        if status and c_status != status:
+            continue
 
         att_info = today_attendances.get(
             c.id, {"checked_in": False, "time": None, "is_late": False}
         )
 
-        rows.append(
-            {
-                "id": c.id,
-                "name": c.name,
-                "phone": c.phone,
-                "branch_id": c.contract_branch_id,
-                "branch_name": branches.get(
-                    c.contract_branch_id, c.zone or "الفرع الرئيسي"
-                ),
-                "checked_in": att_info["checked_in"],
-                "checkin_time": att_info["time"],
-                "today_orders": t_orders,
-                "month_orders": done,
-                "monthly_target": target,
-                "achievement_pct": pct,
-                "remaining_orders": remaining,
-                "required_daily_rate": required_daily_rate,
-                "status": status,
-            }
-        )
+        branch_obj = branch_map.get(c.contract_branch_id)
+        contract_obj = contract_map.get(c.contract_id or (branch_obj.contract_id if branch_obj else None))
+        
+        # Resolve supervisor
+        sup_id = c.supervisor_id or (branch_obj.supervisor_id if branch_obj else None) or (branch_to_supervisors.get(branch_obj.id, [None])[0] if branch_obj else None)
+        sup_obj = supervisor_map.get(sup_id)
+
+        c_city = (branch_obj.city if branch_obj else None) or c.zone or "الرياض"
+        b_name = (branch_obj.branch_name or branch_obj.city if branch_obj else None) or c.zone or "الفرع الرئيسي"
+        cnt_name = (contract_obj.name if contract_obj else None) or getattr(c, "contract_name", None) or "عقد عام"
+        sup_name = (sup_obj.name or sup_obj.phone if sup_obj else None) or "مشرف تشغيل عام"
+
+        courier_data = {
+            "id": c.id,
+            "name": c.name,
+            "phone": c.phone,
+            "contract_id": contract_obj.id if contract_obj else None,
+            "contract_name": cnt_name,
+            "branch_id": c.contract_branch_id,
+            "branch_name": b_name,
+            "city": c_city,
+            "supervisor_id": sup_id,
+            "supervisor_name": sup_name,
+            "checked_in": att_info["checked_in"],
+            "checkin_time": att_info["time"],
+            "today_orders": t_orders,
+            "month_orders": done,
+            "monthly_target": target,
+            "achievement_pct": pct,
+            "remaining_orders": remaining,
+            "required_daily_rate": required_daily_rate,
+            "status": c_status,
+        }
+        courier_rows.append(courier_data)
+
+        # Accumulate for Supervisor Group
+        sup_key = sup_id or 0
+        sup_groups[sup_key]["couriers"].append(courier_data)
+        sup_groups[sup_key]["today_orders"] += t_orders
+        sup_groups[sup_key]["month_orders"] += done
+        sup_groups[sup_key]["target"] += target
+        if att_info["checked_in"]:
+            sup_groups[sup_key]["checked_in"] += 1
+        if branch_obj:
+            sup_groups[sup_key]["branches"].add(b_name)
+            sup_groups[sup_key]["cities"].add(c_city)
+        if contract_obj:
+            sup_groups[sup_key]["contracts"].add(cnt_name)
+
+        # Accumulate for Branch / City Group
+        branch_key = c.contract_branch_id or c_city
+        branch_groups[branch_key]["couriers"].append(courier_data)
+        branch_groups[branch_key]["today_orders"] += t_orders
+        branch_groups[branch_key]["month_orders"] += done
+        branch_groups[branch_key]["target"] += target
+        if att_info["checked_in"]:
+            branch_groups[branch_key]["checked_in"] += 1
+        branch_groups[branch_key]["branch_name"] = b_name
+        branch_groups[branch_key]["city"] = c_city
+        branch_groups[branch_key]["supervisors"].add(sup_name)
+        if contract_obj:
+            branch_groups[branch_key]["contracts"].add(cnt_name)
+
+        # Accumulate for Contract / Project Group
+        contract_key = contract_obj.id if contract_obj else "general"
+        contract_groups[contract_key]["couriers"].append(courier_data)
+        contract_groups[contract_key]["today_orders"] += t_orders
+        contract_groups[contract_key]["month_orders"] += done
+        contract_groups[contract_key]["target"] += target
+        if att_info["checked_in"]:
+            contract_groups[contract_key]["checked_in"] += 1
+        contract_groups[contract_key]["contract_name"] = cnt_name
+        contract_groups[contract_key]["client_name"] = (contract_obj.client_name if contract_obj else None) or cnt_name
+        if branch_obj:
+            contract_groups[contract_key]["branches"].add(b_name)
+            contract_groups[contract_key]["cities"].add(c_city)
+        contract_groups[contract_key]["supervisors"].add(sup_name)
+
+    # 6. Build Structured 360 Aggregation Views
+    # 6.1 Supervisor 360 View
+    supervisor_rows = []
+    for sup_key, data in sup_groups.items():
+        sup_obj = supervisor_map.get(sup_key)
+        total_c = len(data["couriers"])
+        tgt = data["target"] or (total_c * 400)
+        done = data["month_orders"]
+        pct = round((done / tgt) * 100, 1) if tgt > 0 else 100.0
+        remaining = max(0, tgt - done)
+        req_rate = round(remaining / remaining_days, 1) if remaining > 0 else 0.0
+        exp_pace = (day_of_month / days_in_month) * tgt
+
+        if done >= tgt:
+            s_status = "ACHIEVED"
+        elif done >= exp_pace * 0.85:
+            s_status = "ON_TRACK"
+        else:
+            s_status = "AT_RISK"
+
+        supervisor_rows.append({
+            "supervisor_id": sup_key,
+            "name": sup_obj.name if sup_obj else ("المشرف العام" if sup_key == 0 else f"مشرف #{sup_key}"),
+            "phone": sup_obj.phone if sup_obj else "—",
+            "couriers_count": total_c,
+            "checked_in_count": data["checked_in"],
+            "attendance_rate": round((data["checked_in"] / max(1, total_c)) * 100, 1),
+            "today_orders": data["today_orders"],
+            "month_orders": done,
+            "monthly_target": tgt,
+            "achievement_pct": pct,
+            "remaining_orders": remaining,
+            "required_daily_rate": req_rate,
+            "branches": sorted(list(data["branches"])),
+            "cities": sorted(list(data["cities"])),
+            "contracts": sorted(list(data["contracts"])),
+            "status": s_status,
+        })
+    supervisor_rows.sort(key=lambda x: x["month_orders"], reverse=True)
+
+    # 6.2 Cities & Branches 360 View
+    branch_rows = []
+    for b_key, data in branch_groups.items():
+        total_c = len(data["couriers"])
+        tgt = data["target"] or (total_c * 400)
+        done = data["month_orders"]
+        pct = round((done / tgt) * 100, 1) if tgt > 0 else 100.0
+        remaining = max(0, tgt - done)
+        req_rate = round(remaining / remaining_days, 1) if remaining > 0 else 0.0
+        exp_pace = (day_of_month / days_in_month) * tgt
+
+        if done >= tgt:
+            b_status = "ACHIEVED"
+        elif done >= exp_pace * 0.85:
+            b_status = "ON_TRACK"
+        else:
+            b_status = "AT_RISK"
+
+        branch_rows.append({
+            "branch_id": b_key if isinstance(b_key, int) else None,
+            "branch_name": data["branch_name"],
+            "city": data["city"],
+            "couriers_count": total_c,
+            "checked_in_count": data["checked_in"],
+            "attendance_rate": round((data["checked_in"] / max(1, total_c)) * 100, 1),
+            "today_orders": data["today_orders"],
+            "month_orders": done,
+            "monthly_target": tgt,
+            "achievement_pct": pct,
+            "remaining_orders": remaining,
+            "required_daily_rate": req_rate,
+            "supervisors": sorted(list(data["supervisors"])),
+            "contracts": sorted(list(data["contracts"])),
+            "status": b_status,
+        })
+    branch_rows.sort(key=lambda x: x["month_orders"], reverse=True)
+
+    # 6.3 Contract / Project 360 View
+    contract_rows = []
+    for cnt_key, data in contract_groups.items():
+        total_c = len(data["couriers"])
+        tgt = data["target"] or (total_c * 400)
+        done = data["month_orders"]
+        pct = round((done / tgt) * 100, 1) if tgt > 0 else 100.0
+        remaining = max(0, tgt - done)
+        req_rate = round(remaining / remaining_days, 1) if remaining > 0 else 0.0
+        exp_pace = (day_of_month / days_in_month) * tgt
+
+        if done >= tgt:
+            cnt_status = "ACHIEVED"
+        elif done >= exp_pace * 0.85:
+            cnt_status = "ON_TRACK"
+        else:
+            cnt_status = "AT_RISK"
+
+        contract_rows.append({
+            "contract_id": cnt_key if isinstance(cnt_key, int) else None,
+            "contract_name": data["contract_name"],
+            "client_name": data["client_name"],
+            "couriers_count": total_c,
+            "checked_in_count": data["checked_in"],
+            "attendance_rate": round((data["checked_in"] / max(1, total_c)) * 100, 1),
+            "today_orders": data["today_orders"],
+            "month_orders": done,
+            "monthly_target": tgt,
+            "achievement_pct": pct,
+            "remaining_orders": remaining,
+            "required_daily_rate": req_rate,
+            "branches": sorted(list(data["branches"])),
+            "cities": sorted(list(data["cities"])),
+            "supervisors": sorted(list(data["supervisors"])),
+            "status": cnt_status,
+        })
+    contract_rows.sort(key=lambda x: x["month_orders"], reverse=True)
 
     return {
+        "month": selected_month,
+        "days_in_month": days_in_month,
+        "day_of_month": day_of_month,
+        "remaining_days": remaining_days,
+        "summary": {
+            "total_couriers": len(couriers),
+            "total_today_orders": total_today_orders,
+            "total_month_orders": total_month_orders,
+            "avg_orders_per_courier": round(
+                total_month_orders / max(1, len(couriers)), 1
+            ),
+            "achieved_count": achieved_count,
+            "on_track_count": on_track_count,
+            "at_risk_count": at_risk_count,
+            "supervisors_count": len(supervisor_rows),
+            "branches_count": len(branch_rows),
+            "contracts_count": len(contract_rows),
+        },
+        "rows": courier_rows,
+        "supervisors": supervisor_rows,
+        "branches": branch_rows,
+        "contracts": contract_rows,
+        "filter_options": filter_options,
+    }
         "month": selected_month,
         "days_in_month": days_in_month,
         "day_of_month": day_of_month,
