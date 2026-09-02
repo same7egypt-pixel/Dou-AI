@@ -1550,41 +1550,24 @@ def export_xlsx(
     data = get_report_data(group or "workforce", report_type, user=user, db=db)
     rows = data.get("rows", [])
 
-    try:
-        from openpyxl import Workbook
-
-        USE_OPENPYXL = True
-    except ImportError:
-        import xlsxwriter
-
-        USE_OPENPYXL = False
+    # openpyxl is a declared dependency. There used to be an xlsxwriter fallback
+    # here for when it was missing, but neither package was in requirements, so
+    # in a clean container the fallback was reached and then also failed. One
+    # declared writer beats two undeclared ones.
+    from openpyxl import Workbook
 
     output = io.BytesIO()
-    if USE_OPENPYXL:
-        wb = Workbook()
-        ws = wb.active
-        ws.title = report_type[:30]
-        if rows:
-            headers = list(rows[0].keys())
-            ws.append(headers)
-            for r in rows:
-                ws.append([r.get(h) for h in headers])
-        else:
-            ws.append(["لا توجد بيانات"])
-        wb.save(output)
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = report_type[:30]
+    if rows:
+        headers = list(rows[0].keys())
+        sheet.append(headers)
+        for row in rows:
+            sheet.append([row.get(header) for header in headers])
     else:
-        workbook = xlsxwriter.Workbook(output)
-        worksheet = workbook.add_worksheet(report_type[:30])
-        if rows:
-            headers = list(rows[0].keys())
-            for col, header in enumerate(headers):
-                worksheet.write(0, col, header)
-            for row_idx, r in enumerate(rows, 1):
-                for col, header in enumerate(headers):
-                    worksheet.write(row_idx, col, r.get(header))
-        else:
-            worksheet.write(0, 0, "لا توجد بيانات")
-        workbook.close()
+        sheet.append(["لا توجد بيانات"])
+    workbook.save(output)
 
     output.seek(0)
     return StreamingResponse(

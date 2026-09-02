@@ -17,3 +17,8 @@ redis==5.2.1
 # is set. Rider ID and passport scans live in this path, so it must not be a
 # best-effort import that fails only once a document is uploaded.
 boto3==1.35.76
+# Error reporting. init_sentry() is a no-op without SENTRY_DSN, so this is safe
+# to ship with reporting switched off.
+sentry-sdk[fastapi]==2.19.2
+# Writes the XLSX report exports.
+openpyxl==3.1.5

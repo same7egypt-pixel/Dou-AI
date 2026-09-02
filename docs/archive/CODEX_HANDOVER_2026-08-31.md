@@ -1,3 +1,11 @@
+> **ARCHIVED — historical record, not current state.**
+>
+> Written 2026-08-31 against the branch `hardening/stabilization-phase-0`, which
+> no longer exists. Much of it is now wrong: the demo accounts, the ports, the
+> "what is broken" list, and the payroll behaviour it describes have all moved
+> on. Kept for the reasoning and the locked product decisions in sections 5 and
+> 6. For current state read `CLAUDE.md` and `docs/PRODUCTION_RUNBOOK.md`.
+
 # CODEX HANDOVER — DOU Fleet OS Phase 1
 
 **Created:** 2026-08-31

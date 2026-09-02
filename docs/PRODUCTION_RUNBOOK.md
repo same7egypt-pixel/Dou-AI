@@ -1,74 +1,180 @@
-# DOU Fleet OS — Production Launch & Operations Runbook
+# DOU Fleet OS — Production Runbook
 
-## 1. Quick Launch with Docker Compose (Recommended)
-
-### Prerequisites:
-- Docker 24+ & Docker Compose v2+
-- Domain DNS pointing to your host server
-
-### Step-by-Step Deployment:
-1. **Clone repository & prepare environment:**
-   ```bash
-   git clone https://github.com/same7egypt-pixel/Dou-AI.git /opt/dou-fleet
-   cd /opt/dou-fleet
-   cp .env.example .env
-   ```
-2. **Generate secure production secrets:**
-   ```bash
-   # Generate SECRET_KEY and ADMIN_KEY
-   openssl rand -hex 32  # Paste into SECRET_KEY
-   openssl rand -hex 16  # Paste into ADMIN_KEY
-   openssl rand -hex 24  # Paste into POSTGRES_PASSWORD
-   ```
-3. **Run Pre-flight verification:**
-   ```bash
-   python scripts/preflight_check.py
-   ```
-4. **Launch containers:**
-   ```bash
-   docker compose up -d --build
-   ```
-5. **Verify health & readiness:**
-   ```bash
-   curl -i http://127.0.0.1:8123/health/ready
-   ```
+Operating instructions for the live stack. Read section 2 before your next
+deploy: the release procedure changed.
 
 ---
 
-## 2. Nginx Reverse Proxy & SSL Configuration
+## 1. Secrets
 
-Deploy Nginx config from `deploy/nginx/dou.conf` with Let's Encrypt:
+Every secret lives in `/opt/dou-fleet/.env`, mode `600`, owned by `ubuntu`. It is
+git-ignored and must never be committed. `docker-compose.yml` has no fallback
+values, so a missing variable stops the stack instead of silently starting with
+a guessable default.
+
 ```bash
-sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
-sudo cp deploy/nginx/dou.conf /etc/nginx/sites-available/dou.conf
-sudo ln -s /etc/nginx/sites-available/dou.conf /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d app.doufleet.com
+umask 077
+cat > /opt/dou-fleet/.env <<EOF
+APP_ENV=production
+POSTGRES_DB=dou_prod
+POSTGRES_USER=dou_user
+POSTGRES_PASSWORD=$(openssl rand -hex 24)
+SECRET_KEY=$(openssl rand -hex 32)
+ADMIN_KEY=$(openssl rand -hex 16)
+STORAGE_PROVIDER=S3
+S3_BUCKET=dou-fleet-documents
+AWS_REGION=me-central-1
+BACKUP_S3_BUCKET=dou-fleet-backups
+SENTRY_DSN=
+EOF
+chmod 600 /opt/dou-fleet/.env
+```
+
+**Rotating `SECRET_KEY` signs every session out.** Tokens are HS256 over that
+key, so plan the rotation for a quiet hour and tell users they must log in
+again. `POSTGRES_PASSWORD` must be changed inside PostgreSQL as well as in
+`.env`:
+
+```bash
+docker compose exec db psql -U dou_user -d dou_prod \
+  -c "ALTER USER dou_user WITH PASSWORD '<new password>';"
+# then update .env and: docker compose up -d
 ```
 
 ---
 
-## 3. Automated Daily Backups
+## 2. Deploying a release
 
-Add cronjob for daily automated backups to S3:
+The app container no longer bind-mounts the source tree. It runs the code baked
+into its image, so **copying files onto the server does not deploy them** —
+`rsync` followed by `restart` will appear to succeed and change nothing.
+
 ```bash
-0 2 * * * /opt/dou-fleet/scripts/backup.py >> /var/log/dou-backup.log 2>&1
+# On the server
+cd /opt/dou-fleet
+git pull origin main
+docker compose up -d --build
+docker compose logs -f app        # watch migrations then uvicorn start
+curl -fsS http://127.0.0.1:8000/health/ready
+```
+
+Migrations run automatically from `tools/migrate.py` before uvicorn starts,
+under a PostgreSQL advisory lock so concurrent deploys cannot race. A failed
+migration aborts the boot rather than serving against a half-changed schema.
+
+**Rollback:**
+
+```bash
+git checkout <previous good sha>
+docker compose up -d --build
+```
+
+A rollback does not undo a migration. If the bad release added a migration,
+restore from backup (section 4) instead.
+
+---
+
+## 3. Health and monitoring
+
+| Endpoint | Purpose | Healthy |
+| --- | --- | --- |
+| `GET /health` | liveness for the load balancer | `200` |
+| `GET /health/ready` | readiness, touches the database | `200` |
+| `GET /health/metrics` | uptime and system health | `200` |
+
+Alert on `/health/ready` failing twice in a row, and on a sustained 5xx rate.
+`SENTRY_DSN` in `.env` turns on error reporting.
+
+```bash
+docker compose ps                      # container state
+docker compose logs --tail=200 app     # recent application log
+docker compose exec db pg_isready -U dou_user -d dou_prod
 ```
 
 ---
 
-## 4. Health & Monitoring Endpoints
+## 4. Backups and recovery
 
-| Endpoint | Purpose | Expected Status |
-| :--- | :--- | :--- |
-| `GET /health` | Liveness probe for load balancers | `200 OK` |
-| `GET /health/ready` | Readiness probe (DB + Redis connectivity) | `200 OK` |
-| `GET /health/metrics` | Platform uptime & system health | `200 OK` |
+Nightly backup, verified on write and uploaded to S3:
+
+```bash
+0 2 * * * cd /opt/dou-fleet && docker compose exec -T app python scripts/backup.py backup >> /var/log/dou-backup.log 2>&1
+```
+
+```bash
+python scripts/backup.py backup            # dump, verify, upload, prune
+python scripts/backup.py list              # local and remote copies
+python scripts/backup.py restore <file>    # overwrite the live database
+```
+
+`backup` fails loudly rather than writing an unusable file: it rejects a dump
+that is too small and runs `pg_restore --list` to confirm the archive is
+readable and contains table data. Local copies are pruned after
+`BACKUP_RETENTION_DAYS` (default 30); set a lifecycle policy on the bucket for
+the remote ones.
+
+**Restore drill — run this quarterly, against a scratch database, and record the
+date.** An unrehearsed restore is not a recovery plan.
+
+```bash
+createdb -U dou_user dou_restore_test
+DATABASE_URL=postgresql://dou_user:<pw>@localhost:5432/dou_restore_test \
+  python scripts/backup.py restore backups/<latest>.dump
+psql -U dou_user -d dou_restore_test -c "SELECT count(*) FROM couriers;"
+dropdb -U dou_user dou_restore_test
+```
 
 ---
 
-## 5. Security & Multi-Tenant Compliance
+## 5. Database
 
-- **Multi-Tenant Isolation:** Enforced on database queries across all fleet and dispatch domains.
-- **Security Headers:** Automatic CSP, HSTS, X-Frame-Options, and nosniff.
-- **Rate Limiting:** Default 300 requests/minute per client IP.
+```bash
+docker compose exec app alembic current           # applied revision
+docker compose exec app alembic history --verbose
+docker compose exec app alembic check             # models vs schema; must be clean
+```
+
+`alembic check` must report no drift. If it does not, the models and the
+database disagree and the next autogenerated revision will be wrong.
+
+Two rules the schema depends on:
+
+- A new model module must be imported in **both** `alembic/env.py` and
+  `app/db_maintenance.py`. Missing from the first, autogenerate emits
+  `drop_table` for its live tables; missing from the second, a fresh install
+  never creates them. `tests/test_schema_integrity.py` enforces this.
+- `alembic upgrade head` on an empty database is **not** a supported path.
+  Revision `0001` adopts a pre-existing schema rather than creating it. Only
+  `tools/migrate.py` builds a correct database from nothing.
+
+---
+
+## 6. Security posture
+
+- Multi-tenant isolation is enforced in the query layer; every scoped read
+  filters on `tenant_id`. Frontend hiding is not authorization.
+- Login throttling is 8 failures per 10 minutes per IP and phone, held in Redis
+  so it is shared across the four uvicorn workers.
+- Request rate limiting: 300 requests per minute per client IP.
+- Request body cap: 15 MB.
+- PostgreSQL and Redis bind to loopback only and are reachable solely over the
+  compose network.
+- Security headers (CSP, HSTS, `X-Frame-Options`, `nosniff`) are applied by
+  middleware on every response.
+
+---
+
+## 7. Incidents
+
+1. Check `docker compose ps` and `/health/ready`.
+2. Read `docker compose logs --tail=200 app`.
+3. If the boot loops on a migration, the schema is the problem — do not force
+   the container up; read the migration error and decide between fixing forward
+   and restoring from backup.
+4. If the database is unreachable, confirm the `db` container is healthy and
+   that `.env` matches the password PostgreSQL actually has.
+5. To invalidate every session at once (suspected token compromise):
+
+```bash
+curl -X POST https://dou.delivery/auth/logout-all -H "X-Admin-Key: $ADMIN_KEY"
+```
