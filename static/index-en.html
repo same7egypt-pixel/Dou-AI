@@ -818,22 +818,22 @@
         </p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+      <div id="pricing-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
         
         <!-- Starter Plan -->
-        <div class="p-8 rounded-3xl bg-white border border-slate-200 flex flex-col justify-between shadow-sm">
+        <div class="p-7 rounded-3xl bg-white border border-slate-200 flex flex-col justify-between shadow-sm">
           <div>
             <h3 class="text-lg font-bold text-slate-900">Starter</h3>
             <div class="mt-2 mb-6">
               <span class="text-4xl font-black text-slate-950">499</span>
               <span class="text-xs font-semibold text-slate-500">SAR / month</span>
-              <p class="text-xs text-slate-500 mt-1">For fleets up to 25 riders</p>
+              <p class="text-xs text-slate-500 mt-1">For fleets up to 10 riders</p>
             </div>
 
             <div class="text-xs font-bold text-slate-700 mb-2">Includes:</div>
             <ul class="space-y-2.5 text-xs text-slate-600">
               <li class="flex items-center gap-2">✓ Attendance & Shift Management</li>
-              <li class="flex items-center gap-2">✓ Rider Mobile App</li>
+              <li class="flex items-center gap-2">✓ Rider Mobile App (PWA & APK)</li>
               <li class="flex items-center gap-2">✓ Rider Profiles & Document Vault</li>
               <li class="flex items-center gap-2">✓ Core Payroll Ledger</li>
               <li class="flex items-center gap-2">✓ WhatsApp Support</li>
@@ -846,8 +846,8 @@
         </div>
 
         <!-- Growth Plan (Featured) -->
-        <div class="p-8 rounded-3xl bg-[#14181d] text-white border-2 border-[#ff5500] shadow-2xl relative flex flex-col justify-between transform md:-translate-y-3">
-          <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[#ff5500] text-white font-black text-[10px] uppercase tracking-wider">
+        <div class="p-7 rounded-3xl bg-[#14181d] text-white border-2 border-[#ff5500] shadow-2xl relative flex flex-col justify-between transform lg:-translate-y-2">
+          <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[#ff5500] text-white font-black text-[10px] uppercase tracking-wider whitespace-nowrap">
             Most Popular
           </div>
 
@@ -874,14 +874,39 @@
           </button>
         </div>
 
-        <!-- 3PL Enterprise Plan -->
-        <div class="p-8 rounded-3xl bg-white border border-slate-200 flex flex-col justify-between shadow-sm">
+        <!-- Business Plan -->
+        <div class="p-7 rounded-3xl bg-white border border-slate-200 flex flex-col justify-between shadow-sm">
           <div>
-            <h3 class="text-lg font-bold text-slate-900">3PL Enterprise</h3>
+            <h3 class="text-lg font-bold text-slate-900">Business</h3>
             <div class="mt-2 mb-6">
-              <span class="text-2xl sm:text-3xl font-black text-slate-950">From 1,999</span>
+              <span class="text-4xl font-black text-slate-950">1,999</span>
               <span class="text-xs font-semibold text-slate-500">SAR / month</span>
-              <p class="text-xs text-slate-500 mt-1">For large-scale multi-branch logistics operators</p>
+              <p class="text-xs text-slate-500 mt-1">For fleets up to 150 riders</p>
+            </div>
+
+            <div class="text-xs font-bold text-slate-700 mb-2">Includes:</div>
+            <ul class="space-y-2.5 text-xs text-slate-600">
+              <li class="flex items-center gap-2">✓ Live Courier Map Tracking</li>
+              <li class="flex items-center gap-2">✓ 19 Raw KPIs & Funnel Analytics</li>
+              <li class="flex items-center gap-2">✓ Proactive Operations Alerts</li>
+              <li class="flex items-center gap-2">✓ Payroll Direct Exports</li>
+              <li class="flex items-center gap-2">✓ Priority Technical Support</li>
+            </ul>
+          </div>
+
+          <button onclick="openDemoModal('Business')" class="mt-8 block w-full py-3 rounded-xl border border-slate-300 text-slate-800 text-center font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer">
+            Get Started with Business ➜
+          </button>
+        </div>
+
+        <!-- Enterprise Plan -->
+        <div class="p-7 rounded-3xl bg-white border border-slate-200 flex flex-col justify-between shadow-sm">
+          <div>
+            <h3 class="text-lg font-bold text-slate-900">Enterprise</h3>
+            <div class="mt-2 mb-6">
+              <span class="text-4xl font-black text-slate-950">3,500</span>
+              <span class="text-xs font-semibold text-slate-500">SAR / month</span>
+              <p class="text-xs text-slate-500 mt-1">For enterprise fleets (Unlimited)</p>
             </div>
 
             <div class="text-xs font-bold text-slate-700 mb-2">Includes:</div>
@@ -890,7 +915,7 @@
               <li class="flex items-center gap-2">✓ Custom Permission Layers</li>
               <li class="flex items-center gap-2">✓ API & ERP Integrations</li>
               <li class="flex items-center gap-2">✓ Custom Analytics & Reports</li>
-              <li class="flex items-center gap-2">✓ Dedicated Account Manager & 24/7 Support</li>
+              <li class="flex items-center gap-2">✓ Dedicated Manager & 24/7 Support</li>
             </ul>
           </div>
 
@@ -1234,6 +1259,83 @@
       `;
       input.value = "";
     }
+
+    // Dynamic Pricing Engine — Sync with Super Admin Database
+    async function fetchAndRenderPlansEn() {
+      try {
+        const res = await fetch('/admin/public-plans');
+        if (!res.ok) return;
+        const plans = await res.json();
+        if (!Array.isArray(plans) || !plans.length) return;
+
+        const container = document.getElementById('pricing-grid');
+        if (!container) return;
+
+        const defaultFeaturesEn = {
+          'STARTER': ['Attendance & Shift Management', 'Rider Mobile App (PWA & APK)', 'Rider Profiles & Document Vault', 'Core Payroll Ledger', 'WhatsApp Support'],
+          'GROWTH': ['All Starter Features +', 'Platform CSV Bulk Imports', 'Dynamic Tiered Bonus Engine', 'DOU AI Operations Co-Pilot', 'Interactive BI Dashboards'],
+          'BUSINESS': ['All Growth Features +', 'Up to 150 Active Couriers', 'Live Courier Map Tracking', '19 Raw KPIs & Funnel Analytics', 'Priority Technical Support'],
+          'ENTERPRISE': ['Multi-Project & Multi-Branch Hierarchy', 'Custom Permission Layers', 'API & ERP Integrations', 'Unlimited Custom Reports', 'Dedicated Manager & 24/7 Support']
+        };
+
+        container.innerHTML = plans.map(p => {
+          const isFeatured = p.code === 'GROWTH' || p.code === 'BUSINESS';
+          const limitText = p.max_couriers > 0 ? `For fleets up to ${p.max_couriers} riders` : 'For enterprise fleets (Unlimited)';
+          
+          const features = p.features_en && p.features_en.trim() 
+            ? p.features_en.split('\n').map(f => f.trim()).filter(Boolean)
+            : (defaultFeaturesEn[p.code] || ['Fleet Command Center', 'Driver App', 'Attendance & Shifts', 'Technical Support']);
+
+          if (isFeatured) {
+            return `
+            <div class="p-7 rounded-3xl bg-[#14181d] text-white border-2 border-[#ff5500] shadow-2xl relative flex flex-col justify-between transform lg:-translate-y-2">
+              <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[#ff5500] text-white font-black text-[10px] uppercase tracking-wider whitespace-nowrap">
+                Most Popular
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-white">${p.name_en || p.name}</h3>
+                <div class="mt-2 mb-6">
+                  <span class="text-4xl font-black text-[#ff7733]">${p.monthly_price}</span>
+                  <span class="text-xs font-semibold text-slate-400">SAR / month</span>
+                  <p class="text-xs text-slate-400 mt-1 font-medium">${limitText}</p>
+                </div>
+                <div class="text-xs font-bold text-white mb-2">Included Features:</div>
+                <ul class="space-y-2.5 text-xs text-slate-200">
+                  ${features.map(f => `<li class="flex items-center gap-2"><span class="text-[#ff7733] font-bold">✓</span> ${f}</li>`).join('')}
+                </ul>
+              </div>
+              <button onclick="openDemoModal('${p.name_en || p.name}')" class="mt-8 block w-full py-3.5 rounded-xl bg-[#ff5500] hover:bg-[#e04b00] text-white text-center font-black text-xs shadow-lg shadow-[#ff5500]/30 transition-all cursor-pointer">
+                Get Started with ${p.name_en || p.name} ➜
+              </button>
+            </div>`;
+          }
+
+          return `
+          <div class="p-7 rounded-3xl bg-white border border-slate-200 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">${p.name_en || p.name}</h3>
+              <div class="mt-2 mb-6">
+                <span class="text-4xl font-black text-slate-950">${p.monthly_price}</span>
+                <span class="text-xs font-semibold text-slate-500">SAR / month</span>
+                <p class="text-xs text-slate-500 mt-1 font-medium">${limitText}</p>
+              </div>
+              <div class="text-xs font-bold text-slate-700 mb-2">Included Features:</div>
+              <ul class="space-y-2.5 text-xs text-slate-600">
+                ${features.map(f => `<li class="flex items-center gap-2"><span class="text-green-600 font-bold">✓</span> ${f}</li>`).join('')}
+              </ul>
+            </div>
+            <button onclick="openDemoModal('${p.name_en || p.name}')" class="mt-8 block w-full py-3 rounded-xl border border-slate-300 text-slate-800 text-center font-bold text-xs hover:bg-slate-100 transition-colors cursor-pointer">
+              ${p.code === 'ENTERPRISE' ? 'Contact Sales' : 'Start 14-Day Free Trial'}
+            </button>
+          </div>`;
+        }).join('');
+      } catch (err) {
+        console.error('Error fetching dynamic plans:', err);
+      }
+    }
+
+    // Run dynamic plans fetch
+    fetchAndRenderPlansEn();
   </script>
 
 </body>
