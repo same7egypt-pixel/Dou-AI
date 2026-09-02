@@ -86,7 +86,7 @@
         <a href="/en" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 whitespace-nowrap transition-colors">
           🌐 English
         </a>
-        <a href="http://18.194.202.73/app/v2/?lang=ar" target="_blank" class="hidden sm:inline-flex px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300 whitespace-nowrap transition-all">
+        <a href="/app" class="hidden sm:inline-flex px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300 whitespace-nowrap transition-all">
           دخول العملاء
         </a>
         <button onclick="openDemoModal()" class="px-4 sm:px-5 py-2.5 rounded-xl bg-[#ff5500] hover:bg-[#e04b00] text-white text-xs font-bold shadow-lg shadow-[#ff5500]/25 hover:shadow-[#ff5500]/40 hover:-translate-y-0.5 whitespace-nowrap transition-all cursor-pointer">
@@ -940,9 +940,9 @@
       <div>
         <h4 class="text-white font-bold text-xs mb-3">المنتج</h4>
         <ul class="space-y-2 text-xs">
-          <li><a href="http://18.194.202.73/app/v2/?lang=ar" class="hover:text-white transition-colors">لوحة تحكم الشركة</a></li>
+          <li><a href="/app" class="hover:text-white transition-colors">لوحة تحكم الشركة</a></li>
           <li><a href="#dou-ai-section" class="hover:text-white transition-colors">DOU AI</a></li>
-          <li><a href="#driver-app" class="hover:text-white transition-colors">تطبيق السائق</a></li>
+          <li><a href="/driver" class="hover:text-white transition-colors">تطبيق السائق</a></li>
           <li><a href="#pricing" class="hover:text-white transition-colors">الأسعار</a></li>
         </ul>
       </div>
@@ -950,8 +950,8 @@
       <div>
         <h4 class="text-white font-bold text-xs mb-3">الموارد</h4>
         <ul class="space-y-2 text-xs">
-          <li><a href="http://18.194.202.73/help" class="hover:text-white transition-colors">مركز المساعدة</a></li>
-          <li><a href="http://18.194.202.73/app/v2/?lang=ar" class="hover:text-white transition-colors">تسجيل الدخول</a></li>
+          <li><a href="https://wa.me/966556338075?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D8%8C%20%D8%A3%D8%AD%D8%AA%D8%A7%D8%AC%20%D9%85%D8%B3%D8%A7%D8%B9%D8%AF%D8%A9%20%D9%81%D9%8A%20%D9%85%D9%86%D8%B8%D9%88%D9%85%D8%A9%20DOU" target="_blank" class="hover:text-white transition-colors">مركز المساعدة</a></li>
+          <li><a href="/app" class="hover:text-white transition-colors">تسجيل الدخول</a></li>
           <li><button onclick="openDemoModal()" class="hover:text-white transition-colors text-right cursor-pointer">طلب عرض توضيحي</button></li>
         </ul>
       </div>
@@ -1151,23 +1151,13 @@
     // Initialize gallery default
     switchGalleryView('command');
 
-    // Demo Modal Handlers
+    // Demo & Trial Handlers — Direct WhatsApp Conversion
     function openDemoModal(planName) {
-      const modal = document.getElementById('demo-modal');
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      if (planName) {
-        const sel = document.getElementById('lead-plan-select');
-        if (planName === 'Starter') sel.value = '25';
-        if (planName === 'Growth') sel.value = '75';
-        if (planName === 'Enterprise') sel.value = '150';
-      }
-    }
-
-    function closeDemoModal() {
-      const modal = document.getElementById('demo-modal');
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
+      let msg = 'مرحبا، أرغب في حجز جولة حية وتجربة منظومة DOU Fleet OS مجاناً';
+      if (planName === 'Starter') msg = 'مرحبا، أرغب في الاستفسار والاشتراك في باقة Starter لمنظومة DOU Fleet OS';
+      if (planName === 'Growth') msg = 'مرحبا، أرغب في الاستفسار والاشتراك في باقة Growth لمنظومة DOU Fleet OS';
+      if (planName === 'Enterprise') msg = 'مرحبا، أرغب في التواصل مع المبيعات بخصوص باقة Enterprise لمنظومة DOU Fleet OS';
+      window.open(`https://wa.me/966556338075?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
     function handleLeadSubmit(e) {

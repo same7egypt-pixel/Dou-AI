@@ -189,8 +189,9 @@ async function runAllTests() {
   }
 
   try {
-    const csvExport = await apiCall('/analytics/reports/export/csv?report_type=rider_master&group=workforce', {}, adminToken);
-    record('REPORTS', 'CSV Export Generation', csvExport.status === 200 && typeof csvExport.data === 'string' && csvExport.data.length > 50, `CSV Data bytes: ${csvExport.data?.length}`);
+    const csvExport = await apiCall('/analytics/reports/download/csv?report_type=rider_master&group=workforce', {}, adminToken);
+    const byteLen = typeof csvExport.data === 'string' ? csvExport.data.length : 0;
+    record('REPORTS', 'CSV Export Generation', csvExport.status === 200 && byteLen > 50, `CSV Data bytes: ${byteLen}`);
   } catch (e) {
     record('REPORTS', 'CSV Export', false, e.message);
   }
@@ -240,7 +241,7 @@ async function runAllTests() {
 
   try {
     // 7.1 Login Flow
-    await page.goto(`${LIVE_URL}/app/v2/?lang=ar`, { waitUntil: 'networkidle' });
+    await page.goto(`${LIVE_URL}/app?lang=ar`, { waitUntil: 'networkidle' });
     await page.fill('#login-phone', CREDENTIALS.fleetAdmin.phone);
     await page.fill('#login-password', CREDENTIALS.fleetAdmin.password);
     await page.click('button[type=submit]');
@@ -267,7 +268,7 @@ async function runAllTests() {
     record('UI_E2E', 'Shifts & Operations Planning View', hasShifts, 'Shifts rendered');
 
     // 7.5 Reports & Analytics Center View
-    await page.goto(`${LIVE_URL}/app/v2/?view=reports`, { waitUntil: 'networkidle' });
+    await page.goto(`${LIVE_URL}/app?view=reports`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1000);
     await page.click('button[data-tab="catalog"]');
     await page.waitForTimeout(1000);

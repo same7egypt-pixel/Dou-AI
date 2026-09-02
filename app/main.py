@@ -211,13 +211,15 @@ def google_analytics():
 @app.get("/app")
 @app.get("/app/")
 def fleet_app():
-    return FileResponse(os.path.join(STATIC_DIR, "fleet.html"))
+    return FileResponse(os.path.join(FRONTEND_V2_DIR, "fleet", "index.html"))
 
 
 @app.get("/app/v2")
 @app.get("/app/v2/")
-def fleet_app_v2():
-    return FileResponse(os.path.join(FRONTEND_V2_DIR, "fleet", "index.html"))
+def fleet_app_v2(request: Request):
+    query_string = request.url.query
+    target = "/app" + (f"?{query_string}" if query_string else "")
+    return RedirectResponse(url=target, status_code=301)
 
 
 @app.get("/admin")
@@ -229,7 +231,7 @@ def admin_app():
 @app.get("/admin/v2")
 @app.get("/admin/v2/")
 def admin_app_v2():
-    return RedirectResponse(url="/admin", status_code=307)
+    return RedirectResponse(url="/admin", status_code=301)
 
 
 @app.get("/app/workforce")

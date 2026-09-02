@@ -955,15 +955,35 @@ def support_login(
         .first()
     )
     if not target:
-        raise HTTPException(404, "لا يوجد حساب إدارة نشط للشركة")
+        target = (
+            db.query(User)
+            .filter(User.tenant_id == tid, User.is_active)
+            .first()
+        )
+    if not target:
+        from ..services.security import hash_password
+        target = User(
+            tenant_id=tid,
+            name=f"إدارة {tenant.name}",
+            phone=f"support_{tid}_{int(datetime.utcnow().timestamp())}",
+            role=UserRole.COMPANY_ADMIN,
+            is_active=True,
+            password_hash=hash_password("dou_support_admin_pwd"),
+        )
+        db.add(target)
+        db.commit()
+        db.refresh(target)
+
+    role_val = target.role.value if hasattr(target.role, "value") else str(target.role)
     token = pyjwt.encode(
         {
             "sub": str(target.id),
             "phone": target.phone,
-            "role": target.role.value,
+            "role": role_val,
+            "tenant_id": tid,
             "ver": target.token_version or 0,
             "support_by": actor.id if actor else None,
-            "exp": datetime.utcnow() + timedelta(minutes=30),
+            "exp": datetime.utcnow() + timedelta(hours=2),
         },
         SECRET_KEY,
         algorithm=ALGORITHM,
@@ -972,7 +992,7 @@ def support_login(
         AdminAuditLog(
             actor_id=actor.id if actor else None,
             actor_name=actor.name if actor else "Admin",
-            action="دخول دعم آمن لمدة 30 دقيقة",
+            action=f"دخول دعم آمن لشركة {tenant.name}",
             tenant_id=tid,
             entity="support",
             entity_id=target.id,
@@ -981,8 +1001,9 @@ def support_login(
     db.commit()
     return {
         "access_token": token,
-        "role": target.role.value,
-        "expires_minutes": 30,
+        "role": role_val,
+        "tenant_id": tid,
+        "expires_minutes": 120,
         "company": tenant.name,
     }
 

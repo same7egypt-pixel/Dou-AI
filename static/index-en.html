@@ -86,7 +86,7 @@
         <a href="/" class="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 whitespace-nowrap transition-colors">
           🌐 العربية
         </a>
-        <a href="http://127.0.0.1:8123/app/v2/?lang=en" target="_blank" class="hidden sm:inline-flex px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300 whitespace-nowrap transition-all">
+        <a href="/app" class="hidden sm:inline-flex px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 border border-slate-200 hover:border-slate-300 whitespace-nowrap transition-all">
           Client Login
         </a>
         <button onclick="openDemoModal()" class="px-4 sm:px-5 py-2.5 rounded-xl bg-[#ff5500] hover:bg-[#e04b00] text-white text-xs font-bold shadow-lg shadow-[#ff5500]/25 hover:shadow-[#ff5500]/40 hover:-translate-y-0.5 whitespace-nowrap transition-all cursor-pointer">
@@ -939,9 +939,9 @@
       <div>
         <h4 class="text-white font-bold text-xs mb-3">Product</h4>
         <ul class="space-y-2 text-xs">
-          <li><a href="http://127.0.0.1:8123/app/v2/?lang=en" class="hover:text-white transition-colors">Company Dashboard</a></li>
+          <li><a href="/app" class="hover:text-white transition-colors">Company Dashboard</a></li>
           <li><a href="#dou-ai-section" class="hover:text-white transition-colors">DOU AI</a></li>
-          <li><a href="#driver-app" class="hover:text-white transition-colors">Rider App</a></li>
+          <li><a href="/driver" class="hover:text-white transition-colors">Rider App</a></li>
           <li><a href="#pricing" class="hover:text-white transition-colors">Pricing</a></li>
         </ul>
       </div>
@@ -949,8 +949,8 @@
       <div>
         <h4 class="text-white font-bold text-xs mb-3">Resources</h4>
         <ul class="space-y-2 text-xs">
-          <li><a href="http://127.0.0.1:8123/help/en" class="hover:text-white transition-colors">Help Center</a></li>
-          <li><a href="http://127.0.0.1:8123/app/v2/?lang=en" class="hover:text-white transition-colors">Client Login</a></li>
+          <li><a href="https://wa.me/966556338075?text=Hello%2C%20I%20need%20support%20with%20DOU%20Fleet%20OS" target="_blank" class="hover:text-white transition-colors">Help Center</a></li>
+          <li><a href="/app" class="hover:text-white transition-colors">Client Login</a></li>
           <li><button onclick="openDemoModal()" class="hover:text-white transition-colors text-left cursor-pointer">Request a Demo</button></li>
         </ul>
       </div>
@@ -1150,23 +1150,13 @@
     // Initialize gallery default
     switchGalleryView('command');
 
-    // Demo Modal Handlers
+    // Demo & Trial Handlers — Direct WhatsApp Conversion
     function openDemoModal(planName) {
-      const modal = document.getElementById('demo-modal');
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      if (planName) {
-        const sel = document.getElementById('lead-plan-select');
-        if (planName === 'Starter') sel.value = '25';
-        if (planName === 'Growth') sel.value = '75';
-        if (planName === 'Enterprise') sel.value = '150';
-      }
-    }
-
-    function closeDemoModal() {
-      const modal = document.getElementById('demo-modal');
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
+      let msg = 'Hello, I would like to book a live demo and start a 14-day free trial of DOU Fleet OS';
+      if (planName === 'Starter') msg = 'Hello, I am interested in the Starter plan for DOU Fleet OS';
+      if (planName === 'Growth') msg = 'Hello, I am interested in the Growth plan for DOU Fleet OS';
+      if (planName === 'Enterprise') msg = 'Hello, I would like to speak with sales regarding the Enterprise plan for DOU Fleet OS';
+      window.open(`https://wa.me/966556338075?text=${encodeURIComponent(msg)}`, '_blank');
     }
 
     function handleLeadSubmit(e) {

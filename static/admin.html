@@ -808,7 +808,8 @@ async function supportLogin(id){
     localStorage.setItem("dou_token_v2",r.access_token);
     localStorage.setItem("dou_token_fleet",r.access_token);
     localStorage.setItem("dou_role",r.role);
-    window.open("/app/v2/","_blank");
+    localStorage.setItem("dou_role_v2",r.role);
+    window.open("/app","_blank");
     loadAudit();
   }catch(e){ alert("❌ تعذر الدخول: "+e.message); }
 }
