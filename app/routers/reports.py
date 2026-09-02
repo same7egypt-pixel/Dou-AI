@@ -1168,7 +1168,21 @@ def get_platform_delivery_facts(
             ent.PlatformDeliveryFact.created_date < end_m,
         )
 
-    rows = q.order_by(ent.PlatformDeliveryFact.created_date.desc()).all()
+    all_rows = q.order_by(ent.PlatformDeliveryFact.created_date.desc()).all()
+    available_months = sorted(
+        {r.created_date.strftime("%Y-%m") for r in all_rows if r.created_date},
+        reverse=True,
+    )
+    selected_month = month or (available_months[0] if available_months else None)
+    rows = (
+        [
+            r
+            for r in all_rows
+            if r.created_date and r.created_date.strftime("%Y-%m") == selected_month
+        ]
+        if selected_month
+        else []
+    )
 
     # Calculate aggregated analytics
     total_notified = sum(r.notified_deliveries or 0 for r in rows)
@@ -1208,6 +1222,8 @@ def get_platform_delivery_facts(
             "completion_rate": round(completion_rate * 100, 1),
             "stacked_rate": round(stacked_rate * 100, 1),
             "hours_utilization": round(hours_utilization * 100, 1),
+            "selected_month": selected_month,
+            "available_months": available_months,
         },
         "rows": [
             {
@@ -1264,14 +1280,52 @@ def upload_platform_delivery_facts(
     if not contract:
         raise HTTPException(404, "Contract not found for this company")
 
-    f = io.StringIO(csv_text.strip())
+    f = io.StringIO(csv_text.lstrip("\ufeff").strip())
     reader = csv.DictReader(f)
+    required_columns = (
+        "Created Date",
+        "City Name",
+        "Contract Name",
+        "# Riders",
+        "Shifts Done",
+        "Planned Hours",
+        "Actual Working Hours",
+        "Break Hours",
+        "Acceptance Rate",
+        "Contact Rate",
+        "No Shows",
+        "Notified Deliveries",
+        "Completed Deliveries",
+        "Accepted Deliveries",
+        "Stacked Deliveries",
+        "Declined Deliveries",
+        "Cancelled Deliveries",
+        "Deduction Deliveries",
+        "Not Accepted Deliveries",
+    )
+    normalized_headers = {
+        (header or "").lstrip("\ufeff").strip() for header in (reader.fieldnames or [])
+    }
+    missing_columns = [name for name in required_columns if name not in normalized_headers]
+    if missing_columns:
+        raise HTTPException(
+            400,
+            "أعمدة مطلوبة غير موجودة: " + ", ".join(missing_columns),
+        )
+
     imported = 0
     updated = 0
+    parsed_rows = []
+    errors = []
 
-    for row in reader:
-        date_raw = row.get("Created Date", "") or row.get("created_date", "") or row.get("Date", "")
+    for row_number, raw_row in enumerate(reader, start=2):
+        row = {
+            (key or "").lstrip("\ufeff").strip(): (value or "").strip()
+            for key, value in raw_row.items()
+        }
+        date_raw = row.get("Created Date", "")
         if not date_raw:
+            errors.append(f"الصف {row_number}: التاريخ فارغ")
             continue
         dt = None
         clean_date = date_raw.strip().strip('"').strip("'")
@@ -1282,10 +1336,53 @@ def upload_platform_delivery_facts(
             except Exception:
                 pass
         if not dt:
+            errors.append(f"الصف {row_number}: تاريخ غير صالح ({date_raw})")
             continue
 
         contract_name = contract.name
-        city_name = row.get("City Name", "Riyadh").strip()
+        city_name = row.get("City Name", "").strip()
+        if not city_name:
+            errors.append(f"الصف {row_number}: المدينة فارغة")
+            continue
+
+        try:
+            def number(column, integer=False):
+                value = float(row[column]) if row[column] else 0.0
+                return int(value) if integer else value
+
+            values = {
+                "riders_count": number("# Riders", True),
+                "shifts_done": number("Shifts Done", True),
+                "planned_hours": number("Planned Hours"),
+                "actual_working_hours": number("Actual Working Hours"),
+                "break_hours": number("Break Hours"),
+                "acceptance_rate": number("Acceptance Rate"),
+                "contact_rate": number("Contact Rate"),
+                "no_shows": number("No Shows", True),
+                "notified_deliveries": number("Notified Deliveries", True),
+                "completed_deliveries": number("Completed Deliveries", True),
+                "accepted_deliveries": number("Accepted Deliveries", True),
+                "stacked_deliveries": number("Stacked Deliveries", True),
+                "declined_deliveries": number("Declined Deliveries", True),
+                "cancelled_deliveries": number("Cancelled Deliveries", True),
+                "deduction_deliveries": number("Deduction Deliveries", True),
+                "not_accepted_deliveries": number("Not Accepted Deliveries", True),
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            errors.append(f"الصف {row_number}: قيمة رقمية غير صالحة ({exc})")
+            continue
+        if values["acceptance_rate"] > 1:
+            values["acceptance_rate"] /= 100
+        if values["contact_rate"] > 1:
+            values["contact_rate"] /= 100
+        parsed_rows.append((dt, city_name, values))
+
+    if errors:
+        raise HTTPException(400, " | ".join(errors[:5]))
+    if not parsed_rows:
+        raise HTTPException(400, "لم يتم العثور على صفوف بيانات صالحة في الملف")
+
+    for dt, city_name, values in parsed_rows:
 
         # Check existing
         fact = (
@@ -1304,42 +1401,11 @@ def upload_platform_delivery_facts(
             .first()
         )
 
-        riders_count = int(float(row.get("# Riders", 0) or 0))
-        shifts_done = int(float(row.get("Shifts Done", 0) or 0))
-        planned_hours = float(row.get("Planned Hours", 0) or 0)
-        actual_working_hours = float(row.get("Actual Working Hours", 0) or 0)
-        break_hours = float(row.get("Break Hours", 0) or 0)
-        acceptance_rate = float(row.get("Acceptance Rate", 1.0) or 1.0)
-        contact_rate = float(row.get("Contact Rate", 0) or 0)
-        no_shows = int(float(row.get("No Shows", 0) or 0))
-        notified = int(float(row.get("Notified Deliveries", 0) or 0))
-        completed = int(float(row.get("Completed Deliveries", 0) or 0))
-        accepted = int(float(row.get("Accepted Deliveries", 0) or 0))
-        stacked = int(float(row.get("Stacked Deliveries", 0) or 0))
-        declined = int(float(row.get("Declined Deliveries", 0) or 0))
-        cancelled = int(float(row.get("Cancelled Deliveries", 0) or 0))
-        deduction = int(float(row.get("Deduction Deliveries", 0) or 0))
-        not_accepted = int(float(row.get("Not Accepted Deliveries", 0) or 0))
-
         if fact:
             fact.contract_id = contract.id
             fact.contract_name = contract.name
-            fact.riders_count = riders_count
-            fact.shifts_done = shifts_done
-            fact.planned_hours = planned_hours
-            fact.actual_working_hours = actual_working_hours
-            fact.break_hours = break_hours
-            fact.acceptance_rate = acceptance_rate
-            fact.contact_rate = contact_rate
-            fact.no_shows = no_shows
-            fact.notified_deliveries = notified
-            fact.completed_deliveries = completed
-            fact.accepted_deliveries = accepted
-            fact.stacked_deliveries = stacked
-            fact.declined_deliveries = declined
-            fact.cancelled_deliveries = cancelled
-            fact.deduction_deliveries = deduction
-            fact.not_accepted_deliveries = not_accepted
+            for key, value in values.items():
+                setattr(fact, key, value)
             fact.source_type = "CSV_IMPORT"
             updated += 1
         else:
@@ -1349,22 +1415,7 @@ def upload_platform_delivery_facts(
                 created_date=dt,
                 city_name=city_name,
                 contract_name=contract_name,
-                riders_count=riders_count,
-                shifts_done=shifts_done,
-                planned_hours=planned_hours,
-                actual_working_hours=actual_working_hours,
-                break_hours=break_hours,
-                acceptance_rate=acceptance_rate,
-                contact_rate=contact_rate,
-                no_shows=no_shows,
-                notified_deliveries=notified,
-                completed_deliveries=completed,
-                accepted_deliveries=accepted,
-                stacked_deliveries=stacked,
-                declined_deliveries=declined,
-                cancelled_deliveries=cancelled,
-                deduction_deliveries=deduction,
-                not_accepted_deliveries=not_accepted,
+                **values,
                 source_type="CSV_IMPORT",
             )
             db.add(fact)
@@ -1376,6 +1427,7 @@ def upload_platform_delivery_facts(
         "contract": {"id": contract.id, "name": contract.name},
         "imported": imported,
         "updated": updated,
+        "rows_processed": len(parsed_rows),
     }
 
 

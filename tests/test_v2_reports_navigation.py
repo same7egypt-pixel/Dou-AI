@@ -44,7 +44,8 @@ def test_platform_upload_and_dashboard_are_contract_scoped():
     assert "/analytics/reports/platform-facts/contracts" in source
     assert "platform-upload-contract" in source
     assert "contract_id: Number(contractId)" in source
-    assert "?contract_id=${encodeURIComponent(platformContractFilter)}" in source
+    assert "params.set('contract_id', platformContractFilter)" in source
+    assert "params.set('month', platformMonthFilter)" in source
 
 
 def test_reports_do_not_route_analytics_to_chat():

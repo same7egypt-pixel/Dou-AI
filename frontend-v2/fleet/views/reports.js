@@ -7,6 +7,7 @@ let activeSubTab = 'overview'; // 'overview' | 'catalog' | 'platform_facts' | 'd
 let currentReport = null;
 let currentDashboard = null;
 let platformContractFilter = '';
+let platformMonthFilter = '';
 
 export async function loadReports(container) {
   const isAr = getLang() === 'ar';
@@ -171,7 +172,10 @@ async function renderPlatformFactsTab(container) {
   container.append(body);
 
   try {
-    const query = platformContractFilter ? `?contract_id=${encodeURIComponent(platformContractFilter)}` : '';
+    const params = new URLSearchParams();
+    if (platformContractFilter) params.set('contract_id', platformContractFilter);
+    if (platformMonthFilter) params.set('month', platformMonthFilter);
+    const query = params.toString() ? `?${params.toString()}` : '';
     const [data, contractData] = await Promise.all([
       api.get(`/analytics/reports/platform-facts${query}`),
       api.get('/analytics/reports/platform-facts/contracts')
@@ -193,6 +197,7 @@ function renderPlatformFactsLayout(data, container, contracts) {
     style: 'min-width:220px;width:auto',
     onchange: (event) => {
       platformContractFilter = event.target.value;
+      platformMonthFilter = '';
       renderPlatformFactsTab(document.getElementById('reports-content-area'));
     }
   }, [
@@ -203,6 +208,18 @@ function renderPlatformFactsLayout(data, container, contracts) {
       text: contract.name
     }))
   ]);
+  const monthFilter = el('select', {
+    class: 'form-control',
+    style: 'min-width:150px;width:auto',
+    onchange: (event) => {
+      platformMonthFilter = event.target.value;
+      renderPlatformFactsTab(document.getElementById('reports-content-area'));
+    }
+  }, (summary.available_months || []).map(month => el('option', {
+    value: month,
+    ...(month === summary.selected_month ? { selected: '' } : {}),
+    text: month
+  })));
   const toolbar = el('div', { class: 'card', style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 18px;margin-bottom:16px;background:var(--card);border:1px solid var(--border)' }, [
     el('div', { style: 'display:flex;align-items:center;gap:10px' }, [
       el('span', { style: 'font-size:18px' }, '📈'),
@@ -211,6 +228,7 @@ function renderPlatformFactsLayout(data, container, contracts) {
     ]),
     el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center' }, [
       contractFilter,
+      monthFilter,
       el('button', {
         class: 'btn btn-primary btn-small',
         onclick: () => openUploadPlatformCsvModal(contracts, () => renderPlatformFactsTab(container))
@@ -225,10 +243,10 @@ function renderPlatformFactsLayout(data, container, contracts) {
 
   // Top KPI Metric Cards
   wrap.append(el('div', { class: 'cards', style: 'margin-bottom:18px' }, [
-    metricCard(`${(summary.total_completed || 0).toLocaleString('ar-SA')} طلب`, 'إجمالي الطلبات المكتملة', 'trend', null, `نسبة الإنجاز: ${summary.completion_rate || 98.2}%`),
-    metricCard(`${(summary.total_stacked || 0).toLocaleString('ar-SA')} طلب`, 'الطلبات المجمعة (Stacked)', 'blue', null, `معدل التكديس: ${summary.stacked_rate || 6.8}%`),
-    metricCard(`${(summary.total_actual_hours || 0).toLocaleString('ar-SA')} ساعة`, 'ساعات العمل الفعلية', 'blue', null, `استغلال الساعات: ${summary.hours_utilization || 96.4}%`),
-    metricCard(`${summary.avg_acceptance_rate || 98.7}%`, 'معدل قبول الطلبات', 'trend', null, 'استجابة السائقين'),
+    metricCard(`${(summary.total_completed ?? 0).toLocaleString('ar-SA')} طلب`, 'إجمالي الطلبات المكتملة', 'trend', null, `نسبة الإنجاز: ${summary.completion_rate ?? 0}%`),
+    metricCard(`${(summary.total_stacked ?? 0).toLocaleString('ar-SA')} طلب`, 'الطلبات المجمعة (Stacked)', 'blue', null, `معدل التكديس: ${summary.stacked_rate ?? 0}%`),
+    metricCard(`${(summary.total_actual_hours ?? 0).toLocaleString('ar-SA')} ساعة`, 'ساعات العمل الفعلية', 'blue', null, `استغلال الساعات: ${summary.hours_utilization ?? 0}%`),
+    metricCard(`${summary.avg_acceptance_rate ?? 0}%`, 'معدل قبول الطلبات', 'trend', null, 'استجابة السائقين'),
     metricCard(summary.total_no_shows || 0, 'عدم الحضور (No Shows)', summary.total_no_shows > 0 ? 'alert' : 'blue', null, 'حالات بحاجة لمتابعة'),
   ]));
 
@@ -238,11 +256,11 @@ function renderPlatformFactsLayout(data, container, contracts) {
     el('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;text-align:center' }, [
       funnelStep('📥 الطلبات المُرسلة', summary.total_notified || 0, 'var(--muted)', '100%'),
       el('span', { style: 'color:var(--muted);font-size:18px' }, '➔'),
-      funnelStep('✅ المقبولة (Accepted)', summary.total_accepted || 0, 'var(--primary)', `${summary.avg_acceptance_rate || 98.7}%`),
+      funnelStep('✅ المقبولة (Accepted)', summary.total_accepted || 0, 'var(--primary)', `${summary.avg_acceptance_rate ?? 0}%`),
       el('span', { style: 'color:var(--muted);font-size:18px' }, '➔'),
-      funnelStep('📦 المكتملة (Completed)', summary.total_completed || 0, '#16a34a', `${summary.completion_rate || 98.2}%`),
+      funnelStep('📦 المكتملة (Completed)', summary.total_completed || 0, '#16a34a', `${summary.completion_rate ?? 0}%`),
       el('span', { style: 'color:var(--muted);font-size:18px' }, '➔'),
-      funnelStep('📦📦 المجمعة (Stacked)', summary.total_stacked || 0, '#7c3aed', `${summary.stacked_rate || 6.8}%`),
+      funnelStep('📦📦 المجمعة (Stacked)', summary.total_stacked || 0, '#7c3aed', `${summary.stacked_rate ?? 0}%`),
     ])
   ]));
 
@@ -257,6 +275,7 @@ function renderPlatformFactsLayout(data, container, contracts) {
     { key: 'actual_working_hours', label: 'الفعلية (س)', render: (v) => el('b', { style: 'color:var(--primary)' }, v || 0) },
     { key: 'break_hours', label: 'استراحة' },
     { key: 'acceptance_rate', label: 'نسبة القبول', render: (v) => el('span', { style: 'color:#16a34a;font-weight:700' }, `${v}%`) },
+    { key: 'contact_rate', label: 'نسبة التواصل', render: (v) => `${v}%` },
     { key: 'no_shows', label: 'No Shows', render: (v) => (v > 0 ? el('span', { class: 'badge badge-alert' }, v) : '0') },
     { key: 'notified_deliveries', label: 'المُرسلة' },
     { key: 'accepted_deliveries', label: 'المقبولة' },
@@ -264,12 +283,20 @@ function renderPlatformFactsLayout(data, container, contracts) {
     { key: 'stacked_deliveries', label: 'مجمعة (Stacked)', render: (v) => el('span', { style: 'color:#7c3aed;font-weight:700' }, v || 0) },
     { key: 'declined_deliveries', label: 'مرفوضة', render: (v) => (v > 0 ? el('span', { style: 'color:#dc2626' }, v) : '0') },
     { key: 'cancelled_deliveries', label: 'ملغاة', render: (v) => (v > 0 ? el('span', { style: 'color:#ea580c' }, v) : '0') },
+    { key: 'deduction_deliveries', label: 'خصم توصيلات' },
+    { key: 'not_accepted_deliveries', label: 'غير مقبولة' },
   ];
+
+  const dates = rows.map(row => row.created_date).filter(Boolean).sort();
+  const cities = [...new Set(rows.map(row => row.city_name).filter(Boolean))];
+  const periodLabel = dates.length
+    ? `${cities.join('، ') || 'كل المدن'} — من ${dates[0]} إلى ${dates[dates.length - 1]}`
+    : 'لا توجد بيانات للفترة المختارة';
 
   wrap.append(el('div', { class: 'card', style: 'padding:16px;background:var(--card);border:1px solid var(--border);border-radius:12px' }, [
     el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px' }, [
       el('h3', { style: 'margin:0;font-size:15px;color:var(--text)' }, `سجل الحقائق التشغيلية اليومية (${rows.length} يوم)`),
-      el('span', { style: 'font-size:12px;color:var(--muted)' }, 'الرياض — ديسمبر 2025')
+      el('span', { style: 'font-size:12px;color:var(--muted)' }, periodLabel)
     ]),
     rows.length ? table(columns, rows) : emptyState('لا توجد سجلات أداء مسجلة.')
   ]));
@@ -360,7 +387,11 @@ function openUploadPlatformCsvModal(contracts, onSuccess) {
       el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:6px' }, '🏢 العقد المرتبط بالتقرير:'),
       el('select', { id: 'platform-upload-contract', class: 'form-control', required: true }, [
         el('option', { value: '', text: 'اختر العقد' }),
-        ...contracts.map((contract) => el('option', { value: String(contract.id), text: contract.name }))
+        ...contracts.map((contract) => el('option', {
+          value: String(contract.id),
+          text: contract.name,
+          ...(String(contract.id) === String(platformContractFilter) ? { selected: '' } : {})
+        }))
       ]),
       el('small', { style: 'display:block;color:var(--muted);margin-top:6px' }, 'سيتم ربط كل صفوف الملفات المختارة بهذا العقد، وستظهر مؤشرات الأداء الخاصة به منفصلة.')
     ]),
