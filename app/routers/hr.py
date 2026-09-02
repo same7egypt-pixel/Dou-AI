@@ -4102,6 +4102,12 @@ def update_contract(
                 if old_city != city_ref.name or old_supervisor != branch.supervisor_id:
                     changes.append(f"فرع {old_city} → {city_ref.name}")
             handled.add(branch.id)
+            previous_supervisor_ids = {
+                link.supervisor_id
+                for link in db.query(ContractBranchSupervisor)
+                .filter(ContractBranchSupervisor.contract_branch_id == branch.id)
+                .all()
+            }
             db.query(ContractBranchSupervisor).filter(
                 ContractBranchSupervisor.contract_branch_id == branch.id
             ).delete(synchronize_session=False)
@@ -4114,6 +4120,9 @@ def update_contract(
                         is_primary=(assigned_supervisor.id == branch.supervisor_id),
                     )
                 )
+            new_supervisor_ids = {row.id for row in supervisors}
+            if previous_supervisor_ids != new_supervisor_ids:
+                changes.append(f"تحديث مشرفي فرع {city_ref.name}")
             project = db.get(Project, branch.project_id) if branch.project_id else None
             if project:
                 # Project identity must remain stable when supervisors change. Renaming it
@@ -4132,7 +4141,7 @@ def update_contract(
                     courier.primary_project_id = project.id
                     courier.platform = project.name
         for branch_id, branch in existing.items():
-            if branch_id not in handled:
+            if branch_id not in handled and branch.is_active:
                 branch.is_active = False
                 for courier in (
                     db.query(Courier)
