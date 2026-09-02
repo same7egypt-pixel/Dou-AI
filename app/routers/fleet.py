@@ -1356,6 +1356,7 @@ def paged_couriers(
     supervisor_id: int = None,
     project_id: int = None,
     operator_id: int = None,
+    courier_type: str = None,
     employment_status: str = None,
     online: bool = None,
     documents_valid: bool = None,
@@ -1407,6 +1408,10 @@ def paged_couriers(
                 Courier.primary_project_id == operator_id, Courier.id.in_(assigned_cids)
             )
         )
+    if courier_type:
+        # Filtering happens in SQL so paging stays correct; a client-side filter
+        # would only narrow the current page.
+        q = q.filter(Courier.courier_type == courier_type.upper())
     if employment_status:
         q = q.filter(Courier.employment_status == employment_status.upper())
     if online is not None:
@@ -1478,6 +1483,10 @@ def paged_couriers(
                 "id": c.id,
                 "name": c.name,
                 "phone": c.phone,
+                # The riders table renders a sponsorship badge and filters on
+                # this. Without it every rider displayed as "company sponsored"
+                # regardless of what they actually are.
+                "courier_type": c.courier_type.value if c.courier_type else None,
                 "employment_status": c.employment_status or "ACTIVE",
                 "is_online": bool(c.is_online),
                 "documents_valid": bool(c.documents_valid),

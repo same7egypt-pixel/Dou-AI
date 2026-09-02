@@ -119,14 +119,11 @@ async function loadRiderList(container) {
     const params = new URLSearchParams({ page: 1, page_size: 50 });
     if (search) params.set('search', search);
     if (status) params.set('employment_status', status);
+    if (typeFilter) params.set('courier_type', typeFilter);
     if (activeOperatorId) params.set('operator_id', activeOperatorId);
     
     const data = await api.get(`/fleet/couriers/page?${params}`);
-    let rows = data.rows || [];
-    
-    if (typeFilter) {
-      rows = rows.filter(r => (r.courier_type || 'COMPANY').toUpperCase().includes(typeFilter));
-    }
+    const rows = data.rows || [];
 
     if (!rows.length) {
       list.replaceWith(emptyState(isAr ? 'لا يوجد سائقون مطابقة لمعايير البحث الحالية.' : 'No drivers match the current search filters.'));
@@ -139,7 +136,8 @@ async function loadRiderList(container) {
         el('small', { style: 'color:var(--muted);font-size:11px' }, r.phone || '')
       ]) },
       { key: 'courier_type', label: isAr ? 'نوع الانتماء' : 'Employment Type', render: (v) => {
-        const type = (v || 'COMPANY').toUpperCase();
+        if (!v) return el('span', { class: 'badge badge-gray' }, '—');
+        const type = String(v).toUpperCase();
         const badgeColor = type.includes('FREE') ? 'green' : (type.includes('OP') ? 'amber' : 'blue');
         const label = type.includes('FREE') 
           ? (isAr ? '🛵 فريلانسر' : '🛵 Freelancer') 

@@ -150,9 +150,9 @@ function renderDashboard(overview, needsAttention) {
   // Group 1: Workforce & Active Attendance
   wrap.append(el('div', { style: 'margin-bottom:8px;font-size:12px;font-weight:700;color:var(--muted)' }, isAr ? 'القوى العاملة والحضور اللحظي' : 'Workforce & Real-time Attendance'));
   wrap.append(el('div', { class: 'cards' }, [
-    metricCard(overview.total_riders, isAr ? 'إجمالي السائقين' : 'Total Drivers', 'blue', () => go('riders'), isAr ? 'استعراض الفريق' : 'View Team'),
-    metricCard(overview.online_riders, isAr ? 'متصلون الآن' : 'Online Now', 'trend', () => go('riders'), isAr ? 'جاهزية الاتصال' : 'Online Readiness'),
-    metricCard(overview.active_riders, isAr ? 'نشطون بالورديات' : 'Active in Shifts', 'trend', () => go('shifts'), isAr ? 'مسندون لورديات' : 'Assigned to Shifts'),
+    metricCard(overview.couriers_total, isAr ? 'إجمالي السائقين' : 'Total Drivers', 'blue', () => go('riders'), isAr ? 'استعراض الفريق' : 'View Team'),
+    metricCard(overview.couriers_online, isAr ? 'متصلون الآن' : 'Online Now', 'trend', () => go('riders'), isAr ? 'جاهزية الاتصال' : 'Online Readiness'),
+    metricCard(overview.shifts_running, isAr ? 'نشطون بالورديات' : 'Active in Shifts', 'trend', () => go('shifts'), isAr ? 'مسندون لورديات' : 'Assigned to Shifts'),
     metricCard(overview.absent_today, isAr ? 'غائبون اليوم' : 'Absent Today', 'alert', () => go('shifts'), isAr ? 'مراجعة الحضور' : 'Review Attendance'),
     metricCard(overview.present_today, isAr ? 'حاضرون اليوم' : 'Present Today', 'trend', () => go('shifts'), isAr ? 'حضور مؤكد' : 'Confirmed Present'),
   ]));
@@ -160,8 +160,8 @@ function renderDashboard(overview, needsAttention) {
   // Group 2: Operational Readiness & Leaves
   wrap.append(el('div', { style: 'margin-bottom:8px;font-size:12px;font-weight:700;color:var(--muted)' }, isAr ? 'الجاهزية التشغيلية والإجازات' : 'Operational Readiness & Leaves'));
   wrap.append(el('div', { class: 'cards' }, [
-    metricCard(overview.ready_riders, isAr ? 'جاهز للعمل' : 'Operationally Ready', 'trend', () => go('riders'), isAr ? 'مكتمل الوثائق والمركبة' : 'Valid Docs & Vehicle'),
-    metricCard(overview.not_ready_riders, isAr ? 'غير جاهز' : 'Not Ready', 'alert', () => go('riders'), isAr ? 'يوجد موانع تشغيلية' : 'Operational Blockers'),
+    metricCard(Math.max((overview.couriers_total || 0) - (overview.not_ready || 0), 0), isAr ? 'جاهز للعمل' : 'Operationally Ready', 'trend', () => go('riders'), isAr ? 'مكتمل الوثائق والمركبة' : 'Valid Docs & Vehicle'),
+    metricCard(overview.not_ready, isAr ? 'غير جاهز' : 'Not Ready', 'alert', () => go('riders'), isAr ? 'يوجد موانع تشغيلية' : 'Operational Blockers'),
     metricCard(overview.on_leave, isAr ? 'في إجازة معتمدة' : 'On Approved Leave', 'blue', () => go('shifts'), isAr ? 'إجازة سارية' : 'Active Leave'),
     metricCard(overview.pending_leaves, isAr ? 'إجازات معلّقة' : 'Pending Leaves', overview.pending_leaves > 0 ? 'alert' : 'blue', () => go('shifts'), isAr ? 'طابور الاعتمادات' : 'Approvals Queue'),
   ]));
@@ -169,9 +169,9 @@ function renderDashboard(overview, needsAttention) {
   // Group 3: Document Compliance
   wrap.append(el('div', { style: 'margin-bottom:8px;font-size:12px;font-weight:700;color:var(--muted)' }, isAr ? 'امتثال الوثائق والمستندات' : 'Document Compliance'));
   wrap.append(el('div', { class: 'cards' }, [
-    metricCard(overview.expired_docs, isAr ? '🔴 مستندات منتهية' : '🔴 Expired Documents', 'alert', () => go('needsAttention'), isAr ? 'تحتاج تجديد فوري' : 'Needs Immediate Renewal'),
-    metricCard(overview.expiring_30, isAr ? '🟠 تنتهي خلال 30 يوم' : '🟠 Expiring in 30 Days', 'warning', () => go('needsAttention'), isAr ? 'تنبيه استباقي' : 'Proactive Alert'),
-    metricCard(overview.expiring_60, isAr ? '🟡 تنتهي خلال 60 يوم' : '🟡 Expiring in 60 Days', 'blue', () => go('needsAttention'), isAr ? 'متابعة دورية' : 'Regular Follow-up'),
+    metricCard(overview.documents_expired, isAr ? '🔴 مستندات منتهية' : '🔴 Expired Documents', 'alert', () => go('needsAttention'), isAr ? 'تحتاج تجديد فوري' : 'Needs Immediate Renewal'),
+    metricCard(overview.documents_30, isAr ? '🟠 تنتهي خلال 30 يوم' : '🟠 Expiring in 30 Days', 'warning', () => go('needsAttention'), isAr ? 'تنبيه استباقي' : 'Proactive Alert'),
+    metricCard(overview.documents_60, isAr ? '🟡 تنتهي خلال 60 يوم' : '🟡 Expiring in 60 Days', 'blue', () => go('needsAttention'), isAr ? 'متابعة دورية' : 'Regular Follow-up'),
   ]));
 
   // 5. Prioritized Action Queue
