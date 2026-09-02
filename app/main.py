@@ -1,7 +1,7 @@
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -214,24 +214,10 @@ def fleet_app():
     return FileResponse(os.path.join(FRONTEND_V2_DIR, "fleet", "index.html"))
 
 
-@app.get("/app/v2")
-@app.get("/app/v2/")
-def fleet_app_v2(request: Request):
-    query_string = request.url.query
-    target = "/app" + (f"?{query_string}" if query_string else "")
-    return RedirectResponse(url=target, status_code=301)
-
-
 @app.get("/admin")
 @app.get("/admin/")
 def admin_app():
     return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
-
-
-@app.get("/admin/v2")
-@app.get("/admin/v2/")
-def admin_app_v2():
-    return RedirectResponse(url="/admin", status_code=301)
 
 
 @app.get("/app/workforce")

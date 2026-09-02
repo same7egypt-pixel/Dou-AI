@@ -23,7 +23,7 @@ import androidx.core.content.FileProvider;
 import java.io.File;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String DRIVER_URL = "http://18.194.202.73/driver";
+    private static final String DRIVER_URL = "https://dou.delivery/driver";
     private static final int FILE_REQUEST = 1201;
     private static final int LOCATION_REQUEST = 1202;
     private WebView webView;
@@ -48,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String host = uri.getHost();
-                if (host != null && (host.equals("18.194.202.73") || host.equals("dou.delivery") || host.contains("dou.delivery"))) return false;
+                if (host != null && (host.equals("dou.delivery") || host.endsWith(".dou.delivery"))) return false;
                 startActivity(new Intent(Intent.ACTION_VIEW, uri));
                 return true;
             }

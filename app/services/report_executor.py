@@ -178,7 +178,7 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
             "DOU AI Live Fleet Data",
             kpis=[{"label": kpi_lbl, "value": len(data)}],
             table={"name": "Absent_Drivers_Report", "columns": cols, "rows": data},
-            report_link="/app/?view=shifts",
+            report_link="/app?view=shifts",
         )
 
     if spec.metric in ("ATTENDANCE", "ACTIVE_RIDERS"):
@@ -219,7 +219,7 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
             "DOU AI Live Fleet Data",
             kpis=[{"label": kpi_lbl, "value": len(data)}],
             table={"name": "Attendance_Report", "columns": cols, "rows": data},
-            report_link="/app/?view=shifts",
+            report_link="/app?view=shifts",
         )
 
     if spec.metric == "DOCUMENTS":
@@ -259,7 +259,7 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
             "DOU AI Live Fleet Data",
             kpis=[{"label": kpi_lbl, "value": len(data)}],
             table={"name": "Expiring_Documents_Report", "columns": cols, "rows": data},
-            report_link="/app/?view=needsAttention",
+            report_link="/app?view=needsAttention",
         )
 
     if spec.metric == "FINANCIAL":
@@ -308,7 +308,7 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
             "DOU AI Live Fleet Data",
             kpis=kpis,
             table={"name": "Payroll_Settlement_Sheet", "columns": cols, "rows": data},
-            report_link="/app/?view=payroll",
+            report_link="/app?view=payroll",
         )
 
     if spec.metric in ("PERFORMANCE", "TARGET_ACHIEVEMENT", "COMPLETED_ORDERS"):
@@ -347,7 +347,7 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
             "DOU AI Live Fleet Data",
             kpis=[{"label": kpi_lbl, "value": len(data)}],
             table={"name": "Driver_Performance_Report", "columns": cols, "rows": data},
-            report_link="/app/?view=reports",
+            report_link="/app?view=reports",
         )
 
     if spec.report_key == "NEEDS_ATTENTION":
@@ -403,7 +403,7 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
             "DOU AI Live Fleet Data",
             kpis=[{"label": kpi_lbl, "value": len(data)}],
             table={"name": "Needs_Attention_Report", "columns": cols, "rows": data},
-            report_link="/app/?view=needsAttention",
+            report_link="/app?view=needsAttention",
         )
 
     # Fallback to active couriers list
@@ -424,7 +424,7 @@ def execute_list(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> dict:
         "DOU AI Live Fleet Data",
         kpis=[{"label": kpi_lbl, "value": len(data)}],
         table={"name": "Fleet_Export", "columns": cols, "rows": data},
-        report_link="/app/?view=reports",
+        report_link="/app?view=reports",
     )
 
 
@@ -711,7 +711,7 @@ def execute_summary(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> di
         return _base_response(
             "بيانات الرواتب والتسويات المالية محمية ومتاحة عبر مسيرات الرواتب المعتمدة.",
             "DOU AI",
-            report_link="/app/?view=payroll",
+            report_link="/app?view=payroll",
             warnings=[],
         )
     cq = courier_query(db, scope)
@@ -726,7 +726,7 @@ def execute_summary(db: Session, scope: AuthorizedScope, spec: ReportSpec) -> di
             {"label": "مشاكل المستندات", "value": invalid_docs},
             {"label": "السائقون غير النشطين", "value": inactive},
         ],
-        report_link="/app/?view=reports",
+        report_link="/app?view=reports",
         warnings=[]
         if not invalid_docs
         else [f"يوجد {invalid_docs} سائقين لديهم مستندات تحتاج للمراجعة والتجديد."],
