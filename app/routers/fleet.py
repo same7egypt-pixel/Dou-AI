@@ -1719,6 +1719,42 @@ def update_courier(
             )
             if not supervisor:
                 raise HTTPException(400, "Supervisor is not active in this company")
+            current_branch = (
+                db.get(ContractBranch, courier.contract_branch_id)
+                if courier.contract_branch_id
+                else None
+            )
+            if "contract_branch_id" not in payload and (
+                not current_branch or current_branch.supervisor_id != supervisor_id
+            ):
+                supervisor_branches = (
+                    db.query(ContractBranch)
+                    .filter(
+                        ContractBranch.tenant_id == user.tenant_id,
+                        ContractBranch.supervisor_id == supervisor_id,
+                        ContractBranch.is_active.is_(True),
+                    )
+                    .all()
+                )
+                if len(supervisor_branches) == 1:
+                    branch = supervisor_branches[0]
+                    try:
+                        apply_branch_assignment(
+                            db,
+                            courier,
+                            {
+                                "contract_id": branch.contract_id,
+                                "contract_branch_id": branch.id,
+                                "supervisor_id": supervisor_id,
+                            },
+                        )
+                    except ValueError as exc:
+                        raise HTTPException(400, str(exc)) from exc
+                elif len(supervisor_branches) > 1:
+                    raise HTTPException(
+                        400,
+                        "اختر فرع التشغيل مع المشرف لأن المشرف مسؤول عن أكثر من فرع",
+                    )
         courier.supervisor_id = supervisor_id
     if "employment_status" in payload:
         account = (

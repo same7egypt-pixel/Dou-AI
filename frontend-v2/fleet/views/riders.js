@@ -292,6 +292,9 @@ async function openAddRider(container) {
       const supervisorId = document.getElementById('ar-supervisor').value;
 
       if (!name || !phone) return alert('الاسم والجوال مطلوبان.');
+      if (!contractId || !branchId || !selectedBranch) {
+        return alert('اختر العقد وفرع التشغيل قبل إضافة السائق.');
+      }
 
       try {
         await api.post('/fleet/couriers', {
@@ -302,8 +305,8 @@ async function openAddRider(container) {
           per_delivery_rate: rate,
           vehicle_plate: vehiclePlate || undefined,
           vehicle_type: vehicleType,
-          contract_id: contractId ? parseInt(contractId) : undefined,
-          contract_branch_id: branchId ? parseInt(branchId) : 1,
+          contract_id: parseInt(contractId),
+          contract_branch_id: parseInt(branchId),
           supervisor_id: supervisorId ? parseInt(supervisorId) : undefined,
           country: 'SA',
           city_id: selectedBranch?.city_id || 1,
@@ -476,7 +479,7 @@ export async function openVehiclesFleetModal(container) {
     const role = appStore.get().role || localStorage.getItem('dou_role_v2') || 'COMPANY_ADMIN';
     const isAdmin = ['COMPANY', 'COMPANY_ADMIN', 'OPERATIONS', 'DOU_ADMIN', 'DOU_OPS'].includes(role);
 
-    const vehicles = await api.get('/vehicles').catch(() => []);
+    const vehicles = await api.get('/vehicles/').catch(() => []);
 
     const content = el('div', { style: 'display:grid;gap:14px;min-width:650px;direction:rtl' }, [
       el('div', { style: 'display:flex;justify-content:space-between;align-items:center' }, [
@@ -637,7 +640,7 @@ async function openAddVehicleModal(onCreated) {
     const year = parseInt(document.getElementById('veh-year').value) || undefined;
 
     try {
-      await api.post('/vehicles', {
+      await api.post('/vehicles/', {
         plate_number: plate,
         vehicle_type: type,
         make: make || undefined,

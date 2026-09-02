@@ -3775,6 +3775,7 @@ def create_contract(
     if not isinstance(cities, list) or not cities:
         raise HTTPException(400, "أضف مدينة واحدة على الأقل للعقد")
     clean = []
+    seen_city_ids = set()
     tenant = db.get(Tenant, user.tenant_id)
     for item in cities:
         item = item if isinstance(item, dict) else {"city": item}
@@ -3805,6 +3806,10 @@ def create_contract(
                 )
             except (ValueError, TypeError) as exc:
                 raise HTTPException(400, str(exc))
+
+        if city.id in seen_city_ids:
+            raise HTTPException(400, "لا يمكن تكرار نفس المدينة داخل العقد")
+        seen_city_ids.add(city.id)
 
         # Support both single supervisor_id and supervisor_ids list
         raw_sids = item.get("supervisor_ids") or (
@@ -3990,6 +3995,7 @@ def update_contract(
             .all()
         }
         handled = set()
+        seen_city_ids = set()
         for item in rows:
             if not isinstance(item, dict):
                 raise HTTPException(400, "بيانات الفرع غير صالحة")
@@ -4020,6 +4026,9 @@ def update_contract(
                     )
                 except (ValueError, TypeError) as exc:
                     raise HTTPException(400, str(exc))
+            if city_ref.id in seen_city_ids:
+                raise HTTPException(400, "لا يمكن تكرار نفس المدينة داخل العقد")
+            seen_city_ids.add(city_ref.id)
             branch_id = item.get("id")
             branch = existing.get(int(branch_id)) if branch_id else None
             if branch_id and not branch:
