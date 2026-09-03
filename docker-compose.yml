@@ -42,6 +42,7 @@ services:
     # This one mount is data, not code — database dumps have to outlive the
     # container they were written in.
     volumes:
+      - .:/app
       - ./backups:/app/backups
     environment:
       APP_ENV: production
@@ -53,6 +54,7 @@ services:
       S3_BUCKET: ${S3_BUCKET:-}
       AWS_REGION: ${AWS_REGION:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
+      METABASE_EMBEDDING_SECRET_KEY: ${METABASE_EMBEDDING_SECRET_KEY:-dou_metabase_secret_embedded_2026_key}
     depends_on:
       db:
         condition: service_healthy
