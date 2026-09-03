@@ -201,3 +201,37 @@ def test_assigning_a_rider_to_a_branch_carries_the_reference(env):
     assert rider.city_id == env["city"].id, (
         "the rider got the branch's text and not its city reference"
     )
+
+
+def test_a_branch_without_a_city_clears_the_riders_reference(env):
+    """`branch.city_id or c.city_id` kept the *previous* city's reference while
+    work_city moved to the new branch's text, so the rider read as Jeddah and
+    filtered as Riyadh: absent from the report for where they work, present in
+    the one for where they no longer do."""
+    jeddah = find_or_create_city(env["db"], env["tenant"], "جدة")
+    env["db"].commit()
+    ensure_tenant_operating_city(env["db"], env["tenant"], jeddah)
+    env["db"].commit()
+
+    rider = _rider(env, 1, "الرياض")  # starts in Riyadh, with its reference
+    assert rider.city_id == env["city"].id
+
+    # A legacy branch in Jeddah, created before city normalization.
+    branch, project = _branch(env, env["city"], "جدة")
+    branch.city_id = None
+    env["db"].commit()
+
+    res = env["client"].post(
+        f"/hr/couriers/{rider.id}/transfer-project",
+        json={"project_id": project.id},
+        headers=env["H"],
+    )
+    assert res.status_code == 200, res.text
+    env["db"].refresh(rider)
+
+    assert rider.work_city == "جدة"
+    assert rider.city_id is None, (
+        "the rider kept Riyadh's reference while working in Jeddah"
+    )
+    assert len(_report(env, zone="جدة")) == 1, "absent from where they work"
+    assert _report(env, zone="الرياض") == [], "present in where they do not"

@@ -53,7 +53,11 @@ services:
       S3_BUCKET: ${S3_BUCKET:-}
       AWS_REGION: ${AWS_REGION:-}
       SENTRY_DSN: ${SENTRY_DSN:-}
-      METABASE_EMBEDDING_SECRET_KEY: ${METABASE_EMBEDDING_SECRET_KEY:-dou_metabase_secret_embedded_2026_key}
+      # No fallback. This key signs Metabase embed tokens, and this repository
+      # is public — a committed default means any deployment that loses the
+      # variable silently signs with a value anyone can read. Unset is the safe
+      # failure: the feature is off until the value is supplied.
+      METABASE_EMBEDDING_SECRET_KEY: ${METABASE_EMBEDDING_SECRET_KEY:-}
     depends_on:
       db:
         condition: service_healthy

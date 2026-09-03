@@ -410,6 +410,56 @@ def _legacy_compensation_contract(db: Session, courier: Courier) -> Optional[Con
     return None
 
 
+# Money keys on a payroll row, zeroed for a rider this tenant does not pay.
+# The row itself is computed through the normal path and then zeroed rather than
+# built by hand: a hand-built row missed `bonus["earned"]` and turned the 500
+# this was fixing into a KeyError, because the real shape is deeper than its
+# top-level keys suggest.
+_PAYROLL_MONEY_KEYS = (
+    "base_salary", "per_delivery_rate", "delivery_pay", "additions",
+    "deductions", "gross_pay", "absence_deduction", "late_deduction",
+    "advance_deduction", "other_deduction", "net_before_debt",
+    "carried_debt_total", "carried_debt_applied", "debt_generated",
+    "debt_balance", "net_pay",
+)
+_PAYROLL_COUNT_KEYS = ("eligible_orders", "driver_orders", "approved_orders")
+
+
+def _zero_money(value):
+    """Zero every number in a nested payroll structure, leaving its shape."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return type(value)(0)
+    if isinstance(value, dict):
+        return {k: _zero_money(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_zero_money(v) for v in value]
+    return value
+
+
+def outsourced_payroll_row(db: Session, courier: Courier, month: str) -> dict:
+    """A complete, zeroed payroll row for a rider this tenant does not pay.
+
+    Computed through the same path as everyone else and then zeroed, so its
+    shape can never drift from a real row — every key a caller reads exists,
+    at any depth.
+    """
+    rows = calculate_payroll_previews(db, [courier], month, _include_outsourced=True)
+    row = rows[0] if rows else {"courier_id": courier.id}
+    row = {
+        key: (value if key in ("courier_id", "project_id", "contract_branch_id")
+              else _zero_money(value))
+        for key, value in row.items()
+    }
+    row["compensation_source"] = "OUTSOURCED_3PL"
+    row["employment_model"] = "OUTSOURCED_3PL"
+    row["operator_tenant_id"] = getattr(courier, "operator_tenant_id", None)
+    row["is_overridden"] = False
+    row["is_in_debt"] = False
+    return row
+
+
 def calculate_payroll_preview(db: Session, courier: Courier, month: str) -> dict:
     """Payroll for one rider, read through the same path as the payroll sheet.
 
@@ -420,7 +470,14 @@ def calculate_payroll_preview(db: Session, courier: Courier, month: str) -> dict
     differently. One path removes that whole class of divergence.
     """
     if getattr(courier, "employment_model", None) == "OUTSOURCED_3PL":
-        raise ValueError("هذا المندوب يتبع شركة تشغيل خارجية ولا يخضع لمسير رواتب المنصة المباشر")
+        # An outsourced rider is paid by their own operator, not by this
+        # tenant — but four callers read this function's result without
+        # catching anything, two of them inside a loop over a whole fleet, so
+        # raising took down the rider profile and both report endpoints with a
+        # 500 for every account that had one. The answer is a complete row that
+        # says "nothing is payable here", not an exception: the payroll sheet
+        # excludes these riders in SQL, so a zeroed row can pay no one.
+        return outsourced_payroll_row(db, courier, month)
 
     rows, _ = payroll_rows(db, courier.tenant_id, month, courier_ids=[courier.id])
     for row in rows:
@@ -435,11 +492,22 @@ def calculate_payroll_previews(
     couriers: list[Courier],
     month: str,
     orders_override: Optional[dict[int, int]] = None,
+    _include_outsourced: bool = False,
 ) -> list[dict]:
-    """Batch existing preview calculations with itemized breakdown and accountant override support."""
-    couriers = [
-        c for c in couriers if getattr(c, "employment_model", "DIRECT_HIRE") != "OUTSOURCED_3PL"
-    ]
+    """Batch existing preview calculations with itemized breakdown and accountant override support.
+
+    `_include_outsourced` exists only for :func:`outsourced_payroll_row`, which
+    needs a real row's shape before zeroing it. No caller that pays anyone sets
+    it. A missing `employment_model` reads as DIRECT_HIRE: a rider must never
+    drop out of payroll because a flag was never set.
+    """
+    if not _include_outsourced:
+        couriers = [
+            c
+            for c in couriers
+            if (getattr(c, "employment_model", None) or "DIRECT_HIRE")
+            != "OUTSOURCED_3PL"
+        ]
     if not couriers:
         return []
     month_bounds(month)
@@ -831,9 +899,18 @@ def payroll_rows(
         except Exception:
             orders_override = None
 
+    # `employment_model != 'OUTSOURCED_3PL'` is NULL for a NULL column, and a
+    # NULL predicate is not true, so every rider whose model was never set
+    # vanished from the payroll sheet in silence. The migration created the
+    # column nullable even though the model declares it NOT NULL, so production
+    # can hold NULLs that no test can reproduce. A rider missing from payroll
+    # must never be the result of an unset flag.
     courier_query = db.query(Courier).filter(
         Courier.tenant_id == tenant_id,
-        Courier.employment_model != "OUTSOURCED_3PL",
+        or_(
+            Courier.employment_model.is_(None),
+            Courier.employment_model != "OUTSOURCED_3PL",
+        ),
     )
     if courier_ids is not None:
         courier_query = courier_query.filter(Courier.id.in_(courier_ids))

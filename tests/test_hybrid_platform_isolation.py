@@ -120,9 +120,20 @@ def test_hybrid_platform_payroll_isolation(test_db):
     assert preview["courier_id"] == direct_rider_1.id
     assert preview["base_salary"] == 3000.0
 
-    # 8. Verify: Outsourced rider preview raises ValueError preventing illegal salary slip
-    with pytest.raises(ValueError, match="شركة تشغيل خارجية"):
-        calculate_payroll_preview(test_db, outsourced_rider_1, month)
+    # 8. Verify: an outsourced rider produces a payslip worth nothing.
+    #
+    # This asserted that the preview *raises*. Four call sites read that
+    # function without catching anything — two of them inside a loop over a
+    # whole fleet — so the raise answered 500 on the rider profile and took
+    # both report endpoints down with it for any account that had one
+    # outsourced rider. The rule being protected is "the platform does not pay
+    # this rider", and a complete row of zeros states that without breaking the
+    # screens that read it. See tests/test_outsourced_rider_safety.py.
+    preview_outsourced = calculate_payroll_preview(test_db, outsourced_rider_1, month)
+    assert preview_outsourced["net_pay"] == 0
+    assert preview_outsourced["gross_pay"] == 0
+    assert preview_outsourced["base_salary"] == 0
+    assert preview_outsourced["compensation_source"] == "OUTSOURCED_3PL"
 
 
 def test_outsourced_rider_orders_feed_commercial_settlement(test_db):

@@ -873,7 +873,7 @@ def update_supervisor(
                     # is what re-created the divergence the backfill had just
                     # cleaned up.
                     courier.work_city = branch.city
-                    courier.city_id = branch.city_id or courier.city_id
+                    courier.city_id = branch.city_id
             elif branch.supervisor_id == sup.id:
                 branch.supervisor_id = None
                 project = (
@@ -1200,7 +1200,13 @@ def transfer_project(
     c.contract_id = branch.contract_id
     c.contract_branch_id = branch.id
     c.work_city = branch.city
-    c.city_id = branch.city_id or c.city_id
+    # `or c.city_id` kept the *previous* city's reference when the branch has no
+    # city_id of its own, while work_city moved to the new branch's text. The
+    # rider then read as Jeddah and filtered as Riyadh: absent from the report
+    # for where they work, present in the one for where they no longer do.
+    # A branch without a reference clears it rather than lying about it; the
+    # text fallback in the filter still finds the rider.
+    c.city_id = branch.city_id
     c.supervisor_id = branch.supervisor_id
     db.commit()
     return {"ok": True}

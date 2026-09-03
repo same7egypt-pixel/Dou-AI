@@ -9,7 +9,7 @@ import json
 from datetime import date, datetime
 from typing import Optional, Tuple
 
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models.entities import Courier, DailyLog, OperationalImportBatch, Project
@@ -228,7 +228,7 @@ def _normalize_row(
     mapping: Optional[dict[str, str]] = None,
 ) -> Tuple[Optional[dict], list[dict]]:
     errors: list[dict] = []
-    
+
     # Extract fields via mapping or standard keys
     id_key = mapping.get("rider_identifier", "rider_phone") if mapping else "rider_phone"
     date_key = mapping.get("date", "date") if mapping else "date"

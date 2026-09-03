@@ -205,3 +205,40 @@ def test_an_account_without_the_capability_cannot_link(env):
                              json={"admin_phone": "966590000001"}, headers=_auth(env["vendor"]))
     assert res.status_code == 403
     assert "MANAGE_OPERATORS" in res.text
+
+
+def test_only_an_administrators_phone_links_a_company(env):
+    """A courier's or supervisor's phone linked their whole company.
+
+    The endpoint's docstring and its commit message both claimed it took "the
+    phone the vendor's admin signs in with"; the query matched any user. The
+    refusal stays the same 404 as every other failure, so this still cannot be
+    used to find out who is on DOU.
+    """
+    db, client = env["db"], env["client"]
+    vendor = env["vendor"]
+
+    staff = User(
+        phone="966590000099", name="مشرف", role=UserRole.SUPERVISOR,
+        tenant_id=vendor["tenant"].id, is_active=True,
+        password_hash=hash_password("Pass12345!"),
+    )
+    db.add(staff)
+    db.commit()
+
+    refused = client.post(
+        "/enterprise/operators/link",
+        json={"admin_phone": "966590000099"},
+        headers={"Authorization": f"Bearer {env['platform']['token']}"},
+    )
+    assert refused.status_code == 404, (
+        "a non-administrator's phone linked their company"
+    )
+    assert PlatformOperator not in (None,)  # import is used
+
+    accepted = client.post(
+        "/enterprise/operators/link",
+        json={"admin_phone": vendor["user"].phone},
+        headers={"Authorization": f"Bearer {env['platform']['token']}"},
+    )
+    assert accepted.status_code == 201, accepted.text

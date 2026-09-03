@@ -113,6 +113,21 @@ def _ingest_event(db: Session, tenant: ent.Tenant, event: NinjaDeliveryEvent):
         )
         db.add(row)
         db.flush()
+    elif row.checksum != checksum:
+        # The same order arriving with a changed payload is an update, not a
+        # replay: an order goes ASSIGNED then DELIVERED, a fee is corrected, a
+        # distance is filled in. The row was left holding the first version, so
+        # normalize_row re-read stale data and the update was thrown away —
+        # a delivery that completed could stay unpaid because the completion
+        # never reached the pipeline.
+        row.row_data = row_data
+        row.checksum = checksum
+        row.source_timestamp = event.event_timestamp or row.source_timestamp
+        # A row that could not be normalized before deserves another attempt
+        # with the new payload; one already accepted keeps its fact.
+        if row.status == "REJECTED":
+            row.status = "PENDING"
+        db.flush()
 
     before = row.status
     fact = normalize_row(db, row)
@@ -138,37 +153,20 @@ def _ingest_event(db: Session, tenant: ent.Tenant, event: NinjaDeliveryEvent):
         db.add(ninja_project)
         db.flush()
 
-    daily_log = None
-    if courier:
-        daily_log = (
-            db.query(ent.DailyLog)
-            .filter(
-                ent.DailyLog.courier_id == courier.id,
-                ent.DailyLog.log_date == today,
-                ent.DailyLog.project_id == ninja_project.id,
-            )
-            .first()
+    # The daily log is credited by the normalizer now, on the delivery's own
+    # date, so every path that creates a fact credits the rider exactly once.
+    # Doing it here as well would count this order twice.
+    daily_log = (
+        db.query(ent.DailyLog)
+        .filter(
+            ent.DailyLog.courier_id == courier.id,
+            ent.DailyLog.log_date == today,
+            ent.DailyLog.project_id == (fact.project_id if fact else None),
         )
-
-        if not daily_log:
-            daily_log = ent.DailyLog(
-                courier_id=courier.id,
-                tenant_id=tenant_id,
-                project_id=ninja_project.id,
-                log_date=today,
-                orders_count=1 if is_new_fact else 0,
-                driver_orders=0,
-                verified_orders=1 if is_new_fact else 0,
-                variance=1 if is_new_fact else 0,
-                source_type="LIVE_API_NINJA",
-                notes=f"Ninja Live Ingestion: Order {event.order_id}",
-            )
-            db.add(daily_log)
-        elif is_new_fact:
-            daily_log.verified_orders = (daily_log.verified_orders or 0) + 1
-            daily_log.orders_count = daily_log.verified_orders
-            daily_log.variance = daily_log.orders_count - (daily_log.driver_orders or 0)
-            daily_log.source_type = "LIVE_API_NINJA"
+        .first()
+        if courier
+        else None
+    )
 
     db.commit()
 

@@ -2,12 +2,12 @@
 
 import hashlib
 import json
-from datetime import date, datetime
+from collections import defaultdict
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import func
 
 from ..database import get_db
 from ..models import entities as ent
@@ -15,6 +15,11 @@ from ..services import ingestion as _ingest
 from ..services.entitlements import require_capability
 from ..services.ingestion import normalize_row, reprocess_rows
 from .auth import get_current_user
+
+# How far apart a delivery's date and its row's arrival date can be. Rows
+# outside this window around the reconciled day cannot belong to it, and not
+# loading them is what keeps this endpoint off the OOM killer.
+INGESTION_LAG_DAYS = 7
 
 router = APIRouter(prefix="/sources", tags=["sources"])
 
@@ -680,43 +685,57 @@ def create_reconciliation(
     _same_tenant(db, ent.SourcePlatform, payload.source_platform_id, tenant_id)
     day = payload.reconciliation_date
 
+    # Every row for this source, ever, used to be pulled into Python and then
+    # filtered by date in a loop that parsed each row's JSON twice. On a 909 MB
+    # box a tenant with a real ingestion history is an OOM waiting for a slow
+    # month. The delivery date lives inside a JSON text column, so it cannot be
+    # filtered in SQL directly — but arrival bounds it: a row is written when it
+    # arrives, and a delivery is never dated after the day its row landed. A
+    # window around the day is enough to hold every row that can belong to it,
+    # and the exact date is still decided per row below.
+    window_start = day - timedelta(days=INGESTION_LAG_DAYS)
+    window_end = day + timedelta(days=INGESTION_LAG_DAYS)
     rows = (
         db.query(ent.RawImportRow)
         .filter(
             ent.RawImportRow.tenant_id == tenant_id,
             ent.RawImportRow.source_platform_id == payload.source_platform_id,
+            ent.RawImportRow.import_date >= window_start,
+            ent.RawImportRow.import_date <= window_end,
         )
-        .all()
+        .yield_per(500)
     )
 
     # A row belongs to the day its delivery happened, which is what the fact is
     # dated by. The row's own arrival date is a different question.
-    def row_day(row: ent.RawImportRow):
+    def row_fields(row: ent.RawImportRow):
+        """Parse each row once: it was parsed twice, in row_day and row_revenue."""
         try:
             data = json.loads(row.row_data)
         except (json.JSONDecodeError, TypeError):
             data = {}
         raw = _ingest._first(data, _ingest.DATE_KEYS) or row.source_timestamp
+        on = row.import_date
         if raw:
             try:
-                return _ingest._as_date(raw)
+                on = _ingest._as_date(raw)
             except _ingest.RowRejected:
                 pass
-        return row.import_date
-
-    def row_revenue(row: ent.RawImportRow) -> float:
-        try:
-            data = json.loads(row.row_data)
-        except (json.JSONDecodeError, TypeError):
-            return 0.0
-        return _ingest._as_float(
+        revenue = _ingest._as_float(
             _ingest._first(data, ("revenue_amount", "delivery_fee", "revenue"))
         ) or 0.0
+        return on, revenue
 
-    todays = [r for r in rows if row_day(r) == day]
+    todays = []
+    revenue_source = 0.0
+    for candidate in rows:
+        on, revenue = row_fields(candidate)
+        if on == day:
+            todays.append(candidate)
+            revenue_source += revenue
     source_total = len(todays)
     rejected = sum(1 for r in todays if r.status == "REJECTED")
-    revenue_source = round(sum(row_revenue(r) for r in todays), 2)
+    revenue_source = round(revenue_source, 2)
 
     # An unmapped rider is a rejection the operator fixes in one action. A row
     # that arrived without a rider id at all is the source sending bad data, and
@@ -740,20 +759,15 @@ def create_reconciliation(
         ):
             unmapped += 1
 
-    duplicate_subquery = (
-        db.query(
-            ent.RawImportRow.source_id, func.count(ent.RawImportRow.id).label("cnt")
-        )
-        .filter(
-            ent.RawImportRow.tenant_id == tenant_id,
-            ent.RawImportRow.source_platform_id == payload.source_platform_id,
-            ent.RawImportRow.import_date == day,
-        )
-        .group_by(ent.RawImportRow.source_id)
-        .having(func.count(ent.RawImportRow.id) > 1)
-        .subquery()
-    )
-    duplicate_count = db.query(func.sum(duplicate_subquery.c.cnt - 1)).scalar() or 0
+    # Counted on `import_date` while every other figure here counts on the
+    # delivery's own date — the exact mismatch this endpoint was rewritten to
+    # remove, left behind in one query. Duplicates are counted over the same
+    # rows as everything else now.
+    seen: dict[str, int] = defaultdict(int)
+    for candidate in todays:
+        seen[candidate.source_id] += 1
+    duplicate_count = sum(count - 1 for count in seen.values() if count > 1)
+
 
     facts = (
         db.query(ent.NormalizedDeliveryFact)

@@ -209,6 +209,61 @@ def resolve_project(
     return project if project and project.tenant_id == tenant_id else None
 
 
+def _credit_daily_log(
+    db: Session, fact: ent.NormalizedDeliveryFact, delta: int = 1
+) -> None:
+    """Credit the rider's day for a delivery that just became a fact.
+
+    Payroll does not read delivery facts. It reads `DailyLog.orders_count` —
+    see `eligible_orders_for_courier` — so a fact with no daily log is a
+    delivery the screen shows as accepted and the payslip pays nothing for.
+
+    The Ninja endpoint did this inline, and the reprocess path added later did
+    not, so the operator's whole loop — a row is rejected, the mapping is added,
+    reprocess accepts it — produced facts worth 0 SAR. Doing it here means every
+    path that creates a fact credits the rider exactly once.
+
+    The credit lands on the delivery's own date, not today's: a batch that
+    arrives after midnight belongs to the day the rider worked.
+    """
+    if not fact.courier_id:
+        return
+    if delta > 0 and fact.event_type != "COMPLETED":
+        return
+
+    log = (
+        db.query(ent.DailyLog)
+        .filter(
+            ent.DailyLog.courier_id == fact.courier_id,
+            ent.DailyLog.log_date == fact.event_date,
+            ent.DailyLog.project_id == fact.project_id,
+        )
+        .first()
+    )
+    if log is None:
+        if delta <= 0:
+            return
+        log = ent.DailyLog(
+            courier_id=fact.courier_id,
+            tenant_id=fact.tenant_id,
+            project_id=fact.project_id,
+            log_date=fact.event_date,
+            orders_count=delta,
+            driver_orders=0,
+            verified_orders=delta,
+            variance=delta,
+            source_type="PLATFORM_INGESTION",
+        )
+        db.add(log)
+        return
+
+    # Never below zero: a correction cannot make a rider owe back a delivery
+    # they were never credited for.
+    log.verified_orders = max(0, (log.verified_orders or 0) + delta)
+    log.orders_count = log.verified_orders
+    log.variance = log.orders_count - (log.driver_orders or 0)
+
+
 def normalize_row(db: Session, row: ent.RawImportRow) -> Optional[ent.NormalizedDeliveryFact]:
     """Produce the fact for one raw row, or mark the row rejected.
 
@@ -269,15 +324,32 @@ def normalize_row(db: Session, row: ent.RawImportRow) -> Optional[ent.Normalized
     idempotency_key = (
         f"{row.tenant_id}:{row.source_platform_id}:{delivery_id}"
     )
+    # Idempotency is per source, not per tenant. Matching a bare
+    # `source_delivery_id` across the whole tenant was meant to protect the
+    # transition off the old `NINJA-<tenant>-<order>` key format, but two
+    # platforms both numbering their orders from 1 would collide: the second
+    # rider's delivery was swallowed as a duplicate of the first rider's, and
+    # that rider was never credited or paid for it.
+    #
+    # The legacy key is matched explicitly instead, so the transition stays safe
+    # without letting one source's order id mask another's.
+    legacy_key = f"NINJA-{row.tenant_id}-{delivery_id}"
     existing = (
         db.query(ent.NormalizedDeliveryFact)
         .filter(
             ent.NormalizedDeliveryFact.tenant_id == row.tenant_id,
             (
                 (ent.NormalizedDeliveryFact.idempotency_key == idempotency_key)
+                | (ent.NormalizedDeliveryFact.idempotency_key == legacy_key)
                 | (
-                    ent.NormalizedDeliveryFact.source_delivery_id
-                    == str(delivery_id)
+                    (
+                        ent.NormalizedDeliveryFact.source_platform_id
+                        == row.source_platform_id
+                    )
+                    & (
+                        ent.NormalizedDeliveryFact.source_delivery_id
+                        == str(delivery_id)
+                    )
                 )
             ),
         )
@@ -293,6 +365,21 @@ def normalize_row(db: Session, row: ent.RawImportRow) -> Optional[ent.Normalized
             existing.project_id = project.id
         if existing.raw_row_id is None:
             existing.raw_row_id = row.id
+
+        # An outcome that changed is an update, not a replay: an order goes
+        # CANCELLED then DELIVERED, or is cancelled after being recorded as
+        # delivered. Leaving the first outcome in place left a completed
+        # delivery unpaid, or kept paying for one that was undone. The daily
+        # log — which is what payroll actually reads — follows the change.
+        if existing.event_type != event_type:
+            was_paid = existing.event_type == "COMPLETED"
+            existing.event_type = event_type
+            existing.event_date = event_date
+            if was_paid and event_type != "COMPLETED":
+                _credit_daily_log(db, existing, delta=-1)
+            elif not was_paid and event_type == "COMPLETED":
+                _credit_daily_log(db, existing, delta=1)
+
         row.status = "NORMALIZED"
         row.validation_issues = None
         return existing
@@ -329,6 +416,10 @@ def normalize_row(db: Session, row: ent.RawImportRow) -> Optional[ent.Normalized
         idempotency_key=idempotency_key,
     )
     db.add(fact)
+    db.flush()
+    # Only on a genuinely new fact: the branch above returns the existing one, so
+    # a replay or a second reprocess cannot credit the same delivery twice.
+    _credit_daily_log(db, fact)
     row.status = "NORMALIZED"
     row.validation_issues = None
     return fact

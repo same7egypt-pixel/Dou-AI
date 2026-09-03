@@ -255,7 +255,19 @@ def link_operator_by_phone(
     phone = (payload.admin_phone or "").strip()
     if not phone:
         raise not_found
-    owner = db.query(ent.User).filter(ent.User.phone == phone).first()
+    # Only an account's own administrator. Matching any user meant a courier's
+    # or supervisor's phone linked their whole company — and the docstring and
+    # commit message both claimed this took "the phone the vendor's admin signs
+    # in with", which the code did not do. Same 404 for every failure, so this
+    # still cannot be used to find out who is on DOU.
+    owner = (
+        db.query(ent.User)
+        .filter(
+            ent.User.phone == phone,
+            ent.User.role.in_([ent.UserRole.COMPANY, ent.UserRole.COMPANY_ADMIN]),
+        )
+        .first()
+    )
     if not owner or not owner.tenant_id or not owner.is_active:
         raise not_found
     vendor = db.get(ent.Tenant, owner.tenant_id)

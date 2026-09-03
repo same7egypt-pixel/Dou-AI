@@ -218,14 +218,6 @@ def test_adding_the_mapping_then_reprocessing_accepts_the_row(env):
     assert env["db"].query(NormalizedDeliveryFact).count() == 1
 
 
-def test_reprocessing_cannot_count_a_delivery_twice(env):
-    _map_rider(env)
-    _row(env, "ORD-4")
-    for _ in range(3):
-        env["client"].post("/sources/raw-rows/reprocess", headers=env["H"])
-    assert env["db"].query(NormalizedDeliveryFact).count() == 1
-
-
 def test_reprocessing_leaves_accepted_rows_alone(env):
     """Asserting the outcome alone was too weak: normalize_row is itself
     idempotent, so a reprocess that swept up NORMALIZED rows still produced one
@@ -750,3 +742,119 @@ def test_a_rejection_carries_what_the_screen_needs_to_write_its_own_sentence(env
         "the offending id was only inside the Arabic sentence, so an English "
         "screen could not restate it"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Findings from an external review of this work
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_two_sources_may_use_the_same_order_number(env):
+    """Idempotency is per source, not per tenant.
+
+    Matching a bare `source_delivery_id` across the whole tenant swallowed the
+    second platform's order 1001 as a duplicate of the first platform's, so
+    that rider was never credited and never paid for the delivery.
+    """
+    db = env["db"]
+    other = SourcePlatform(
+        tenant_id=env["platform"]["tenant"].id, code="HS", name_ar="هنقرستيشن",
+        is_active=True,
+    )
+    db.add(other)
+    db.commit()
+    db.refresh(other)
+
+    second_rider = Courier(
+        tenant_id=env["platform"]["tenant"].id, name="مندوب ثانٍ",
+        phone="966597779902", courier_type=CourierType.COMPANY,
+        country=Country.SA, employment_status="ACTIVE",
+    )
+    db.add(second_rider)
+    db.commit()
+    db.refresh(second_rider)
+
+    _map_rider(env)  # NJ-77 on the Ninja source
+    db.add(RiderIdentityMapping(
+        tenant_id=env["platform"]["tenant"].id, source_platform_id=other.id,
+        source_rider_id="HS-9", courier_id=second_rider.id,
+        match_method="MANUAL", confidence=1.0, status="ACTIVE",
+        effective_from=date(2026, 1, 1),
+    ))
+    db.commit()
+
+    _row(env, "1001")  # Ninja order 1001
+    env["client"].post(
+        "/sources/raw-rows",
+        json={
+            "source_platform_id": other.id,
+            "source_id": "1001",
+            "row_data": json.dumps({
+                "order_id": "1001", "rider_id": "HS-9",
+                "delivery_status": "DELIVERED", "event_date": "2026-09-01",
+            }),
+        },
+        headers=env["H"],
+    )
+
+    facts = db.query(NormalizedDeliveryFact).all()
+    assert len(facts) == 2, (
+        "the second platform's order 1001 was swallowed as a duplicate of the "
+        "first's, and its rider was never credited"
+    )
+    assert {f.courier_id for f in facts} == {env["rider"].id, second_rider.id}
+
+
+def test_the_same_order_from_one_source_is_still_a_duplicate(env):
+    """Fixing the collision must not turn idempotency off."""
+    _map_rider(env)
+    _row(env, "2002")
+    _row(env, "2002")
+    assert env["db"].query(NormalizedDeliveryFact).count() == 1
+
+
+def test_reconciliation_ignores_rows_outside_the_ingestion_window(env):
+    """Rows outside the window cannot belong to the day, and loading the whole
+    history to find that out is what put this endpoint on the OOM killer's list.
+
+    The assertion is the behaviour, not the query plan: a row whose arrival is
+    years away is neither counted nor allowed to contribute revenue.
+    """
+    _map_rider(env)
+    _row(env, "OLD-1", event_date="2026-09-01", delivery_fee=999.0)
+    old_row = env["db"].query(RawImportRow).filter(
+        RawImportRow.source_id == "OLD-1"
+    ).one()
+    old_row.import_date = date(2020, 1, 1)
+    _row(env, "NEW-1", event_date="2026-09-01", delivery_fee=10.0)
+    env["db"].commit()
+
+    result = env["client"].post(
+        "/sources/reconcile",
+        json={"source_platform_id": env["source"].id,
+              "reconciliation_date": "2026-09-01"},
+        headers=env["H"],
+    ).json()
+    assert result["source_total_count"] == 1, "a row from 2020 was scanned in"
+    assert result["total_revenue_source"] == 10.0
+
+
+def test_duplicates_are_counted_on_the_delivery_date(env):
+    """The duplicate query still counted on arrival date while every other
+    figure moved to the delivery's own date."""
+    _map_rider(env)
+    _row(env, "DUP-1", event_date="2026-09-01")
+    row = env["db"].query(RawImportRow).filter(
+        RawImportRow.source_id == "DUP-1"
+    ).one()
+    row.import_date = date(2026, 9, 3)  # arrived two days late
+    env["db"].commit()
+
+    result = env["client"].post(
+        "/sources/reconcile",
+        json={"source_platform_id": env["source"].id,
+              "reconciliation_date": "2026-09-01"},
+        headers=env["H"],
+    ).json()
+    assert result["source_total_count"] == 1
+    assert result["duplicate_count"] == 0
