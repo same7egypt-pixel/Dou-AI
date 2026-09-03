@@ -15,9 +15,10 @@ const loadVendors = (c) => import('./views/vendors.js').then((m) => m.renderVend
 const loadPlatformLink = (c) => import('./views/platformLink.js').then((m) => m.renderPlatformLink(c));
 import { loadDouAI } from './views/douai.js';
 import { refreshNotificationCount } from '../shared/components/notifications.js';
-import { initLang } from '../shared/i18n/i18n.js';
+import { initLang, startAutoTranslate } from '../shared/i18n/i18n.js';
 
 initLang();
+startAutoTranslate();
 
 async function startApp() {
   const me = await requireAuth();

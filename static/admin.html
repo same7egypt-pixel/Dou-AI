@@ -280,6 +280,10 @@ input:focus,select:focus,textarea:focus{border-color:var(--orange)}
       <div class="card" id="companyAddBox" style="display:none;margin-bottom:16px">
         <h3>إنشاء حساب شركة لوجستية</h3>
         <div class="form-row">
+          <select id="ncType" title="نوع الحساب — يُحدَّد مرة واحدة عند الإنشاء ولا يمكن تغييره من داخل المنتج">
+            <option value="LOGISTICS_OPERATOR">🏢 شركة أساطيل لوجستية</option>
+            <option value="DELIVERY_PLATFORM">🌐 منصة توصيل (متعددة المورّدين)</option>
+          </select>
           <input id="ncName" placeholder="اسم الشركة">
           <input id="ncOwner" placeholder="اسم مالك الحساب">
           <input id="ncPhone" placeholder="جوال دخول المالك">
@@ -775,7 +779,7 @@ async function loadCompanies(){
 function toggleCompanyAdd(){ document.getElementById("companyAddBox").style.display = document.getElementById("companyAddBox").style.display==="none"?"block":"none"; }
 async function addCompany(){
   try{
-    await api("/admin/tenants",{method:"POST",body:JSON.stringify({name:document.getElementById("ncName").value,owner_name:document.getElementById("ncOwner").value,owner_phone:document.getElementById("ncPhone").value,password:document.getElementById("ncPassword").value,market_code:document.getElementById("ncCountry").value,default_language:document.getElementById("ncLanguage").value,currency:document.getElementById("ncCurrency").value,plan:document.getElementById("ncPlan").value,trial_days:+document.getElementById("ncTrial").value||14})});
+    await api("/admin/tenants",{method:"POST",body:JSON.stringify({name:document.getElementById("ncName").value,owner_name:document.getElementById("ncOwner").value,owner_phone:document.getElementById("ncPhone").value,password:document.getElementById("ncPassword").value,market_code:document.getElementById("ncCountry").value,default_language:document.getElementById("ncLanguage").value,currency:document.getElementById("ncCurrency").value,plan:document.getElementById("ncPlan").value,customer_type:document.getElementById("ncType").value,trial_days:+document.getElementById("ncTrial").value||14})});
     document.getElementById("companyAddMsg").textContent="✅ تم إنشاء الشركة وحساب دخول المالك";
     document.getElementById("companyAddMsg").style.color="var(--green)";
     loadCompanies();document.getElementById("companyAddBox").style.display="none";

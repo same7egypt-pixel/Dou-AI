@@ -624,6 +624,22 @@ def patch_tenant(
             if (tenant.currency or "SAR") == "USD" and plan.monthly_price_usd
             else plan.monthly_price
         )
+    if payload.get("customer_type"):
+        # Correcting an account created before the console asked for a type.
+        # Capabilities are re-derived rather than kept, because the old set
+        # belongs to the old shape: a platform must not keep payroll, and a
+        # company must not keep vendor management.
+        customer_type = normalize_customer_type(payload["customer_type"])
+        tenant.customer_type = customer_type
+        tenant.capabilities = serialize_capabilities(
+            resolve_capabilities(customer_type, payload.get("capabilities"))
+        )
+    elif "capabilities" in payload:
+        tenant.capabilities = serialize_capabilities(
+            resolve_capabilities(
+                tenant.customer_type or "LOGISTICS_OPERATOR", payload["capabilities"]
+            )
+        )
     for key in ("name", "contact_email", "contact_phone"):
         if key in payload:
             setattr(tenant, key, (payload.get(key) or "").strip())

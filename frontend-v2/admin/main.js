@@ -5,9 +5,10 @@ import { renderShell, registerViewLoaders } from './shell.js';
 import { loadOverview } from './views/overview.js';
 import { loadTenants } from './views/tenants.js?v=20260831-2';
 import { loadRevenue, loadPlans, loadUsage, loadHealth, loadIntegrations, loadAudit, loadSettings } from './views/platform.js';
-import { initLang } from '../shared/i18n/i18n.js';
+import { initLang, startAutoTranslate } from '../shared/i18n/i18n.js';
 
 initLang();
+startAutoTranslate();
 
 function customizeLogin() {
   document.querySelector('.login-sub').textContent = 'سجل دخول إدارة المنصة';
