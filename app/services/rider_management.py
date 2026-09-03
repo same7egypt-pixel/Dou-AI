@@ -104,6 +104,8 @@ def create_rider_record(
         vehicle_type=(payload.get("vehicle_type") or None),
         vehicle_plate=(payload.get("vehicle_plate") or None),
         employment_status=payload.get("employment_status") or "ACTIVE",
+        employment_model=payload.get("employment_model") or "DIRECT_HIRE",
+        operator_tenant_id=payload.get("operator_tenant_id"),
         supervisor_id=supervisor.id,
         primary_project_id=project.id,
         contract_id=contract.id,

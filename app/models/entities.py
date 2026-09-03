@@ -146,7 +146,9 @@ class Tenant(Base):
     created_at = Column(DateTime, default=utcnow)
 
     fleets = relationship("Fleet", back_populates="tenant")
-    couriers = relationship("Courier", back_populates="tenant")
+    couriers = relationship(
+        "Courier", back_populates="tenant", foreign_keys="[Courier.tenant_id]"
+    )
 
 
 class Fleet(Base):
@@ -179,6 +181,7 @@ class Courier(Base):
         Index("ix_couriers_tenant_id", "tenant_id"),
         Index("ix_couriers_tenant_supervisor", "tenant_id", "supervisor_id"),
         Index("ix_couriers_tenant_branch", "tenant_id", "contract_branch_id"),
+        Index("ix_couriers_tenant_employment", "tenant_id", "employment_model"),
     )
 
     id = Column(Integer, primary_key=True)
@@ -187,6 +190,12 @@ class Courier(Base):
     name = Column(String(120), nullable=False)
     phone = Column(String(40), unique=True, nullable=False)
     courier_type = Column(Enum(CourierType), nullable=False)
+    employment_model = Column(
+        String(30), default="DIRECT_HIRE", nullable=False
+    )  # DIRECT_HIRE / OUTSOURCED_3PL
+    operator_tenant_id = Column(
+        Integer, ForeignKey("tenants.id"), nullable=True
+    )  # معرّف شركة التشغيل المالكة للمندوب إذا كان OUTSOURCED_3PL
     country = Column(Enum(Country), nullable=False)
     lat = Column(Float)  # GPS لحظي
     lng = Column(Float)
@@ -239,7 +248,10 @@ class Courier(Base):
     shift_preference = Column(String(120))  # الوردية المعتمدة/المطلوبة
     created_at = Column(DateTime, default=utcnow)
 
-    tenant = relationship("Tenant", back_populates="couriers")
+    tenant = relationship(
+        "Tenant", back_populates="couriers", foreign_keys=[tenant_id]
+    )
+    operator_tenant = relationship("Tenant", foreign_keys=[operator_tenant_id])
     fleet = relationship("Fleet", back_populates="couriers")
     supervisor = relationship("User", foreign_keys=[supervisor_id])
     primary_project = relationship("Project", foreign_keys=[primary_project_id])

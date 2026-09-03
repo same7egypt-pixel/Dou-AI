@@ -3394,7 +3394,12 @@ def hr_payroll(
 
     couriers = {
         row.id: row
-        for row in db.query(Courier).filter(Courier.tenant_id == user.tenant_id).all()
+        for row in db.query(Courier)
+        .filter(
+            Courier.tenant_id == user.tenant_id,
+            Courier.employment_model != "OUTSOURCED_3PL",
+        )
+        .all()
     }
     rows = []
     totals = {

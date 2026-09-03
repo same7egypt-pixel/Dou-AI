@@ -419,6 +419,9 @@ def calculate_payroll_preview(db: Session, courier: Courier, month: str) -> dict
     months instead of reading their snapshot, and priced FLAT_PER_ORDER plans
     differently. One path removes that whole class of divergence.
     """
+    if getattr(courier, "employment_model", None) == "OUTSOURCED_3PL":
+        raise ValueError("هذا المندوب يتبع شركة تشغيل خارجية ولا يخضع لمسير رواتب المنصة المباشر")
+
     rows, _ = payroll_rows(db, courier.tenant_id, month, courier_ids=[courier.id])
     for row in rows:
         if row["courier_id"] == courier.id:
@@ -434,6 +437,9 @@ def calculate_payroll_previews(
     orders_override: Optional[dict[int, int]] = None,
 ) -> list[dict]:
     """Batch existing preview calculations with itemized breakdown and accountant override support."""
+    couriers = [
+        c for c in couriers if getattr(c, "employment_model", "DIRECT_HIRE") != "OUTSOURCED_3PL"
+    ]
     if not couriers:
         return []
     month_bounds(month)
@@ -825,7 +831,10 @@ def payroll_rows(
         except Exception:
             orders_override = None
 
-    courier_query = db.query(Courier).filter(Courier.tenant_id == tenant_id)
+    courier_query = db.query(Courier).filter(
+        Courier.tenant_id == tenant_id,
+        Courier.employment_model != "OUTSOURCED_3PL",
+    )
     if courier_ids is not None:
         courier_query = courier_query.filter(Courier.id.in_(courier_ids))
     couriers = courier_query.order_by(Courier.name).all()

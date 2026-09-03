@@ -49,6 +49,8 @@ MIGRATIONS = {
         "is_on_leave": "BOOLEAN DEFAULT FALSE",
         "shift_started_at": "TIMESTAMP",
         "shift_preference": "VARCHAR(120)",
+        "employment_model": "VARCHAR(30) DEFAULT 'DIRECT_HIRE'",
+        "operator_tenant_id": "INTEGER",
     },
     "bonus_plans": {
         "contract_branch_id": "INTEGER",

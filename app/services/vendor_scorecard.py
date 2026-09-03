@@ -46,7 +46,7 @@ DEFAULT_HORIZON_DAYS = 30
 
 
 def _rider_operator_map(db: Session, tenant_id: int) -> dict[int, int]:
-    """courier_id -> operator_id, active assignment winning over primary project."""
+    """courier_id -> operator_id, active assignment and outsourced operator winning over primary project."""
     mapping: dict[int, int] = {}
     for courier_id, project_id in (
         db.query(Courier.id, Courier.primary_project_id)
@@ -54,6 +54,16 @@ def _rider_operator_map(db: Session, tenant_id: int) -> dict[int, int]:
         .all()
     ):
         mapping[courier_id] = project_id
+    for courier_id, op_id in (
+        db.query(Courier.id, Courier.operator_tenant_id)
+        .filter(
+            Courier.tenant_id == tenant_id,
+            Courier.employment_model == "OUTSOURCED_3PL",
+            Courier.operator_tenant_id.isnot(None),
+        )
+        .all()
+    ):
+        mapping[courier_id] = op_id
     for courier_id, operator_id in (
         db.query(RiderAssignment.courier_id, RiderAssignment.operator_id)
         .filter(
