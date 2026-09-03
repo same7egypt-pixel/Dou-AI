@@ -210,7 +210,9 @@ def test_reconciliation_duplicate_count_accurate(db):
         ReconciliationCreate(source_platform_id=sp.id, reconciliation_date=date(2026, 9, 1)),
         user, db,
     )
-    assert result["status"] == "COMPLETED"
+    # Three rows arrived and none became a delivery fact, so the day does not
+    # balance. The endpoint used to answer COMPLETED for every input.
+    assert result["status"] == "EXCEPTION"
 
     # Verify counts in database
     recon = db.query(ReconciliationResult).first()

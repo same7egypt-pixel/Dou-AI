@@ -11,6 +11,7 @@ from sqlalchemy import func
 
 from ..database import get_db
 from ..models import entities as ent
+from ..services import ingestion as _ingest
 from ..services.entitlements import require_capability
 from ..services.ingestion import normalize_row, reprocess_rows
 from .auth import get_current_user
@@ -652,20 +653,93 @@ def create_reconciliation(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
+    """Compare what the platform sent for a day against what DOU recorded.
+
+    Three things made the answer meaningless:
+
+    The two sides were counted on different date axes. Raw rows were counted by
+    `import_date` — the day the row arrived — and facts by `event_date`, the day
+    the delivery happened. A batch that lands after midnight for the previous
+    day's work counted on one side and not the other, so `missing_count` was the
+    lag between arrival and delivery rather than a gap in the data. Both sides
+    read the delivery's own date now.
+
+    `total_revenue_source` was the literal 0, so the revenue comparison — the
+    reason a finance team opens this at all — always showed the platform
+    reporting nothing. The source's figure is in the raw rows it sent; that is
+    what it is compared against.
+
+    `unmapped_count` was the literal 0 while an unmapped rider is the single
+    most common reason a row does not become a fact, and the pipeline records
+    exactly that on the row it rejects.
+
+    Four counts were also computed and thrown away — `.count()` calls whose
+    results were assigned to nothing.
+    """
     tenant_id = _tenant_id(user, db, manage=True)
     _same_tenant(db, ent.SourcePlatform, payload.source_platform_id, tenant_id)
-    # H3 FIX: Use explicit import_date instead of timezone-sensitive func.date()
-    raw_rows = db.query(ent.RawImportRow).filter(
-        ent.RawImportRow.tenant_id == tenant_id,
-        ent.RawImportRow.source_platform_id == payload.source_platform_id,
-        ent.RawImportRow.import_date == payload.reconciliation_date,
+    day = payload.reconciliation_date
+
+    rows = (
+        db.query(ent.RawImportRow)
+        .filter(
+            ent.RawImportRow.tenant_id == tenant_id,
+            ent.RawImportRow.source_platform_id == payload.source_platform_id,
+        )
+        .all()
     )
-    source_total = raw_rows.count()
-    raw_rows.filter(ent.RawImportRow.status == "ACCEPTED").count()
-    rejected = raw_rows.filter(ent.RawImportRow.status == "REJECTED").count()
-    raw_rows.filter(ent.RawImportRow.status == "NORMALIZED").count()
-    raw_rows.filter(ent.RawImportRow.status == "PENDING").count()
-    # L3 FIX: Count actual duplicate raw rows (same source_id appearing multiple times)
+
+    # A row belongs to the day its delivery happened, which is what the fact is
+    # dated by. The row's own arrival date is a different question.
+    def row_day(row: ent.RawImportRow):
+        try:
+            data = json.loads(row.row_data)
+        except (json.JSONDecodeError, TypeError):
+            data = {}
+        raw = _ingest._first(data, _ingest.DATE_KEYS) or row.source_timestamp
+        if raw:
+            try:
+                return _ingest._as_date(raw)
+            except _ingest.RowRejected:
+                pass
+        return row.import_date
+
+    def row_revenue(row: ent.RawImportRow) -> float:
+        try:
+            data = json.loads(row.row_data)
+        except (json.JSONDecodeError, TypeError):
+            return 0.0
+        return _ingest._as_float(
+            _ingest._first(data, ("revenue_amount", "delivery_fee", "revenue"))
+        ) or 0.0
+
+    todays = [r for r in rows if row_day(r) == day]
+    source_total = len(todays)
+    rejected = sum(1 for r in todays if r.status == "REJECTED")
+    revenue_source = round(sum(row_revenue(r) for r in todays), 2)
+
+    # An unmapped rider is a rejection the operator fixes in one action. A row
+    # that arrived without a rider id at all is the source sending bad data, and
+    # needs the source fixed instead — counting them together would point the
+    # operator at the wrong repair.
+    unmapped = 0
+    for row in todays:
+        if row.status != "REJECTED" or not row.validation_issues:
+            continue
+        try:
+            issues = json.loads(row.validation_issues)
+        except json.JSONDecodeError:
+            continue
+        # Rows rejected before the code was introduced carry only the field.
+        # Falling back to it keeps them counted correctly instead of reading as
+        # zero until somebody happens to reprocess them.
+        if any(
+            i.get("code") == _ingest.UNMAPPED_RIDER
+            or (i.get("code") is None and i.get("field") == "source_rider_id")
+            for i in issues
+        ):
+            unmapped += 1
+
     duplicate_subquery = (
         db.query(
             ent.RawImportRow.source_id, func.count(ent.RawImportRow.id).label("cnt")
@@ -673,44 +747,75 @@ def create_reconciliation(
         .filter(
             ent.RawImportRow.tenant_id == tenant_id,
             ent.RawImportRow.source_platform_id == payload.source_platform_id,
-            ent.RawImportRow.import_date == payload.reconciliation_date,
+            ent.RawImportRow.import_date == day,
         )
         .group_by(ent.RawImportRow.source_id)
         .having(func.count(ent.RawImportRow.id) > 1)
         .subquery()
     )
     duplicate_count = db.query(func.sum(duplicate_subquery.c.cnt - 1)).scalar() or 0
-    # Delivery facts for this date
-    facts = db.query(ent.NormalizedDeliveryFact).filter(
-        ent.NormalizedDeliveryFact.tenant_id == tenant_id,
-        ent.NormalizedDeliveryFact.source_platform_id == payload.source_platform_id,
-        ent.NormalizedDeliveryFact.event_date == payload.reconciliation_date,
+
+    facts = (
+        db.query(ent.NormalizedDeliveryFact)
+        .filter(
+            ent.NormalizedDeliveryFact.tenant_id == tenant_id,
+            ent.NormalizedDeliveryFact.source_platform_id
+            == payload.source_platform_id,
+            ent.NormalizedDeliveryFact.event_date == day,
+        )
+        .all()
     )
-    accepted_facts = facts.count()
-    revenue_accepted = sum(float(f.revenue_amount or 0) for f in facts.all())
+    accepted_facts = len(facts)
+    revenue_accepted = round(sum(float(f.revenue_amount or 0) for f in facts), 2)
+
+    missing = max(0, source_total - accepted_facts)
     row = ent.ReconciliationResult(
         tenant_id=tenant_id,
         source_platform_id=payload.source_platform_id,
-        reconciliation_date=payload.reconciliation_date,
+        reconciliation_date=day,
         source_total_count=source_total,
         accepted_count=accepted_facts,
         rejected_count=rejected,
         duplicate_count=duplicate_count,
-        unmapped_count=0,
-        missing_count=source_total - accepted_facts
-        if source_total > accepted_facts
-        else 0,
-        total_revenue_source=0,
+        unmapped_count=unmapped,
+        missing_count=missing,
+        total_revenue_source=revenue_source,
         total_revenue_accepted=revenue_accepted,
-        status="COMPLETED",
+        # A day that does not balance is not "completed". Saying so is the
+        # difference between a report and a reconciliation.
+        status="COMPLETED" if missing == 0 and rejected == 0 else "EXCEPTION",
     )
     db.add(row)
     db.commit()
     db.refresh(row)
+    return _reconciliation_json(row)
+
+
+def _reconciliation_json(row: ent.ReconciliationResult) -> dict:
+    """Every column, including the ones that carry the answer.
+
+    The listing returned five fields: the gap counts and both revenue totals —
+    the whole reason to run a reconciliation — were computed, stored, and never
+    read back.
+    """
     return {
         "id": row.id,
+        "source_platform_id": row.source_platform_id,
         "reconciliation_date": row.reconciliation_date.isoformat(),
+        "source_total_count": row.source_total_count,
+        "accepted_count": row.accepted_count,
+        "rejected_count": row.rejected_count,
+        "duplicate_count": row.duplicate_count,
+        "unmapped_count": row.unmapped_count,
+        "missing_count": row.missing_count,
+        "total_revenue_source": row.total_revenue_source,
+        "total_revenue_accepted": row.total_revenue_accepted,
+        "revenue_gap": round(
+            (row.total_revenue_source or 0) - (row.total_revenue_accepted or 0), 2
+        ),
         "status": row.status,
+        "exception_notes": row.exception_notes,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
     }
 
 
@@ -726,15 +831,15 @@ def list_reconciliations(
     )
     if source_platform_id:
         q = q.filter(ent.ReconciliationResult.source_platform_id == source_platform_id)
+    # Running a day again keeps the earlier result as an audit trail, so the
+    # ordering has to put the newest run first — ordering by the reconciled day
+    # alone left two runs of the same day in arbitrary order, and the screen
+    # showed whichever came back first as if it were current.
     return [
-        {
-            "id": r.id,
-            "source_platform_id": r.source_platform_id,
-            "reconciliation_date": r.reconciliation_date.isoformat(),
-            "source_total_count": r.source_total_count,
-            "accepted_count": r.accepted_count,
-            "rejected_count": r.rejected_count,
-            "status": r.status,
-        }
-        for r in q.order_by(ent.ReconciliationResult.reconciliation_date.desc()).all()
+        _reconciliation_json(r)
+        for r in q.order_by(
+            ent.ReconciliationResult.reconciliation_date.desc(),
+            ent.ReconciliationResult.created_at.desc(),
+            ent.ReconciliationResult.id.desc(),
+        ).all()
     ]

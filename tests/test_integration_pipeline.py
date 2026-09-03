@@ -520,3 +520,163 @@ def test_the_key_screen_says_the_secret_is_shown_once():
         "the server stores only a hash; an operator who does not copy the key "
         "has to rotate it, and should be told so before that happens"
     )
+
+
+def test_every_tab_is_named_in_both_languages():
+    """A missing key renders the literal string "undefined" as a tab label —
+    which is what the English side got when the reconciliation tab was added
+    to the Arabic block alone."""
+    code = INTEGRATION.read_text(encoding="utf-8")
+    ids = re.search(r"const tabs = \[(.*?)\];", code).group(1)
+    tab_ids = re.findall(r"'([a-z]+)'", ids)
+    assert tab_ids, "no tab list found"
+    for block in ("ar", "en"):
+        section = code[code.index(f"  {block}: {{"):]
+        section = section[: section.index("  },\n")]
+        for tab in tab_ids:
+            assert f"{tab}:" in section, f"tab {tab!r} has no {block} label"
+
+
+def test_reconciliation_compares_both_sides_on_the_screen():
+    code = re.sub(r"//[^\n]*", "", INTEGRATION.read_text(encoding="utf-8"))
+    body = code[code.index("async function renderReconcile("):]
+    body = body[: body.index("async function runReconcile(")]
+    for field in ("total_revenue_source", "total_revenue_accepted", "revenue_gap",
+                  "missing_count", "unmapped_count"):
+        assert field in body, (
+            f"{field} is computed and stored; a reconciliation that does not "
+            "show it is a report"
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Reconciliation compares the two sides, on the same axis
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _reconcile(env, day="2026-09-01"):
+    return env["client"].post(
+        "/sources/reconcile",
+        json={"source_platform_id": env["source"].id, "reconciliation_date": day},
+        headers=env["H"],
+    )
+
+
+def test_both_sides_are_counted_on_the_delivery_date(env):
+    """Rows were counted by arrival date and facts by delivery date, so a batch
+    landing after midnight counted on one side and not the other — and the gap
+    the finance team read was the ingestion lag, not missing money."""
+    _map_rider(env)
+    created = _row(env, "ORD-LATE", event_date="2026-09-01")
+    assert created.json()["status"] == "NORMALIZED"
+
+    # The row arrived the next day; the delivery still belongs to the 1st.
+    row = env["db"].query(RawImportRow).filter(
+        RawImportRow.source_id == "ORD-LATE"
+    ).one()
+    row.import_date = date(2026, 9, 2)
+    env["db"].commit()
+
+    result = _reconcile(env, "2026-09-01").json()
+    assert result["source_total_count"] == 1, (
+        "the row was counted on its arrival date, so the day it actually "
+        "belongs to looked empty on the source side"
+    )
+    assert result["accepted_count"] == 1
+    assert result["missing_count"] == 0
+    assert result["status"] == "COMPLETED"
+
+
+def test_the_source_revenue_is_read_from_what_the_source_sent(env):
+    """`total_revenue_source` was the literal 0, so the comparison that finance
+    opens this screen for always showed the platform reporting nothing."""
+    _map_rider(env)
+    _row(env, "ORD-R1", delivery_fee=18.5)
+    _row(env, "ORD-R2", delivery_fee=21.5)
+    result = _reconcile(env).json()
+    assert result["total_revenue_source"] == 40.0
+    assert result["total_revenue_accepted"] == 40.0
+    assert result["revenue_gap"] == 0.0
+
+
+def test_a_rejected_row_shows_as_a_revenue_gap(env):
+    """Money the platform reported that no rider was credited for."""
+    _row(env, "ORD-R3", delivery_fee=25.0)  # rider not mapped
+    result = _reconcile(env).json()
+    assert result["source_total_count"] == 1
+    assert result["accepted_count"] == 0
+    assert result["total_revenue_source"] == 25.0
+    assert result["total_revenue_accepted"] == 0.0
+    assert result["revenue_gap"] == 25.0
+    assert result["status"] == "EXCEPTION"
+
+
+def test_an_unmapped_rider_is_counted_apart_from_other_rejections(env):
+    """One is fixable in a single action; the other needs the source fixed."""
+    _row(env, "ORD-U1")                              # unmapped rider
+    _row(env, "ORD-U2", event_date="2026-09-01", rider_id=None)  # malformed
+    result = _reconcile(env).json()
+    assert result["rejected_count"] == 2
+    assert result["unmapped_count"] == 1, (
+        "unmapped_count was hardcoded to 0 while it is the most common and "
+        "most fixable cause of a gap — and writing this test found that both "
+        "rejections named the same field, so they could not be told apart"
+    )
+
+    codes = sorted(
+        json.loads(r.validation_issues)[0]["code"]
+        for r in env["db"].query(RawImportRow).all()
+    )
+    assert codes == ["MALFORMED_ROW", "UNMAPPED_RIDER"]
+
+
+def test_a_day_that_does_not_balance_is_not_completed(env):
+    """The endpoint answered COMPLETED for every input."""
+    _row(env, "ORD-X1")
+    assert _reconcile(env).json()["status"] == "EXCEPTION"
+
+    _map_rider(env)
+    env["client"].post("/sources/raw-rows/reprocess", headers=env["H"])
+    assert _reconcile(env).json()["status"] == "COMPLETED"
+
+
+def test_the_listing_returns_the_columns_that_carry_the_answer(env):
+    """The gap counts and both revenue totals were stored and never read back."""
+    _row(env, "ORD-L1", delivery_fee=9.0)
+    _reconcile(env)
+    listed = env["client"].get("/sources/reconcile", headers=env["H"]).json()[0]
+    for field in ("duplicate_count", "unmapped_count", "missing_count",
+                  "total_revenue_source", "total_revenue_accepted", "revenue_gap"):
+        assert field in listed, f"{field} is computed, stored, and never returned"
+
+
+def test_a_row_rejected_before_codes_existed_is_still_counted(env):
+    """Rows already rejected in production carry only the field, not the code.
+    Reading them as zero would tell an operator the gap was unexplained when it
+    was the one cause they can fix."""
+    _row(env, "ORD-OLD")
+    row = env["db"].query(RawImportRow).one()
+    row.validation_issues = json.dumps(
+        [{"field": "source_rider_id", "reason": "لا يوجد مندوب مرتبط"}],
+        ensure_ascii=False,
+    )
+    env["db"].commit()
+    assert _reconcile(env).json()["unmapped_count"] == 1
+
+
+def test_rerunning_a_day_shows_the_newest_result_first(env):
+    """The earlier run is kept as an audit trail, so ordering by the reconciled
+    day alone left two runs of the same day in arbitrary order and the screen
+    could show a stale one as current."""
+    _row(env, "ORD-RR", delivery_fee=40.0)
+    stale = _reconcile(env).json()
+    assert stale["accepted_count"] == 0
+
+    _map_rider(env)
+    env["client"].post("/sources/raw-rows/reprocess", headers=env["H"])
+    fresh = _reconcile(env).json()
+    assert fresh["accepted_count"] == 1
+
+    listed = env["client"].get("/sources/reconcile", headers=env["H"]).json()
+    assert listed[0]["id"] == fresh["id"], "a stale run was shown as current"
+    assert listed[1]["id"] == stale["id"], "the earlier run must be kept"

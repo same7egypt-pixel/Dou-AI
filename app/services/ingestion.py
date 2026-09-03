@@ -59,13 +59,25 @@ STATUS_MAP = {
 }
 
 
+# Why a row was rejected, as a code rather than only a sentence. "There is no
+# rider id in this row" is the source sending bad data; "this rider id is not
+# mapped" is one action away from fixed. Both used to name the same field, so
+# reconciliation counted them together and told the operator the wrong thing to
+# do about the gap.
+UNMAPPED_RIDER = "UNMAPPED_RIDER"
+MALFORMED_ROW = "MALFORMED_ROW"
+
+
 class RowRejected(Exception):
     """The row cannot become a fact, and the reason is worth showing."""
 
-    def __init__(self, reason: str, field: Optional[str] = None):
+    def __init__(
+        self, reason: str, field: Optional[str] = None, code: str = MALFORMED_ROW
+    ):
         super().__init__(reason)
         self.reason = reason
         self.field = field
+        self.code = code
 
 
 def _first(data: dict, keys: tuple[str, ...]) -> Any:
@@ -160,6 +172,7 @@ def resolve_courier(
         f"لا يوجد مندوب مرتبط بمعرّف المصدر «{source_rider_id}» — "
         "أضف المطابقة ثم أعد المعالجة",
         "source_rider_id",
+        UNMAPPED_RIDER,
     )
 
 
@@ -234,7 +247,12 @@ def normalize_row(db: Session, row: ent.RawImportRow) -> Optional[ent.Normalized
     except RowRejected as rejected:
         row.status = "REJECTED"
         row.validation_issues = json.dumps(
-            [{"field": rejected.field, "reason": rejected.reason}], ensure_ascii=False
+            [{
+                "field": rejected.field,
+                "code": rejected.code,
+                "reason": rejected.reason,
+            }],
+            ensure_ascii=False,
         )
         return None
 

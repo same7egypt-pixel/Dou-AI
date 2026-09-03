@@ -27,6 +27,7 @@ const T = {
       riders: '🧑‍✈️ مطابقة هويات المناديب',
       rows: '📥 الصفوف الواردة',
       facts: '✅ التوصيلات المعتمدة',
+      reconcile: '⚖️ المطابقة المالية',
     },
   },
   en: {
@@ -39,6 +40,7 @@ const T = {
       riders: '🧑‍✈️ Rider Identity Mapping',
       rows: '📥 Incoming Rows',
       facts: '✅ Accepted Deliveries',
+      reconcile: '⚖️ Financial Reconciliation',
     },
   },
 };
@@ -58,7 +60,7 @@ export async function renderIntegration(container) {
     ])
   ]));
 
-  const tabs = ['sources', 'keys', 'riders', 'rows', 'facts'];
+  const tabs = ['sources', 'keys', 'riders', 'rows', 'facts', 'reconcile'];
   container.append(el('div', { class: 'tabs', style: 'margin-bottom:16px' },
     tabs.map(id => el('button', {
       class: `tab ${activeTab === id ? 'active' : ''}`,
@@ -71,7 +73,7 @@ export async function renderIntegration(container) {
 
   const render = {
     sources: renderSources, keys: renderKeys, riders: renderRiderMappings,
-    rows: renderRawRows, facts: renderFacts,
+    rows: renderRawRows, facts: renderFacts, reconcile: renderReconcile,
   }[activeTab];
   render(area, container);
 }
@@ -282,6 +284,79 @@ async function renderFacts(area, container) {
   } catch (e) {
     area.innerHTML = '';
     area.append(errorState('تعذر تحميل التوصيلات: ' + e.message, () => renderFacts(area, container)));
+  }
+}
+
+// ── المطابقة المالية ────────────────────────────────────────────────────────
+async function renderReconcile(area, container) {
+  area.append(loadingState('جاري تحميل المطابقات...'));
+  try {
+    const [results, platforms] = await Promise.all([
+      api.get('/sources/reconcile'),
+      api.get('/sources/platforms').catch(() => []),
+    ]);
+    area.innerHTML = '';
+
+    area.append(el('p', { style: 'font-size:12px;color:var(--muted);line-height:1.8;margin:0 0 12px' },
+      'المطابقة تقارن ما أرسلته المنصة عن يوم معيّن بما سجّله DOU فعليًا: عدد التوصيلات والإيراد. ' +
+      'أي فرق هو مال إمّا لم يصلك أو لم يُحتسب لمندوب — وهذا هو الرقم الذي تفاوض به.'));
+
+    if (platforms.length) {
+      const today = new Date().toISOString().slice(0, 10);
+      area.append(el('div', { style: 'display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px' }, [
+        el('div', {}, [label('rc-platform', 'المصدر:'),
+          el('select', { id: 'rc-platform', style: inputStyle },
+            platforms.map(p => el('option', { value: String(p.id) }, p.name_ar || p.code)))]),
+        el('div', {}, [label('rc-date', 'يوم المطابقة:'),
+          el('input', { id: 'rc-date', type: 'date', value: today, style: inputStyle })]),
+        el('button', { class: 'btn btn-primary', onclick: () => runReconcile(area, container) }, '⚖️ شغّل المطابقة'),
+      ]));
+    }
+
+    if (!results.length) {
+      area.append(emptyState('لم تُشغَّل أي مطابقة بعد. اختر المصدر واليوم ثم شغّل المطابقة.'));
+      return;
+    }
+
+    // The gap is the number worth looking at, so it is a column and not a
+    // subtraction the reader has to do.
+    area.append(table([
+      { key: 'reconciliation_date', label: 'اليوم' },
+      { key: 'source_total_count', label: 'أرسلت المنصة', render: (v) => `${v} صف` },
+      { key: 'accepted_count', label: 'احتُسب في DOU', render: (v) => `${v} توصيلة` },
+      { key: 'missing_count', label: 'ناقص', render: (v) => el('b',
+        { style: `color:${v ? 'var(--red)' : 'var(--muted)'}` }, String(v ?? 0)) },
+      { key: 'unmapped_count', label: 'مندوب غير مطابَق', render: (v) => String(v ?? 0) },
+      { key: 'total_revenue_source', label: 'إيراد المنصة', render: (v) => `${(v ?? 0).toFixed(2)} ر.س` },
+      { key: 'total_revenue_accepted', label: 'إيراد DOU', render: (v) => `${(v ?? 0).toFixed(2)} ر.س` },
+      { key: 'revenue_gap', label: 'فرق الإيراد', render: (v) => el('b',
+        { style: `color:${v ? 'var(--red)' : 'var(--green)'}` }, `${(v ?? 0).toFixed(2)} ر.س`) },
+      { key: 'status', label: 'الحالة', render: (v) => badge(
+        v === 'COMPLETED' ? 'متطابق' : v === 'EXCEPTION' ? 'يوجد فرق' : v,
+        v === 'COMPLETED' ? 'green' : 'red') },
+    ], results));
+  } catch (e) {
+    area.innerHTML = '';
+    area.append(errorState('تعذر تحميل المطابقات: ' + e.message, () => renderReconcile(area, container)));
+  }
+}
+
+async function runReconcile(area, container) {
+  const platformId = Number(area.querySelector('#rc-platform').value);
+  const day = area.querySelector('#rc-date').value;
+  if (!platformId || !day) { alert('اختر المصدر واليوم.'); return; }
+  try {
+    const res = await api.post('/sources/reconcile', {
+      source_platform_id: platformId, reconciliation_date: day,
+    });
+    alert(res.status === 'COMPLETED'
+      ? `✅ اليوم متطابق.\n\nأرسلت المنصة ${res.source_total_count} واحتُسب ${res.accepted_count}.`
+      : `⚠️ يوجد فرق.\n\nأرسلت المنصة ${res.source_total_count} واحتُسب ${res.accepted_count}` +
+        `\nناقص: ${res.missing_count} — منها ${res.unmapped_count} بسبب مندوب غير مطابَق` +
+        `\nفرق الإيراد: ${res.revenue_gap} ر.س`);
+    renderIntegration(container);
+  } catch (e) {
+    alert('❌ تعذر تشغيل المطابقة: ' + e.message);
   }
 }
 

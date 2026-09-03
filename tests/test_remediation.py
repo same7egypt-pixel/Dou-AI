@@ -290,7 +290,15 @@ def test_reconciliation_uses_import_date(db):
         ReconciliationCreate(source_platform_id=sp.id, reconciliation_date=date(2026, 9, 1)),
         user, db,
     )
-    assert result["status"] == "COMPLETED"
+    # The subject of this test is the date: both rows carry import_date
+    # 2026-09-01 and no date inside row_data, so both belong to that day. It
+    # previously asserted only status == COMPLETED, which the endpoint returned
+    # unconditionally and which said nothing about dates.
+    assert result["source_total_count"] == 2
+    # Two rows arrived and neither became a delivery fact. A day that does not
+    # balance is an exception, not a completed reconciliation.
+    assert result["status"] == "EXCEPTION"
+    assert result["missing_count"] == 2
 
 
 # ---------- H5: KPI result concurrency-safe upsert ----------
