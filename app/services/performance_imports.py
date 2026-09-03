@@ -9,12 +9,191 @@ import json
 from datetime import date, datetime
 from typing import Optional, Tuple
 
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from ..models.entities import Courier, DailyLog, OperationalImportBatch, Project
 from .rider_management import canonical_phone
 
 PERFORMANCE_HEADERS = ["rider_phone", "date", "project", "completed_orders", "notes"]
+
+SYNONYMS = {
+    "rider_identifier": [
+        "rider_phone", "phone", "mobile", "rider_mobile", "driver_phone", "mobile_number",
+        "phone_number", "رقم الجوال", "الجوال", "الهاتف", "رقم الهاتف", "جوال المندوب",
+        "platform_courier_id", "rider_code", "courier_code", "driver_code", "driver_id", "rider_id", "courier_id",
+        "كود السائق", "كود المندوب", "رقم السائق", "معرف السائق", "رقم المندوب", "السائق", "المندوب",
+        "iqama", "iqama_number", "national_id", "رقم الإقامة", "الهوية", "رقم الهوية",
+    ],
+    "date": [
+        "date", "log_date", "delivery_date", "order_date", "day", "shift_date",
+        "التاريخ", "تاريخ التوصيل", "يوم العمل", "تاريخ الطلب", "تاريخ الوردية", "اليوم",
+    ],
+    "completed_orders": [
+        "completed_orders", "orders", "delivered_orders", "verified_orders", "delivered",
+        "successful_orders", "total_orders", "orders_count", "trips", "deliveries",
+        "الطلبات", "عدد الطلبات", "الطلبات المكتملة", "الطلبات المسلمة", "الطلبات المؤكدة", "الطلبات الناجحة", "التوصيلات",
+    ],
+    "project": [
+        "project", "project_name", "hub", "branch", "platform", "contract", "zone",
+        "المشروع", "الفرع", "المنطقة", "الهب", "المنصة", "العقد",
+    ],
+    "notes": [
+        "notes", "note", "comments", "remarks", "description", "ملاحظات", "ملاحظة", "بيان",
+    ],
+}
+
+PLATFORM_SIGNATURES = {
+    "HUNGERSTATION": ["hungerstation", "هنقرستيشن", "rider code", "delivered orders"],
+    "NINJA": ["ninja", "نينجا", "courier id", "verified orders", "الطلبات المؤكدة"],
+    "JAHEZ": ["jahez", "جاهز", "driver code", "successful deliveries"],
+    "TOYOU": ["toyou", "تويو"],
+}
+
+
+def _clean_header(header: str) -> str:
+    return str(header or "").strip().lower().replace("_", " ").replace("-", " ")
+
+
+def detect_platform_and_map_headers(
+    raw_headers: list[str], source_hint: Optional[str] = "AUTO"
+) -> tuple[str, dict[str, str]]:
+    """Detect platform format and map CSV headers to internal canonical fields."""
+    cleaned_map = {_clean_header(h): h for h in raw_headers if h}
+    mapping: dict[str, str] = {}
+
+    for canonical_field, syn_list in SYNONYMS.items():
+        found = None
+        for syn in syn_list:
+            clean_syn = _clean_header(syn)
+            # Exact match
+            if clean_syn in cleaned_map:
+                found = cleaned_map[clean_syn]
+                break
+        if not found:
+            # Partial match if no exact
+            for syn in syn_list:
+                clean_syn = _clean_header(syn)
+                for clean_h, raw_h in cleaned_map.items():
+                    if clean_syn == clean_h or clean_syn in clean_h.split():
+                        found = raw_h
+                        break
+                if found:
+                    break
+        if found:
+            mapping[canonical_field] = found
+
+    # Determine platform
+    detected_platform = "DOU_GENERIC"
+    hint = (source_hint or "AUTO").upper()
+    if hint in PLATFORM_SIGNATURES:
+        detected_platform = hint
+    else:
+        joined_headers = " ".join(cleaned_map.keys())
+        for plat, sigs in PLATFORM_SIGNATURES.items():
+            if any(_clean_header(sig) in joined_headers for sig in sigs):
+                detected_platform = plat
+                break
+        if detected_platform == "DOU_GENERIC" and not set(PERFORMANCE_HEADERS[:4]).issubset(set(raw_headers)):
+            detected_platform = "SMART_DETECTED"
+
+    # Validate mandatory fields
+    missing = []
+    if "rider_identifier" not in mapping:
+        missing.append("معرف السائق (جوال / كود المندوب / الإقامة)")
+    if "date" not in mapping:
+        missing.append("التاريخ (date / log_date)")
+    if "completed_orders" not in mapping:
+        missing.append("عدد الطلبات المكتملة (completed_orders / delivered)")
+
+    if missing:
+        raise ValueError(
+            f"تعذر التعرف التلقائي على الأعمدة المطلوبة في الملف: {', '.join(missing)}. "
+            "يرجى التأكد من احتواء الملف على أعمدة السائق والتاريخ والطلبات."
+        )
+
+    return detected_platform, mapping
+
+
+def _parse_flexible_date(raw: str) -> date:
+    raw = str(raw or "").strip()
+    if not raw:
+        raise ValueError("تاريخ فارغ")
+    raw = raw.split(" ")[0].split("T")[0]
+    formats = ("%Y-%m-%d", "%Y/%m/%d", "%d-%m-%Y", "%d/%m/%Y", "%m/%d/%Y", "%d.%m.%Y")
+    for fmt in formats:
+        try:
+            parsed = datetime.strptime(raw, fmt).date()
+            if parsed > date.today():
+                raise ValueError("التاريخ في الملف مستقبلي")
+            return parsed
+        except ValueError as e:
+            if "مستقبلي" in str(e):
+                raise
+            continue
+    raise ValueError(f"تنسيق التاريخ غير صالح: {raw}")
+
+
+def _resolve_courier(db: Session, tenant_id: int, identifier: str) -> Optional[Courier]:
+    raw = str(identifier or "").strip()
+    if not raw:
+        return None
+
+    # 1. Try canonical phone
+    try:
+        phone = canonical_phone(raw)
+        courier = db.query(Courier).filter(Courier.tenant_id == tenant_id, Courier.phone == phone).first()
+        if courier:
+            return courier
+    except Exception:
+        pass
+
+    # 2. Try raw phone directly
+    courier = db.query(Courier).filter(Courier.tenant_id == tenant_id, Courier.phone == raw).first()
+    if courier:
+        return courier
+
+    # 3. Try platform_courier_id
+    courier = db.query(Courier).filter(
+        Courier.tenant_id == tenant_id, Courier.platform_courier_id == raw
+    ).first()
+    if courier:
+        return courier
+
+    # 4. Try iqama_number
+    courier = db.query(Courier).filter(
+        Courier.tenant_id == tenant_id, Courier.iqama_number == raw
+    ).first()
+    if courier:
+        return courier
+
+    return None
+
+
+def _resolve_project(db: Session, tenant_id: int, courier: Courier, project_text: str) -> Project:
+    clean_p = str(project_text or "").strip()
+    if clean_p:
+        match = (
+            db.query(Project)
+            .filter(
+                Project.tenant_id == tenant_id,
+                func.lower(Project.name) == func.lower(clean_p),
+            )
+            .first()
+        )
+        if match:
+            return match
+
+    if courier.primary_project_id:
+        proj = db.get(Project, courier.primary_project_id)
+        if proj and proj.tenant_id == tenant_id:
+            return proj
+
+    fallback = db.query(Project).filter(Project.tenant_id == tenant_id).first()
+    if fallback:
+        return fallback
+
+    raise ValueError("المندوب غير مرتبط بمشروع تشغيلي، ولا يوجد مشروع متاح في النظام")
 
 
 def performance_template_csv() -> str:
@@ -41,67 +220,61 @@ def _text(row: dict, key: str) -> str:
     return str(row.get(key) or "").strip()
 
 
-def _project_for_row(
-    db: Session, tenant_id: int, courier: Courier, project_name: str
-) -> Project:
-    if not courier.primary_project_id:
-        raise ValueError("المندوب غير مرتبط بمشروع تشغيلي")
-    project = db.get(Project, courier.primary_project_id)
-    if not project or project.tenant_id != tenant_id:
-        raise ValueError("المندوب غير مرتبط بمشروع صحيح تابع للشركة")
-    if project_name and project.name.casefold() != project_name.casefold():
-        raise ValueError("المشروع في الملف لا يطابق مشروع المندوب الحالي")
-    return project
-
-
 def _normalize_row(
-    db: Session, tenant_id: int, row: dict, row_number: int
+    db: Session,
+    tenant_id: int,
+    row: dict,
+    row_number: int,
+    mapping: Optional[dict[str, str]] = None,
 ) -> Tuple[Optional[dict], list[dict]]:
     errors: list[dict] = []
-    try:
-        phone = canonical_phone(_text(row, "rider_phone"))
-    except ValueError as exc:
-        errors.append(_issue(row_number, "rider_phone", str(exc)))
-        phone = ""
-    courier = (
-        db.query(Courier)
-        .filter(Courier.tenant_id == tenant_id, Courier.phone == phone)
-        .first()
-        if phone
-        else None
-    )
+    
+    # Extract fields via mapping or standard keys
+    id_key = mapping.get("rider_identifier", "rider_phone") if mapping else "rider_phone"
+    date_key = mapping.get("date", "date") if mapping else "date"
+    orders_key = mapping.get("completed_orders", "completed_orders") if mapping else "completed_orders"
+    proj_key = mapping.get("project", "project") if mapping else "project"
+    notes_key = mapping.get("notes", "notes") if mapping else "notes"
+
+    raw_id = _text(row, id_key)
+    courier = _resolve_courier(db, tenant_id, raw_id) if raw_id else None
     if not courier:
         errors.append(
-            _issue(row_number, "rider_phone", "المندوب غير تابع للشركة أو غير موجود")
+            _issue(row_number, id_key, f"لم يتم العثور على المندوب في النظام بواسطة المعرف '{raw_id}'")
         )
+
+    raw_date = _text(row, date_key)
     try:
-        log_date = date.fromisoformat(_text(row, "date"))
-        if log_date > date.today():
-            raise ValueError
-    except ValueError:
-        errors.append(_issue(row_number, "date", "التاريخ غير صالح أو مستقبلي"))
+        log_date = _parse_flexible_date(raw_date)
+    except ValueError as exc:
+        errors.append(_issue(row_number, date_key, str(exc)))
         log_date = None
+
+    raw_orders = _text(row, orders_key)
     try:
-        orders = int(_text(row, "completed_orders"))
+        orders = int(float(raw_orders)) if raw_orders else 0
         if orders < 0:
             raise ValueError
     except ValueError:
         errors.append(
             _issue(
                 row_number,
-                "completed_orders",
+                orders_key,
                 "عدد الطلبات يجب أن يكون عدداً صحيحاً غير سالب",
             )
         )
         orders = 0
+
     project = None
     if courier:
         try:
-            project = _project_for_row(db, tenant_id, courier, _text(row, "project"))
+            project = _resolve_project(db, tenant_id, courier, _text(row, proj_key))
         except ValueError as exc:
-            errors.append(_issue(row_number, "project", str(exc)))
+            errors.append(_issue(row_number, proj_key, str(exc)))
+
     if errors:
         return None, errors
+
     existing = (
         db.query(DailyLog)
         .filter(
@@ -117,7 +290,7 @@ def _normalize_row(
         "project_id": project.id,
         "log_date": log_date.isoformat(),
         "orders_count": orders,
-        "notes": _text(row, "notes") or None,
+        "notes": _text(row, notes_key) or None,
         "will_update": bool(existing),
         "row_key": f"{courier.id}:{project.id}:{log_date.isoformat()}",
     }, []
@@ -135,6 +308,8 @@ def _summary(batch: OperationalImportBatch) -> dict:
         "valid_rows": batch.valid_rows,
         "invalid_rows": batch.invalid_rows,
         "warning_rows": batch.warning_rows,
+        "detected_platform": payload.get("detected_platform", "DOU_GENERIC"),
+        "mapped_columns": payload.get("mapped_columns", {}),
         "errors": payload.get("errors", []),
         "warnings": payload.get("warnings", []),
         "result": result,
@@ -142,7 +317,11 @@ def _summary(batch: OperationalImportBatch) -> dict:
 
 
 def preview_performance_import(
-    db: Session, user, csv_text: str, file_name: Optional[str] = None
+    db: Session,
+    user,
+    csv_text: str,
+    file_name: Optional[str] = None,
+    source_platform: Optional[str] = "AUTO",
 ) -> dict:
     content = (csv_text or "").replace("\ufeff", "")
     if not content.strip():
@@ -159,15 +338,24 @@ def preview_performance_import(
     )
     if previous and previous.status == "COMMITTED":
         raise ValueError("تم استيراد هذا الملف سابقاً؛ لن تتضاعف الطلبات")
-    rows = list(csv.DictReader(io.StringIO(content)))
-    if not rows or not set(PERFORMANCE_HEADERS[:4]).issubset(set(rows[0].keys())):
-        raise ValueError("رؤوس CSV المطلوبة: " + ", ".join(PERFORMANCE_HEADERS[:4]))
+    reader = csv.DictReader(io.StringIO(content))
+    raw_headers = list(reader.fieldnames or [])
+    if not raw_headers:
+        raise ValueError("الملف لا يحتوي على رؤوس أعمدة صالحة")
+
+    detected_platform, mapping = detect_platform_and_map_headers(
+        raw_headers, source_hint=source_platform
+    )
+    rows = list(reader)
+    if not rows:
+        raise ValueError("الملف لا يحتوي على صفوف بيانات صالحة")
+
     valid, errors, seen = [], [], set()
     for number, row in enumerate(rows, 2):
-        normalized, row_errors = _normalize_row(db, user.tenant_id, row, number)
+        normalized, row_errors = _normalize_row(db, user.tenant_id, row, number, mapping=mapping)
         if normalized and normalized["row_key"] in seen:
             row_errors.append(
-                _issue(number, "rider_phone/date/project", "سجل الأداء مكرر داخل الملف")
+                _issue(number, "rider_identifier/date/project", "سجل الأداء مكرر داخل الملف")
             )
             normalized = None
         if normalized:
@@ -183,7 +371,13 @@ def preview_performance_import(
         for row in valid
         if row["will_update"]
     ]
-    payload = {"valid_rows": valid, "errors": errors, "warnings": warnings}
+    payload = {
+        "valid_rows": valid,
+        "errors": errors,
+        "warnings": warnings,
+        "detected_platform": detected_platform,
+        "mapped_columns": mapping,
+    }
     if previous:
         batch = previous
         batch.status = "PREVIEW"

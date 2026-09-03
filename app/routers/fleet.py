@@ -1600,7 +1600,11 @@ def preview_performance_file(
     _require_permission(user, "performance")
     try:
         result = preview_performance_import(
-            db, user, str(payload.get("csv_text") or ""), payload.get("file_name")
+            db,
+            user,
+            str(payload.get("csv_text") or ""),
+            payload.get("file_name"),
+            source_platform=payload.get("source_platform", "AUTO"),
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))

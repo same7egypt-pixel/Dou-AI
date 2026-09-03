@@ -77,6 +77,17 @@ function renderImportTab(config) {
   const card = el('div', { class: 'card import-tab-content', 'data-import-content': config.tab }, [
     el('h3', { text: config.title }),
     el('p', { style: 'color:var(--muted);margin-top:-4px' }, config.description),
+    config.tab === 'performance' ? formRow([
+      el('label', { style: 'font-weight:600;font-size:13px;align-self:center;' }, isAr ? 'مصدر شيت المنصة:' : 'Source Platform:'),
+      el('select', { id: 'performancePlatformSelect', class: 'select', style: 'padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;' }, [
+        el('option', { value: 'AUTO' }, isAr ? '🤖 كشف ذكي تلقائي (موصى به لجميع المنصات)' : '🤖 Smart Auto-Detect (Recommended)'),
+        el('option', { value: 'HUNGERSTATION' }, '🍔 هنقرستيشن (Hungerstation)'),
+        el('option', { value: 'NINJA' }, '🥷 نينجا (Ninja)'),
+        el('option', { value: 'JAHEZ' }, '🚀 جاهز (Jahez)'),
+        el('option', { value: 'TOYOU' }, '📦 تويو (ToYou)'),
+        el('option', { value: 'DOU_GENERIC' }, isAr ? '📄 قالب DOU القياسي' : '📄 DOU Generic Template'),
+      ])
+    ]) : null,
     formRow([
       el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => downloadTemplate(config.templatePath, config.templateName) }, isAr ? 'تنزيل القالب' : 'Download Template'),
       el('input', { id: config.fileId, type: 'file', accept: '.csv,text/csv,.xlsx,.xls' }),
@@ -120,11 +131,16 @@ async function readImportFile(id) {
 async function previewImport(config) {
   const isAr = getLang() === 'ar';
   const result = document.getElementById(config.resultId);
-  result.replaceChildren(loadingState(isAr ? 'جاري فحص الملف...' : 'Analyzing file...'));
+  result.replaceChildren(loadingState(isAr ? 'جاري فحص وتحديد تنسيق الملف...' : 'Analyzing & detecting file format...'));
   document.getElementById(config.confirmId).style.display = 'none';
   try {
     const file = await readImportFile(config.fileId);
-    const preview = await api.post(config.previewPath, { csv_text: file.text, file_name: file.name });
+    const payload = { csv_text: file.text, file_name: file.name };
+    if (config.tab === 'performance') {
+      const select = document.getElementById('performancePlatformSelect');
+      if (select) payload.source_platform = select.value;
+    }
+    const preview = await api.post(config.previewPath, payload);
     config.setBatch(preview.id);
     result.replaceChildren(renderImportSummary(preview));
     const canConfirm = ['COMPANY', 'COMPANY_ADMIN'].includes(api.getRole());
@@ -160,7 +176,32 @@ function renderImportSummary(result) {
     metric(result.invalid_rows || 0, isAr ? 'غير صالح' : 'Invalid', 'alert'),
     metric(result.warning_rows || warnings.length || 0, isAr ? 'تحذيرات' : 'Warnings'),
   ]);
-  const children = [cards];
+  const children = [];
+
+  if (result.detected_platform) {
+    const platformNames = {
+      HUNGERSTATION: '🍔 هنقرستيشن (Hungerstation)',
+      NINJA: '🥷 نينجا (Ninja)',
+      JAHEZ: '🚀 جاهز (Jahez)',
+      TOYOU: '📦 تويو (ToYou)',
+      SMART_DETECTED: '🤖 كشف ذكي تلقائي (Smart Auto-Detected)',
+      DOU_GENERIC: '📄 قالب DOU القياسي (Generic Template)',
+    };
+    const platLabel = platformNames[result.detected_platform] || result.detected_platform;
+    const mappedCount = Object.keys(result.mapped_columns || {}).length;
+
+    children.push(el('div', {
+      style: 'background:rgba(59,130,246,0.1);border:1px solid var(--primary, #3b82f6);padding:10px 14px;border-radius:8px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;'
+    }, [
+      el('div', { style: 'font-weight:600;font-size:13.5px;color:var(--text);' }, [
+        el('span', { text: '✨ ' }),
+        el('span', { text: isAr ? `تم التعرف على تنسيق الملف: ${platLabel}` : `Detected file format: ${platLabel}` }),
+      ]),
+      el('span', { class: 'badge badge-green' }, isAr ? `مطابقة ${mappedCount} أعمدة تلقائياً` : `${mappedCount} columns auto-mapped`)
+    ]));
+  }
+
+  children.push(cards);
   if (errors.length) children.push(renderIssueList(isAr ? 'أخطاء المعاينة' : 'Preview Errors', errors, 'var(--red)'));
   if (warnings.length) children.push(renderIssueList(isAr ? 'تحذيرات' : 'Warnings', warnings, 'var(--amber)'));
   return el('div', {}, children);
