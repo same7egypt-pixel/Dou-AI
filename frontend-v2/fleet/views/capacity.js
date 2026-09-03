@@ -1,10 +1,10 @@
 // Modern Capacity, Commercial Contracts & Platform Ecosystem Operations — Frontend V2
 import { api } from '../../shared/api/client.js';
-import { appStore, isDeliveryPlatform } from '../../shared/state/store.js';
+import { appStore, isDeliveryPlatform, can } from '../../shared/state/store.js';
 import { el, loadingState, emptyState, errorState, metricCard, button, modal, formRow, inputField, selectField, table, badge, searchableSelect } from '../../shared/components/ui.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
 
-let activeCapacityTab = 'capacity'; // capacity | contracts | settlements
+let activeCapacityTab = 'capacity'; // capacity | contracts | operators | settlements
 
 export async function loadCapacity(container) {
   const isAr = getLang() === 'ar';
@@ -21,17 +21,21 @@ export async function loadCapacity(container) {
     el('button', { class: 'btn btn-ghost', onclick: () => loadCapacity(container) }, isAr ? '↻ تحديث' : '↻ Refresh'),
   ];
 
+  // The operating structure — contracts, cities, branches, supervisors — belongs
+  // to every account that manages riders. A platform used to have it replaced by
+  // the vendor network rather than added to it, so an account holding
+  // MANAGE_RIDERS and MANAGE_SUPERVISORS had no screen that could create the
+  // contract, branch and supervisor that adding a rider requires. It could not
+  // add a single rider.
   if (isAdmin && activeCapacityTab === 'contracts') {
-    if (isPlatform) {
-      headerActions.unshift(
-        el('button', { class: 'btn btn-primary', onclick: () => openAddOperatorModal(container) }, isAr ? '➕ إضافة / ربط شركة لوجستية' : '➕ Link 3PL Partner')
-      );
-    } else {
-      headerActions.unshift(
-        el('button', { class: 'btn btn-primary', onclick: () => openCreateContractModal(container) }, isAr ? '➕ إنشاء عقد تجاري جديد' : '➕ New Commercial Contract'),
-        el('button', { class: 'btn btn-secondary', onclick: () => openSupervisorsManagementModal(container) }, isAr ? '👔 إدارة المشرفين' : '👔 Manage Supervisors')
-      );
-    }
+    headerActions.unshift(
+      el('button', { class: 'btn btn-primary', onclick: () => openCreateContractModal(container) }, isAr ? '➕ إنشاء عقد تجاري جديد' : '➕ New Commercial Contract'),
+      el('button', { class: 'btn btn-secondary', onclick: () => openSupervisorsManagementModal(container) }, isAr ? '👔 إدارة المشرفين' : '👔 Manage Supervisors')
+    );
+  } else if (isAdmin && activeCapacityTab === 'operators') {
+    headerActions.unshift(
+      el('button', { class: 'btn btn-primary', onclick: () => openAddOperatorModal(container) }, isAr ? '➕ إضافة / ربط شركة لوجستية' : '➕ Link 3PL Partner')
+    );
   } else if (isPlatform && activeCapacityTab === 'settlements' && isAdmin) {
     headerActions.unshift(
       el('button', { class: 'btn btn-primary', onclick: () => openCalculateSettlementModal(container) }, isAr ? '➕ حساب تسوية مشغل جديدة' : '➕ Calculate 3PL Settlement')
@@ -49,11 +53,17 @@ export async function loadCapacity(container) {
   // Sub-Tabs Navigation
   const tabsList = [
     { id: 'capacity', label: isAr ? '📊 تخطيط السعة والاحتياج' : '📊 Capacity & Demand Planning' },
-    { id: 'contracts', label: isPlatform ? (isAr ? '🏢 الشركات اللوجستية المشغلة (3PL)' : '🏢 3PL Operating Partners') : (isAr ? '📑 العقود التجارية وفروع التشغيل' : '📑 Commercial Contracts & Branches') },
+    { id: 'contracts', label: isAr ? '📑 العقود التجارية وفروع التشغيل' : '📑 Commercial Contracts & Branches' },
   ];
-  if (isPlatform) {
+  // Added for a platform, never substituted for the structure above.
+  if (can('MANAGE_OPERATORS')) {
+    tabsList.push({ id: 'operators', label: isAr ? '🏢 الشركات اللوجستية المشغلة (3PL)' : '🏢 3PL Operating Partners' });
+  }
+  if (can('OPERATOR_SETTLEMENTS')) {
     tabsList.push({ id: 'settlements', label: isAr ? '💼 تسويات ومستحقات مشغلي 3PL' : '💼 3PL Commercial Settlements' });
   }
+  // A tab the account can no longer reach must not stay selected.
+  if (!tabsList.some((tab) => tab.id === activeCapacityTab)) activeCapacityTab = 'capacity';
 
   const tabsNav = el('div', { class: 'tabs', style: 'margin-bottom:16px' }, 
     tabsList.map(tab => el('button', {
@@ -73,6 +83,8 @@ export async function loadCapacity(container) {
     renderCapacityPlanning(contentArea, container, isPlatform);
   } else if (activeCapacityTab === 'contracts') {
     renderContractsManagement(contentArea, container, isAdmin);
+  } else if (activeCapacityTab === 'operators') {
+    renderPlatformOperators(contentArea, container, isAdmin);
   } else if (activeCapacityTab === 'settlements') {
     renderPlatformSettlements(contentArea, container, isAdmin);
   }
@@ -152,10 +164,8 @@ async function loadCapacityMetrics(container, isPlatform) {
 // TAB 2: إدارة العقود / الشركات اللوجستية المشغلة
 // ─────────────────────────────────────────────────────────────────────────────
 async function renderContractsManagement(contentArea, mainContainer, isAdmin) {
-  if (isDeliveryPlatform()) {
-    return renderPlatformOperators(contentArea, mainContainer, isAdmin);
-  }
-
+  // No platform redirect. The vendor network has its own tab now; this one is
+  // the operating structure, and every account type needs it.
   contentArea.append(loadingState('جاري تحميل العقود وفروع التشغيل...'));
 
   try {
@@ -294,23 +304,33 @@ async function renderPlatformOperators(contentArea, mainContainer, isAdmin) {
 
     contentArea.innerHTML = '';
 
-    // Header Metrics for Platform
+    // Every number here is the tenant's own, or it is not shown. This screen used
+    // to invent what it lacked: `operators.length || 2`, a hardcoded 98.4% SLA,
+    // and two fictional companies with fabricated CR numbers — so a platform
+    // with no vendors was shown an imaginary business as if it were its own.
     contentArea.append(el('div', { class: 'cards', style: 'margin-bottom:16px' }, [
-      metricCard(operators.length || 2, 'الشركات اللوجستية المشغلة (3PL)', 'blue'),
-      metricCard(operatorCouriers || 48, 'مناديب شركات 3PL', 'blue'),
-      metricCard(directFreelancers || 12, 'مناديب فريلانسر مستقلين', 'trend'),
-      metricCard('98.4%', 'متوسط الامتثال بالسعة (SLA)', 'good'),
+      metricCard(operators.length, 'الشركات اللوجستية المشغلة (3PL)', 'blue'),
+      metricCard(operatorCouriers, 'مناديب شركات 3PL', 'blue'),
+      metricCard(directFreelancers, 'مناديب فريلانسر مستقلين', 'trend'),
+      metricCard(totalCouriers, 'إجمالي المناديب في المنظومة', 'good'),
     ]));
 
-    const displayOps = operators.length ? operators : [
-      { id: 1, name: 'شركة عشم اللوجستية (Asham Logistics)', operator_name: 'شركة عشم اللوجستية', rate_per_order: 16.5, cr_number: '7001928374', cities: 'الرياض، جدة' },
-      { id: 2, name: 'شركة الرواد لخدمات الميل الأخير', operator_name: 'شركة الرواد لخدمات الميل الأخير', rate_per_order: 16.0, cr_number: '7002847192', cities: 'الدمام، الخبر' }
-    ];
+    if (!operators.length) {
+      contentArea.append(emptyState(
+        'لا توجد شركات لوجستية مرتبطة بعد. اضغط «➕ إضافة / ربط شركة لوجستية» لربط شركة مسجّلة في DOU بمنصتك.'
+      ));
+      return;
+    }
+    const displayOps = operators;
 
     const list = el('div', { style: 'display:grid;gap:16px' });
     displayOps.forEach(op => {
       const h = healthList.find(x => x.operator_id === op.id || x.operator_id === op.operator_tenant_id) || {};
-      const opRidersCount = couriers.filter(c => c.operator_id === op.id || c.operator_id === op.operator_tenant_id).length || h.active_couriers || (op.id === 1 ? 28 : 20);
+      // No `|| 28 : 20`. A vendor with no riders reads zero, which is a fact the
+      // platform needs rather than a gap to paper over.
+      const opRidersCount = couriers.filter(c => c.operator_id === op.id || c.operator_id === op.operator_tenant_id).length
+        || h.active_couriers || 0;
+      const dash = (v) => (v === null || v === undefined || v === '' ? '—' : v);
 
       const card = el('div', { class: 'card', style: 'padding:18px;background:var(--card);border:1px solid var(--border);border-radius:12px' }, [
         el('div', { style: 'display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px' }, [
@@ -318,10 +338,10 @@ async function renderPlatformOperators(contentArea, mainContainer, isAdmin) {
             el('div', { style: 'display:flex;align-items:center;gap:8px' }, [
               el('h3', { style: 'margin:0;font-size:16px;color:var(--text)' }, `🏢 ${op.name || op.operator_name || 'شركة لوجستية مشغلة'}`),
               el('span', { class: 'badge badge-green' }, '● شريك 3PL معتمد'),
-              el('span', { class: 'badge badge-blue' }, `سعر التوصيل: ${op.rate_per_order || 16.5} ر.س / طلب`),
+              op.rate_per_order ? el('span', { class: 'badge badge-blue' }, `سعر التوصيل: ${op.rate_per_order} ر.س / طلب`) : null,
             ]),
             el('div', { style: 'font-size:12px;color:var(--muted);margin-top:4px' }, [
-              el('span', {}, `طبيعة الشراكة: مشغل 3PL معتمد | السجل التجاري: ${op.cr_number || '7001928374'} | نسبة تحقيق السعة: ${h.sla_fulfillment || '98.5%'}`)
+              el('span', {}, `طبيعة الشراكة: ${dash(op.relationship_type)} | السجل التجاري: ${dash(op.cr_number)} | نسبة تحقيق السعة: ${dash(h.sla_fulfillment)}`)
             ])
           ]),
           el('div', { style: 'display:flex;gap:6px' }, [
@@ -341,11 +361,11 @@ async function renderPlatformOperators(contentArea, mainContainer, isAdmin) {
           ]),
           el('div', { style: 'background:var(--bg);padding:8px 12px;border-radius:8px;border:1px solid var(--border)' }, [
             el('small', { style: 'display:block;color:var(--muted);font-size:11px' }, 'معدل الطلبات اليومية:'),
-            el('b', { style: 'color:var(--primary);font-size:14px' }, `${h.daily_orders || (opRidersCount * 14)} طلب/يوم`)
+            el('b', { style: 'color:var(--primary);font-size:14px' }, `${dash(h.daily_orders)} طلب/يوم`)
           ]),
           el('div', { style: 'background:var(--bg);padding:8px 12px;border-radius:8px;border:1px solid var(--border)' }, [
             el('small', { style: 'display:block;color:var(--muted);font-size:11px' }, 'مدن ونطاقات التغطية:'),
-            el('b', { style: 'color:var(--text);font-size:12px' }, op.cities || 'الرياض، جدة')
+            el('b', { style: 'color:var(--text);font-size:12px' }, dash(op.cities))
           ]),
         ])
       ]);
@@ -360,51 +380,88 @@ async function renderPlatformOperators(contentArea, mainContainer, isAdmin) {
   }
 }
 
-export function openAddOperatorModal(mainContainer) {
-  const content = el('form', { style: 'display:grid;gap:12px;direction:rtl' }, [
-    el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:10px' }, [
-      el('div', {}, [
-        el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' }, 'اسم الشركة اللوجستية المشغلة: *'),
-        el('input', { id: 'op-name', placeholder: 'مثال: شركة الرواد للخدمات اللوجستية', required: true, style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' })
-      ]),
-      el('div', {}, [
-        el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' }, 'رقم السجل التجاري (CR):'),
-        el('input', { id: 'op-cr', placeholder: 'مثال: 7001827364', style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' })
-      ]),
-    ]),
-    el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:10px' }, [
-      el('div', {}, [
-        el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' }, 'اسم مسؤول التواصل:'),
-        el('input', { id: 'op-contact', placeholder: 'مثال: عبد الله السبيعي', style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' })
-      ]),
-      el('div', {}, [
-        el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' }, 'رقم جوال التواصل:'),
-        el('input', { id: 'op-phone', placeholder: '0550000000', style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' })
-      ]),
-    ]),
-    el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:10px' }, [
-      el('div', {}, [
-        el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' }, 'سعر توصيل الطلب المتفق عليه (ر.س): *'),
-        el('input', { type: 'number', step: '0.5', id: 'op-rate', value: '16.5', required: true, style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' })
-      ]),
-      el('div', {}, [
-        el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' }, 'مدن التشغيل والتغطية:'),
-        el('input', { id: 'op-cities', value: 'الرياض، جدة', style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' })
-      ]),
-    ]),
-    el('div', { style: 'display:flex;justify-content:flex-end;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)' }, [
-      el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => m.remove() }, 'إلغاء'),
-      el('button', { type: 'submit', class: 'btn btn-primary' }, '💾 حفظ وربط الشركة المشغلة')
-    ])
-  ]);
+export async function openAddOperatorModal(mainContainer) {
+  // This form used to be a mock: its submit handler read the company name,
+  // showed "✅ تم ربط الشركة اللوجستية بنجاح" and closed — no API call, nothing
+  // saved. It also asked for a CR number, a rate and a free-text city list, none
+  // of which PlatformOperator can store, so even a wired version of that form
+  // would have discarded them.
+  //
+  // What the relationship actually is: DOU administration creates companies, and
+  // a platform links the ones it already works with. So the form asks for the
+  // one thing that identifies an existing company without letting a platform
+  // enumerate every tenant on DOU — the phone its admin signs in with.
+  const isAr = getLang() === 'ar';
+  let sources = [];
+  try {
+    sources = await api.get('/enterprise/source-platforms');
+  } catch (err) {
+    alert('❌ تعذر تحميل بيانات المنصة: ' + err.message);
+    return;
+  }
 
-  const m = modal('🏢 إضافة وتسجيل شركة لوجستية مشغلة (3PL Partner)', content);
+  const content = el('form', { style: 'display:grid;gap:14px;direction:rtl' }, [
+    el('p', { style: 'margin:0;font-size:12px;color:var(--muted);line-height:1.7' },
+      'الشركات تُنشأ من إدارة DOU. هنا تربط شركة لوجستية مسجّلة بالفعل لتصبح مورّدًا لمنصتك — ' +
+      'أدخل جوال دخول مسؤول الشركة كما هو مسجّل لديه.'),
+
+    el('div', {}, [
+      el('label', { for: 'op-phone', style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' },
+        'جوال دخول مسؤول الشركة: *'),
+      el('input', {
+        id: 'op-phone', required: true, placeholder: '9665xxxxxxxx', inputmode: 'numeric',
+        style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px'
+      }),
+    ]),
+
+    sources.length > 1 ? el('div', {}, [
+      el('label', { for: 'op-source', style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' },
+        'منصة المصدر:'),
+      el('select', { id: 'op-source', style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' },
+        sources.map(sp => el('option', { value: String(sp.id) }, sp.name || sp.code))),
+    ]) : null,
+
+    el('div', {}, [
+      el('label', { for: 'op-relationship', style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' },
+        'طبيعة الشراكة:'),
+      el('select', { id: 'op-relationship', style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' }, [
+        el('option', { value: 'OPERATOR' }, 'مشغّل 3PL'),
+        el('option', { value: 'PARTNER' }, 'شريك تشغيلي'),
+      ]),
+    ]),
+
+    el('p', { id: 'op-msg', style: 'margin:0;font-size:12px;min-height:16px' }),
+
+    el('div', { style: 'display:flex;justify-content:flex-end;gap:10px;margin-top:6px;padding-top:12px;border-top:1px solid var(--border)' }, [
+      el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => m.remove() }, 'إلغاء'),
+      el('button', { type: 'submit', class: 'btn btn-primary', id: 'op-submit' }, '💾 ربط الشركة المشغلة')
+    ])
+  ].filter(Boolean));
+
+  const m = modal('🏢 ربط شركة لوجستية مشغلة (3PL Partner)', content);
+
   content.onsubmit = async (e) => {
     e.preventDefault();
-    const name = document.getElementById('op-name').value;
-    alert(`✅ تم ربط الشركة اللوجستية (${name}) بنجاح.`);
-    m.remove();
-    loadCapacity(mainContainer);
+    const msg = document.getElementById('op-msg');
+    const btn = document.getElementById('op-submit');
+    const sourceSelect = document.getElementById('op-source');
+    btn.disabled = true;
+    msg.style.color = 'var(--muted)';
+    msg.textContent = '⏳ جاري الربط…';
+    try {
+      const res = await api.post('/enterprise/operators/link', {
+        admin_phone: document.getElementById('op-phone').value.trim(),
+        relationship_type: document.getElementById('op-relationship').value,
+        ...(sourceSelect ? { source_platform_id: Number(sourceSelect.value) } : {}),
+      });
+      msg.style.color = 'var(--green)';
+      msg.textContent = `✅ تم ربط «${res.name}» بالمنصة.`;
+      setTimeout(() => { m.remove(); loadCapacity(mainContainer); }, 1200);
+    } catch (err) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ ' + err.message;
+      btn.disabled = false;
+    }
   };
 }
 

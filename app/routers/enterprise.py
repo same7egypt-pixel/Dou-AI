@@ -171,6 +171,135 @@ class SLASettingUpdate(BaseModel):
 # ---------- platform operators ----------
 
 
+def _source_platforms(db, tenant_id: int) -> list:
+    """The tenant's active source platforms, creating a default on first use.
+
+    Shared by the listing and the link endpoint so that linking never depends on
+    the browser having called the listing first — an ordering assumption is not
+    a contract.
+    """
+    rows = (
+        db.query(ent.SourcePlatform)
+        .filter(
+            ent.SourcePlatform.tenant_id == tenant_id,
+            ent.SourcePlatform.is_active.is_(True),
+        )
+        .order_by(ent.SourcePlatform.id)
+        .all()
+    )
+    if rows:
+        return rows
+    tenant = db.get(ent.Tenant, tenant_id)
+    default = ent.SourcePlatform(
+        tenant_id=tenant_id,
+        code="DEFAULT",
+        name_ar=(tenant.name if tenant else "المنصة"),
+        name_en=(tenant.name if tenant else "Platform"),
+        is_active=True,
+    )
+    db.add(default)
+    db.commit()
+    db.refresh(default)
+    return [default]
+
+
+@router.get("/source-platforms")
+def list_source_platforms(
+    user: ent.User = Depends(get_current_user), db=Depends(get_db)
+):
+    """The platform's own source platforms.
+
+    Linking a vendor needs a source_platform_id and nothing exposed one, so
+    POST /operators could not be called from a browser at all — the vendor
+    screen had no way to obtain either id the endpoint requires.
+    """
+    tenant_id = _tenant_id(user)
+    return [
+        {"id": r.id, "code": r.code, "name": r.name_ar or r.name_en}
+        for r in _source_platforms(db, tenant_id)
+    ]
+
+
+class OperatorLinkByPhone(BaseModel):
+    """Link a vendor the platform already works with, addressed by its login."""
+
+    admin_phone: str
+    source_platform_id: Optional[int] = None
+    relationship_type: str = "OPERATOR"
+
+
+@router.post("/operators/link", status_code=201)
+def link_operator_by_phone(
+    payload: OperatorLinkByPhone,
+    user: ent.User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Link an existing DOU company as this platform's operator.
+
+    A platform is never handed a list of every company on DOU — that is a
+    tenant-enumeration oracle. It supplies the phone the vendor's own admin
+    signs in with, which it knows from the commercial relationship, and every
+    failure answers the same 404 so the endpoint cannot be used to discover who
+    is or is not a DOU customer.
+
+    Companies are created by DOU administration. This only records that two
+    accounts which already exist work together.
+    """
+    tenant_id = _tenant_id(user, manage=True)
+    tenant = db.get(ent.Tenant, tenant_id)
+    if Capability.MANAGE_OPERATORS.value not in capabilities_for(tenant):
+        raise HTTPException(403, "This account is not entitled to MANAGE_OPERATORS")
+
+    not_found = HTTPException(404, "لا توجد شركة مسجّلة بهذا الجوال قابلة للربط")
+
+    phone = (payload.admin_phone or "").strip()
+    if not phone:
+        raise not_found
+    owner = db.query(ent.User).filter(ent.User.phone == phone).first()
+    if not owner or not owner.tenant_id or not owner.is_active:
+        raise not_found
+    vendor = db.get(ent.Tenant, owner.tenant_id)
+    if not vendor or vendor.id == tenant_id:
+        raise not_found
+    # A platform links logistics companies, not other platforms.
+    if (vendor.customer_type or "").upper() == "DELIVERY_PLATFORM":
+        raise not_found
+
+    source_platform_id = payload.source_platform_id
+    if source_platform_id is not None:
+        _same_tenant(db, ent.SourcePlatform, source_platform_id, tenant_id)
+    else:
+        source_platform_id = _source_platforms(db, tenant_id)[0].id
+
+    existing = (
+        db.query(ent.PlatformOperator)
+        .filter(
+            ent.PlatformOperator.tenant_id == tenant_id,
+            ent.PlatformOperator.operator_tenant_id == vendor.id,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(409, "هذه الشركة مرتبطة بالمنصة بالفعل")
+
+    row = ent.PlatformOperator(
+        tenant_id=tenant_id,
+        source_platform_id=source_platform_id,
+        operator_tenant_id=vendor.id,
+        relationship_type=payload.relationship_type,
+        is_active=True,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {
+        "id": row.id,
+        "operator_tenant_id": vendor.id,
+        "name": vendor.name,
+        "relationship_type": row.relationship_type,
+    }
+
+
 @router.post("/operators", status_code=201)
 def create_operator(
     payload: PlatformOperatorCreate,
