@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 from app.models.entities import (
+    Capability,
     Attendance, Courier, CourierType, Country, DelegatedScope,
     IntegrationAuditLog, MFASetting, NormalizedDeliveryFact,
     OperationalImportBatch, PartnerCredential, PlatformOperator,
@@ -40,7 +41,14 @@ def db():
 
 
 def make_tenant(db, name):
-    tenant = Tenant(name=name, country=Country.SA)
+    # /sources is the API-ingestion pipeline and is gated on the capability that
+    # sells it. These tests exercise the endpoints, not the entitlement — that
+    # is tests/test_integration_pipeline.py — so the fixture grants it.
+    tenant = Tenant(
+        name=name,
+        country=Country.SA,
+        capabilities=json.dumps([Capability.PERFORMANCE_API_INGESTION.value]),
+    )
     db.add(tenant); db.commit(); db.refresh(tenant)
     return tenant
 

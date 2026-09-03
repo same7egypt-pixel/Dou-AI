@@ -13,6 +13,7 @@ import { loadReports } from './views/reports.js';
 import { loadPayroll } from './views/payroll.js';
 const loadVendors = (c) => import('./views/vendors.js').then((m) => m.renderVendors(c));
 const loadPlatformLink = (c) => import('./views/platformLink.js').then((m) => m.renderPlatformLink(c));
+const loadIntegration = (c) => import('./views/integration.js').then((m) => m.renderIntegration(c));
 import { loadDouAI } from './views/douai.js';
 const loadSettings = (c) => import('./views/settings.js').then((m) => m.loadSettings(c));
 import { refreshNotificationCount } from '../shared/components/notifications.js';
@@ -39,6 +40,7 @@ async function startApp() {
     payroll: loadPayroll,
     vendors: loadVendors,
     platformLink: loadPlatformLink,
+    integration: loadIntegration,
     douai: loadDouAI,
     settings: loadSettings,
   });

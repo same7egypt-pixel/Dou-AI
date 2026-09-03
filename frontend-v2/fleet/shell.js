@@ -19,6 +19,7 @@ const VIEW_LABELS_AR = {
   payroll: 'الرواتب والعمليات المالية',
   vendors: 'المورّدون والالتزام',
   platformLink: 'أدائي لدى المنصة',
+  integration: 'التكامل ومصادر البيانات',
   douai: 'مساعد DOU AI',
   settings: 'الإعدادات',
 };
@@ -34,6 +35,7 @@ const VIEW_LABELS_EN = {
   payroll: 'Payroll & Settlements',
   vendors: 'Vendors & Compliance',
   platformLink: 'My Standing with the Platform',
+  integration: 'Integration & Data Sources',
   douai: 'DOU AI Assistant',
   settings: 'Settings',
 };
@@ -51,6 +53,7 @@ const VIEW_ICONS = {
   payroll: '💰',
   vendors: '🤝',
   platformLink: '🔗',
+  integration: '🔌',
   douai: '✨',
   settings: '⚙',
 };
@@ -61,6 +64,7 @@ const VIEW_GROUPS_AR = [
   { group: 'العمليات', views: ['shifts', 'capacity'] },
   { group: 'الأداء والامتثال', views: ['needsAttention', 'reports'] },
   { group: 'شبكة المورّدين', views: ['vendors', 'platformLink'] },
+  { group: 'التكامل', views: ['integration'] },
   { group: 'المالية', views: ['payroll'] },
   { group: 'المساعد الذكي', views: ['douai'] },
   { group: 'الحساب', views: ['settings'] },
@@ -72,6 +76,7 @@ const VIEW_GROUPS_EN = [
   { group: 'OPERATIONS', views: ['shifts', 'capacity'] },
   { group: 'PERFORMANCE & COMPLIANCE', views: ['needsAttention', 'reports'] },
   { group: 'VENDOR NETWORK', views: ['vendors', 'platformLink'] },
+  { group: 'INTEGRATION', views: ['integration'] },
   { group: 'FINANCE', views: ['payroll'] },
   { group: 'AI ASSISTANT', views: ['douai'] },
   { group: 'ACCOUNT', views: ['settings'] },
@@ -220,6 +225,7 @@ function renderSidebar() {
     payroll: 'RIDER_PAYROLL',
     vendors: 'MANAGE_OPERATORS',
     platformLink: 'VENDOR_PORTAL',
+    integration: 'PERFORMANCE_API_INGESTION',
   };
   // Settings carries user management and the subscription, so it is a role
   // decision rather than a capability one. The backend enforces the same set;

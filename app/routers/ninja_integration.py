@@ -4,6 +4,8 @@ Provides real-time event ingestion from Ninja's external platform,
 automatic courier mapping, daily performance incrementing, and live feed telemetry.
 """
 
+import hashlib
+import json
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -14,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import entities as ent
+from ..services.ingestion import normalize_row, source_platform_for
 from ..services.partner_auth import api_key_header, ingestion_tenant
 from .auth import get_current_user
 
@@ -67,84 +70,58 @@ async def ingest_ninja_live_event(
 
 
 def _ingest_event(db: Session, tenant: ent.Tenant, event: NinjaDeliveryEvent):
-    """Record one event for an already-authenticated tenant."""
+    """Record one event for an already-authenticated tenant.
+
+    Two things this used to do wrong. It wrote `source_platform_id=1` as a
+    literal — SourcePlatform rows are tenant-scoped, so id 1 belongs to whichever
+    tenant created the first one, and every other tenant's deliveries were
+    attributed to a stranger's source in any report that groups by it. And it
+    wrote the fact directly, with no raw row behind it: `raw_row_id` and
+    `provenance` are columns on the fact and both were always null, so a
+    delivery a rider was paid for had no record of what produced it.
+
+    The event is now recorded verbatim as a raw row and normalized through the
+    same function that serves POST /sources/raw-rows, so a fact means the same
+    thing whichever way it arrived — and a rejected event is visible on the
+    integration screen with its reason, instead of vanishing.
+    """
     tenant_id = tenant.id
+    platform = source_platform_for(db, tenant_id, "NINJA", "نينجا")
 
-    # 1. Resolve Courier (strictly by phone, platform_courier_id, or RiderIdentityMapping — never fallback to random courier)
-    courier = None
-    if event.rider_phone:
-        clean_phone = event.rider_phone.replace("+", "").strip()
-        courier = (
-            db.query(ent.Courier)
-            .filter(
-                ent.Courier.tenant_id == tenant_id, ent.Courier.phone == clean_phone
-            )
-            .first()
-        )
+    payload = event.model_dump(mode="json")
+    row_data = json.dumps(payload, ensure_ascii=False)
+    checksum = hashlib.sha256(row_data.encode()).hexdigest()
 
-    if not courier and event.ninja_rider_id:
-        courier = (
-            db.query(ent.Courier)
-            .filter(
-                ent.Courier.tenant_id == tenant_id,
-                ent.Courier.platform_courier_id == event.ninja_rider_id,
-            )
-            .first()
-        )
-
-    if not courier and event.ninja_rider_id:
-        # Check RiderIdentityMapping
-        mapping = (
-            db.query(ent.RiderIdentityMapping)
-            .filter(
-                ent.RiderIdentityMapping.tenant_id == tenant_id,
-                ent.RiderIdentityMapping.source_rider_id == event.ninja_rider_id,
-            )
-            .first()
-        )
-        if mapping:
-            courier = db.get(ent.Courier, mapping.courier_id)
-
-    # 2. Check existing NormalizedDeliveryFact for idempotency
-    fact = (
-        db.query(ent.NormalizedDeliveryFact)
+    row = (
+        db.query(ent.RawImportRow)
         .filter(
-            ent.NormalizedDeliveryFact.tenant_id == tenant_id,
-            ent.NormalizedDeliveryFact.source_platform_id == 1,
-            ent.NormalizedDeliveryFact.source_delivery_id == event.order_id,
+            ent.RawImportRow.tenant_id == tenant_id,
+            ent.RawImportRow.source_platform_id == platform.id,
+            ent.RawImportRow.source_id == event.order_id,
         )
         .first()
     )
-
-    is_new_fact = False
-    today = (
-        (event.event_timestamp or datetime.now(timezone.utc)).date()
-        if hasattr(datetime, "now")
-        else datetime.utcnow().date()
-    )
-
-    if not fact:
-        is_new_fact = True
-        fact = ent.NormalizedDeliveryFact(
+    if row is None:
+        row = ent.RawImportRow(
             tenant_id=tenant_id,
-            source_platform_id=1,
-            source_delivery_id=event.order_id,
-            courier_id=courier.id if courier else None,
-            event_type="COMPLETED"
-            if event.delivery_status == "DELIVERED"
-            else event.delivery_status,
-            event_date=today,
-            event_timestamp=event.event_timestamp or datetime.now(timezone.utc),
-            distance_km=event.distance_km,
-            revenue_amount=event.delivery_fee,
-            idempotency_key=f"NINJA-{tenant_id}-{event.order_id}",
+            source_platform_id=platform.id,
+            source_id=event.order_id,
+            row_data=row_data,
+            checksum=checksum,
+            schema_version="ninja-1.0",
+            source_timestamp=event.event_timestamp or datetime.now(timezone.utc),
         )
-        db.add(fact)
-    else:
-        if courier and not fact.courier_id:
-            fact.courier_id = courier.id
+        db.add(row)
+        db.flush()
 
-    # 3. Record / Upsert DailyLog for today only if this is a newly ingested delivery fact and courier is mapped
+    before = row.status
+    fact = normalize_row(db, row)
+    is_new_fact = fact is not None and before != "NORMALIZED"
+    courier = db.get(ent.Courier, fact.courier_id) if fact and fact.courier_id else None
+    today = fact.event_date if fact else (
+        event.event_timestamp or datetime.now(timezone.utc)
+    ).date()
+
     ninja_project = (
         db.query(ent.Project)
         .filter(

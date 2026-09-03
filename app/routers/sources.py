@@ -11,6 +11,8 @@ from sqlalchemy import func
 
 from ..database import get_db
 from ..models import entities as ent
+from ..services.entitlements import require_capability
+from ..services.ingestion import normalize_row, reprocess_rows
 from .auth import get_current_user
 
 router = APIRouter(prefix="/sources", tags=["sources"])
@@ -29,10 +31,23 @@ READ_ROLES = STAFF_ROLES | {
 }
 
 
-def _tenant_id(user: ent.User, manage: bool = False) -> int:
+def _tenant_id(user: ent.User, db=None, manage: bool = False) -> int:
+    """The tenant whose ingestion pipeline this user may reach.
+
+    Role was the only check on all seventeen endpoints here, so an account that
+    buys no API feed at all could still create source platforms, connections,
+    identity mappings, raw rows and delivery facts — and a delivery fact is what
+    payroll pays on. The same defect as payroll and vendor settlements: the
+    capability existed and nothing read it. `db` is optional so a caller that
+    only needs the role check does not have to change shape.
+    """
     allowed = MANAGE_ROLES if manage else READ_ROLES
     if user.role not in allowed or not user.tenant_id:
         raise HTTPException(403, "Source access required")
+    if db is not None:
+        require_capability(
+            db, user, ent.Capability.PERFORMANCE_API_INGESTION.value
+        )
     return user.tenant_id
 
 
@@ -147,7 +162,7 @@ def create_source_platform(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user, manage=True)
+    tenant_id = _tenant_id(user, db, manage=True)
     existing = (
         db.query(ent.SourcePlatform)
         .filter(
@@ -171,7 +186,7 @@ def list_source_platforms(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     q = db.query(ent.SourcePlatform).filter(ent.SourcePlatform.tenant_id == tenant_id)
     if active_only:
         q = q.filter(ent.SourcePlatform.is_active.is_(True))
@@ -194,7 +209,7 @@ def update_source_platform(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user, manage=True)
+    tenant_id = _tenant_id(user, db, manage=True)
     row = _same_tenant(db, ent.SourcePlatform, platform_id, tenant_id)
     for k, v in payload.model_dump(exclude_unset=True).items():
         if v is not None:
@@ -213,7 +228,7 @@ def create_connection(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user, manage=True)
+    tenant_id = _tenant_id(user, db, manage=True)
     _same_tenant(db, ent.SourcePlatform, payload.source_platform_id, tenant_id)
     existing = (
         db.query(ent.TenantConnection)
@@ -238,7 +253,7 @@ def list_connections(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     q = db.query(ent.TenantConnection).filter(
         ent.TenantConnection.tenant_id == tenant_id
     )
@@ -266,7 +281,7 @@ def update_connection(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user, manage=True)
+    tenant_id = _tenant_id(user, db, manage=True)
     row = _same_tenant(db, ent.TenantConnection, connection_id, tenant_id)
     for k, v in payload.model_dump(exclude_unset=True).items():
         if v is not None:
@@ -285,7 +300,7 @@ def create_project_mapping(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user, manage=True)
+    tenant_id = _tenant_id(user, db, manage=True)
     _same_tenant(db, ent.SourcePlatform, payload.source_platform_id, tenant_id)
     existing = (
         db.query(ent.ProjectContractMapping)
@@ -309,7 +324,7 @@ def create_project_mapping(
 def list_project_mappings(
     user: ent.User = Depends(get_current_user), db=Depends(get_db)
 ):
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     q = db.query(ent.ProjectContractMapping).filter(
         ent.ProjectContractMapping.tenant_id == tenant_id
     )
@@ -334,7 +349,7 @@ def create_rider_mapping(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user, manage=True)
+    tenant_id = _tenant_id(user, db, manage=True)
     _same_tenant(db, ent.SourcePlatform, payload.source_platform_id, tenant_id)
     _same_tenant(db, ent.Courier, payload.courier_id, tenant_id)
     existing = (
@@ -365,7 +380,7 @@ def list_rider_mappings(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     q = db.query(ent.RiderIdentityMapping).filter(
         ent.RiderIdentityMapping.tenant_id == tenant_id
     )
@@ -392,7 +407,7 @@ def update_rider_mapping(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user, manage=True)
+    tenant_id = _tenant_id(user, db, manage=True)
     row = _same_tenant(db, ent.RiderIdentityMapping, mapping_id, tenant_id)
     for k, v in payload.model_dump(exclude_unset=True).items():
         if v is not None:
@@ -415,7 +430,7 @@ def create_raw_row(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user, manage=True)
+    tenant_id = _tenant_id(user, db, manage=True)
     _same_tenant(db, ent.SourcePlatform, payload.source_platform_id, tenant_id)
     # H1 FIX: Validate import_batch_id belongs to tenant
     if payload.import_batch_id is not None:
@@ -449,9 +464,23 @@ def create_raw_row(
         source_timestamp=payload.source_timestamp,
     )
     db.add(row)
+    db.flush()
+    # A row used to land at PENDING and stay there: nothing in the codebase ever
+    # advanced the status, so the pipeline's middle arrow did not exist. It is
+    # normalized on arrival now; if it cannot be, the reason is on the row.
+    fact = normalize_row(db, row)
     db.commit()
     db.refresh(row)
-    return {"id": row.id, "source_id": row.source_id, "checksum": row.checksum}
+    return {
+        "id": row.id,
+        "source_id": row.source_id,
+        "checksum": row.checksum,
+        "status": row.status,
+        "fact_id": fact.id if fact else None,
+        "validation_issues": json.loads(row.validation_issues)
+        if row.validation_issues
+        else None,
+    }
 
 
 @router.get("/raw-rows")
@@ -461,7 +490,7 @@ def list_raw_rows(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     q = db.query(ent.RawImportRow).filter(ent.RawImportRow.tenant_id == tenant_id)
     if source_platform_id:
         q = q.filter(ent.RawImportRow.source_platform_id == source_platform_id)
@@ -474,10 +503,32 @@ def list_raw_rows(
             "source_id": r.source_id,
             "status": r.status,
             "checksum": r.checksum,
+            "validation_issues": json.loads(r.validation_issues)
+            if r.validation_issues
+            else None,
+            "row_data": r.row_data,
             "created_at": r.created_at.isoformat(),
         }
         for r in q.order_by(ent.RawImportRow.created_at.desc()).all()
     ]
+
+
+@router.post("/raw-rows/reprocess")
+def reprocess_raw_rows(
+    source_platform_id: Optional[int] = Query(None),
+    user: ent.User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Retry every row that is not yet a fact.
+
+    The operator's loop is: read why the row was rejected, add the mapping it
+    named, press this. Rows already NORMALIZED are skipped — reprocessing must
+    never be a way to count a delivery twice.
+    """
+    tenant_id = _tenant_id(user, db, manage=True)
+    if source_platform_id:
+        _same_tenant(db, ent.SourcePlatform, source_platform_id, tenant_id)
+    return reprocess_rows(db, tenant_id, source_platform_id)
 
 
 # ---------- normalized delivery facts ----------
@@ -489,7 +540,7 @@ def create_delivery_fact(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user, manage=True)
+    tenant_id = _tenant_id(user, db, manage=True)
     _same_tenant(db, ent.SourcePlatform, payload.source_platform_id, tenant_id)
     if payload.event_type not in ("COMPLETED", "CANCELLED", "FAILED"):
         raise HTTPException(400, "event_type must be COMPLETED, CANCELLED, or FAILED")
@@ -557,7 +608,7 @@ def list_delivery_facts(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     q = db.query(ent.NormalizedDeliveryFact).filter(
         ent.NormalizedDeliveryFact.tenant_id == tenant_id
     )
@@ -572,12 +623,21 @@ def list_delivery_facts(
     return [
         {
             "id": r.id,
+            "source_platform_id": r.source_platform_id,
             "source_delivery_id": r.source_delivery_id,
+            "raw_row_id": r.raw_row_id,
             "courier_id": r.courier_id,
+            "project_id": r.project_id,
             "event_type": r.event_type,
             "event_date": r.event_date.isoformat(),
+            "distance_km": r.distance_km,
             "revenue_amount": r.revenue_amount,
             "cost_amount": r.cost_amount,
+            "currency": r.currency,
+            # Lineage is the point: a number in payroll has to be traceable to
+            # the row it came from and the mappings that resolved it. The fact
+            # carried both and this reader returned neither.
+            "provenance": json.loads(r.provenance) if r.provenance else None,
         }
         for r in q.order_by(ent.NormalizedDeliveryFact.event_date.desc()).all()
     ]
@@ -592,7 +652,7 @@ def create_reconciliation(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user, manage=True)
+    tenant_id = _tenant_id(user, db, manage=True)
     _same_tenant(db, ent.SourcePlatform, payload.source_platform_id, tenant_id)
     # H3 FIX: Use explicit import_date instead of timezone-sensitive func.date()
     raw_rows = db.query(ent.RawImportRow).filter(
@@ -660,7 +720,7 @@ def list_reconciliations(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     q = db.query(ent.ReconciliationResult).filter(
         ent.ReconciliationResult.tenant_id == tenant_id
     )
