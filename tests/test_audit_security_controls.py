@@ -83,6 +83,43 @@ def client(sec_db):
 
 # ─── 1. WEBHOOK & NINJA SECURITY ─────────────────────────────────────────────
 
+def _ninja_key(db, tenant_id):
+    """Issue a scoped partner credential for the ingestion endpoints.
+
+    These tests used to send only an `X-Tenant-Id` header, which is what the
+    endpoints accepted before they required authentication at all. The header no
+    longer selects anything — the tenant comes from the credential.
+    """
+    import hashlib
+    import json
+    import secrets
+
+    from app.services import entitlements
+
+    # Two independent gates guard the feed: a scoped key, and a tenant still
+    # entitled to receive it. This fixture's tenant predates customer types, so
+    # grant it the platform set explicitly.
+    tenant = db.get(ent.Tenant, tenant_id)
+    tenant.customer_type = ent.CustomerType.DELIVERY_PLATFORM.value
+    tenant.capabilities = entitlements.serialize(entitlements.PLATFORM_DEFAULTS)
+
+    raw = secrets.token_urlsafe(32)
+    db.add(
+        ent.PartnerCredential(
+            tenant_id=tenant_id,
+            partner_name="Ninja",
+            key_prefix=raw[:16],
+            key_hash=hashlib.sha256(raw.encode()).hexdigest(),
+            scopes=json.dumps(["performance:write"]),
+            is_active=True,
+        )
+    )
+    db.commit()
+    return {"X-API-Key": raw}
+
+
+
+
 def test_ninja_webhook_unmapped_rider_does_not_attribute_to_random_courier(client, sec_db):
     """External delivery for an unmapped driver MUST NOT attribute to random active couriers."""
     event_payload = {
@@ -92,7 +129,7 @@ def test_ninja_webhook_unmapped_rider_does_not_attribute_to_random_courier(clien
         "delivery_status": "DELIVERED",
         "delivery_fee": 20.0
     }
-    headers = {"X-Tenant-Id": str(sec_db["t1"].id)}
+    headers = _ninja_key(sec_db["db"], sec_db["t1"].id)
     res = client.post("/sources/ninja/live-event", json=event_payload, headers=headers)
     assert res.status_code == 200
     data = res.json()
@@ -100,8 +137,14 @@ def test_ninja_webhook_unmapped_rider_does_not_attribute_to_random_courier(clien
     assert data["matched_courier"]["name"] == "Unassigned"
 
 
-def test_ninja_webhook_invalid_tenant_fails(client):
-    """Webhook targeting a non-existent tenant must return 404."""
+def test_ninja_webhook_cannot_name_its_own_tenant(client):
+    """The header that used to select the target company is now inert.
+
+    This test previously asserted a 404 for an unknown tenant id, which quietly
+    documented that a caller with no credential could choose any tenant that did
+    exist. There is nothing to name any more: an unauthenticated request is
+    refused before a tenant is looked up.
+    """
     event_payload = {
         "order_id": "NINJA-SEC-002",
         "ninja_rider_id": "RIDER_1",
@@ -110,7 +153,7 @@ def test_ninja_webhook_invalid_tenant_fails(client):
     }
     headers = {"X-Tenant-Id": "999999"}
     res = client.post("/sources/ninja/live-event", json=event_payload, headers=headers)
-    assert res.status_code == 404
+    assert res.status_code == 401
 
 
 def test_ninja_webhook_idempotency_prevents_duplicate_counting(client, sec_db):
@@ -122,7 +165,7 @@ def test_ninja_webhook_idempotency_prevents_duplicate_counting(client, sec_db):
         "delivery_status": "DELIVERED",
         "delivery_fee": 15.0
     }
-    headers = {"X-Tenant-Id": str(sec_db["t1"].id)}
+    headers = _ninja_key(sec_db["db"], sec_db["t1"].id)
     res1 = client.post("/sources/ninja/live-event", json=event_payload, headers=headers)
     assert res1.status_code == 200
     assert res1.json()["is_new"] is True

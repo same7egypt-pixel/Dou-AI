@@ -7,16 +7,23 @@ automatic courier mapping, daily performance incrementing, and live feed telemet
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import entities as ent
+from ..services.partner_auth import api_key_header, ingestion_tenant
 from .auth import get_current_user
 
 router = APIRouter(prefix="/sources/ninja", tags=["ninja-integration"])
+
+# The scope a partner key must carry to post delivery facts, and the capability
+# the receiving tenant must still hold. Both are checked on every request:
+# see app/services/partner_auth.py for why one alone is not enough.
+INGEST_SCOPE = "performance:write"
+INGEST_CAPABILITY = ent.Capability.PERFORMANCE_API_INGESTION.value
 
 
 class NinjaDeliveryEvent(BaseModel):
@@ -47,14 +54,21 @@ class NinjaBatchEventPayload(BaseModel):
 async def ingest_ninja_live_event(
     event: NinjaDeliveryEvent,
     db: Session = Depends(get_db),
-    x_ninja_signature: Optional[str] = Header(None),
-    x_tenant_id: Optional[int] = Header(None),
+    api_key: Optional[str] = Depends(api_key_header),
 ):
-    """Ingest a single real-time delivery event from Ninja's dispatching API with strict tenant isolation and courier matching."""
-    tenant_id = x_tenant_id or 1
-    tenant = db.get(ent.Tenant, tenant_id)
-    if not tenant:
-        raise HTTPException(404, f"Tenant {tenant_id} not found")
+    """Ingest one delivery event from Ninja's dispatch API.
+
+    The tenant is whichever one issued the key. It used to come from an
+    `X-Tenant-Id` header on an endpoint with no authentication at all, so any
+    caller could write orders — the number payroll pays on — into any company.
+    """
+    tenant = ingestion_tenant(db, api_key, INGEST_SCOPE, INGEST_CAPABILITY)
+    return _ingest_event(db, tenant, event)
+
+
+def _ingest_event(db: Session, tenant: ent.Tenant, event: NinjaDeliveryEvent):
+    """Record one event for an already-authenticated tenant."""
+    tenant_id = tenant.id
 
     # 1. Resolve Courier (strictly by phone, platform_courier_id, or RiderIdentityMapping — never fallback to random courier)
     courier = None
@@ -199,13 +213,11 @@ async def ingest_ninja_live_event(
 async def ingest_ninja_batch_events(
     payload: NinjaBatchEventPayload,
     db: Session = Depends(get_db),
-    x_tenant_id: Optional[int] = Header(None),
+    api_key: Optional[str] = Depends(api_key_header),
 ):
-    """Batch ingest real-time delivery facts from Ninja platform."""
-    results = []
-    for ev in payload.events:
-        res = await ingest_ninja_live_event(event=ev, db=db, x_tenant_id=x_tenant_id)
-        results.append(res)
+    """Batch ingest delivery facts. Authenticated once, for the whole batch."""
+    tenant = ingestion_tenant(db, api_key, INGEST_SCOPE, INGEST_CAPABILITY)
+    results = [_ingest_event(db, tenant, ev) for ev in payload.events]
     return {
         "status": "batch_completed",
         "processed_count": len(results),
