@@ -326,13 +326,18 @@ def test_operator_a_cannot_access_operator_b(db):
     admin_a = User(phone="966500000011", password_hash="x", role=UserRole.COMPANY_ADMIN, tenant_id=operator_a.id)
     db.add(admin_a); db.commit()
     
-    # Operator A admin should not be able to access Operator B settlements
+    # Operator A admin should not be able to access Operator B settlements.
+    # It is refused at the entitlement now rather than at the operator link: a
+    # logistics account does not hold OPERATOR_SETTLEMENTS at all, so it never
+    # reaches the point of asking which operator it meant. 403 rather than 404,
+    # and it still says nothing about whether operator B exists.
     with pytest.raises(HTTPException) as exc:
         operators_router.calculate_operator_settlement(
             operator_b.id, "2026-08", admin_a, db
         )
-    
-    assert exc.value.status_code == 404
+
+    assert exc.value.status_code == 403
+    assert "OPERATOR_SETTLEMENTS" in exc.value.detail
 
 
 def test_unauthorized_role_rejected(db):

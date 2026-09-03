@@ -214,6 +214,11 @@ class TestDeliveryPlatformScenario:
     def test_platform_with_operator(self, setup_db):
         db = setup_db
         # Step 1: Create delivery platform
+        # customer_type is what makes this a platform. Creating it without one
+        # produced a LOGISTICS_OPERATOR that then called platform endpoints —
+        # the same defect that shipped a real customer's platform account as a
+        # fleet partner. The endpoints now enforce the capability, so the
+        # scenario has to set up the account the way the admin console does.
         r = client.post("/admin/tenants", json={
             "name": "FoodExpress Platform",
             "owner_name": "Sara",
@@ -221,6 +226,7 @@ class TestDeliveryPlatformScenario:
             "password": "platform123456",
             "market_code": "SA",
             "plan": "GROWTH",
+            "customer_type": "DELIVERY_PLATFORM",
         }, headers=admin_auth())
         assert r.status_code == 200
         platform_id = r.json()["id"]

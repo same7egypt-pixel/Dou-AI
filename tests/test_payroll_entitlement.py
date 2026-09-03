@@ -144,6 +144,46 @@ def test_a_logistics_account_is_unaffected(env):
     assert res.status_code == 200, res.text
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# The mirror image: vendor settlements belong to the platform line
+# ─────────────────────────────────────────────────────────────────────────────
+
+# operator_id and period_month are query parameters, so they go in the URL —
+# a malformed request 422s before the guard and would prove nothing.
+VENDOR_SETTLEMENT_SURFACES = [
+    ("GET", "/analytics/operators/settlements", None),
+    ("POST", "/analytics/operators/settlement/calculate?operator_id=1&period_month=2026-09", None),
+    ("POST", "/analytics/operators/settlement/save?operator_id=1&period_month=2026-09", {}),
+]
+
+
+@pytest.mark.parametrize("method,path,payload", VENDOR_SETTLEMENT_SURFACES)
+def test_a_logistics_account_cannot_reach_vendor_settlements(env, method, path, payload):
+    """A logistics company buys neither MANAGE_OPERATORS nor OPERATOR_SETTLEMENTS.
+
+    /analytics/operators checked role and not entitlement, exactly as payroll
+    did, so a logistics account could calculate, save and approve the B2B
+    settlements that belong to the platform business line.
+    """
+    client, headers = env["client"], _auth(env["logistics"])
+    res = (
+        client.get(path, headers=headers)
+        if method == "GET"
+        else client.post(path, json=payload, headers=headers)
+    )
+    assert res.status_code == 403, (
+        f"{method} {path} answered {res.status_code} for an account with no "
+        "OPERATOR_SETTLEMENTS capability"
+    )
+
+
+def test_a_platform_account_still_reaches_vendor_settlements(env):
+    res = env["client"].get(
+        "/analytics/operators/settlements", headers=_auth(env["platform"])
+    )
+    assert res.status_code == 200, res.text
+
+
 def test_a_tenant_predating_capabilities_keeps_payroll(env):
     """An empty capabilities column falls back to the account type's defaults.
 
@@ -152,8 +192,13 @@ def test_a_tenant_predating_capabilities_keeps_payroll(env):
     customer the moment this guard shipped.
     """
     tenant = env["logistics"]["tenant"]
-    tenant.capabilities = None
-    tenant.customer_type = None
-    env["db"].commit()
-    res = env["client"].get("/hr/payroll?month=2026-09", headers=_auth(env["logistics"]))
-    assert res.status_code == 200, res.text
+    for stored in (None, "", "[]"):
+        # Every live tenant on production holds "[]" in this column, not NULL,
+        # and an empty list must read as "not set" rather than "nothing allowed".
+        tenant.capabilities = stored
+        tenant.customer_type = None
+        env["db"].commit()
+        res = env["client"].get(
+            "/hr/payroll?month=2026-09", headers=_auth(env["logistics"])
+        )
+        assert res.status_code == 200, f"capabilities={stored!r}: {res.text}"

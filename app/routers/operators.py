@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import entities as ent
+from ..services.entitlements import require_capability
 from ..services.vendor_scorecard import eligible_orders_for_operator
 from .auth import get_current_user
 
@@ -35,9 +36,19 @@ MANAGE_ROLES = {
 TWO_PLACES = Decimal("0.01")
 
 
-def _tenant_id(user: ent.User) -> int:
+def _tenant_id(user: ent.User, db=None) -> int:
+    """The tenant whose vendor settlements this user may reach.
+
+    Role was the only check, so a logistics account — which buys neither
+    MANAGE_OPERATORS nor OPERATOR_SETTLEMENTS — could calculate, save and
+    approve B2B settlements. Same defect as payroll: the capability existed and
+    only the sidebar read it. `db` is optional so nothing that already calls
+    this has to change shape.
+    """
     if user.role not in READ_ROLES or not user.tenant_id:
         raise HTTPException(403, "Operator access required")
+    if db is not None:
+        require_capability(db, user, ent.Capability.OPERATOR_SETTLEMENTS.value)
     return user.tenant_id
 
 
@@ -54,7 +65,7 @@ def calculate_operator_settlement(
     db: Session = Depends(get_db),
 ):
     """Calculate commercial settlement for an operator."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
 
     # Validate operator is linked to this platform
     from app.models.entities import PlatformOperator
@@ -138,7 +149,7 @@ def save_operator_settlement(
     db: Session = Depends(get_db),
 ):
     """Save a commercial settlement (DRAFT or APPROVED)."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
 
     # Calculate settlement
     calc = calculate_operator_settlement(operator_id, period_month, user, db)
@@ -205,7 +216,7 @@ def list_operator_settlements(
     db: Session = Depends(get_db),
 ):
     """List commercial settlements for the platform."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     q = db.query(ent.CommercialSettlement).filter(
         ent.CommercialSettlement.tenant_id == tenant_id
     )
@@ -248,7 +259,7 @@ def get_operator_settlement(
     db: Session = Depends(get_db),
 ):
     """Get a specific settlement."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
 
     settlement = (
         db.query(ent.CommercialSettlement)
@@ -287,7 +298,7 @@ def approve_operator_settlement(
     db: Session = Depends(get_db),
 ):
     """Approve a commercial settlement."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     if user.role not in {
         ent.UserRole.COMPANY,
         ent.UserRole.COMPANY_ADMIN,
@@ -332,7 +343,7 @@ def assign_rider_to_operator(
     db: Session = Depends(get_db),
 ):
     """Assign a rider to an operator with effective dating."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
 
     # Validate courier belongs to this tenant
     courier = (
@@ -425,7 +436,7 @@ def get_rider_assignment_history(
     db: Session = Depends(get_db),
 ):
     """Get rider assignment history."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
 
     assignments = (
         db.query(ent.RiderAssignment)
@@ -458,7 +469,7 @@ def operator_health(
     db: Session = Depends(get_db),
 ):
     """Operator health indicators for the platform dashboard."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
 
     # Count operators
     operator_count = (
