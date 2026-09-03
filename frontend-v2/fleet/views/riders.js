@@ -39,7 +39,15 @@ export async function loadRiders(container) {
       el('button', {
         class: 'btn btn-ghost',
         onclick: () => openImportHistoryModal()
-      }, isAr ? 'سجل الاستيراد' : 'Import History')
+      }, isAr ? 'سجل الاستيراد' : 'Import History'),
+      // The rider app has a "company messages" screen with nothing able to
+      // write to it: sending existed only on the retired dashboard, so the
+      // riders' inbox was permanently empty.
+      el('button', {
+        class: 'btn btn-ghost',
+        id: 'btn-broadcast',
+        onclick: () => openBroadcastModal()
+      }, isAr ? '📢 رسالة للمناديب' : '📢 Message riders')
     );
   }
 
@@ -654,4 +662,49 @@ async function openAddVehicleModal(onCreated) {
       alert('❌ تعذر تسجيل المركبة: ' + err.message);
     }
   };
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Broadcast — the sending half of the rider app's company-messages screen
+// ─────────────────────────────────────────────────────────────────────────────
+function openBroadcastModal() {
+  const isAr = getLang() === 'ar';
+  const content = el('form', { onsubmit: async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('bc-msg');
+    const text = document.getElementById('bc-text').value.trim();
+    if (!text) return;
+    const button = document.getElementById('bc-send');
+    button.disabled = true;
+    try {
+      const res = await api.post('/hr/broadcast', { message: text });
+      msg.style.color = 'var(--green)';
+      msg.textContent = isAr
+        ? `✅ أُرسلت الرسالة إلى ${res.sent_to ?? 0} مندوب.`
+        : `✅ Sent to ${res.sent_to ?? 0} riders.`;
+      setTimeout(() => m.remove(), 1500);
+    } catch (err) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ ' + err.message;
+      button.disabled = false;
+    }
+  }}, [
+    el('p', { style: 'margin:0 0 12px;font-size:12px;color:var(--muted)' },
+      isAr
+        ? 'تصل الرسالة إلى كل مناديبك داخل تطبيق السائق، في شاشة «رسائل الشركة».'
+        : 'This reaches every one of your riders in the driver app, under "Company messages".'),
+    formRow([el('div', {}, [
+      el('label', { for: 'bc-text', text: isAr ? 'نص الرسالة' : 'Message' }),
+      el('textarea', {
+        id: 'bc-text', name: 'bc-text', rows: '4', required: true, maxlength: '600',
+        style: 'width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:inherit',
+        placeholder: isAr ? 'مثال: غداً اجتماع تشغيلي الساعة 9 صباحاً.' : 'e.g. Operations meeting tomorrow at 9am.',
+      }),
+    ])]),
+    el('p', { id: 'bc-msg', style: 'margin:8px 0 0;font-size:12px' }),
+    el('button', { class: 'btn btn-primary btn-blue btn-full', type: 'submit', id: 'bc-send', style: 'margin-top:12px' },
+      isAr ? '📢 إرسال للجميع' : '📢 Send to all riders'),
+  ]);
+  const m = modal(isAr ? '📢 رسالة لكل المناديب' : '📢 Message all riders', content);
 }

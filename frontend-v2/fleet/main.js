@@ -14,6 +14,7 @@ import { loadPayroll } from './views/payroll.js';
 const loadVendors = (c) => import('./views/vendors.js').then((m) => m.renderVendors(c));
 const loadPlatformLink = (c) => import('./views/platformLink.js').then((m) => m.renderPlatformLink(c));
 import { loadDouAI } from './views/douai.js';
+const loadSettings = (c) => import('./views/settings.js').then((m) => m.loadSettings(c));
 import { refreshNotificationCount } from '../shared/components/notifications.js';
 import { initLang, startAutoTranslate } from '../shared/i18n/i18n.js';
 
@@ -39,6 +40,7 @@ async function startApp() {
     vendors: loadVendors,
     platformLink: loadPlatformLink,
     douai: loadDouAI,
+    settings: loadSettings,
   });
   renderShell();
   refreshNotificationCount();

@@ -20,6 +20,7 @@ const VIEW_LABELS_AR = {
   vendors: 'المورّدون والالتزام',
   platformLink: 'أدائي لدى المنصة',
   douai: 'مساعد DOU AI',
+  settings: 'الإعدادات',
 };
 
 const VIEW_LABELS_EN = {
@@ -34,6 +35,7 @@ const VIEW_LABELS_EN = {
   vendors: 'Vendors & Compliance',
   platformLink: 'My Standing with the Platform',
   douai: 'DOU AI Assistant',
+  settings: 'Settings',
 };
 
 const VIEW_LABELS = VIEW_LABELS_AR;
@@ -50,6 +52,7 @@ const VIEW_ICONS = {
   vendors: '🤝',
   platformLink: '🔗',
   douai: '✨',
+  settings: '⚙',
 };
 
 const VIEW_GROUPS_AR = [
@@ -60,6 +63,7 @@ const VIEW_GROUPS_AR = [
   { group: 'شبكة المورّدين', views: ['vendors', 'platformLink'] },
   { group: 'المالية', views: ['payroll'] },
   { group: 'المساعد الذكي', views: ['douai'] },
+  { group: 'الحساب', views: ['settings'] },
 ];
 
 const VIEW_GROUPS_EN = [
@@ -70,6 +74,7 @@ const VIEW_GROUPS_EN = [
   { group: 'VENDOR NETWORK', views: ['vendors', 'platformLink'] },
   { group: 'FINANCE', views: ['payroll'] },
   { group: 'AI ASSISTANT', views: ['douai'] },
+  { group: 'ACCOUNT', views: ['settings'] },
 ];
 
 const VIEW_GROUPS = VIEW_GROUPS_AR;
@@ -216,7 +221,16 @@ function renderSidebar() {
     vendors: 'MANAGE_OPERATORS',
     platformLink: 'VENDOR_PORTAL',
   };
-  const permitted = (v) => !REQUIRES[v] || can(REQUIRES[v]);
+  // Settings carries user management and the subscription, so it is a role
+  // decision rather than a capability one. The backend enforces the same set;
+  // this only keeps the nav honest about what the user can reach.
+  const ROLE_ONLY = {
+    settings: ['COMPANY', 'COMPANY_ADMIN'],
+  };
+  const currentRole = appStore.get().role || localStorage.getItem('dou_role_v2') || '';
+  const permitted = (v) =>
+    (!REQUIRES[v] || can(REQUIRES[v])) &&
+    (!ROLE_ONLY[v] || ROLE_ONLY[v].includes(currentRole));
 
   groups.forEach((g) => {
     const views = g.views.filter(permitted);

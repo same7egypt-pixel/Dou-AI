@@ -390,3 +390,88 @@ def test_the_reports_screen_hides_the_tab_until_analytics_exists():
     assert "analyticsReady ?" in source, (
         "the dashboards tab must be conditional, not always rendered"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The account surface, and retiring the screen that used to hold it
+# ─────────────────────────────────────────────────────────────────────────────
+
+SETTINGS_VIEW = ROOT / "frontend-v2" / "fleet" / "views" / "settings.js"
+
+
+def test_the_product_can_manage_its_own_users(env):
+    """A company could not add an accountant or an operations user without being
+    sent to the retired dashboard: /fleet/users had no caller in this product."""
+    assert SETTINGS_VIEW.exists(), "the settings screen must exist"
+    source = SETTINGS_VIEW.read_text(encoding="utf-8")
+    for call in ("/fleet/users", "/auth/change-password", "/billing/status"):
+        assert call in source, f"settings must cover {call}"
+
+    res = env["client"].get("/fleet/users", headers=_auth(env["logistics"]))
+    assert res.status_code == 200, res.text
+
+
+def test_a_company_user_can_be_added_and_removed(env):
+    created = env["client"].post(
+        "/fleet/users",
+        json={"name": "محاسب", "phone": "966596660009",
+              "password": "Pass12345!", "role": "ACCOUNTANT"},
+        headers=_auth(env["logistics"]),
+    )
+    assert created.status_code == 200, created.text
+    user_id = created.json()["id"]
+
+    listed = env["client"].get("/fleet/users", headers=_auth(env["logistics"])).json()
+    assert any(u["id"] == user_id for u in listed)
+
+    removed = env["client"].delete(
+        f"/fleet/users/{user_id}", headers=_auth(env["logistics"])
+    )
+    assert removed.status_code == 200, removed.text
+
+
+def test_company_users_stay_inside_their_tenant(env):
+    """The screen is role-gated in the nav; the data must be tenant-gated here."""
+    created = env["client"].post(
+        "/fleet/users",
+        json={"name": "موظف", "phone": "966596660010",
+              "password": "Pass12345!", "role": "VIEWER"},
+        headers=_auth(env["logistics"]),
+    )
+    user_id = created.json()["id"]
+    leaked = env["client"].get("/fleet/users", headers=_auth(env["platform"])).json()
+    assert not any(u["id"] == user_id for u in leaked), (
+        "another tenant's company users were listed"
+    )
+
+
+def test_the_rider_message_loop_has_both_halves():
+    """The driver app has a company-messages screen and nothing could write to
+    it: sending existed only on the retired dashboard, so the inbox was
+    permanently empty."""
+    riders = (ROOT / "frontend-v2" / "fleet" / "views" / "riders.js").read_text(encoding="utf-8")
+    assert "/hr/broadcast" in riders, "the product must be able to message its riders"
+    courier = (ROOT / "static" / "courier.html").read_text(encoding="utf-8")
+    assert "/hr/me/messages" in courier, "the rider must still receive them"
+
+
+def test_rider_requests_can_be_answered():
+    """Riders submit self-service requests from the app; the queue that answers
+    them existed only on the retired dashboard."""
+    needs = (ROOT / "frontend-v2" / "fleet" / "views" / "needsAttention.js").read_text(encoding="utf-8")
+    assert "/hr/employee-requests" in needs
+    assert "/decide" in needs, "the queue must be able to decide, not only list"
+
+
+def test_the_retired_screens_redirect_rather_than_break(env):
+    """They called endpoints that no longer exist. An old bookmark should land
+    on the current product, not on a broken copy of the old one."""
+    for path in ("/static/fleet.html", "/static/workforce.html", "/static/supervisor.html"):
+        body = (ROOT / path.replace("/static/", "static/")).read_text(encoding="utf-8")
+        assert "url=/app" in body and len(body) < 800, (
+            f"{path} must be a redirect to /app, not a second dashboard"
+        )
+
+    res = env["client"].get("/app/workforce", follow_redirects=False)
+    assert res.status_code in (307, 308), res.status_code
+    assert res.headers["location"] == "/app"

@@ -3,7 +3,13 @@ import os
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+)
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -231,8 +237,16 @@ def admin_app():
 
 
 @app.get("/app/workforce")
-def workforce_app():
-    return FileResponse(os.path.join(STATIC_DIR, "workforce.html"))
+@app.get("/app/workforce/")
+def app_workforce():
+    """Retired. Teams and zones are handled by contracts and branches in /app.
+
+    The old workforce screen called /workforce/riders/{id}/team-transfer and
+    rendered a second, parallel org model beside the contract/branch one the
+    product actually runs on. Redirecting rather than 404ing means an old
+    bookmark lands on the current dashboard.
+    """
+    return RedirectResponse(url="/app", status_code=308)
 
 
 @app.get("/driver")

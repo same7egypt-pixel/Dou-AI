@@ -94,6 +94,13 @@ export async function loadNeedsAttention(container) {
   const list = el('div', {}, [loadingState(isAr ? 'جاري تحليل وتجميع الإشارات التشغيلية...' : 'Analyzing and aggregating operational signals...')]);
   container.append(list);
 
+  // Riders submit self-service requests from the phone app. Nothing in this
+  // product read them: the queue existed only on the retired dashboard, so a
+  // rider could ask for something and no one would ever see it.
+  const requestsSection = el('div', { id: 'employee-requests-section' });
+  container.append(requestsSection);
+  renderEmployeeRequests(requestsSection, container);
+
   try {
     const data = await api.get('/analytics/needs-attention/deterministic');
     const items = data.items || [];
@@ -145,5 +152,85 @@ export async function loadNeedsAttention(container) {
     ]));
   } catch (e) {
     list.replaceWith(errorState((isAr ? 'تعذر التحميل: ' : 'Failed to load: ') + e.message, () => loadNeedsAttention(container)));
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rider self-service requests — the staff half of a loop that had none
+// ─────────────────────────────────────────────────────────────────────────────
+
+const REQUEST_STATUS = {
+  PENDING: { ar: 'قيد المراجعة', en: 'Pending', tone: 'amber' },
+  SUPERVISOR_APPROVED: { ar: 'اعتمده المشرف', en: 'Supervisor approved', tone: 'blue' },
+  APPROVED: { ar: 'معتمد', en: 'Approved', tone: 'green' },
+  REJECTED: { ar: 'مرفوض', en: 'Rejected', tone: 'red' },
+};
+
+async function renderEmployeeRequests(section, container) {
+  const isAr = getLang() === 'ar';
+  section.innerHTML = '';
+
+  let requests = [];
+  try {
+    requests = await api.get('/hr/employee-requests');
+  } catch (err) {
+    section.append(errorState(
+      (isAr ? 'تعذر تحميل طلبات المناديب: ' : 'Could not load rider requests: ') + err.message,
+      () => renderEmployeeRequests(section, container)
+    ));
+    return;
+  }
+
+  const open = requests.filter((r) => !['APPROVED', 'REJECTED'].includes(r.status));
+
+  section.append(el('div', { style: 'display:flex;align-items:center;gap:10px;margin:26px 0 12px' }, [
+    el('h3', { style: 'margin:0;font-size:15px' },
+      isAr ? '📨 طلبات المناديب من التطبيق' : '📨 Rider requests from the app'),
+    open.length ? badge(String(open.length), 'amber') : null,
+  ].filter(Boolean)));
+
+  if (!requests.length) {
+    section.append(emptyState(isAr
+      ? 'لا توجد طلبات من المناديب حالياً.'
+      : 'No rider requests right now.'));
+    return;
+  }
+
+  section.append(el('div', { class: 'card', style: 'padding:0;overflow:hidden' },
+    requests.slice(0, 25).map((r) => {
+      const status = REQUEST_STATUS[r.status] || { ar: r.status, en: r.status, tone: 'gray' };
+      const decided = ['APPROVED', 'REJECTED'].includes(r.status);
+      return el('div', { style: 'display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap' }, [
+        el('div', { style: 'min-width:220px;flex:1' }, [
+          el('b', { style: 'display:block;font-size:13px', text: r.title || r.request_type || '—' }),
+          el('span', { style: 'font-size:11px;color:var(--muted)' },
+            `${r.courier || '—'}${r.amount ? ` · ${r.amount} ${isAr ? 'ر.س' : 'SAR'}` : ''}` +
+            `${r.created_at ? ` · ${String(r.created_at).slice(0, 10)}` : ''}`),
+          r.details ? el('p', { style: 'margin:4px 0 0;font-size:11px;color:var(--muted)', text: r.details }) : null,
+        ].filter(Boolean)),
+        el('div', { style: 'display:flex;align-items:center;gap:8px' }, [
+          badge(isAr ? status.ar : status.en, status.tone),
+          decided ? null : el('button', {
+            class: 'btn btn-green btn-small',
+            onclick: () => decideEmployeeRequest(r.id, 'approve', section, container),
+          }, isAr ? 'اعتماد' : 'Approve'),
+          decided ? null : el('button', {
+            class: 'btn btn-red btn-small',
+            onclick: () => decideEmployeeRequest(r.id, 'reject', section, container),
+          }, isAr ? 'رفض' : 'Reject'),
+        ].filter(Boolean)),
+      ]);
+    })));
+}
+
+async function decideEmployeeRequest(requestId, action, section, container) {
+  const isAr = getLang() === 'ar';
+  const note = prompt(isAr ? 'ملاحظة للمندوب (اختياري):' : 'Note for the rider (optional):', '') || '';
+  try {
+    await api.post(`/hr/employee-requests/${requestId}/decide`, { action, note });
+    renderEmployeeRequests(section, container);
+  } catch (err) {
+    alert((isAr ? '❌ تعذر حفظ القرار: ' : '❌ Could not save the decision: ') + err.message);
   }
 }
