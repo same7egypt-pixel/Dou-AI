@@ -161,7 +161,30 @@ def _daily_report_data(
     if nationality:
         q = q.filter(Courier.nationality == nationality)
     if zone:
-        q = q.filter(or_(Courier.work_city == zone, Courier.zone == zone))
+        # The canonical city, not the text somebody typed. Three riders in one
+        # city whose work_city read "الرياض", "الرياض " and " الرياض" are one
+        # city by city_id and three by string, and this filter returned one of
+        # the three — a supervisor lost two thirds of their riders silently.
+        # The text match stays for rows the backfill could not resolve.
+        # The resolver raises rather than returning None when the name matches
+        # no activated city. A *filter* is not a command: an unrecognised city
+        # should narrow to nothing, not turn the report into a 500.
+        try:
+            city = resolve_active_tenant_city_by_name(db, user.tenant_id, zone)
+        except ValueError:
+            city = None
+        if city:
+            q = q.filter(
+                or_(
+                    Courier.city_id == city.id,
+                    and_(
+                        Courier.city_id.is_(None),
+                        or_(Courier.work_city == zone, Courier.zone == zone),
+                    ),
+                )
+            )
+        else:
+            q = q.filter(or_(Courier.work_city == zone, Courier.zone == zone))
     if employment_status:
         q = q.filter(Courier.employment_status == employment_status)
     if courier_name:
@@ -846,7 +869,11 @@ def update_supervisor(
                     .all()
                 ):
                     courier.supervisor_id = sup.id
+                    # The reference travels with the text. Setting only the text
+                    # is what re-created the divergence the backfill had just
+                    # cleaned up.
                     courier.work_city = branch.city
+                    courier.city_id = branch.city_id or courier.city_id
             elif branch.supervisor_id == sup.id:
                 branch.supervisor_id = None
                 project = (
@@ -1173,6 +1200,7 @@ def transfer_project(
     c.contract_id = branch.contract_id
     c.contract_branch_id = branch.id
     c.work_city = branch.city
+    c.city_id = branch.city_id or c.city_id
     c.supervisor_id = branch.supervisor_id
     db.commit()
     return {"ok": True}
