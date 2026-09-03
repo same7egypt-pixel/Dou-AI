@@ -19,6 +19,8 @@ from __future__ import annotations
 import json
 from typing import Iterable
 
+from fastapi import HTTPException
+
 from ..models.entities import Capability, CustomerType
 
 # A vendor granted access through a platform. Not a customer type of its own:
@@ -117,3 +119,21 @@ def capabilities_for(tenant) -> list[str]:
     if stored:
         return stored
     return default_capabilities(getattr(tenant, "customer_type", None))
+
+
+def require_capability(db, user, capability: str) -> None:
+    """Refuse a request whose account is not entitled to it.
+
+    The sidebar already hides a screen the account cannot use, but hiding is not
+    authorization: a platform account whose payroll nav was gone could still
+    call GET /hr/payroll and get 200. Every capability the product sells has to
+    be enforced where the data is, not where the button is.
+    """
+    from ..models.entities import Tenant  # local: avoids an import cycle
+
+    tenant_id = getattr(user, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(403, f"This account is not entitled to {capability}")
+    tenant = db.get(Tenant, tenant_id)
+    if capability not in capabilities_for(tenant):
+        raise HTTPException(403, f"This account is not entitled to {capability}")

@@ -9,6 +9,7 @@ from sqlalchemy import func
 
 from ..database import get_db
 from ..models import entities as ent
+from ..services.entitlements import require_capability
 from .auth import get_current_user
 
 router = APIRouter(prefix="/analytics/payroll", tags=["payroll"])
@@ -25,9 +26,19 @@ READ_ROLES = {
 TWO_PLACES = Decimal("0.01")
 
 
-def _tenant_id(user: ent.User) -> int:
+def _tenant_id(user: ent.User, db=None) -> int:
+    """The tenant whose payroll this user may read.
+
+    Role alone was the whole check. A DELIVERY_PLATFORM account has a
+    COMPANY_ADMIN in READ_ROLES and no RIDER_PAYROLL capability, so it passed
+    here while the sidebar hid the screen — authorization living in the browser.
+    `db` is optional so the six existing call sites keep working; pass it and the
+    entitlement is enforced too.
+    """
     if user.role not in READ_ROLES or not user.tenant_id:
         raise HTTPException(403, "Payroll access required")
+    if db is not None:
+        require_capability(db, user, ent.Capability.RIDER_PAYROLL.value)
     return user.tenant_id
 
 
@@ -79,7 +90,7 @@ def payroll_summary(
     db=Depends(get_db),
 ):
     """Payroll operations summary for the selected period and hierarchy."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     period, operator_id, city_id, branch_id = _convert_query_objects(
         period, operator_id, city_id, branch_id
     )
@@ -231,7 +242,7 @@ def payroll_ledger(
     db=Depends(get_db),
 ):
     """Payroll ledger with filtering, sorting, and pagination."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     (
         period,
         operator_id,
@@ -374,7 +385,7 @@ def rider_payroll_breakdown(
     db=Depends(get_db),
 ):
     """Detailed payroll breakdown for a single rider."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     period = _convert_query_objects(period)[0]
 
     today = date.today()
@@ -523,7 +534,7 @@ def payroll_incentives(
     db=Depends(get_db),
 ):
     """Incentives and deductions visibility."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     period, input_type, source_type = _convert_query_objects(
         period, input_type, source_type
     )
@@ -597,7 +608,7 @@ def payroll_readiness(
     db=Depends(get_db),
 ):
     """Payroll readiness assessment."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     period = _convert_query_objects(period)[0]
 
     today = date.today()
@@ -684,7 +695,7 @@ def cost_summary(
     db=Depends(get_db),
 ):
     """Cost and financial operations summary."""
-    tenant_id = _tenant_id(user)
+    tenant_id = _tenant_id(user, db)
     period = _convert_query_objects(period)[0]
 
     today = date.today()

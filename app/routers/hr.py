@@ -21,6 +21,7 @@ from ..models.entities import (
     AuditLog,
     BonusPlan,
     BroadcastMessage,
+    Capability,
     Contract,
     ContractBranch,
     ContractBranchSupervisor,
@@ -50,6 +51,7 @@ from ..services.attendance_policy import (
     finalized_period,
     reconcile_absences_for_date,
 )
+from ..services.entitlements import require_capability
 from ..services.financial_calculations import (
     bonus_plan_for_courier,
     calculate_courier_bonus,
@@ -1556,6 +1558,9 @@ def decide_event(
 def create_payroll_correction(
     payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
+    # Payroll is a capability a platform account does not buy: it does not pay
+    # riders, its vendors do. The nav hides the screen; this refuses the call.
+    require_capability(db, user, Capability.RIDER_PAYROLL.value)
     if user.role not in ACCOUNT_ADMIN_ROLES:
         raise HTTPException(403, "Company admin required")
     try:
@@ -3168,6 +3173,9 @@ def hr_payroll(
     db: Session = Depends(get_db),
 ):
     """كشف الرواتب من محرك واحد؛ الفترة النهائية تُقرأ من اللقطات المحفوظة."""
+    # Payroll is a capability a platform account does not buy: it does not pay
+    # riders, its vendors do. The nav hides the screen; this refuses the call.
+    require_capability(db, user, Capability.RIDER_PAYROLL.value)
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Admin only")
     selected_month = month or date.today().strftime("%Y-%m")
@@ -3326,6 +3334,9 @@ def hr_payroll(
 def set_payroll_status(
     payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
+    # Payroll is a capability a platform account does not buy: it does not pay
+    # riders, its vendors do. The nav hides the screen; this refuses the call.
+    require_capability(db, user, Capability.RIDER_PAYROLL.value)
     if user.role not in ACCOUNT_ADMIN_ROLES:
         raise HTTPException(403, "Company admin required")
     selected_month = str(payload.get("month") or date.today().strftime("%Y-%m"))
@@ -3385,6 +3396,9 @@ def save_payroll_order_overrides(
     db: Session = Depends(get_db),
 ):
     """Save accountant verified/approved orders for couriers in a payroll period."""
+    # Payroll is a capability a platform account does not buy: it does not pay
+    # riders, its vendors do. The nav hides the screen; this refuses the call.
+    require_capability(db, user, Capability.RIDER_PAYROLL.value)
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Access denied")
 
@@ -3450,6 +3464,9 @@ def get_rider_payroll_statement(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Payroll is a capability a platform account does not buy: it does not pay
+    # riders, its vendors do. The nav hides the screen; this refuses the call.
+    require_capability(db, user, Capability.RIDER_PAYROLL.value)
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Access denied")
     selected_month = month or date.today().strftime("%Y-%m")
@@ -3572,6 +3589,9 @@ def get_rider_payroll_statement(
 def finalize_payroll(
     payload: dict, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
+    # Payroll is a capability a platform account does not buy: it does not pay
+    # riders, its vendors do. The nav hides the screen; this refuses the call.
+    require_capability(db, user, Capability.RIDER_PAYROLL.value)
     if user.role not in ACCOUNT_ADMIN_ROLES:
         raise HTTPException(403, "Company admin required")
     selected_month = str(payload.get("month") or date.today().strftime("%Y-%m"))
@@ -3596,6 +3616,9 @@ def hr_payroll_wps_export(
     db: Session = Depends(get_db),
 ):
     """تصدير بيانات المسير المقفل للتحضير البنكي؛ ليس صيغة بنك WPS رسمية."""
+    # Payroll is a capability a platform account does not buy: it does not pay
+    # riders, its vendors do. The nav hides the screen; this refuses the call.
+    require_capability(db, user, Capability.RIDER_PAYROLL.value)
     if user.role not in COMPANY_ROLES:
         raise HTTPException(403, "Admin only")
     selected_month = month or date.today().strftime("%Y-%m")
