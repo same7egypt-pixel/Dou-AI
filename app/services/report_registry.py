@@ -35,6 +35,10 @@ class ReportDefinition:
     allowed_grouping: list[str] = field(default_factory=list)
     allowed_sort: list[str] = field(default_factory=list)
     allowed_periods: list[Period] = field(default_factory=list)
+    # The capability the account must hold. None means the report is part of
+    # every plan. A report that reads money must name the capability that sells
+    # it, or the assistant becomes a way around the entitlement guards.
+    required_capability: str | None = None
     allowed_roles: list[str] = field(
         default_factory=lambda: [
             "DOU_ADMIN",
@@ -92,6 +96,7 @@ register(
         allowed_sort=[],
         allowed_periods=["TODAY", "THIS_WEEK", "THIS_MONTH", "LAST_MONTH", "PREVIOUS_PERIOD"],
         allowed_roles=["COMPANY", "COMPANY_ADMIN", "ACCOUNTANT"],
+        required_capability="RIDER_PAYROLL",
         deep_link="/app?view=reports",
     )
 )
@@ -347,4 +352,11 @@ def validate_registered_report(spec: ReportSpec, scope) -> ReportDefinition:
         and "ANY" not in definition.allowed_customer_types
     ):
         raise HTTPException(403, "Report is not available for this customer type")
+    if definition.required_capability:
+        held = getattr(scope, "capabilities", None) or frozenset()
+        if definition.required_capability not in held:
+            raise HTTPException(
+                403,
+                f"This account is not entitled to {definition.required_capability}",
+            )
     return definition

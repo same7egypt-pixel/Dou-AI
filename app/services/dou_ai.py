@@ -25,6 +25,7 @@ from .conversational_parser import (
     is_ambiguous,
     parse_question,
 )
+from .entitlements import capabilities_for
 from .report_executor import execute_report
 from .report_registry import validate_registered_report
 from .reportspec import ReportSpec, default_period_for, validate_spec_against_scope
@@ -73,6 +74,7 @@ def resolve_scope(
         user_id=user.id,
         role=role,
         supervisor_id=user.id if role == "SUPERVISOR" else None,
+        capabilities=frozenset(capabilities_for(tenant)),
     )
     if role == "PROJECT_MANAGER":
         try:

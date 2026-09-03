@@ -188,22 +188,166 @@ function fieldPair(label, value) {
   return el('div', { class: 'field-pair' }, [el('span', { text: label }), el('b', { text: String(value ?? '—') })]);
 }
 
+const DOCUMENT_TYPE_LABELS = {
+  IQAMA: { ar: 'الإقامة / الهوية الوطنية', en: 'Iqama / national ID' },
+  DRIVING_LICENSE: { ar: 'رخصة القيادة', en: 'Driving licence' },
+  VEHICLE_LICENSE: { ar: 'استمارة المركبة', en: 'Vehicle registration' },
+  INSURANCE: { ar: 'وثيقة التأمين', en: 'Insurance document' },
+  WORK_PERMIT: { ar: 'تصريح العمل', en: 'Work permit' },
+  PASSPORT: { ar: 'جواز السفر', en: 'Passport' },
+};
+
+// This tab used to read /documents/RIDER/{id} — a metadata-only store that
+// holds no files and that nothing writes to. Riders upload from the phone app
+// into CourierDocumentSubmission, so their documents were invisible here and
+// nobody could review them: the rider stayed blocked on documents:MISSING
+// forever. This reads the store that actually holds the file, and lets the
+// company file a document on the rider's behalf.
 async function renderDocuments() {
   const id = currentRiderId;
-  const docs = await api.get(`/documents/RIDER/${id}`);
-  const wrap = el('div', {});
-  if (!docs?.length) { wrap.append(emptyState('لا توجد مستندات لهذا السائق.')); return wrap; }
+  const isAr = getLang() === 'ar';
   const canManage = ['COMPANY', 'COMPANY_ADMIN', 'OPERATIONS', 'HR'].includes(getCurrentRole());
+  const wrap = el('div', {});
+
+  let docs = [];
+  try {
+    docs = await api.get(`/hr/couriers/${id}/documents`);
+  } catch (err) {
+    return errorState(
+      (isAr ? 'تعذر تحميل مستندات السائق: ' : 'Could not load the rider documents: ') + err.message,
+      () => switchTab('documents')
+    );
+  }
+
+  if (canManage) {
+    wrap.append(el('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px' }, [
+      el('select', { id: 'doc-upload-type', style: 'padding:8px 12px;border:1px solid var(--border);border-radius:8px' },
+        Object.entries(DOCUMENT_TYPE_LABELS).map(([value, label]) =>
+          el('option', { value }, isAr ? label.ar : label.en))),
+      el('button', { class: 'btn btn-blue', id: 'btn-upload-doc', onclick: () => uploadRiderDocument(id) },
+        isAr ? '📎 رفع مستند للسائق' : '📎 Upload a document'),
+      el('span', { style: 'font-size:11px;color:var(--muted)' },
+        isAr ? 'صورة أو PDF حتى 1 ميجابايت' : 'Image or PDF, up to 1 MB'),
+    ]));
+  }
+
+  if (!docs?.length) {
+    wrap.append(emptyState(isAr
+      ? 'لا توجد مستندات لهذا السائق — ارفعها هنا أو اطلب من السائق رفعها من التطبيق.'
+      : 'No documents for this rider — upload one here, or ask the rider to upload from the app.'));
+    return wrap;
+  }
+
+  const statusTone = { APPROVED: 'green', PENDING: 'amber', REJECTED: 'red' };
+  const statusLabel = isAr
+    ? { APPROVED: 'معتمد', PENDING: 'قيد المراجعة', REJECTED: 'مرفوض' }
+    : { APPROVED: 'Approved', PENDING: 'Pending', REJECTED: 'Rejected' };
+
   wrap.append(table([
-    { key: 'filename', label: 'المستند' },
-    { key: 'status', label: 'الحالة', render: (v) => badge(v, v === 'VALID' ? 'green' : v === 'PENDING' ? 'amber' : 'red') },
-    { key: 'expiry_date', label: 'الانتهاء' },
-    { key: 'actions', label: 'إجراء', render: (_, row) => row.status === 'PENDING' && canManage ? el('div', { class: 'inline-actions' }, [
-      el('button', { class: 'btn btn-green btn-small', onclick: () => window.decideDoc(row.id, 'VALID') }, 'اعتماد'),
-      el('button', { class: 'btn btn-red btn-small', onclick: () => window.decideDoc(row.id, 'REJECTED') }, 'رفض'),
-    ]) : '—' },
+    {
+      key: 'document_type',
+      label: isAr ? 'نوع المستند' : 'Document type',
+      render: (v) => (DOCUMENT_TYPE_LABELS[v] ? (isAr ? DOCUMENT_TYPE_LABELS[v].ar : DOCUMENT_TYPE_LABELS[v].en) : v),
+    },
+    { key: 'filename', label: isAr ? 'الملف' : 'File' },
+    {
+      key: 'status',
+      label: isAr ? 'الحالة' : 'Status',
+      render: (v) => badge(statusLabel[v] || v, statusTone[v] || 'gray'),
+    },
+    {
+      key: 'created_at',
+      label: isAr ? 'تاريخ الرفع' : 'Uploaded',
+      render: (v) => (v ? String(v).slice(0, 10) : '—'),
+    },
+    {
+      key: 'actions',
+      label: isAr ? 'إجراء' : 'Action',
+      render: (_, row) => el('div', { class: 'inline-actions' }, [
+        el('button', { class: 'btn btn-ghost btn-small', onclick: () => viewRiderDocument(row.id) },
+          isAr ? 'عرض' : 'View'),
+        row.status === 'PENDING' && canManage
+          ? el('button', { class: 'btn btn-green btn-small', onclick: () => decideRiderDocument(row.id, 'approve') },
+              isAr ? 'اعتماد' : 'Approve')
+          : null,
+        row.status === 'PENDING' && canManage
+          ? el('button', { class: 'btn btn-red btn-small', onclick: () => decideRiderDocument(row.id, 'reject') },
+              isAr ? 'رفض' : 'Reject')
+          : null,
+      ].filter(Boolean)),
+    },
   ], docs));
   return wrap;
+}
+
+async function viewRiderDocument(documentId) {
+  const isAr = getLang() === 'ar';
+  try {
+    const doc = await api.get(`/hr/documents/${documentId}/content`);
+    const win = window.open('', '_blank');
+    if (!win) { alert(isAr ? 'اسمح بالنوافذ المنبثقة لعرض المستند' : 'Allow pop-ups to view the document'); return; }
+    if (doc.mime_type === 'application/pdf') {
+      win.location.href = doc.file_data;
+    } else {
+      win.document.write(
+        `<title>${escapeHtml(doc.filename || '')}</title>` +
+        `<img src="${doc.file_data}" style="max-width:100%;height:auto;display:block;margin:auto">`
+      );
+    }
+  } catch (err) {
+    alert((isAr ? '❌ تعذر عرض المستند: ' : '❌ Could not open the document: ') + err.message);
+  }
+}
+
+async function decideRiderDocument(documentId, action) {
+  const isAr = getLang() === 'ar';
+  const note = prompt(isAr ? 'ملاحظة المراجعة (اختياري):' : 'Review note (optional):', '') || '';
+  try {
+    await api.post(`/hr/documents/${documentId}/decide`, { action, note });
+    switchTab('documents');
+  } catch (err) {
+    alert((isAr ? '❌ تعذر حفظ القرار: ' : '❌ Could not save the decision: ') + err.message);
+  }
+}
+
+function uploadRiderDocument(riderId) {
+  const isAr = getLang() === 'ar';
+  const documentType = document.getElementById('doc-upload-type')?.value || 'IQAMA';
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/jpeg,image/png,application/pdf';
+  input.onchange = async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    // The endpoint caps the encoded payload at 1 MB; check before encoding so
+    // the operator gets told the size, not a rejection after a slow upload.
+    if (file.size > 1_000_000) {
+      alert(isAr ? '❌ الملف أكبر من 1 ميجابايت. اضغطه ثم أعد المحاولة.'
+                 : '❌ The file is larger than 1 MB. Compress it and try again.');
+      return;
+    }
+    const button = document.getElementById('btn-upload-doc');
+    if (button) { button.disabled = true; button.textContent = isAr ? '⏳ جاري الرفع…' : '⏳ Uploading…'; }
+    try {
+      const fileData = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error(isAr ? 'تعذر قراءة الملف' : 'Could not read the file'));
+        reader.readAsDataURL(file);
+      });
+      await api.post(`/hr/couriers/${riderId}/documents`, {
+        document_type: documentType,
+        filename: file.name,
+        mime_type: file.type || 'application/octet-stream',
+        file_data: fileData,
+      });
+      switchTab('documents');
+    } catch (err) {
+      alert((isAr ? '❌ تعذر رفع المستند: ' : '❌ Could not upload the document: ') + err.message);
+      if (button) { button.disabled = false; button.textContent = isAr ? '📎 رفع مستند للسائق' : '📎 Upload a document'; }
+    }
+  };
+  input.click();
 }
 
 async function renderShifts() {
@@ -272,21 +416,86 @@ async function renderTargets() {
   return wrap;
 }
 
+// This tab used to read /analytics/payroll/breakdown, a parallel ledger built on
+// PayrollInputRecord that the payroll engine never writes. The result was a
+// rider showing 0 SAR here while the payroll sheet showed 216 for the same
+// rider and month. Payroll has exactly one calculation path (see CLAUDE.md);
+// the rider statement is that path, scoped to one rider.
 async function renderPayroll() {
   const id = currentRiderId;
-  const data = await api.get(`/analytics/payroll/breakdown/${id}`);
+  const month = new Date().toISOString().slice(0, 7);
+  const isAr = getLang() === 'ar';
+  const money = (v) => `${Number(v || 0).toFixed(2)} ${isAr ? 'ر.س' : 'SAR'}`;
+
+  let data;
+  try {
+    data = await api.get(`/hr/payroll/rider/${id}/statement?month=${month}`);
+  } catch (err) {
+    return errorState(
+      (isAr ? 'تعذر تحميل كشف حساب المندوب: ' : 'Could not load the rider statement: ') + err.message,
+      () => switchTab('payroll')
+    );
+  }
+
+  const s = data.statement || {};
+  const period = data.period || {};
   const wrap = el('div', {});
-  const totals = data.totals || {};
+
   wrap.append(el('div', { class: 'cards' }, [
-    metricCard(`${totals.base || 0} ر.س`, 'الأساسي'),
-    metricCard(`${totals.incentives || 0} ر.س`, 'الحوافز', 'trend'),
-    metricCard(`${totals.deductions || 0} ر.س`, 'الخصومات', 'alert'),
-    metricCard(`${totals.net || 0} ر.س`, 'الصافي'),
+    metricCard(money(s.base_salary), isAr ? 'الأساسي والبدلات' : 'Base & allowances'),
+    metricCard(money(s.delivery_pay), isAr ? 'أجر التوصيل' : 'Delivery pay', 'trend'),
+    metricCard(money(s.target_bonus), isAr ? 'حافز التارجت' : 'Target bonus', 'trend'),
+    metricCard(money(s.total_deductions), isAr ? 'الاستقطاعات' : 'Deductions', 'alert'),
+    metricCard(money(s.net_pay), isAr ? 'صافي المستحق' : 'Net pay'),
   ]));
+
+  // Every line the sheet computes, so this screen and the sheet can be compared
+  // row by row rather than trusted separately.
+  const lines = [
+    { label: isAr ? 'الراتب الأساسي والبدلات' : 'Base salary & allowances', value: s.base_salary },
+    { label: isAr ? `الطلبات المعتمدة (${s.approved_orders ?? 0} × ${s.per_delivery_rate ?? 0})` : `Approved orders (${s.approved_orders ?? 0} × ${s.per_delivery_rate ?? 0})`, value: s.delivery_pay },
+    { label: isAr ? 'حافز التارجت' : 'Target bonus', value: s.target_bonus },
+    { label: isAr ? 'ساعات إضافية' : 'Overtime', value: s.overtime_pay },
+    { label: isAr ? 'إضافات أخرى' : 'Other additions', value: s.other_additions },
+    { label: isAr ? 'إجمالي المستحق' : 'Gross pay', value: s.gross_pay, strong: true },
+    { label: isAr ? 'خصم غياب' : 'Absence deduction', value: -Math.abs(s.absence_deduction || 0) },
+    { label: isAr ? 'خصم تأخير' : 'Lateness deduction', value: -Math.abs(s.late_deduction || 0) },
+    { label: isAr ? 'سلف مستردة' : 'Advances recovered', value: -Math.abs(s.advance_deduction || 0) },
+    { label: isAr ? 'خصومات أخرى' : 'Other deductions', value: -Math.abs(s.other_deduction || 0) },
+    { label: isAr ? 'مديونية مرحّلة مسددة' : 'Carried debt applied', value: -Math.abs(s.carried_debt_applied || 0) },
+    { label: isAr ? 'صافي المستحق للصرف' : 'Net pay', value: s.net_pay, strong: true },
+  ].filter((l) => l.strong || Number(l.value || 0) !== 0);
+
+  const statusBadge = period.finalized
+    ? badge(isAr ? '🔒 مقفل بلقطة مالية' : '🔒 Finalized snapshot', 'green')
+    : badge(isAr ? '✏️ مسودة تشغيلية' : '✏️ Live draft', 'amber');
+
   wrap.append(el('div', { class: 'card' }, [
-    el('h3', { text: `تفصيل الراتب — ${data.period || 'الشهر'}` }),
-    data.base_inputs?.length ? table([{ key: 'description', label: 'الوصف' }, { key: 'amount', label: 'المبلغ' }], data.base_inputs) : null,
+    el('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px' }, [
+      el('h3', { style: 'margin:0', text: `${isAr ? 'تفصيل الراتب —' : 'Salary breakdown —'} ${period.month || month}` }),
+      statusBadge,
+    ]),
+    table(
+      [
+        { key: 'label', label: isAr ? 'البند' : 'Line' },
+        { key: 'amount', label: isAr ? 'المبلغ' : 'Amount' },
+      ],
+      lines.map((l) => ({
+        label: l.strong ? `● ${l.label}` : l.label,
+        amount: money(l.value),
+      }))
+    ),
   ]));
+
+  if (Number(s.debt_generated || 0) > 0) {
+    wrap.append(el('div', { class: 'card', style: 'border-color:var(--amber)' }, [
+      el('p', { style: 'margin:0;color:var(--amber);font-weight:600' },
+        isAr
+          ? `مدين — مرحّل ${money(s.debt_generated)} للشهر التالي. صافي هذا الشهر صفر.`
+          : `In debt — ${money(s.debt_generated)} carried to next month. This month's net is zero.`),
+    ]));
+  }
+
   return wrap;
 }
 

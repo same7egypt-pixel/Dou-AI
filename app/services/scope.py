@@ -21,6 +21,11 @@ class AuthorizedScope:
     rider_id: int | None = None
     project_id: int | None = None
     city_id: int | None = None
+    # What the account has actually bought. DOU AI answered a payroll question
+    # for a platform account that /hr/payroll refuses with 403, because the
+    # assistant only ever checked tenant and role. The registry now gates on
+    # this too, so the assistant cannot be a way around an entitlement.
+    capabilities: frozenset[str] = frozenset()
 
 
 def courier_query(db: Session, scope: AuthorizedScope) -> Query:

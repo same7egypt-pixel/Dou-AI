@@ -1846,6 +1846,89 @@ def company_documents(
     return [_document_json(x, db) for x in rows]
 
 
+DOCUMENT_TYPE_NAMES_AR = {
+    "IQAMA": "الإقامة / الهوية الوطنية",
+    "DRIVING_LICENSE": "رخصة القيادة",
+    "VEHICLE_LICENSE": "استمارة المركبة",
+    "PASSPORT": "جواز السفر",
+    "INSURANCE": "وثيقة التأمين",
+    "WORK_PERMIT": "تصريح العمل",
+}
+
+DOCUMENT_TYPES = (
+    "IQAMA",
+    "DRIVING_LICENSE",
+    "VEHICLE_LICENSE",
+    "PASSPORT",
+    "INSURANCE",
+    "WORK_PERMIT",
+)
+
+
+@router.post("/couriers/{cid}/documents")
+def upload_courier_document(
+    cid: int,
+    payload: dict,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload a rider's document on their behalf.
+
+    Only the rider could put a file into the system, through the phone app.
+    A company that collects iqama copies centrally in HR — which is how a fleet
+    of a few hundred riders actually works — had no way to file them, so the
+    rider stayed blocked on `documents:MISSING` until they uploaded it
+    themselves. This writes to the same table the rider app writes to and lands
+    in the same review queue, so there is still one store and one audit trail.
+    """
+    if user.role not in COMPANY_ROLES:
+        raise HTTPException(403, "Company management required")
+    courier = _tenant_couriers(db, user).filter(Courier.id == cid).first()
+    if not courier:
+        raise HTTPException(404, "Courier not found")
+
+    data = str(payload.get("file_data") or "")
+    if not data.startswith("data:") or len(data) > 1_500_000:
+        raise HTTPException(400, "الملف غير صالح أو أكبر من 1 ميجابايت")
+    typ = payload.get("document_type")
+    if typ not in DOCUMENT_TYPES:
+        raise HTTPException(400, "نوع المستند غير صحيح")
+
+    row = CourierDocumentSubmission(
+        tenant_id=courier.tenant_id,
+        courier_id=courier.id,
+        document_type=typ,
+        filename=(payload.get("filename") or "document")[:180],
+        mime_type=(payload.get("mime_type") or "application/octet-stream")[:80],
+        file_data=data,
+        status="PENDING",
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    _log(db, user, f"رفع مستند {typ} للمندوب {courier.name}", "document", row.id)
+    return {"ok": True, "id": row.id, "status": row.status}
+
+
+@router.get("/couriers/{cid}/documents")
+def courier_documents(
+    cid: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """One rider's documents, from the store that actually holds the files."""
+    if user.role not in COMPANY_ROLES + (UserRole.SUPERVISOR,):
+        raise HTTPException(403, "Not allowed")
+    courier = _tenant_couriers(db, user).filter(Courier.id == cid).first()
+    if not courier:
+        raise HTTPException(404, "Courier not found")
+    rows = (
+        db.query(CourierDocumentSubmission)
+        .filter(CourierDocumentSubmission.courier_id == courier.id)
+        .order_by(CourierDocumentSubmission.id.desc())
+        .all()
+    )
+    return [_document_json(x, db) for x in rows]
+
+
 @router.get("/documents/{did}/content")
 def document_content(
     did: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)
@@ -1875,8 +1958,85 @@ def decide_document(
     x.review_note = payload.get("note")
     x.reviewed_by = user.id
     x.reviewed_at = datetime.utcnow()
+    db.flush()
+    kyc_status = _sync_document_to_kyc(db, x)
     db.commit()
-    return {"ok": True, "status": x.status}
+    return {"ok": True, "status": x.status, "kyc_status": kyc_status}
+
+
+def _sync_document_to_kyc(db: Session, submission) -> str | None:
+    """Carry an approved document through to the readiness gate.
+
+    Two document subsystems grew up side by side. Riders upload files into
+    CourierDocumentSubmission; readiness reads KYCStatus, which is computed from
+    the separate Document table. Nothing joined them, so a document could be
+    uploaded and approved and the rider still showed `documents:MISSING`
+    forever — there was no sequence of actions in the product that made a rider
+    READY.
+
+    Approving a submission now records it in the Document table and recomputes
+    KYC. Only the type catalogue is created on demand; which documents are
+    mandatory stays a tenant decision in DocumentRequirement, untouched here.
+    """
+    # Imported here rather than at module scope: documents.py already imports
+    # from this module's neighbours, and a top-level import closes the cycle.
+    from ..models.entities import Document, DocumentType
+    from .documents import _recompute_kyc_status
+
+    if submission.status != "APPROVED":
+        return None
+
+    doc_type = (
+        db.query(DocumentType)
+        .filter(
+            DocumentType.tenant_id == submission.tenant_id,
+            DocumentType.code == submission.document_type,
+        )
+        .first()
+    )
+    if not doc_type:
+        label = submission.document_type.replace("_", " ").title()
+        doc_type = DocumentType(
+            tenant_id=submission.tenant_id,
+            code=submission.document_type,
+            name_ar=DOCUMENT_TYPE_NAMES_AR.get(submission.document_type, label),
+            name_en=label,
+            is_active=True,
+        )
+        db.add(doc_type)
+        db.flush()
+
+    existing = (
+        db.query(Document)
+        .filter(
+            Document.tenant_id == submission.tenant_id,
+            Document.owner_type == "RIDER",
+            Document.owner_id == submission.courier_id,
+            Document.document_type_id == doc_type.id,
+        )
+        .first()
+    )
+    if existing:
+        existing.status = "VALID"
+        existing.filename = submission.filename
+        existing.mime_type = submission.mime_type
+    else:
+        db.add(
+            Document(
+                tenant_id=submission.tenant_id,
+                document_type_id=doc_type.id,
+                owner_type="RIDER",
+                owner_id=submission.courier_id,
+                filename=submission.filename,
+                mime_type=submission.mime_type,
+                storage_key=f"submission:{submission.id}",
+                status="VALID",
+                uploaded_by=submission.reviewed_by,
+            )
+        )
+    db.flush()
+    kyc = _recompute_kyc_status(db, submission.tenant_id, submission.courier_id)
+    return kyc.status if kyc else None
 
 
 # ===================== الأدمن/المشرف: بونص =====================

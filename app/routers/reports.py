@@ -1,5 +1,6 @@
 import csv
 import io
+import logging
 import os
 import time
 from collections import defaultdict
@@ -28,6 +29,8 @@ from ..services.vendor_scorecard import (
     vendor_scorecard,
 )
 from .auth import get_current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/analytics/reports", tags=["reports"])
 
@@ -546,7 +549,13 @@ def _generate_metabase_embed_url(dashboard_id: int, tenant_id: Optional[int]) ->
     if not METABASE_EMBEDDING_SECRET_KEY:
         # Fail closed. A hardcoded fallback key lets anyone holding the source
         # forge a token for any dashboard.
-        raise HTTPException(503, "التحليلات غير مهيأة: METABASE_EMBEDDING_SECRET_KEY غير مضبوط")
+        # The customer cannot act on the name of an environment variable, and it
+        # does not belong on their screen. The cause stays in the server log.
+        logger.warning("Metabase embedding requested but METABASE_EMBEDDING_SECRET_KEY is unset")
+        raise HTTPException(
+            503,
+            "لوحات التحليل غير مفعّلة على هذا الحساب بعد. تواصل مع الدعم لتفعيلها.",
+        )
     if not tenant_id:
         # Platform-wide access would need its own deliberate dashboard, not an
         # unlocked copy of a tenant one.

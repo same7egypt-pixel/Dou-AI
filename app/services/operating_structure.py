@@ -139,7 +139,15 @@ def resolve_active_tenant_city_by_name(
 
 
 def require_active_tenant_city(db: Session, tenant_id: int, city_id: int) -> GeoCity:
-    city = db.get(GeoCity, int(city_id))
+    # A branch stored without a city reached int(None) and crashed the request
+    # with an unhandled TypeError, so adding a rider to it returned a bare 500
+    # server-error page instead of telling the operator what was wrong.
+    if city_id is None:
+        raise ValueError("هذا الفرع بلا مدينة مسجّلة؛ عدّل الفرع وحدّد مدينته أولاً")
+    try:
+        city = db.get(GeoCity, int(city_id))
+    except (TypeError, ValueError):
+        raise ValueError("معرّف المدينة غير صالح لهذا الفرع")
     if not city or not city.active:
         raise ValueError("المدينة غير موجودة أو غير مفعلة")
     enabled = (
@@ -197,7 +205,14 @@ def require_branch_assignment(
         or supervisor.role != UserRole.SUPERVISOR
         or not supervisor.is_active
     ):
-        raise ValueError("عيّن مشرفاً مسؤولاً ونشطاً لفرع العقد قبل تعيين المندوب")
+        # Say where to do it. The operator hits this the first time they add a
+        # rider, and the branch's supervisor is set from the contract screen —
+        # not from anywhere near the rider form they are standing in.
+        raise ValueError(
+            "لهذا الفرع لا يوجد مشرف مسؤول نشط. افتح «تخطيط السعة ← العقود التجارية» "
+            "ثم «➕ إضافة فرع» واختر نفس المدينة مع المشرف لإسناده للفرع، "
+            "أو أنشئ مشرفاً أولاً من «👔 إدارة المشرفين»."
+        )
     if supervisor_id and int(supervisor_id) != supervisor.id:
         raise ValueError("المشرف المختار غير مسؤول عن فرع العقد")
     return contract, branch, city, project, supervisor

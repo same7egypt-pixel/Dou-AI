@@ -83,9 +83,11 @@ async function renderPayrollLedger(container, mainContainer) {
   container.append(loadingState(isAr ? 'جاري تجميع واحتساب مسير الرواتب وتسوية حسابات المناديب...' : 'Calculating monthly payroll ledger and rider settlements...'));
 
   try {
-    const data = await api.get(`/hr/payroll?month=${selectedPayrollMonth}`).catch(async () => {
-      return await api.get('/analytics/payroll/summary');
-    });
+    // No fallback. /analytics/payroll/summary reads a ledger the payroll engine
+    // never writes, so falling back rendered zeros as if they were payroll —
+    // worse than an error, because it looks like an answer. A failure here is
+    // shown as a failure.
+    const data = await api.get(`/hr/payroll?month=${selectedPayrollMonth}`);
 
     container.innerHTML = '';
     const status = (data.status || (data.finalized ? 'FINALIZED' : 'DRAFT')).toUpperCase();
