@@ -42,7 +42,6 @@ services:
     # This one mount is data, not code — database dumps have to outlive the
     # container they were written in.
     volumes:
-      - .:/app
       - ./backups:/app/backups
     environment:
       APP_ENV: production
