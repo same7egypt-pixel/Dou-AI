@@ -23,6 +23,19 @@ export async function loadReports(container) {
     ]),
   ]);
 
+  // The dashboards tab only exists when analytics is actually hosted. It used
+  // to render unconditionally and answer 503, so every customer met a broken
+  // third tab. The endpoint reports NOT_CONFIGURED, and the tab appears by
+  // itself once Metabase is running — no further change needed here.
+  let analyticsReady = false;
+  try {
+    const status = await api.get('/analytics/reports/dashboards');
+    analyticsReady = status?.status !== 'NOT_CONFIGURED' && (status?.dashboards || []).length > 0;
+  } catch (err) {
+    analyticsReady = false;
+  }
+  if (!analyticsReady && activeSubTab === 'dashboards') activeSubTab = 'driver_targets';
+
   const subTabs = el('div', { class: 'tabs', style: 'margin-bottom:18px' }, [
     el('button', {
       class: `tab ${activeSubTab === 'driver_targets' ? 'active' : ''}`,
@@ -34,12 +47,12 @@ export async function loadReports(container) {
       'data-tab': 'platform_facts',
       onclick: () => switchTab('platform_facts', container)
     }, isAr ? '📈 أداء المنصات' : '📈 Platform Performance'),
-    el('button', {
+    analyticsReady ? el('button', {
       class: `tab ${activeSubTab === 'dashboards' ? 'active' : ''}`,
       'data-tab': 'dashboards',
       onclick: () => switchTab('dashboards', container)
-    }, isAr ? '📊 لوحات التحليل' : '📊 Analytics Dashboards'),
-  ]);
+    }, isAr ? '📊 لوحات التحليل' : '📊 Analytics Dashboards') : null,
+  ].filter(Boolean));
 
   const contentArea = el('div', { id: 'reports-content-area' });
   container.append(header, subTabs, contentArea);

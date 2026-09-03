@@ -24,11 +24,18 @@ SECRET = "test-embed-secret-key-for-signing-only"
 
 @pytest.fixture
 def reports(monkeypatch):
-    """Reload the module so it picks up the patched environment."""
+    """Reload the module so it picks up the patched environment, then put it back.
+
+    Reloading without restoring left a configured Metabase key in
+    app.routers.reports for every test that ran afterwards, so any test
+    asserting the unconfigured behaviour passed alone and failed in the suite.
+    """
     monkeypatch.setenv("METABASE_EMBEDDING_SECRET_KEY", SECRET)
     monkeypatch.setenv("METABASE_URL", "https://metabase.example")
     module = importlib.import_module("app.routers.reports")
-    return importlib.reload(module)
+    yield importlib.reload(module)
+    monkeypatch.undo()
+    importlib.reload(module)
 
 
 def _payload(url: str) -> dict:

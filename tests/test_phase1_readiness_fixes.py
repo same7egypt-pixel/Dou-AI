@@ -355,3 +355,38 @@ def test_the_supervisor_error_names_where_to_fix_it():
     assert "تخطيط السعة" in message and "إضافة فرع" in message, (
         "the error must name the screen that fixes it"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# An unconfigured feature is absent, not broken
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_dashboards_report_not_configured_instead_of_failing(env, monkeypatch):
+    """The endpoint raised 503 when analytics was not hosted, so every customer
+    met a third tab that only ever showed an error. The screen could not tell
+    "not set up" from "failed"."""
+    # State the precondition rather than inherit it from whatever ran before.
+    monkeypatch.setattr(
+        "app.routers.reports.METABASE_EMBEDDING_SECRET_KEY", "", raising=False
+    )
+    res = env["client"].get(
+        "/analytics/reports/dashboards", headers=_auth(env["logistics"])
+    )
+    assert res.status_code == 200, (
+        f"an unhosted analytics stack must not surface as a failure: {res.status_code}"
+    )
+    body = res.json()
+    assert body["status"] == "NOT_CONFIGURED"
+    assert body["dashboards"] == []
+
+
+def test_the_reports_screen_hides_the_tab_until_analytics_exists():
+    source = (ROOT / "frontend-v2" / "fleet" / "views" / "reports.js").read_text(encoding="utf-8")
+    assert "NOT_CONFIGURED" in source, (
+        "the reports screen must read the configuration state before rendering "
+        "the dashboards tab"
+    )
+    assert "analyticsReady ?" in source, (
+        "the dashboards tab must be conditional, not always rendered"
+    )

@@ -935,8 +935,21 @@ def analytics_views(user: ent.User = Depends(get_current_user)):
 @router.get("/dashboards")
 @router.get("/metabase/dashboards")
 def metabase_dashboards(user: ent.User = Depends(get_current_user)):
-    """Return available Metabase interactive dashboards with signed JWT embed URLs."""
+    """Available analytics dashboards, or an honest empty list.
+
+    This used to raise 503 when analytics was unconfigured, which put a broken
+    tab in front of every customer — the screen could not tell "not set up" from
+    "failed", so it rendered an error either way. Reporting NOT_CONFIGURED lets
+    the screen hide the tab until analytics is actually hosted, and show it the
+    moment it is, with no further change.
+    """
     tenant_id = _tenant_id(user)
+    if not METABASE_EMBEDDING_SECRET_KEY:
+        return {
+            "dashboards": [],
+            "metabase_url": None,
+            "status": "NOT_CONFIGURED",
+        }
     dashboards = [
         {
             "id": 2,
