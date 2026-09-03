@@ -8,7 +8,7 @@
 // The API refuses both endpoints to an account without MANAGE_OPERATORS, so
 // this screen never has to guess at permission.
 import { api } from '../../shared/api/client.js';
-import { el, loadingState, emptyState, errorState, metricCard, badge, table } from '../../shared/components/ui.js';
+import { el, loadingState, emptyState, errorState, metricCard, badge, table, modal } from '../../shared/components/ui.js';
 import { getLang } from '../../shared/i18n/i18n.js';
 import { go } from '../shell.js';
 
@@ -41,6 +41,11 @@ export async function renderVendors(container) {
       'data-tab': 'compliance',
       onclick: () => { activeTab = 'compliance'; renderVendors(container); }
     }, isAr ? '🛡️ جدار الالتزام' : '🛡️ Compliance Wall'),
+    el('button', {
+      class: `tab ${activeTab === 'partners' ? 'active' : ''}`,
+      'data-tab': 'partners',
+      onclick: () => { activeTab = 'partners'; renderVendors(container); }
+    }, isAr ? '🤝 شركاء التشغيل والدعوات' : '🤝 3PL Operating Partners'),
   ]);
   container.append(tabs);
 
@@ -49,7 +54,8 @@ export async function renderVendors(container) {
 
   try {
     if (activeTab === 'scorecard') await renderScorecard(pane, isAr);
-    else await renderCompliance(pane, isAr);
+    else if (activeTab === 'compliance') await renderCompliance(pane, isAr);
+    else await renderPartners(pane, isAr);
   } catch (e) {
     pane.innerHTML = '';
     pane.append(errorState((isAr ? 'تعذر تحميل بيانات المورّدين: ' : 'Could not load vendors: ') + e.message));
@@ -162,4 +168,135 @@ async function renderCompliance(pane, isAr) {
       onclick: () => { window.__rider360InitialId = v; window.__rider360InitialTab = 'documents'; go('rider360'); }
     }, isAr ? 'فتح الملف ➔' : 'Open profile ➔') },
   ], rows));
+}
+
+async function renderPartners(pane, isAr) {
+  pane.innerHTML = '';
+  const data = await api.get('/enterprise/operators?active_only=false').catch(() => []);
+  const partners = Array.isArray(data) ? data : (data.operators || []);
+
+  const totalPartners = partners.length;
+  const activePartners = partners.filter(p => p.invitation_status === 'ACCEPTED' || p.is_active).length;
+  const pendingPartners = partners.filter(p => p.invitation_status === 'PENDING').length;
+
+  const topBar = el('div', {
+    style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;margin-bottom:20px;'
+  }, [
+    el('div', { class: 'cards', style: 'margin:0;flex:1;' }, [
+      metricCard(totalPartners, isAr ? 'إجمالي المشغلين' : 'Total 3PLs', 'blue'),
+      metricCard(activePartners, isAr ? 'شراكات نشطة معتمدة' : 'Active Partners', 'trend'),
+      metricCard(pendingPartners, isAr ? 'دعوات بانتظار الموافقة' : 'Pending Invitations', pendingPartners > 0 ? 'amber' : 'blue'),
+    ]),
+    el('button', {
+      class: 'btn btn-primary',
+      style: 'white-space:nowrap;padding:10px 18px;',
+      onclick: () => openInviteModal(pane, isAr)
+    }, isAr ? '+ دعوة شركة تشغيل جديدة' : '+ Invite 3PL Operator')
+  ]);
+  pane.append(topBar);
+
+  if (!partners.length) {
+    pane.append(emptyState(isAr
+      ? 'لا يوجد شركاء تشغيل حالياً. اضغط على "+ دعوة شركة تشغيل جديدة" لربط أول شركة تشغيل عبر رقم جوال المشرف.'
+      : 'No operating partners yet. Click "+ Invite 3PL Operator" to connect your first 3PL vendor.'));
+    return;
+  }
+
+  pane.append(table([
+    {
+      key: 'name',
+      label: isAr ? 'شركة التشغيل' : 'Operator Company',
+      render: (v, r) => el('div', {}, [
+        el('b', { style: 'display:block;color:var(--text);font-size:14px;' }, v || (isAr ? `مشغل #${r.operator_tenant_id}` : `Operator #${r.operator_tenant_id}`)),
+        el('small', { style: 'color:var(--muted);font-size:11px;' }, r.legal_name || '')
+      ])
+    },
+    {
+      key: 'relationship_type',
+      label: isAr ? 'نوع الشراكة' : 'Relationship',
+      render: (v) => badge(v || 'OPERATOR', 'blue')
+    },
+    {
+      key: 'invitation_status',
+      label: isAr ? 'حالة الشراكة' : 'Status',
+      render: (v, r) => {
+        if (v === 'ACCEPTED' || (r.is_active && !v)) {
+          return el('span', { class: 'badge badge-green' }, isAr ? '✅ نشط ومعتمد' : 'Active & Accepted');
+        } else if (v === 'PENDING') {
+          return el('span', { class: 'badge badge-amber' }, isAr ? '⏳ بانتظار موافقة المشغل' : 'Pending Acceptance');
+        } else if (v === 'REJECTED') {
+          return el('span', { class: 'badge badge-alert' }, isAr ? '❌ مرفوضة' : 'Rejected');
+        }
+        return el('span', { class: 'badge badge-gray' }, v || '—');
+      }
+    },
+    {
+      key: 'invited_at',
+      label: isAr ? 'تاريخ الدعوة' : 'Invited Date',
+      render: (v) => el('span', { style: 'font-variant-numeric:tabular-nums;' }, v ? new Date(v).toLocaleDateString(isAr ? 'ar-SA' : 'en-US') : '—')
+    },
+  ], partners));
+}
+
+function openInviteModal(pane, isAr) {
+  const phoneInput = el('input', {
+    type: 'tel',
+    placeholder: '05xxxxxxxx / 9665xxxxxxxx',
+    class: 'input',
+    style: 'width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;box-sizing:border-box;'
+  });
+
+  const typeSelect = el('select', {
+    class: 'select',
+    style: 'width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;box-sizing:border-box;'
+  }, [
+    el('option', { value: 'OPERATOR' }, isAr ? '🏢 شركة تشغيل لوجستية (OPERATOR)' : 'Logistics Operator (OPERATOR)'),
+    el('option', { value: 'FRANCHISE' }, isAr ? '🏷️ فرانشايز (FRANCHISE)' : 'Franchise Partner (FRANCHISE)'),
+    el('option', { value: 'PARTNER' }, isAr ? '🤝 شريك تجاري (PARTNER)' : 'Commercial Partner (PARTNER)'),
+  ]);
+
+  const submitBtn = el('button', {
+    class: 'btn btn-primary',
+    style: 'width:100%;margin-top:16px;padding:12px;font-weight:700;'
+  }, isAr ? 'إرسال دعوة الشراكة والربط' : 'Send Partnership Invitation');
+
+  const content = el('div', { style: 'padding:8px 0;' }, [
+    el('p', { style: 'color:var(--muted);font-size:13px;margin-bottom:14px;line-height:1.5;' },
+      isAr ? 'أدخل رقم جوال المدير المسؤول لشركة التشغيل (المسجل حسابه في DOU). ستصل الدعوة لحسابه مباشرة للموافقة والربط.'
+           : 'Enter the mobile phone number of the 3PL operator admin registered in DOU. They will receive the invitation instantly.'),
+    el('div', { style: 'margin-bottom:12px;' }, [
+      el('label', { style: 'font-weight:600;font-size:13px;display:block;' }, isAr ? 'رقم جوال أدمن شركة التشغيل *' : 'Operator Admin Mobile *'),
+      phoneInput
+    ]),
+    el('div', { style: 'margin-bottom:14px;' }, [
+      el('label', { style: 'font-weight:600;font-size:13px;display:block;' }, isAr ? 'نوع العلاقة التشغيلية' : 'Relationship Type'),
+      typeSelect
+    ]),
+    submitBtn
+  ]);
+
+  const m = modal(isAr ? 'دعوة شركة تشغيل 3PL جديدة' : 'Invite New 3PL Operator', content);
+
+  submitBtn.onclick = async () => {
+    const phone = phoneInput.value.trim();
+    if (!phone) {
+      alert(isAr ? 'يرجى إدخال رقم جوال المشغل' : 'Please enter phone number');
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = isAr ? 'جاري الإرسال...' : 'Sending...';
+    try {
+      await api.post('/enterprise/operators/invite', {
+        admin_phone: phone,
+        relationship_type: typeSelect.value
+      });
+      m.close();
+      alert(isAr ? 'تم إرسال دعوة الشراكة بنجاح! ستظهر في لوحة تحكم المشغل للموافقة.' : 'Invitation sent successfully!');
+      renderPartners(pane, isAr);
+    } catch (err) {
+      alert((isAr ? 'خطأ في إرسال الدعوة: ' : 'Error: ') + (err.message || err));
+      submitBtn.disabled = false;
+      submitBtn.textContent = isAr ? 'إرسال دعوة الشراكة والربط' : 'Send Partnership Invitation';
+    }
+  };
 }

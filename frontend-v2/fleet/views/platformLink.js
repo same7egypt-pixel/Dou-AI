@@ -35,14 +35,68 @@ export async function renderPlatformLink(container) {
   const pane = el('div', {}, [loadingState(isAr ? 'جاري التحميل...' : 'Loading...')]);
   container.append(pane);
 
+  // 1. Check for incoming partnership invitations from delivery platforms
+  try {
+    const invites = await api.get('/enterprise/operators/invitations/incoming').catch(() => []);
+    const incomingList = Array.isArray(invites) ? invites : (invites.invitations || []);
+    if (incomingList.length > 0) {
+      const inviteCards = incomingList.map(inv => el('div', {
+        class: 'card',
+        style: 'background:var(--surface, #1e293b);border:2px solid var(--primary, #3b82f6);padding:16px 20px;margin-bottom:18px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;box-shadow:0 4px 12px rgba(0,0,0,0.1);'
+      }, [
+        el('div', {}, [
+          el('div', { style: 'font-weight:700;font-size:15px;color:var(--text, #fff);display:flex;align-items:center;gap:8px;' }, [
+            el('span', { text: '📬' }),
+            el('span', { text: isAr ? `دعوة شراكة رسمية من منصة: ${inv.platform_name || ('منصة #' + inv.platform_tenant_id)}` : `Official Partnership Invitation: ${inv.platform_name || ('Platform #' + inv.platform_tenant_id)}` })
+          ]),
+          el('div', { style: 'color:var(--muted);font-size:13px;margin-top:6px;' },
+            isAr ? `نوع الشراكة: ${inv.relationship_type || 'مشغل لوجستي'} · تاريخ الإرسال: ${inv.invited_at ? new Date(inv.invited_at).toLocaleDateString('ar-SA') : 'اليوم'}`
+                 : `Relationship: ${inv.relationship_type || 'Operator'} · Invited: ${inv.invited_at ? new Date(inv.invited_at).toLocaleDateString() : 'Today'}`)
+        ]),
+        el('div', { style: 'display:flex;gap:10px;' }, [
+          el('button', {
+            class: 'btn btn-primary btn-small',
+            style: 'padding:8px 16px;font-weight:600;',
+            onclick: async () => {
+              try {
+                await api.post(`/enterprise/operators/invitations/${inv.id}/respond`, { action: 'ACCEPT' });
+                alert(isAr ? 'تم قبول الشراكة وتفعيل الربط بنجاح!' : 'Partnership accepted and activated!');
+                renderPlatformLink(container);
+              } catch (err) {
+                alert((isAr ? 'خطأ في قبول الدعوة: ' : 'Error: ') + (err.message || err));
+              }
+            }
+          }, isAr ? '✅ قبول الشراكة' : '✅ Accept Partnership'),
+          el('button', {
+            class: 'btn btn-ghost btn-small',
+            style: 'color:var(--red, #ef4444);padding:8px 14px;',
+            onclick: async () => {
+              if (confirm(isAr ? 'هل أنت متأكد من رفض دعوة الشراكة هذه؟' : 'Are you sure you want to decline this invitation?')) {
+                try {
+                  await api.post(`/enterprise/operators/invitations/${inv.id}/respond`, { action: 'REJECT' });
+                  renderPlatformLink(container);
+                } catch (err) {
+                  alert((isAr ? 'خطأ: ' : 'Error: ') + (err.message || err));
+                }
+              }
+            }
+          }, isAr ? '❌ رفض' : '❌ Decline')
+        ])
+      ]));
+      container.insertBefore(el('div', { style: 'margin-bottom:14px;' }, inviteCards), pane);
+    }
+  } catch (err) {
+    console.warn('Could not load incoming invitations', err);
+  }
+
   try {
     const list = await api.get('/analytics/reports/vendor-portal/platforms');
     const platforms = list.platforms || [];
     if (!platforms.length) {
       pane.innerHTML = '';
       pane.append(emptyState(isAr
-        ? 'لا توجد منصة أتاحت لك لوحتها بعد. تُفعَّل هذه الشاشة بموافقة المنصة التي تعمل معها.'
-        : 'No platform has opened its dashboard to you yet.'));
+        ? 'لا توجد منصة مفعلة حالياً. تُفعَّل هذه الشاشة تلقائياً عند قبول دعوة الشراكة من المنصة التي تعمل معها.'
+        : 'No platform active yet. This screen activates upon accepting a partnership invitation from your delivery platform.'));
       return;
     }
     if (!activePlatform || !platforms.some(p => p.platform_tenant_id === activePlatform)) {
