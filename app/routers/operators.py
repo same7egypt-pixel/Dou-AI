@@ -52,6 +52,22 @@ def _tenant_id(user: ent.User, db=None) -> int:
     return user.tenant_id
 
 
+def _network_tenant_id(user: ent.User, db) -> int:
+    """The tenant whose vendor *network* this user may reach.
+
+    Assigning a rider to a vendor, reading that history, and reading network
+    health are operational acts, not financial ones. They were gated on
+    OPERATOR_SETTLEMENTS along with the settlement endpoints, so a platform that
+    bought vendor management without B2B settlement could not move a rider
+    between its own vendors. The capability that governs the network is
+    MANAGE_OPERATORS.
+    """
+    if user.role not in READ_ROLES or not user.tenant_id:
+        raise HTTPException(403, "Operator access required")
+    require_capability(db, user, ent.Capability.MANAGE_OPERATORS.value)
+    return user.tenant_id
+
+
 def _quantize(value: Decimal) -> Decimal:
     """Quantize to 2 decimal places (SAR currency precision)."""
     return value.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
@@ -342,8 +358,22 @@ def assign_rider_to_operator(
     user: ent.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Assign a rider to an operator with effective dating."""
-    tenant_id = _tenant_id(user, db)
+    """Assign a rider to an operator, superseding the current assignment.
+
+    Moving a rider from one vendor to the next is the ordinary case, and it was
+    the one case this endpoint could not do. The overlap check rejected any open
+    ACTIVE assignment starting on or before the new date — which is exactly what
+    a rider already working for a vendor has — so every transfer answered 409 and
+    the "end the current assignment" branch below it was unreachable. A rider
+    could be assigned once, ever. `status="TRANSFERRED"` was in the model and
+    nothing ever wrote it.
+
+    A real conflict is a record that would be *contradicted*, not one that would
+    be superseded: an assignment that already starts on or after the new date.
+    Backdating under it would leave two rows claiming the same day with no rule
+    for which one owns the rider's orders.
+    """
+    tenant_id = _network_tenant_id(user, db)
 
     # Validate courier belongs to this tenant
     courier = (
@@ -358,40 +388,38 @@ def assign_rider_to_operator(
         raise HTTPException(404, "Rider not found")
 
     # Validate operator is linked to this platform
-    from app.models.entities import PlatformOperator
-
     link = (
-        db.query(PlatformOperator)
+        db.query(ent.PlatformOperator)
         .filter(
-            PlatformOperator.tenant_id == tenant_id,
-            PlatformOperator.operator_tenant_id == operator_id,
-            PlatformOperator.is_active,
+            ent.PlatformOperator.tenant_id == tenant_id,
+            ent.PlatformOperator.operator_tenant_id == operator_id,
+            ent.PlatformOperator.is_active,
         )
         .first()
     )
     if not link:
         raise HTTPException(404, "Operator not found")
 
-    # Check for overlapping active assignments
-    overlapping = (
+    # A record that starts on or after the new date would be contradicted, not
+    # superseded: closing it at a date it has not reached yet is meaningless.
+    later = (
         db.query(ent.RiderAssignment)
         .filter(
             ent.RiderAssignment.tenant_id == tenant_id,
             ent.RiderAssignment.courier_id == courier_id,
-            ent.RiderAssignment.effective_from <= effective_from,
-            (
-                ent.RiderAssignment.effective_to.is_(None)
-                | (ent.RiderAssignment.effective_to >= effective_from)
-            ),
+            ent.RiderAssignment.effective_from >= effective_from,
             ent.RiderAssignment.status == "ACTIVE",
         )
         .first()
     )
+    if later:
+        raise HTTPException(
+            409,
+            "يوجد إسناد ساري من "
+            f"{later.effective_from.isoformat()} — اختر تاريخًا بعده",
+        )
 
-    if overlapping:
-        raise HTTPException(409, "Overlapping assignment exists")
-
-    # End current assignment if any
+    # The assignment being superseded.
     current = (
         db.query(ent.RiderAssignment)
         .filter(
@@ -403,9 +431,18 @@ def assign_rider_to_operator(
         .first()
     )
 
+    if current and current.operator_id == operator_id:
+        raise HTTPException(
+            409,
+            "المندوب مُسند بالفعل لهذه الشركة منذ "
+            f"{current.effective_from.isoformat()}",
+        )
+
     if current:
+        # Half-open interval: the closed record owns up to, not including, the
+        # day the next one starts, so no day is claimed by two operators.
         current.effective_to = effective_from
-        current.status = "ENDED"
+        current.status = "TRANSFERRED"
 
     # Create new assignment
     assignment = ent.RiderAssignment(
@@ -426,6 +463,7 @@ def assign_rider_to_operator(
         "operator_id": operator_id,
         "effective_from": effective_from.isoformat(),
         "status": assignment.status,
+        "superseded_assignment_id": current.id if current else None,
     }
 
 
@@ -436,7 +474,7 @@ def get_rider_assignment_history(
     db: Session = Depends(get_db),
 ):
     """Get rider assignment history."""
-    tenant_id = _tenant_id(user, db)
+    tenant_id = _network_tenant_id(user, db)
 
     assignments = (
         db.query(ent.RiderAssignment)
@@ -448,12 +486,23 @@ def get_rider_assignment_history(
         .all()
     )
 
+    # The history is read by a person deciding where a rider should go next, so
+    # it carries the vendor's name rather than making the screen resolve ids.
+    names = {
+        t.id: t.name
+        for t in db.query(ent.Tenant)
+        .filter(ent.Tenant.id.in_({a.operator_id for a in assignments} or {0}))
+        .all()
+    }
+
     return {
         "courier_id": courier_id,
         "assignments": [
             {
                 "id": a.id,
                 "operator_id": a.operator_id,
+                "operator_name": names.get(a.operator_id),
+                "supervisor_id": a.supervisor_id,
                 "effective_from": a.effective_from.isoformat(),
                 "effective_to": a.effective_to.isoformat() if a.effective_to else None,
                 "status": a.status,
@@ -468,21 +517,98 @@ def operator_health(
     user: ent.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Operator health indicators for the platform dashboard."""
-    tenant_id = _tenant_id(user, db)
+    """Vendor network health — three totals, and a row per vendor.
 
-    # Count operators
-    operator_count = (
-        db.query(func.count(ent.PlatformOperator.id))
+    The vendor screen reads `operators[]` and looks up `active_couriers` and the
+    portal state on each row. This endpoint returned three tenant-level scalars
+    and no `operators` key at all, so the lookup always resolved to `{}` and
+    every per-vendor figure rendered as a dash no matter how much real data the
+    platform had. The totals stay — other callers read them — and the rows the
+    screen was already written against now exist.
+    """
+    tenant_id = _network_tenant_id(user, db)
+
+    links = (
+        db.query(ent.PlatformOperator)
         .filter(
             ent.PlatformOperator.tenant_id == tenant_id,
             ent.PlatformOperator.is_active,
         )
-        .scalar()
-        or 0
+        .order_by(ent.PlatformOperator.created_at)
+        .all()
     )
 
-    # Count riders without assignments
+    # Riders currently assigned, counted per operator in one query.
+    assigned_counts = dict(
+        db.query(
+            ent.RiderAssignment.operator_id,
+            func.count(ent.RiderAssignment.id),
+        )
+        .filter(
+            ent.RiderAssignment.tenant_id == tenant_id,
+            ent.RiderAssignment.status == "ACTIVE",
+        )
+        .group_by(ent.RiderAssignment.operator_id)
+        .all()
+    )
+
+    pending_counts = dict(
+        db.query(
+            ent.CommercialSettlement.operator_id,
+            func.count(ent.CommercialSettlement.id),
+        )
+        .filter(
+            ent.CommercialSettlement.tenant_id == tenant_id,
+            ent.CommercialSettlement.status.in_(["DRAFT", "NEEDS_REVIEW"]),
+        )
+        .group_by(ent.CommercialSettlement.operator_id)
+        .all()
+    )
+
+    last_settled = dict(
+        db.query(
+            ent.CommercialSettlement.operator_id,
+            func.max(ent.CommercialSettlement.period_month),
+        )
+        .filter(
+            ent.CommercialSettlement.tenant_id == tenant_id,
+            ent.CommercialSettlement.status == "APPROVED",
+        )
+        .group_by(ent.CommercialSettlement.operator_id)
+        .all()
+    )
+
+    # A grant is open while today falls inside it; closing expires the row
+    # rather than deleting it, so the state is a date comparison, not a flag.
+    today = date.today()
+    open_portals = {
+        scope.platform_operator_id
+        for scope in db.query(ent.DelegatedScope)
+        .filter(
+            ent.DelegatedScope.tenant_id == tenant_id,
+            ent.DelegatedScope.valid_from <= today,
+        )
+        .all()
+        if scope.valid_to is None or scope.valid_to >= today
+    }
+
+    rows = []
+    for link in links:
+        op_tenant = db.get(ent.Tenant, link.operator_tenant_id)
+        rows.append(
+            {
+                "operator_id": link.id,
+                "operator_tenant_id": link.operator_tenant_id,
+                "name": op_tenant.name if op_tenant else None,
+                "relationship_type": link.relationship_type,
+                "active_couriers": assigned_counts.get(link.operator_tenant_id, 0),
+                "portal": "OPEN" if link.id in open_portals else "CLOSED",
+                "pending_settlements": pending_counts.get(link.operator_tenant_id, 0),
+                "last_settled_month": last_settled.get(link.operator_tenant_id),
+            }
+        )
+
+    # Riders with no current assignment to any vendor — the platform's own gap.
     riders_without_assignment = (
         db.query(func.count(ent.Courier.id))
         .filter(
@@ -499,21 +625,12 @@ def operator_health(
         or 0
     )
 
-    # Count pending settlements
-    pending_settlements = (
-        db.query(func.count(ent.CommercialSettlement.id))
-        .filter(
-            ent.CommercialSettlement.tenant_id == tenant_id,
-            ent.CommercialSettlement.status.in_(["DRAFT", "NEEDS_REVIEW"]),
-        )
-        .scalar()
-        or 0
-    )
-
     return {
-        "total_operators": operator_count,
+        "total_operators": len(links),
         "riders_without_assignment": riders_without_assignment,
-        "pending_settlements": pending_settlements,
+        "pending_settlements": sum(pending_counts.values()),
+        "assigned_riders": sum(assigned_counts.values()),
+        "operators": rows,
     }
 
 

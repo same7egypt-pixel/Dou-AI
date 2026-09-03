@@ -331,8 +331,17 @@ def _error_page(code: int, title: str, detail: str) -> str:
 
 
 def _wants_html(request: Request) -> bool:
+    """Whether this is a page navigation rather than a call from script.
+
+    `*/*` used to count as wanting HTML. That is precisely what `fetch` sends
+    when the caller sets no Accept header — which the frontend's api client does
+    not — so every 404 raised by an API endpoint came back as an error *page*,
+    `JSON.parse` failed on it, and the operator was shown "HTTP 404" instead of
+    the sentence the endpoint had written. A browser navigating to a URL asks
+    for `text/html` explicitly, so deep links into the SPA still resolve.
+    """
     accept = request.headers.get("accept", "")
-    return "text/html" in accept or "application/xhtml" in accept or accept == "*/*"
+    return "text/html" in accept or "application/xhtml" in accept
 
 
 @app.exception_handler(404)
@@ -346,7 +355,11 @@ async def not_found(request: Request, exc):
             ),
             status_code=404,
         )
-    return JSONResponse({"detail": "Not Found"}, status_code=404)
+    # The endpoint's own words, not a generic "Not Found": "لا توجد شركة مسجّلة
+    # بهذا الجوال" tells the operator what to do next, and this handler was
+    # throwing it away.
+    detail = getattr(exc, "detail", None) or "Not Found"
+    return JSONResponse({"detail": detail}, status_code=404)
 
 
 @app.exception_handler(500)

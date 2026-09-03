@@ -3,6 +3,7 @@ import { api } from '../../shared/api/client.js';
 import { appStore, isDeliveryPlatform, can } from '../../shared/state/store.js';
 import { el, loadingState, emptyState, errorState, metricCard, button, modal, formRow, inputField, selectField, table, badge, searchableSelect } from '../../shared/components/ui.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
+import { go } from '../shell.js';
 
 let activeCapacityTab = 'capacity'; // capacity | contracts | operators | settlements
 
@@ -289,18 +290,21 @@ async function renderPlatformOperators(contentArea, mainContainer, isAdmin) {
   contentArea.append(loadingState('جاري تحميل بيانات الشركات اللوجستية المشغلة...'));
 
   try {
-    const [operatorsData, healthData, couriersData] = await Promise.all([
+    // /analytics/operators/health carries a row per vendor. This screen was
+    // already written against `healthData.operators` and that key did not
+    // exist — the endpoint returned three tenant-level totals — so every
+    // per-vendor figure resolved to `{}` and rendered as a dash however much
+    // real data the platform had.
+    const [operatorsData, healthData] = await Promise.all([
       api.get('/enterprise/operators').catch(() => []),
-      api.get('/analytics/operators/health').catch(() => ({ operators: [] })),
-      api.get('/fleet/couriers/page?page=1&page_size=100').catch(() => ({ rows: [], total: 0 }))
+      api.get('/analytics/operators/health').catch(() => ({ operators: [] }))
     ]);
 
     const operators = operatorsData || [];
     const healthList = healthData.operators || [];
-    const couriers = couriersData.rows || [];
-    const totalCouriers = couriersData.total || couriers.length;
-    const directFreelancers = couriers.filter(c => c.courier_type === 'FREELANCER').length;
-    const operatorCouriers = Math.max(0, totalCouriers - directFreelancers);
+    const assignedRiders = healthData.assigned_riders || 0;
+    const unassignedRiders = healthData.riders_without_assignment || 0;
+    const pendingSettlements = healthData.pending_settlements || 0;
 
     contentArea.innerHTML = '';
 
@@ -308,11 +312,13 @@ async function renderPlatformOperators(contentArea, mainContainer, isAdmin) {
     // to invent what it lacked: `operators.length || 2`, a hardcoded 98.4% SLA,
     // and two fictional companies with fabricated CR numbers — so a platform
     // with no vendors was shown an imaginary business as if it were its own.
+    // "مناديب شركات 3PL" was itself a guess (total riders minus freelancers);
+    // it is now the count of riders actually assigned to a vendor.
     contentArea.append(el('div', { class: 'cards', style: 'margin-bottom:16px' }, [
       metricCard(operators.length, 'الشركات اللوجستية المشغلة (3PL)', 'blue'),
-      metricCard(operatorCouriers, 'مناديب شركات 3PL', 'blue'),
-      metricCard(directFreelancers, 'مناديب فريلانسر مستقلين', 'trend'),
-      metricCard(totalCouriers, 'إجمالي المناديب في المنظومة', 'good'),
+      metricCard(assignedRiders, 'مناديب مُسندين لشركات 3PL', 'good'),
+      metricCard(unassignedRiders, 'مناديب بلا إسناد لأي شركة', unassignedRiders ? 'trend' : 'blue'),
+      metricCard(pendingSettlements, 'تسويات B2B بانتظار الاعتماد', pendingSettlements ? 'trend' : 'blue'),
     ]));
 
     if (!operators.length) {
@@ -321,30 +327,37 @@ async function renderPlatformOperators(contentArea, mainContainer, isAdmin) {
       ));
       return;
     }
-    const displayOps = operators;
 
     const list = el('div', { style: 'display:grid;gap:16px' });
-    displayOps.forEach(op => {
-      const h = healthList.find(x => x.operator_id === op.id || x.operator_id === op.operator_tenant_id) || {};
+    operators.forEach(op => {
+      const h = healthList.find(x => x.operator_id === op.id) || {};
       // No `|| 28 : 20`. A vendor with no riders reads zero, which is a fact the
       // platform needs rather than a gap to paper over.
-      const opRidersCount = couriers.filter(c => c.operator_id === op.id || c.operator_id === op.operator_tenant_id).length
-        || h.active_couriers || 0;
       const dash = (v) => (v === null || v === undefined || v === '' ? '—' : v);
+      const portalOpen = h.portal === 'OPEN';
 
       const card = el('div', { class: 'card', style: 'padding:18px;background:var(--card);border:1px solid var(--border);border-radius:12px' }, [
         el('div', { style: 'display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px' }, [
           el('div', {}, [
-            el('div', { style: 'display:flex;align-items:center;gap:8px' }, [
+            el('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap' }, [
               el('h3', { style: 'margin:0;font-size:16px;color:var(--text)' }, `🏢 ${op.name || op.operator_name || 'شركة لوجستية مشغلة'}`),
               el('span', { class: 'badge badge-green' }, '● شريك 3PL معتمد'),
-              op.rate_per_order ? el('span', { class: 'badge badge-blue' }, `سعر التوصيل: ${op.rate_per_order} ر.س / طلب`) : null,
+              el('span', { class: `badge ${portalOpen ? 'badge-blue' : ''}` },
+                portalOpen ? '🔓 بوابة المورّد مفتوحة' : '🔒 بوابة المورّد مغلقة'),
             ]),
             el('div', { style: 'font-size:12px;color:var(--muted);margin-top:4px' }, [
-              el('span', {}, `طبيعة الشراكة: ${dash(op.relationship_type)} | السجل التجاري: ${dash(op.cr_number)} | نسبة تحقيق السعة: ${dash(h.sla_fulfillment)}`)
+              el('span', {}, `طبيعة الشراكة: ${dash(op.relationship_type)} | آخر تسوية معتمدة: ${dash(h.last_settled_month)}`)
             ])
           ]),
-          el('div', { style: 'display:flex;gap:6px' }, [
+          el('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' }, [
+            el('button', {
+              class: 'btn btn-ghost btn-small',
+              onclick: () => openAssignRiderModal(mainContainer, op)
+            }, '🧑‍✈️ إسناد مندوب'),
+            el('button', {
+              class: 'btn btn-ghost btn-small',
+              onclick: () => togglePortal(mainContainer, op, portalOpen)
+            }, portalOpen ? '🔒 إغلاق البوابة' : '🔓 فتح البوابة'),
             el('button', {
               class: 'btn btn-ghost btn-small',
               onclick: () => {
@@ -357,15 +370,21 @@ async function renderPlatformOperators(contentArea, mainContainer, isAdmin) {
         el('div', { style: 'margin-top:14px;border-top:1px solid var(--border);padding-top:10px;display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:10px' }, [
           el('div', { style: 'background:var(--bg);padding:8px 12px;border-radius:8px;border:1px solid var(--border)' }, [
             el('small', { style: 'display:block;color:var(--muted);font-size:11px' }, 'مناديب الشركة المسندين:'),
-            el('b', { style: 'color:var(--text);font-size:14px' }, `${opRidersCount} سائق`)
+            el('b', { style: 'color:var(--text);font-size:14px' }, `${h.active_couriers ?? 0} مندوب`)
           ]),
           el('div', { style: 'background:var(--bg);padding:8px 12px;border-radius:8px;border:1px solid var(--border)' }, [
-            el('small', { style: 'display:block;color:var(--muted);font-size:11px' }, 'معدل الطلبات اليومية:'),
-            el('b', { style: 'color:var(--primary);font-size:14px' }, `${dash(h.daily_orders)} طلب/يوم`)
+            el('small', { style: 'display:block;color:var(--muted);font-size:11px' }, 'تسويات بانتظار الاعتماد:'),
+            el('b', { style: 'color:var(--primary);font-size:14px' }, `${h.pending_settlements ?? 0} تسوية`)
           ]),
           el('div', { style: 'background:var(--bg);padding:8px 12px;border-radius:8px;border:1px solid var(--border)' }, [
-            el('small', { style: 'display:block;color:var(--muted);font-size:11px' }, 'مدن ونطاقات التغطية:'),
-            el('b', { style: 'color:var(--text);font-size:12px' }, dash(op.cities))
+            el('small', { style: 'display:block;color:var(--muted);font-size:11px' }, 'الأداء والالتزام:'),
+            // Orders per day and SLA are computed once, on the vendor scorecard,
+            // from the delivery facts. A second weaker calculation here would be
+            // a second source of truth for the same question.
+            el('button', {
+              class: 'btn btn-ghost btn-small', style: 'padding:0;color:var(--primary);font-weight:700',
+              onclick: () => go('vendors')
+            }, 'افتح بطاقة أداء المورّد ↗')
           ]),
         ])
       ]);
@@ -378,6 +397,124 @@ async function renderPlatformOperators(contentArea, mainContainer, isAdmin) {
     contentArea.innerHTML = '';
     contentArea.append(errorState('تعذر تحميل بيانات الشركات اللوجستية: ' + e.message, () => renderPlatformOperators(contentArea, mainContainer, isAdmin)));
   }
+}
+
+// The platform pays for VENDOR_PORTAL separately: opening the dashboard to a
+// vendor is an add-on, not part of managing the network. The endpoint answers
+// 402 when the account has not bought it, and that is a sentence the operator
+// should read, not an error code.
+async function togglePortal(mainContainer, op, isOpen) {
+  const verb = isOpen ? 'إغلاق' : 'فتح';
+  if (!confirm(`${verb} بوابة المورّد لـ«${op.name || op.operator_name}»؟\n\n` +
+    (isOpen
+      ? 'ستتوقف الشركة عن رؤية شريحتها من حساب منصتك. اشتراكها في DOU لا يتأثر.'
+      : 'ستتمكن الشركة من قراءة شريحتها هي فقط من حساب منصتك — مناديبها وترتيبها.'))) return;
+  try {
+    await api.post(`/enterprise/operators/${op.id}/portal`, { enabled: !isOpen });
+    loadCapacity(mainContainer);
+  } catch (err) {
+    if (err.status === 402) {
+      alert('🔒 بوابة المورّدين إضافة مدفوعة غير مفعّلة على باقة حسابك.\n\n' +
+            'تواصل مع إدارة DOU لتفعيلها على الحساب.');
+      return;
+    }
+    alert('❌ تعذر ' + verb + ' البوابة: ' + err.message);
+  }
+}
+
+// Assigning a rider to a vendor is effective-dated: the record says who owned
+// the rider on a given day, which is what a settlement recomputed months later
+// has to be able to answer.
+async function openAssignRiderModal(mainContainer, op) {
+  let couriers = [];
+  try {
+    const page = await api.get('/fleet/couriers/page?page=1&page_size=200');
+    couriers = page.rows || [];
+  } catch (err) {
+    alert('❌ تعذر تحميل قائمة المناديب: ' + err.message);
+    return;
+  }
+  if (!couriers.length) {
+    alert('لا يوجد مناديب في حسابك بعد. أضف مندوبًا أولًا من شاشة المناديب.');
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const content = el('form', { style: 'display:grid;gap:14px;direction:rtl' }, [
+    el('p', { style: 'margin:0;font-size:12px;color:var(--muted);line-height:1.7' },
+      `إسناد مندوب إلى «${op.name || op.operator_name}». الإسناد مؤرَّخ: أي إسناد سابق مفتوح يُغلق في هذا ` +
+      'التاريخ ويُسجَّل كنقل، فلا يوجد يوم واحد تدّعيه شركتان.'),
+
+    el('div', {}, [
+      el('label', { for: 'as-courier', style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' },
+        'المندوب: *'),
+      el('select', { id: 'as-courier', required: true, style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' },
+        couriers.map(c => el('option', { value: String(c.id) }, `${c.name} — ${c.phone || '—'}`)))
+    ]),
+
+    el('div', {}, [
+      el('label', { for: 'as-from', style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' },
+        'ساري من تاريخ: *'),
+      el('input', { id: 'as-from', type: 'date', required: true, value: today,
+        style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' })
+    ]),
+
+    // Where the rider is now, before deciding to move them.
+    el('div', { id: 'as-history', style: 'font-size:12px;color:var(--muted);line-height:1.8' }),
+
+    el('p', { id: 'as-msg', style: 'margin:0;font-size:12px;min-height:16px' }),
+
+    el('div', { style: 'display:flex;justify-content:flex-end;gap:10px;margin-top:6px;padding-top:12px;border-top:1px solid var(--border)' }, [
+      el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => m.remove() }, 'إلغاء'),
+      el('button', { type: 'submit', class: 'btn btn-primary', id: 'as-submit' }, '💾 حفظ الإسناد')
+    ])
+  ]);
+
+  const m = modal(`🧑‍✈️ إسناد مندوب إلى ${op.name || op.operator_name}`, content);
+
+  const showHistory = async () => {
+    const box = content.querySelector('#as-history');
+    const cid = content.querySelector('#as-courier').value;
+    box.textContent = 'جاري قراءة سجل الإسناد…';
+    try {
+      const data = await api.get(`/analytics/operators/rider/${cid}/history`);
+      const rows = data.assignments || [];
+      box.innerHTML = '';
+      if (!rows.length) { box.textContent = 'لا يوجد إسناد سابق لهذا المندوب.'; return; }
+      box.append(el('b', { style: 'display:block;margin-bottom:4px;color:var(--ink)' }, 'سجل الإسناد:'));
+      rows.forEach(r => box.append(el('div', {},
+        `• ${r.operator_name || 'شركة #' + r.operator_id} — من ${r.effective_from}` +
+        (r.effective_to ? ` إلى ${r.effective_to}` : ' (ساري)') + ` — ${r.status}`)));
+    } catch (err) {
+      box.textContent = 'تعذر قراءة السجل: ' + err.message;
+    }
+  };
+  content.querySelector('#as-courier').addEventListener('change', showHistory);
+  showHistory();
+
+  content.onsubmit = async (e) => {
+    e.preventDefault();
+    const msg = content.querySelector('#as-msg');
+    const btn = content.querySelector('#as-submit');
+    btn.disabled = true;
+    msg.style.color = 'var(--muted)';
+    msg.textContent = '⏳ جاري الحفظ…';
+    try {
+      const q = `courier_id=${encodeURIComponent(content.querySelector('#as-courier').value)}` +
+                `&operator_id=${encodeURIComponent(op.operator_tenant_id)}` +
+                `&effective_from=${encodeURIComponent(content.querySelector('#as-from').value)}`;
+      const res = await api.post(`/analytics/operators/rider/assign?${q}`);
+      msg.style.color = 'var(--green)';
+      msg.textContent = res.superseded_assignment_id
+        ? '✅ تم نقل المندوب، وأُغلق الإسناد السابق في هذا التاريخ.'
+        : '✅ تم إسناد المندوب للشركة.';
+      setTimeout(() => { m.remove(); loadCapacity(mainContainer); }, 1200);
+    } catch (err) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ ' + err.message;
+      btn.disabled = false;
+    }
+  };
 }
 
 export async function openAddOperatorModal(mainContainer) {
