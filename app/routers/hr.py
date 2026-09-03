@@ -2973,7 +2973,13 @@ def add_daily_log(
         .first()
     )
     if row:
-        row.orders_count = orders
+        row.driver_orders = orders
+        if (row.verified_orders or 0) > 0:
+            row.orders_count = row.verified_orders
+            row.variance = row.orders_count - orders
+        else:
+            row.orders_count = orders
+            row.variance = 0
         row.notes = payload.get("notes") or row.notes
     else:
         row = DailyLog(
@@ -2982,6 +2988,10 @@ def add_daily_log(
             project_id=project.id,
             log_date=log_date,
             orders_count=orders,
+            driver_orders=orders,
+            verified_orders=0,
+            variance=0,
+            source_type="MANUAL",
             notes=payload.get("notes"),
         )
         db.add(row)

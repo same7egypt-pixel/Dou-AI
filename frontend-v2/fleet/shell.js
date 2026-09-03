@@ -192,9 +192,20 @@ export function renderShell() {
   const topBar = renderTopBar();
   const content = el('main', { class: 'content-area', id: 'content-area' });
   const aiDrawer = renderAIDrawer();
+  const backdrop = el('div', {
+    class: 'sidebar-backdrop',
+    id: 'sidebar-backdrop',
+    onclick: () => {
+      const sb = document.getElementById('app-sidebar');
+      const ov = document.getElementById('sidebar-backdrop');
+      if (sb) sb.classList.remove('open');
+      if (ov) ov.classList.remove('active');
+    }
+  });
 
   const layout = el('div', { class: 'fleet-app' }, [
     sidebar,
+    backdrop,
     el('div', { class: 'main-area' }, [topBar, content]),
     aiDrawer,
   ]);
@@ -372,8 +383,21 @@ function renderTopBar() {
     ])
   );
 
+  const hamburgerBtn = el('button', {
+    class: 'btn btn-ghost btn-hamburger',
+    id: 'btn-mobile-menu',
+    'aria-label': 'Toggle Navigation',
+    onclick: () => {
+      const sb = document.getElementById('app-sidebar');
+      const ov = document.getElementById('sidebar-backdrop');
+      if (sb) sb.classList.toggle('open');
+      if (ov) ov.classList.toggle('active');
+    }
+  }, '☰');
+
   return el('header', { class: 'top-bar' }, [
-    el('div', { class: 'breadcrumb' }, [
+    el('div', { class: 'breadcrumb', style: 'display:flex;align-items:center;gap:10px' }, [
+      hamburgerBtn,
       el('span', { style: 'color:var(--muted)' }, 'DOU Fleet OS / '),
       el('b', { id: 'crumb', text: getViewLabel(currentView) })
     ]),
@@ -387,6 +411,12 @@ export function go(view) {
     return;
   }
   currentView = view;
+
+  // Close mobile sidebar on navigation
+  const sb = document.getElementById('app-sidebar');
+  const ov = document.getElementById('sidebar-backdrop');
+  if (sb) sb.classList.remove('open');
+  if (ov) ov.classList.remove('active');
 
   // Update nav active state
   document.querySelectorAll('.nav-item').forEach((b) => {

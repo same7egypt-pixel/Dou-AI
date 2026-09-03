@@ -1005,9 +1005,12 @@ class DailyLog(Base):
     project_id = Column(Integer, ForeignKey("projects.id"))
     log_date = Column(Date, nullable=False)
     orders_count = Column(Integer, default=0)
+    driver_orders = Column(Integer, default=0)  # ما سجله المندوب يدوياً في التطبيق
+    verified_orders = Column(Integer, default=0)  # ما ورد من المنصة الخارجية (نينجا/هنقرستيشن)
+    variance = Column(Integer, default=0)  # الفارق = (orders_count - driver_orders)
     source_type = Column(
         String(30), default="MANUAL"
-    )  # MANUAL / FILE_IMPORT / FUTURE_API
+    )  # MANUAL / FILE_IMPORT / FUTURE_API / LIVE_API_NINJA
     source_batch_id = Column(Integer, ForeignKey("operational_import_batches.id"))
     source_row_key = Column(String(180))
     notes = Column(String(300))
@@ -1516,6 +1519,11 @@ class PlatformOperator(Base):
     relationship_type = Column(
         String(30), default="OPERATOR"
     )  # OPERATOR / FRANCHISE / PARTNER
+    invitation_status = Column(
+        String(20), default="ACCEPTED", nullable=False
+    )  # PENDING / ACCEPTED / REJECTED
+    invited_at = Column(DateTime, default=utcnow)
+    responded_at = Column(DateTime)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=utcnow, nullable=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)

@@ -157,12 +157,17 @@ def _ingest_event(db: Session, tenant: ent.Tenant, event: NinjaDeliveryEvent):
                 project_id=ninja_project.id,
                 log_date=today,
                 orders_count=1 if is_new_fact else 0,
+                driver_orders=0,
+                verified_orders=1 if is_new_fact else 0,
+                variance=1 if is_new_fact else 0,
                 source_type="LIVE_API_NINJA",
                 notes=f"Ninja Live Ingestion: Order {event.order_id}",
             )
             db.add(daily_log)
         elif is_new_fact:
-            daily_log.orders_count = (daily_log.orders_count or 0) + 1
+            daily_log.verified_orders = (daily_log.verified_orders or 0) + 1
+            daily_log.orders_count = daily_log.verified_orders
+            daily_log.variance = daily_log.orders_count - (daily_log.driver_orders or 0)
             daily_log.source_type = "LIVE_API_NINJA"
 
     db.commit()

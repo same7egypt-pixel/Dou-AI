@@ -86,6 +86,14 @@ MIGRATIONS = {
         "source_type": "VARCHAR(30) DEFAULT 'MANUAL'",
         "source_batch_id": "INTEGER",
         "source_row_key": "VARCHAR(180)",
+        "driver_orders": "INTEGER DEFAULT 0",
+        "verified_orders": "INTEGER DEFAULT 0",
+        "variance": "INTEGER DEFAULT 0",
+    },
+    "platform_operators": {
+        "invitation_status": "VARCHAR(20) DEFAULT 'ACCEPTED'",
+        "invited_at": "TIMESTAMP",
+        "responded_at": "TIMESTAMP",
     },
     "tenants": {
         "plan": "VARCHAR(20) DEFAULT 'PRO'",

@@ -287,6 +287,7 @@ def link_operator_by_phone(
         source_platform_id=source_platform_id,
         operator_tenant_id=vendor.id,
         relationship_type=payload.relationship_type,
+        invitation_status="ACCEPTED",
         is_active=True,
     )
     db.add(row)
@@ -297,6 +298,144 @@ def link_operator_by_phone(
         "operator_tenant_id": vendor.id,
         "name": vendor.name,
         "relationship_type": row.relationship_type,
+        "invitation_status": row.invitation_status,
+    }
+
+
+@router.post("/operators/invite", status_code=201)
+def invite_operator_by_phone(
+    payload: OperatorLinkByPhone,
+    user: ent.User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Send an onboarding invitation to a logistics partner requiring their mutual acceptance."""
+    tenant_id = _tenant_id(user, manage=True)
+    tenant = db.get(ent.Tenant, tenant_id)
+    if Capability.MANAGE_OPERATORS.value not in capabilities_for(tenant):
+        raise HTTPException(403, "This account is not entitled to MANAGE_OPERATORS")
+
+    not_found = HTTPException(404, "لا توجد شركة مسجّلة بهذا الجوال قابلة للدعوة")
+
+    phone = (payload.admin_phone or "").strip()
+    if not phone:
+        raise not_found
+    owner = db.query(ent.User).filter(ent.User.phone == phone).first()
+    if not owner or not owner.tenant_id or not owner.is_active:
+        raise not_found
+    vendor = db.get(ent.Tenant, owner.tenant_id)
+    if not vendor or vendor.id == tenant_id:
+        raise not_found
+    if (vendor.customer_type or "").upper() == "DELIVERY_PLATFORM":
+        raise not_found
+
+    source_platform_id = payload.source_platform_id
+    if source_platform_id is not None:
+        _same_tenant(db, ent.SourcePlatform, source_platform_id, tenant_id)
+    else:
+        source_platform_id = _source_platforms(db, tenant_id)[0].id
+
+    existing = (
+        db.query(ent.PlatformOperator)
+        .filter(
+            ent.PlatformOperator.tenant_id == tenant_id,
+            ent.PlatformOperator.operator_tenant_id == vendor.id,
+        )
+        .first()
+    )
+    if existing:
+        if existing.invitation_status == "PENDING":
+            raise HTTPException(409, "توجد دعوة معلقة بالفعل لهذه الشركة بانتظار الموافقة")
+        raise HTTPException(409, "هذه الشركة مرتبطة بالمنصة بالفعل")
+
+    row = ent.PlatformOperator(
+        tenant_id=tenant_id,
+        source_platform_id=source_platform_id,
+        operator_tenant_id=vendor.id,
+        relationship_type=payload.relationship_type,
+        invitation_status="PENDING",
+        invited_at=datetime.utcnow(),
+        is_active=False,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {
+        "id": row.id,
+        "operator_tenant_id": vendor.id,
+        "name": vendor.name,
+        "relationship_type": row.relationship_type,
+        "invitation_status": "PENDING",
+        "message": "تم إرسال دعوة الشراكة بنجاح بانتظار موافقة الشركة المشغلة",
+    }
+
+
+@router.get("/operators/invitations/incoming")
+def list_incoming_operator_invitations(
+    user: ent.User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """View pending platform partnership invitations for this operating vendor."""
+    tenant_id = _tenant_id(user)
+    invites = (
+        db.query(ent.PlatformOperator)
+        .filter(
+            ent.PlatformOperator.operator_tenant_id == tenant_id,
+            ent.PlatformOperator.invitation_status == "PENDING",
+        )
+        .all()
+    )
+    results = []
+    for inv in invites:
+        platform_tenant = db.get(ent.Tenant, inv.tenant_id)
+        results.append({
+            "id": inv.id,
+            "platform_id": inv.tenant_id,
+            "platform_name": platform_tenant.name if platform_tenant else "Unknown Platform",
+            "relationship_type": inv.relationship_type,
+            "invited_at": inv.invited_at.isoformat() if inv.invited_at else None,
+            "status": inv.invitation_status,
+        })
+    return results
+
+
+class InvitationDecision(BaseModel):
+    action: str  # ACCEPT / REJECT
+
+
+@router.post("/operators/invitations/{invitation_id}/respond")
+def respond_to_operator_invitation(
+    invitation_id: int,
+    payload: InvitationDecision,
+    user: ent.User = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """Accept or reject an incoming platform partnership invitation."""
+    tenant_id = _tenant_id(user, manage=True)
+    inv = db.get(ent.PlatformOperator, invitation_id)
+    if not inv or inv.operator_tenant_id != tenant_id:
+        raise HTTPException(404, "Invitation not found")
+    if inv.invitation_status != "PENDING":
+        raise HTTPException(400, f"Invitation already decided ({inv.invitation_status})")
+
+    action = payload.action.strip().upper()
+    if action == "ACCEPT":
+        inv.invitation_status = "ACCEPTED"
+        inv.is_active = True
+        inv.responded_at = datetime.utcnow()
+    elif action == "REJECT":
+        inv.invitation_status = "REJECTED"
+        inv.is_active = False
+        inv.responded_at = datetime.utcnow()
+    else:
+        raise HTTPException(400, "Invalid action. Must be ACCEPT or REJECT")
+
+    db.commit()
+    db.refresh(inv)
+    return {
+        "id": inv.id,
+        "status": inv.invitation_status,
+        "is_active": inv.is_active,
+        "responded_at": inv.responded_at.isoformat(),
     }
 
 

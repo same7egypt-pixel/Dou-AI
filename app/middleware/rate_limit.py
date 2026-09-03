@@ -4,8 +4,8 @@ import time
 from collections import defaultdict
 from threading import Lock
 
-from fastapi import HTTPException, Request
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, Request
+from starlette.responses import JSONResponse
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -21,7 +21,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if path.startswith("/static") or path.startswith("/frontend-v2") or path.startswith("/health"):
             return await call_next(request)
 
-        client_ip = request.client.host if request.client else "unknown"
+        # Extract real client IP behind Nginx reverse proxy
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            # Client IP is the first entry in X-Forwarded-For
+            client_ip = forwarded_for.split(",")[0].strip()
+        else:
+            client_ip = request.headers.get("x-real-ip") or (
+                request.client.host if request.client else "unknown"
+            )
+
         now = time.time()
         window = 60.0
 
@@ -30,8 +39,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 t for t in self.requests[client_ip] if now - t < window
             ]
             if len(self.requests[client_ip]) >= self.requests_per_minute:
-                raise HTTPException(
-                    429, "Too many requests. Please slow down and try again."
+                return JSONResponse(
+                    {"detail": "Too many requests. Please slow down and try again."},
+                    status_code=429,
+                    headers={
+                        "X-RateLimit-Limit": str(self.requests_per_minute),
+                        "X-RateLimit-Remaining": "0",
+                        "Retry-After": "60",
+                    },
                 )
             self.requests[client_ip].append(now)
 

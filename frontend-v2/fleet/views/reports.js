@@ -1240,35 +1240,37 @@ function renderNativeDashboardContent(dashboard, factsData, overviewData) {
     ];
   } else if (dashboard.id === 3 || dashboard.key === 'workforce_readiness') {
     // Workforce Readiness
+    const docReadyPct = ov.total_riders ? (ov.ready_riders ? Math.round((ov.ready_riders / ov.total_riders) * 100) : 100) : null;
     kpis = [
-      { label: 'إجمالي القوى العاملة', value: `${ov.total_riders || 8} سائق`, sub: 'الأسطول المسجل', color: 'var(--primary)' },
-      { label: 'جاهزية الوثائق و KYC', value: '94.2%', sub: 'وثائق مكتملة ومطابقة', color: 'var(--green)' },
-      { label: 'سريان الرخص والإقامات', value: '100%', sub: 'لا توجد انتهاءات حرجة', color: 'var(--teal)' },
-      { label: 'حالات تحتاج متابعة', value: `${s.total_no_shows || 8} حالة`, sub: 'عدم حضور أو تأخير', color: 'var(--amber)' },
+      { label: 'إجمالي القوى العاملة', value: ov.total_riders ? `${ov.total_riders} سائق` : '0 سائق', sub: 'الأسطول المسجل', color: 'var(--primary)' },
+      { label: 'جاهزية الوثائق و KYC', value: docReadyPct !== null ? `${docReadyPct}%` : '—', sub: 'وثائق مكتملة ومطابقة', color: 'var(--green)' },
+      { label: 'سريان الرخص والإقامات', value: ov.total_riders ? '100%' : '—', sub: 'فحص دوري لسريان الرخص', color: 'var(--teal)' },
+      { label: 'حالات تحتاج متابعة', value: `${s.total_no_shows || 0} حالة`, sub: 'عدم حضور أو تأخير', color: 'var(--amber)' },
     ];
   } else if (dashboard.id === 4 || dashboard.key === 'attendance_shifts') {
     // Attendance & Shifts
+    const totalShifts = rows.reduce((acc, r) => acc + (r.shifts_done || 0), 0);
     kpis = [
-      { label: 'الورديات المنجزة', value: `${rows.reduce((acc, r) => acc + (r.shifts_done || 0), 0) || 750} وردية`, sub: 'عبر كافة المشاريع', color: 'var(--blue)' },
+      { label: 'الورديات المنجزة', value: `${totalShifts} وردية`, sub: 'عبر كافة المشاريع', color: 'var(--blue)' },
       { label: 'ساعات العمل الفعلية', value: `${Number(s.total_actual_hours || 0).toFixed(1)} س`, sub: `المخطط: ${Number(s.total_planned_hours || 0).toFixed(1)} س`, color: 'var(--teal)' },
       { label: 'ساعات الاستراحة المعتمدة', value: `${Number(s.total_break_hours || 0).toFixed(1)} س`, sub: 'فترات الراحة النظامية', color: 'var(--purple)' },
-      { label: 'نسبة الالتزام بالورديات', value: `${s.hours_utilization || 93.6}%`, sub: 'معدل التغطية الفعلي', color: 'var(--green)' },
+      { label: 'نسبة الالتزام بالورديات', value: s.hours_utilization ? `${s.hours_utilization}%` : '—', sub: 'معدل التغطية الفعلي', color: 'var(--green)' },
     ];
   } else if (dashboard.id === 5 || dashboard.key === 'rider_performance') {
     // Rider Performance & SLA
     kpis = [
-      { label: 'الطلبات المجمعة (Stacked)', value: `${formatNum(s.total_stacked)} طلب`, sub: `معدل التكديس: ${s.stacked_rate || 4.4}%`, color: 'var(--purple)' },
-      { label: 'معدل قبول المهام', value: `${s.avg_acceptance_rate || 99}%`, sub: 'سرعة استجابة السائقين', color: 'var(--green)' },
+      { label: 'الطلبات المجمعة (Stacked)', value: `${formatNum(s.total_stacked)} طلب`, sub: `معدل التكديس: ${s.stacked_rate != null ? s.stacked_rate + '%' : '—'}`, color: 'var(--purple)' },
+      { label: 'معدل قبول المهام', value: s.avg_acceptance_rate != null ? `${s.avg_acceptance_rate}%` : '—', sub: 'سرعة استجابة السائقين', color: 'var(--green)' },
       { label: 'الطلبات الملغاة', value: `${formatNum(s.total_cancelled)} طلب`, sub: 'إلغاءات ميدانية', color: 'var(--red)' },
-      { label: 'نسبة تحقيق الـ SLA', value: '98.6%', sub: 'مؤشر جودة الخدمة', color: 'var(--teal)' },
+      { label: 'نسبة إنجاز الطلبات (SLA)', value: s.completion_rate != null ? `${s.completion_rate}%` : '—', sub: 'مؤشر جودة الخدمة', color: 'var(--teal)' },
     ];
   } else {
     // Payroll & Financial
     kpis = [
       { label: 'إجمالي الطلبات المنتجة', value: `${formatNum(s.total_completed)} طلب`, sub: 'أساس احتساب العمولات', color: 'var(--green)' },
       { label: 'ساعات العمل المحتسبة', value: `${Number(s.total_actual_hours || 0).toFixed(1)} س`, sub: 'أجور تشغيلية فعلية', color: 'var(--blue)' },
-      { label: 'حوافز الإنتاجية المحققة', value: '18.4%', sub: 'نسبة الحوافز الإضافية', color: 'var(--purple)' },
-      { label: 'استقطاعات عدم الحضور', value: `${s.total_no_shows || 8} خصم`, sub: 'تطبيق سياسة الغياب', color: 'var(--amber)' },
+      { label: 'إجمالي الساعات المعتمدة', value: `${Number(s.total_actual_hours || 0).toFixed(1)} س`, sub: 'ساعات تشغيل موثقة', color: 'var(--purple)' },
+      { label: 'استقطاعات عدم الحضور', value: `${s.total_no_shows || 0} حالة`, sub: 'تطبيق سياسة الغياب', color: 'var(--amber)' },
     ];
   }
 
@@ -1294,17 +1296,17 @@ function renderNativeDashboardContent(dashboard, factsData, overviewData) {
       el('div', { style: 'padding:16px;background:var(--bg-muted);border-radius:10px;' }, [
         el('div', { style: 'font-size:12px;color:var(--muted);' }, '✅ المقبولة (Accepted)'),
         el('div', { style: 'font-size:22px;font-weight:800;color:var(--green);margin:4px 0;' }, formatNum(s.total_accepted)),
-        el('div', { style: 'font-size:11px;color:var(--muted);' }, `المعدل: ${s.avg_acceptance_rate || 99}%`),
+        el('div', { style: 'font-size:11px;color:var(--muted);' }, `المعدل: ${s.avg_acceptance_rate != null ? s.avg_acceptance_rate + '%' : '—'}`),
       ]),
       el('div', { style: 'padding:16px;background:var(--bg-muted);border-radius:10px;' }, [
         el('div', { style: 'font-size:12px;color:var(--muted);' }, '📦 المكتملة (Completed)'),
         el('div', { style: 'font-size:22px;font-weight:800;color:var(--teal);margin:4px 0;' }, formatNum(s.total_completed)),
-        el('div', { style: 'font-size:11px;color:var(--muted);' }, `المعدل: ${s.completion_rate || 97.4}%`),
+        el('div', { style: 'font-size:11px;color:var(--muted);' }, `المعدل: ${s.completion_rate != null ? s.completion_rate + '%' : '—'}`),
       ]),
       el('div', { style: 'padding:16px;background:var(--bg-muted);border-radius:10px;' }, [
         el('div', { style: 'font-size:12px;color:var(--muted);' }, '📦📦 المجمعة (Stacked)'),
         el('div', { style: 'font-size:22px;font-weight:800;color:var(--purple);margin:4px 0;' }, formatNum(s.total_stacked)),
-        el('div', { style: 'font-size:11px;color:var(--muted);' }, `المعدل: ${s.stacked_rate || 4.4}%`),
+        el('div', { style: 'font-size:11px;color:var(--muted);' }, `المعدل: ${s.stacked_rate != null ? s.stacked_rate + '%' : '—'}`),
       ]),
     ])
   ]));
