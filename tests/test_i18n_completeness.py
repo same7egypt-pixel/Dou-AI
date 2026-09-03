@@ -93,3 +93,107 @@ def test_arabic_indic_digits_are_normalised():
             f"{path.name} does not normalise Arabic-Indic digits, so numbers "
             "formatted with the ar-SA locale stay in Arabic numerals"
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The driver app carries its own dictionary, in four languages
+# ─────────────────────────────────────────────────────────────────────────────
+
+COURIER = ROOT / "static" / "courier.html"
+DRIVER_LANGUAGES = ("ar", "en", "ur", "hi")
+
+
+def _copy_tables() -> dict[str, dict[str, str]]:
+    """Parse the COPY object out of courier.html."""
+    source = COURIER.read_text(encoding="utf-8")
+    start = source.index("{", source.index("const COPY"))
+    depth = 0
+    for index in range(start, len(source)):
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                end = index + 1
+                break
+    block = source[start:end]
+
+    tables: dict[str, dict[str, str]] = {}
+    for lang in DRIVER_LANGUAGES:
+        match = re.search(rf"\b{lang}\s*:\s*{{", block)
+        assert match, f"COPY has no {lang} table"
+        inner_start = match.end() - 1
+        depth = 0
+        for index in range(inner_start, len(block)):
+            if block[index] == "{":
+                depth += 1
+            elif block[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    inner_end = index + 1
+                    break
+        body = block[inner_start:inner_end]
+        tables[lang] = {
+            m.group(1): m.group(2)[1:-1]
+            for m in re.finditer(
+                r"(?:^|[{,]\s*)([A-Za-z_]\w*)\s*:\s*"
+                r"(\"(?:[^\"\\]|\\.)*\"|'(?:[^'\\]|\\.)*')",
+                body,
+            )
+        }
+    return tables
+
+
+def _driver_script_after_copy() -> str:
+    source = COURIER.read_text(encoding="utf-8")
+    start = source.index("{", source.index("const COPY"))
+    depth = 0
+    for index in range(start, len(source)):
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return source[index + 1 :]
+    raise AssertionError("COPY block never closes")
+
+
+def test_all_four_driver_languages_are_complete():
+    """Urdu and Hindi were missing 50 of 133 keys.
+
+    t() falls back to Arabic on a miss, so a Pakistani or Indian rider read more
+    than a third of the app in a script they may not read at all — and nothing
+    reported it, because falling back is not an error.
+    """
+    tables = _copy_tables()
+    arabic = set(tables["ar"])
+    assert len(arabic) > 200, f"COPY.ar looks truncated: {len(arabic)} keys"
+    for lang in ("en", "ur", "hi"):
+        missing = sorted(arabic - set(tables[lang]))
+        assert not missing, (
+            f"COPY.{lang} is missing {len(missing)} keys, which silently fall "
+            f"back to Arabic: {missing[:10]}"
+        )
+
+
+def test_every_driver_key_used_is_defined():
+    """t('notAvailable') printed the literal string "notAvailable" on screen."""
+    tables = _copy_tables()
+    used = set(re.findall(r"\bt\(\s*['\"]([A-Za-z_]\w*)['\"]\s*\)", _driver_script_after_copy()))
+    undefined = sorted(used - set(tables["ar"]))
+    assert not undefined, (
+        "these keys are passed to t() but defined nowhere, so the key name "
+        f"itself is rendered to the rider: {undefined}"
+    )
+
+
+def test_no_arabic_is_rendered_outside_the_driver_dictionary():
+    """73 strings bypassed COPY, so they stayed Arabic in all four languages."""
+    script = _driver_script_after_copy()
+    runs = {m.group(0) for m in re.finditer(r"[؀-ۿ]+", script)}
+    # The language picker names each language in its own script, on purpose.
+    runs -= {"العربية", "اردو"}
+    assert not runs, (
+        "these Arabic strings are rendered without going through t(), so they "
+        f"appear untranslated in English, Urdu and Hindi: {sorted(runs)[:10]}"
+    )
