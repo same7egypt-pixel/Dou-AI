@@ -264,7 +264,14 @@ async function renderContractsManagement(contentArea, mainContainer, isAdmin) {
               ct.client_rate_per_order ? el('span', { class: 'badge badge-blue' }, `سعر الطلب: ${ct.client_rate_per_order} ر.س`) : null,
             ]),
             el('div', { style: 'font-size:12px;color:var(--muted);margin-top:4px' }, [
-              el('span', {}, `العميل: ${ct.client_name || ct.name} | تاريخ البداية: ${ct.start_date ? ct.start_date.slice(0, 10) : '—'} | تاريخ الانتهاء: ${ct.end_date ? ct.end_date.slice(0, 10) : '—'}`)
+              el('span', {}, (() => {
+                const client = ct.client_name || ct.name;
+                const from = ct.start_date ? ct.start_date.slice(0, 10) : '—';
+                const to = ct.end_date ? ct.end_date.slice(0, 10) : '—';
+                return getLang() === 'ar'
+                  ? `العميل: ${client} | تاريخ البداية: ${from} | تاريخ الانتهاء: ${to}`
+                  : `Client: ${client} | Start: ${from} | End: ${to}`;
+              })())
             ])
           ]),
           el('div', { style: 'display:flex;gap:4px;flex-wrap:wrap' }, cardActions)
@@ -346,7 +353,9 @@ async function renderPlatformOperators(contentArea, mainContainer, isAdmin) {
                 portalOpen ? '🔓 بوابة المورّد مفتوحة' : '🔒 بوابة المورّد مغلقة'),
             ]),
             el('div', { style: 'font-size:12px;color:var(--muted);margin-top:4px' }, [
-              el('span', {}, `طبيعة الشراكة: ${dash(op.relationship_type)} | آخر تسوية معتمدة: ${dash(h.last_settled_month)}`)
+              el('span', {}, getLang() === 'ar'
+                ? `طبيعة الشراكة: ${dash(op.relationship_type)} | آخر تسوية معتمدة: ${dash(h.last_settled_month)}`
+                : `Relationship: ${dash(op.relationship_type)} | Last approved settlement: ${dash(h.last_settled_month)}`)
             ])
           ]),
           el('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' }, [
@@ -370,11 +379,13 @@ async function renderPlatformOperators(contentArea, mainContainer, isAdmin) {
         el('div', { style: 'margin-top:14px;border-top:1px solid var(--border);padding-top:10px;display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:10px' }, [
           el('div', { style: 'background:var(--bg);padding:8px 12px;border-radius:8px;border:1px solid var(--border)' }, [
             el('small', { style: 'display:block;color:var(--muted);font-size:11px' }, 'مناديب الشركة المسندين:'),
-            el('b', { style: 'color:var(--text);font-size:14px' }, `${h.active_couriers ?? 0} مندوب`)
+            el('b', { style: 'color:var(--text);font-size:14px' },
+              getLang() === 'ar' ? `${h.active_couriers ?? 0} مندوب` : `${h.active_couriers ?? 0} riders`)
           ]),
           el('div', { style: 'background:var(--bg);padding:8px 12px;border-radius:8px;border:1px solid var(--border)' }, [
             el('small', { style: 'display:block;color:var(--muted);font-size:11px' }, 'تسويات بانتظار الاعتماد:'),
-            el('b', { style: 'color:var(--primary);font-size:14px' }, `${h.pending_settlements ?? 0} تسوية`)
+            el('b', { style: 'color:var(--primary);font-size:14px' },
+              getLang() === 'ar' ? `${h.pending_settlements ?? 0} تسوية` : `${h.pending_settlements ?? 0} settlements`)
           ]),
           el('div', { style: 'background:var(--bg);padding:8px 12px;border-radius:8px;border:1px solid var(--border)' }, [
             el('small', { style: 'display:block;color:var(--muted);font-size:11px' }, 'الأداء والالتزام:'),

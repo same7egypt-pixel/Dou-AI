@@ -680,3 +680,73 @@ def test_rerunning_a_day_shows_the_newest_result_first(env):
     listed = env["client"].get("/sources/reconcile", headers=env["H"]).json()
     assert listed[0]["id"] == fresh["id"], "a stale run was shown as current"
     assert listed[1]["id"] == stale["id"], "the earlier run must be kept"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# English means English
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_every_arabic_ui_string_on_the_screen_can_be_translated():
+    """Arabic is primary and English secondary, and English must not leak
+    Arabic. Measured in the browser before this was fixed: 65 Arabic strings
+    survived on these two screens with the language set to English.
+
+    A tenant's own names — a source platform, a contract, a rider — are their
+    data and stay exactly as entered; only chrome is checked here.
+    """
+    import re as _re
+
+    dictionary = (FRONTEND / "shared" / "i18n" / "i18n.js").read_text(encoding="utf-8")
+    arabic = _re.compile(r"[؀-ۿ]")
+    missing = []
+
+    for view in ("integration.js", "capacity.js"):
+        code = (FRONTEND / "fleet" / "views" / view).read_text(encoding="utf-8")
+        code = _re.sub(r"//[^\n]*", "", code)
+        # The T block carries its own en side and is guarded by
+        # test_every_tab_is_named_in_both_languages.
+        if "const T = {" in code:
+            head, _, tail = code.partition("const T = {")
+            code = head + tail.partition("\n};")[2]
+        # Whole single-quoted literals only: a template with ${} interpolation
+        # can never match a whole-string dictionary entry and has to choose its
+        # own language inline, which is checked separately below.
+        for literal in _re.findall(r"'([^'\\\n]{2,})'", code):
+            if not arabic.search(literal):
+                continue
+            if literal in dictionary:
+                continue
+            missing.append(f"{view}: {literal[:60]}")
+
+    assert not missing, (
+        "Arabic UI strings with no English translation:\n  "
+        + "\n  ".join(missing[:15])
+    )
+
+
+def test_a_label_joined_to_a_value_picks_its_own_language():
+    """A concatenated string never matches a whole-string dictionary entry, so
+    it stayed Arabic in English however complete the dictionary was."""
+    code = (FRONTEND / "fleet" / "views" / "integration.js").read_text(encoding="utf-8")
+    import re as _re
+
+    for template in _re.findall(r"`([^`]*\$\{[^`]*)`", code):
+        if not _re.search(r"[؀-ۿ]", template):
+            continue
+        start = code.index(template) - 400
+        window = code[max(0, start): code.index(template) + len(template)]
+        assert "AR()" in window or "getLang()" in window, (
+            f"this template is Arabic-only in English: {template[:60]!r}"
+        )
+
+
+def test_a_rejection_carries_what_the_screen_needs_to_write_its_own_sentence(env):
+    """The API answers in Arabic and has no way to know the reader's language."""
+    _row(env, "ORD-I18N")
+    issue = json.loads(env["db"].query(RawImportRow).one().validation_issues)[0]
+    assert issue["code"] == "UNMAPPED_RIDER"
+    assert issue["value"] == "NJ-77", (
+        "the offending id was only inside the Arabic sentence, so an English "
+        "screen could not restate it"
+    )

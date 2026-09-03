@@ -45,6 +45,11 @@ const T = {
   },
 };
 
+// A concatenated string can never match a whole-string dictionary entry, so a
+// label joined to a value picks its own language here rather than relying on
+// the auto-translate pass.
+const AR = () => getLang() === 'ar';
+
 export async function renderIntegration(container) {
   const isAr = getLang() === 'ar';
   const L = isAr ? T.ar : T.en;
@@ -107,7 +112,8 @@ async function renderSources(area, container) {
               el('span', { class: `badge ${p.is_active ? 'badge-green' : ''}` }, p.is_active ? '● فعّال' : '○ متوقف'),
             ]),
             el('div', { style: 'font-size:12px;color:var(--muted);margin-top:4px' },
-              `الرمز: ${p.code} | عدد الاتصالات: ${conns.length}`)
+              AR() ? `الرمز: ${p.code} | عدد الاتصالات: ${conns.length}`
+                   : `Code: ${p.code} | Connections: ${conns.length}`)
           ]),
           el('button', { class: 'btn btn-ghost btn-small', onclick: () => openConnectionModal(container, p) },
             '➕ إضافة اتصال'),
@@ -115,8 +121,10 @@ async function renderSources(area, container) {
         conns.length ? el('div', { style: 'margin-top:12px;border-top:1px solid var(--border);padding-top:10px;display:grid;gap:6px' },
           conns.map(c => el('div', { style: 'font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap' }, [
             el('b', { style: 'color:var(--text)' }, c.connection_name),
-            el('span', {}, `التكرار: ${c.import_frequency || '—'}`),
-            el('span', {}, `آخر استيراد: ${c.last_import_at || '—'}`),
+            el('span', {}, AR() ? `التكرار: ${c.import_frequency || '—'}`
+                                : `Frequency: ${c.import_frequency || '—'}`),
+            el('span', {}, AR() ? `آخر استيراد: ${c.last_import_at || '—'}`
+                                : `Last import: ${c.last_import_at || '—'}`),
             el('span', { class: `badge ${c.is_active ? 'badge-green' : ''}` }, c.is_active ? 'فعّال' : 'متوقف'),
           ]))
         ) : null
@@ -190,7 +198,7 @@ async function renderRiderMappings(area, container) {
       { key: 'source_rider_id', label: 'معرّف المصدر', render: (v) => el('code', { style: 'font-size:12px' }, v) },
       { key: 'courier_id', label: 'المندوب في DOU', render: (v) => {
         const c = byId.get(v);
-        return c ? `${c.name} — ${c.phone || '—'}` : `مندوب #${v}`;
+        return c ? `${c.name} — ${c.phone || '—'}` : `${AR() ? 'مندوب' : 'Rider'} #${v}`;
       } },
       { key: 'match_method', label: 'طريقة المطابقة', render: (v) => v || '—' },
       { key: 'confidence', label: 'الثقة', render: (v) => (v != null ? String(v) : '—') },
@@ -240,7 +248,7 @@ async function renderRawRows(area, container) {
       ) },
       { key: 'validation_issues', label: 'سبب الرفض', render: (v) => el(
         'span', { style: 'font-size:12px;color:var(--muted)' },
-        (v || []).map(i => i.reason).join(' · ') || '—'
+        (v || []).map(issueText).join(' · ') || '—'
       ) },
       { key: 'created_at', label: 'وصل في', render: (v) => String(v || '').slice(0, 16).replace('T', ' ') },
     ], rows.slice(0, 200)));
@@ -248,6 +256,20 @@ async function renderRawRows(area, container) {
     area.innerHTML = '';
     area.append(errorState('تعذر تحميل الصفوف: ' + e.message, () => renderRawRows(area, container)));
   }
+}
+
+// The API answers in Arabic and has no way to know the reader's language, so
+// the rejection carries a code and the offending value and the sentence is
+// written here. Anything without a code we do not have wording for falls back
+// to the server's own text rather than showing nothing.
+function issueText(issue) {
+  const isAr = getLang() === 'ar';
+  if (issue.code === 'UNMAPPED_RIDER' && issue.value) {
+    return isAr
+      ? `لا يوجد مندوب مرتبط بمعرّف المصدر «${issue.value}» — أضف المطابقة ثم أعد المعالجة`
+      : `No rider mapped to source id "${issue.value}" — add the mapping, then reprocess`;
+  }
+  return issue.reason || (isAr ? 'سبب غير معروف' : 'Unknown reason');
 }
 
 // ── التوصيلات المعتمدة ──────────────────────────────────────────────────────
@@ -273,12 +295,12 @@ async function renderFacts(area, container) {
       { key: 'source_delivery_id', label: 'معرّف التوصيلة', render: (v) => el('code', { style: 'font-size:12px' }, v) },
       { key: 'courier_id', label: 'المندوب', render: (v) => {
         const c = byId.get(v);
-        return c ? c.name : (v ? `مندوب #${v}` : '—');
+        return c ? c.name : (v ? `${AR() ? 'مندوب' : 'Rider'} #${v}` : '—');
       } },
       { key: 'event_type', label: 'الحالة', render: (v) => badge(v === 'COMPLETED' ? 'مكتملة' : v, v === 'COMPLETED' ? 'green' : 'amber') },
       { key: 'event_date', label: 'التاريخ', render: (v) => v || '—' },
-      { key: 'distance_km', label: 'المسافة', render: (v) => (v != null ? `${v} كم` : '—') },
-      { key: 'revenue_amount', label: 'الإيراد', render: (v) => (v != null ? `${v} ر.س` : '—') },
+      { key: 'distance_km', label: 'المسافة', render: (v) => (v != null ? (AR() ? `${v} كم` : `${v} km`) : '—') },
+      { key: 'revenue_amount', label: 'الإيراد', render: (v) => (v != null ? `${v} ${AR() ? 'ر.س' : 'SAR'}` : '—') },
       { key: 'raw_row_id', label: 'الصف الخام', render: (v) => (v ? `#${v}` : '—') },
     ], facts.slice(0, 200)));
   } catch (e) {
@@ -322,15 +344,16 @@ async function renderReconcile(area, container) {
     // subtraction the reader has to do.
     area.append(table([
       { key: 'reconciliation_date', label: 'اليوم' },
-      { key: 'source_total_count', label: 'أرسلت المنصة', render: (v) => `${v} صف` },
-      { key: 'accepted_count', label: 'احتُسب في DOU', render: (v) => `${v} توصيلة` },
+      { key: 'source_total_count', label: 'أرسلت المنصة', render: (v) => AR() ? `${v} صف` : `${v} rows` },
+      { key: 'accepted_count', label: 'احتُسب في DOU', render: (v) => AR() ? `${v} توصيلة` : `${v} deliveries` },
       { key: 'missing_count', label: 'ناقص', render: (v) => el('b',
         { style: `color:${v ? 'var(--red)' : 'var(--muted)'}` }, String(v ?? 0)) },
       { key: 'unmapped_count', label: 'مندوب غير مطابَق', render: (v) => String(v ?? 0) },
-      { key: 'total_revenue_source', label: 'إيراد المنصة', render: (v) => `${(v ?? 0).toFixed(2)} ر.س` },
-      { key: 'total_revenue_accepted', label: 'إيراد DOU', render: (v) => `${(v ?? 0).toFixed(2)} ر.س` },
+      { key: 'total_revenue_source', label: 'إيراد المنصة', render: (v) => `${(v ?? 0).toFixed(2)} ${AR() ? 'ر.س' : 'SAR'}` },
+      { key: 'total_revenue_accepted', label: 'إيراد DOU', render: (v) => `${(v ?? 0).toFixed(2)} ${AR() ? 'ر.س' : 'SAR'}` },
       { key: 'revenue_gap', label: 'فرق الإيراد', render: (v) => el('b',
-        { style: `color:${v ? 'var(--red)' : 'var(--green)'}` }, `${(v ?? 0).toFixed(2)} ر.س`) },
+        { style: `color:${v ? 'var(--red)' : 'var(--green)'}` },
+        `${(v ?? 0).toFixed(2)} ${AR() ? 'ر.س' : 'SAR'}`) },
       { key: 'status', label: 'الحالة', render: (v) => badge(
         v === 'COMPLETED' ? 'متطابق' : v === 'EXCEPTION' ? 'يوجد فرق' : v,
         v === 'COMPLETED' ? 'green' : 'red') },
@@ -349,11 +372,18 @@ async function runReconcile(area, container) {
     const res = await api.post('/sources/reconcile', {
       source_platform_id: platformId, reconciliation_date: day,
     });
-    alert(res.status === 'COMPLETED'
-      ? `✅ اليوم متطابق.\n\nأرسلت المنصة ${res.source_total_count} واحتُسب ${res.accepted_count}.`
-      : `⚠️ يوجد فرق.\n\nأرسلت المنصة ${res.source_total_count} واحتُسب ${res.accepted_count}` +
-        `\nناقص: ${res.missing_count} — منها ${res.unmapped_count} بسبب مندوب غير مطابَق` +
-        `\nفرق الإيراد: ${res.revenue_gap} ر.س`);
+    const balanced = res.status === 'COMPLETED';
+    alert(AR()
+      ? (balanced
+        ? `✅ اليوم متطابق.\n\nأرسلت المنصة ${res.source_total_count} واحتُسب ${res.accepted_count}.`
+        : `⚠️ يوجد فرق.\n\nأرسلت المنصة ${res.source_total_count} واحتُسب ${res.accepted_count}` +
+          `\nناقص: ${res.missing_count} — منها ${res.unmapped_count} بسبب مندوب غير مطابَق` +
+          `\nفرق الإيراد: ${res.revenue_gap} ر.س`)
+      : (balanced
+        ? `✅ The day balances.\n\nThe platform sent ${res.source_total_count} and ${res.accepted_count} were counted.`
+        : `⚠️ There is a gap.\n\nThe platform sent ${res.source_total_count} and ${res.accepted_count} were counted` +
+          `\nMissing: ${res.missing_count} — ${res.unmapped_count} of them from an unmapped rider` +
+          `\nRevenue gap: ${res.revenue_gap} SAR`));
     renderIntegration(container);
   } catch (e) {
     alert('❌ تعذر تشغيل المطابقة: ' + e.message);
@@ -366,7 +396,9 @@ async function reprocess(container) {
     'الصفوف المعتمدة لا تُمس — إعادة المعالجة لا يمكن أن تحتسب توصيلة مرتين.')) return;
   try {
     const res = await api.post('/sources/raw-rows/reprocess');
-    alert(`✅ تمت إعادة المعالجة.\n\nاعتُمد: ${res.normalized}\nما زال مرفوضًا: ${res.rejected}`);
+    alert(AR()
+      ? `✅ تمت إعادة المعالجة.\n\nاعتُمد: ${res.normalized}\nما زال مرفوضًا: ${res.rejected}`
+      : `✅ Reprocessing done.\n\nAccepted: ${res.normalized}\nStill rejected: ${res.rejected}`);
     renderIntegration(container);
   } catch (e) {
     alert('❌ تعذرت إعادة المعالجة: ' + e.message);
@@ -394,7 +426,9 @@ function openSourceModal(container) {
 
 function openConnectionModal(container, platform) {
   const content = el('form', { style: 'display:grid;gap:14px;direction:rtl' }, [
-    el('p', { style: 'margin:0;font-size:12px;color:var(--muted)' }, `اتصال جديد بمصدر «${platform.name_ar || platform.code}».`),
+    el('p', { style: 'margin:0;font-size:12px;color:var(--muted)' },
+      AR() ? `اتصال جديد بمصدر «${platform.name_ar || platform.code}».`
+           : `A new connection to source "${platform.name_ar || platform.code}".`),
     field('cn-name', 'اسم الاتصال: *', { placeholder: 'استيراد يومي — الرياض', required: true }),
     el('div', {}, [
       label('cn-freq', 'تكرار الاستيراد:'),
@@ -460,7 +494,9 @@ function openKeyModal(container) {
 }
 
 async function rotateKey(container, key) {
-  if (!confirm(`تدوير مفتاح «${key.partner_name}»؟\n\nسيتوقف المفتاح الحالي فورًا، ولن تصل بيانات المنصة حتى تُحدَّث لديها بالمفتاح الجديد.`)) return;
+  if (!confirm(AR()
+    ? `تدوير مفتاح «${key.partner_name}»؟\n\nسيتوقف المفتاح الحالي فورًا، ولن تصل بيانات المنصة حتى تُحدَّث لديها بالمفتاح الجديد.`
+    : `Rotate the key for "${key.partner_name}"?\n\nThe current key stops immediately, and the platform's data will not arrive until it is updated there with the new one.`)) return;
   try {
     const res = await api.post(`/enterprise/credentials/${key.id}/rotate`);
     const content = el('div', { style: 'direction:rtl' }, [

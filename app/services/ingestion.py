@@ -72,12 +72,20 @@ class RowRejected(Exception):
     """The row cannot become a fact, and the reason is worth showing."""
 
     def __init__(
-        self, reason: str, field: Optional[str] = None, code: str = MALFORMED_ROW
+        self,
+        reason: str,
+        field: Optional[str] = None,
+        code: str = MALFORMED_ROW,
+        value: Optional[str] = None,
     ):
         super().__init__(reason)
         self.reason = reason
         self.field = field
         self.code = code
+        # The offending value, separately from the sentence it appears in, so a
+        # screen can write its own sentence in the reader's language rather than
+        # the API needing a locale it has no way to know.
+        self.value = value
 
 
 def _first(data: dict, keys: tuple[str, ...]) -> Any:
@@ -173,6 +181,7 @@ def resolve_courier(
         "أضف المطابقة ثم أعد المعالجة",
         "source_rider_id",
         UNMAPPED_RIDER,
+        str(source_rider_id),
     )
 
 
@@ -250,6 +259,7 @@ def normalize_row(db: Session, row: ent.RawImportRow) -> Optional[ent.Normalized
             [{
                 "field": rejected.field,
                 "code": rejected.code,
+                "value": rejected.value,
                 "reason": rejected.reason,
             }],
             ensure_ascii=False,
