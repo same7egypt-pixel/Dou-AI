@@ -253,14 +253,18 @@ def app_workforce():
     return RedirectResponse(url="/app", status_code=308)
 
 
-@app.api_route("/driver", methods=["GET", "HEAD"])
-@app.api_route("/driver/", methods=["GET", "HEAD"])
+@app.get("/driver")
+@app.head("/driver")
+@app.get("/driver/")
+@app.head("/driver/")
 def driver_app():
     return FileResponse(os.path.join(STATIC_DIR, "courier.html"))
 
 
-@app.api_route("/merchant", methods=["GET", "HEAD"])
-@app.api_route("/merchant/", methods=["GET", "HEAD"])
+@app.get("/merchant")
+@app.head("/merchant")
+@app.get("/merchant/")
+@app.head("/merchant/")
 def merchant_app():
     return FileResponse(os.path.join(STATIC_DIR, "merchant.html"))
 

@@ -340,24 +340,63 @@ def test_2_2_dispatch_order_rejected_when_rider_not_checked_in():
         },
     )
     assert res.status_code == 409
-    assert "No rider is checked in" in res.json().get("detail", "")
+    assert "لا يوجد مندوب حاضر" in res.json().get("detail", "")
 
 
 # ─── BLOCK 3 — Rider Check-In ─────────────────────────────────────────────────
 
-def test_3_1_rider_checkin_within_geofence():
+def test_3_1_geofence_enforcement_and_self_correction():
     rider_token = make_rider_token(99)
-    headers = {"Authorization": f"Bearer {rider_token}"}
-    res = client.post(
+    branch_token = create_branch_token(1)
+    rider_headers = {"Authorization": f"Bearer {rider_token}"}
+    branch_headers = {"Authorization": f"Bearer {branch_token}"}
+
+    # 1. Rider attempts check-in from Jeddah (~850km away) -> validated=False
+    res_far = client.post(
         "/driver/shifts/dedicated/1/checkin",
-        headers=headers,
-        json={"lat": 24.7136, "lng": 46.6753},  # Exact coords of Branch 1
+        headers=rider_headers,
+        json={"lat": 21.4858, "lng": 39.1925},
     )
-    assert res.status_code == 200
-    data = res.json()
-    assert data["validated"] is True
-    assert data["distance_meters"] <= 150
-    assert "attendance_log_id" in data
+    assert res_far.status_code == 200
+    data_far = res_far.json()
+    assert data_far["validated"] is False
+    assert data_far["distance_meters"] > 150_000
+    log_id = data_far["attendance_log_id"]
+
+    # 2. Cashier views active riders: rider MUST still be "not_yet" (not checked in)
+    res_riders = client.get("/merchant/branch/1/riders/active", headers=branch_headers)
+    assert res_riders.status_code == 200
+    assert res_riders.json()[0]["checkin_status"] == "not_yet"
+
+    # 3. Cashier attempts dispatch: MUST be rejected with 409
+    res_dispatch_blocked = client.post(
+        "/merchant/branch/1/orders",
+        headers=branch_headers,
+        json={
+            "customer_name": "Test Blocked",
+            "customer_phone": "0500000000",
+            "delivery_address": "Riyadh",
+        },
+    )
+    assert res_dispatch_blocked.status_code == 409
+    assert "لا يوجد مندوب حاضر" in res_dispatch_blocked.json()["detail"]
+
+    # 4. Self-Correction: Rider checks in within geofence (Olaya, <= 150m)
+    res_close = client.post(
+        "/driver/shifts/dedicated/1/checkin",
+        headers=rider_headers,
+        json={"lat": 24.7136, "lng": 46.6753},
+    )
+    assert res_close.status_code == 200
+    data_close = res_close.json()
+    assert data_close["validated"] is True
+    assert data_close["distance_meters"] <= 150
+    assert data_close["attendance_log_id"] == log_id  # Upgrades existing log
+
+    # 5. Cashier active riders now reflects checked_in!
+    res_riders_after = client.get("/merchant/branch/1/riders/active", headers=branch_headers)
+    assert res_riders_after.status_code == 200
+    assert res_riders_after.json()[0]["checkin_status"] == "checked_in"
 
 
 def test_3_2_rider_checkin_idempotency():
@@ -768,7 +807,7 @@ def test_7_1_pos_ingestion_auth_and_dual_routing(setup_database, monkeypatch):
         },
     )
     assert r_route_b_disabled.status_code == 409
-    assert "No dedicated rider is available" in r_route_b_disabled.json()["detail"]
+    assert "لا يوجد مندوب مخصص متاح" in r_route_b_disabled.json()["detail"]
 
     # Pool queries and claim endpoints must return 403 Forbidden
     rider100_token = make_rider_token(100)
@@ -777,14 +816,14 @@ def test_7_1_pos_ingestion_auth_and_dual_routing(setup_database, monkeypatch):
         headers={"Authorization": f"Bearer {rider100_token}"},
     )
     assert r_pool_disabled.status_code == 403
-    assert "Open pool is disabled" in r_pool_disabled.json()["detail"]
+    assert "معطل حالياً" in r_pool_disabled.json()["detail"]
 
     r_claim_disabled = client.patch(
         "/driver/orders/999/claim",
         headers={"Authorization": f"Bearer {rider100_token}"},
     )
     assert r_claim_disabled.status_code == 403
-    assert "Open pool is disabled" in r_claim_disabled.json()["detail"]
+    assert "معطل حالياً" in r_claim_disabled.json()["detail"]
 
     # 7.7: When ENABLE_OPEN_POOL=True is explicitly enabled, Route B falls back to pool
     import app.routers.merchant as merchant_router
@@ -842,5 +881,4 @@ def test_7_1_pos_ingestion_auth_and_dual_routing(setup_database, monkeypatch):
         headers={"Authorization": f"Bearer {rider101_token}"},
     )
     assert r_claim_again.status_code == 409
-    assert "already claimed" in r_claim_again.json()["detail"].lower()
-
+    assert "مسبقاً" in r_claim_again.json()["detail"]

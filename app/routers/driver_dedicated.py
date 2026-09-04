@@ -36,17 +36,17 @@ def get_current_rider(
     Rejects invalid/missing tokens (HTTP 401).
     """
     if not credentials or not getattr(credentials, "credentials", None):
-        raise HTTPException(status_code=401, detail="Authentication required.")
+        raise HTTPException(status_code=401, detail="تسجيل الدخول مطلوب.")
 
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
     except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token.")
+        raise HTTPException(status_code=401, detail="رمز المصادقة غير صالح.")
 
     sub = str(payload.get("sub", ""))
     if sub.startswith("merchant_branch:"):
-        raise HTTPException(status_code=403, detail="Branch token cannot access driver endpoints.")
+        raise HTTPException(status_code=403, detail="رمز الفرع غير مصرح له بالوصول لمسارات السائق.")
 
     # 1. Look for explicit courier_id in payload
     if payload.get("courier_id"):
@@ -76,7 +76,7 @@ def get_current_rider(
             except ValueError:
                 pass
 
-    raise HTTPException(status_code=403, detail="User is not authorized as a rider.")
+    raise HTTPException(status_code=403, detail="المستخدم غير مصرح له كتطبيق سائق.")
 
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────
@@ -192,8 +192,10 @@ def get_today_dedicated_shift(
     if log:
         if log.checkout_at is not None:
             checkin_status = "completed"
-        elif log.checkin_at is not None:
+        elif log.checkin_at is not None and log.geofence_validated:
             checkin_status = "checked_in"
+        else:
+            checkin_status = "not_yet"
 
     address = f"{branch.city}, {branch.district or ''}".strip(", ")
 
@@ -221,15 +223,18 @@ def dedicated_shift_checkin(
     """
     Validates rider's GPS coordinates against branch geofence using Haversine formula.
     geofence_validated = True when distance <= geofence_radius_meters.
-    Idempotent: if a log already exists for today + booking_id, returns it.
+    Idempotent with Self-Correction:
+      - If existing log was outside geofence, and new check-in is within geofence:
+        upgrades geofence_validated to True, updates coordinates, and confirms attendance.
+      - If still outside geofence: reports validated=False with distance.
     """
     booking = db.get(DedicatedShiftBooking, booking_id)
     if not booking or booking.rider_id != current_rider.id:
-        raise HTTPException(status_code=404, detail="Dedicated shift booking not found.")
+        raise HTTPException(status_code=404, detail="حجز الوردية المخصصة غير موجود.")
 
     branch = db.get(MerchantBranch, booking.merchant_branch_id)
     if not branch:
-        raise HTTPException(status_code=404, detail="Branch not found.")
+        raise HTTPException(status_code=404, detail="الفرع غير موجود.")
 
     today = date.today()
     distance_meters = haversine_distance_meters(
@@ -237,7 +242,7 @@ def dedicated_shift_checkin(
     )
     validated = distance_meters <= branch.geofence_radius_meters
 
-    # Check existing attendance log for idempotency
+    # Check existing attendance log for idempotency and self-correction
     existing_log = (
         db.query(ShiftAttendanceLog)
         .filter(
@@ -249,12 +254,34 @@ def dedicated_shift_checkin(
     )
 
     if existing_log:
-        return CheckinResponse(
-            validated=existing_log.geofence_validated,
-            distance_meters=round(distance_meters, 2),
-            message="Check-in log already exists.",
-            attendance_log_id=existing_log.id,
-        )
+        if existing_log.geofence_validated:
+            return CheckinResponse(
+                validated=True,
+                distance_meters=round(distance_meters, 2),
+                message="تم تسجيل حضورك مسبقاً وتأكيده داخل نطاق الفرع.",
+                attendance_log_id=existing_log.id,
+            )
+        # Self-correction: rider previously attempted outside geofence, now within geofence!
+        if validated:
+            existing_log.geofence_validated = True
+            existing_log.checkin_at = datetime.now(timezone.utc)
+            existing_log.checkin_lat = payload.lat
+            existing_log.checkin_lng = payload.lng
+            db.commit()
+            db.refresh(existing_log)
+            return CheckinResponse(
+                validated=True,
+                distance_meters=round(distance_meters, 2),
+                message="تم تصحيح وتأكيد حضورك بنجاح داخل النطاق الجغرافي للفرع.",
+                attendance_log_id=existing_log.id,
+            )
+        else:
+            return CheckinResponse(
+                validated=False,
+                distance_meters=round(distance_meters, 2),
+                message=f"أنت خارج النطاق الجغرافي للفرع ({round(distance_meters)} متراً). النطاق المسموح هو {branch.geofence_radius_meters} متراً.",
+                attendance_log_id=existing_log.id,
+            )
 
     log = ShiftAttendanceLog(
         dedicated_shift_booking_id=booking.id,
@@ -269,7 +296,11 @@ def dedicated_shift_checkin(
     db.commit()
     db.refresh(log)
 
-    msg = "Check-in successful." if validated else "Check-in recorded outside geofence (audit flagged)."
+    msg = (
+        "تم تسجيل حضورك بنجاح داخل النطاق الجغرافي للفرع."
+        if validated
+        else f"أنت خارج النطاق الجغرافي للفرع ({round(distance_meters)} متراً). يلزم التواجد أمام الفرع ({branch.geofence_radius_meters} متراً) لتأكيد الحضور واستقبال الطلبات."
+    )
     return CheckinResponse(
         validated=validated,
         distance_meters=round(distance_meters, 2),
@@ -391,10 +422,10 @@ def update_order_status(
     """
     order = db.get(BranchDispatchOrder, order_id)
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found.")
+        raise HTTPException(status_code=404, detail="الطلب غير موجود.")
 
     if order.rider_id != current_rider.id:
-        raise HTTPException(status_code=403, detail="Forbidden: Order assigned to another rider.")
+        raise HTTPException(status_code=403, detail="غير مصرح: هذا الطلب مسند لمندوب آخر.")
 
     current_status = order.status
     target_status = payload.status
@@ -403,7 +434,7 @@ def update_order_status(
         if target_status != "en_route":
             raise HTTPException(
                 status_code=422,
-                detail=f"Invalid transition from {current_status.value} to {target_status}. Allowed: en_route",
+                detail=f"تغيير غير صالح للحالة من {current_status.value} إلى {target_status}. المسموح: en_route",
             )
         order.status = OrderStatus.en_route
         order.acknowledged_at = datetime.now(timezone.utc)
@@ -411,7 +442,7 @@ def update_order_status(
         if target_status != "delivered":
             raise HTTPException(
                 status_code=422,
-                detail=f"Invalid transition from {current_status.value} to {target_status}. Allowed: delivered",
+                detail=f"تغيير غير صالح للحالة من {current_status.value} إلى {target_status}. المسموح: delivered",
             )
         order.status = OrderStatus.delivered
         order.delivered_at = datetime.now(timezone.utc)
@@ -420,7 +451,7 @@ def update_order_status(
         # Already delivered
         raise HTTPException(
             status_code=422,
-            detail=f"Order is already {current_status.value}; no further transitions permitted.",
+            detail=f"الطلب مكتمل بحالة {current_status.value} مسبقاً، ولا يمكن إجراء أي تغيير إضافي.",
         )
 
     db.commit()
@@ -450,7 +481,7 @@ def get_pool_orders(
     if not ENABLE_OPEN_POOL:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Open pool is disabled.",
+            detail="سوق الطلبات الحرة (Open Pool) معطل حالياً.",
         )
 
     today = date.today()
@@ -510,7 +541,7 @@ def claim_pool_order(
     if not ENABLE_OPEN_POOL:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Open pool is disabled.",
+            detail="سوق الطلبات الحرة (Open Pool) معطل حالياً.",
         )
 
     # with_for_update locks the row in Postgres
@@ -521,12 +552,12 @@ def claim_pool_order(
         .first()
     )
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found.")
+        raise HTTPException(status_code=404, detail="الطلب غير موجود.")
 
     if order.rider_id is not None or not order.is_pool_eligible or order.status != OrderStatus.pending:
         raise HTTPException(
             status_code=409,
-            detail="Order is already claimed by another rider or not available.",
+            detail="الطلب تم استلامه من مندوب آخر مسبقاً أو غير متاح.",
         )
 
     order.rider_id = current_rider.id
@@ -538,5 +569,5 @@ def claim_pool_order(
         "order_id": order.id,
         "status": order.status.value,
         "claimed_by_rider_id": current_rider.id,
-        "message": "Order successfully claimed.",
+        "message": "تم استلام الطلب بنجاح.",
     }

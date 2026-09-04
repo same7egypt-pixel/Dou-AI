@@ -126,11 +126,11 @@ def _resolve_api_key(raw_key: str, db: Session) -> MerchantAccount:
     Step 2 — bcrypt verify against that single row only.
     """
     if not raw_key:
-        raise HTTPException(status_code=401, detail="Invalid API key.")
+        raise HTTPException(status_code=401, detail="مفتاح API غير صالح.")
     parts = raw_key.split("_")
     # Expected format: ["dou", "live", "<prefix>", "<secret>"]
     if len(parts) < 4 or parts[0] != "dou" or parts[1] != "live":
-        raise HTTPException(status_code=401, detail="Invalid API key.")
+        raise HTTPException(status_code=401, detail="مفتاح API غير صالح.")
 
     prefix = parts[2]
     account = db.query(MerchantAccount).filter(
@@ -139,13 +139,13 @@ def _resolve_api_key(raw_key: str, db: Session) -> MerchantAccount:
     ).first()
 
     if not account or not account.api_key_hash:
-        raise HTTPException(status_code=401, detail="Invalid API key.")
+        raise HTTPException(status_code=401, detail="مفتاح API غير صالح.")
 
     try:
         if not bcrypt.checkpw(raw_key.encode("utf-8"), account.api_key_hash.encode("utf-8")):
-            raise HTTPException(status_code=401, detail="Invalid API key.")
+            raise HTTPException(status_code=401, detail="مفتاح API غير صالح.")
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid API key.")
+        raise HTTPException(status_code=401, detail="مفتاح API غير صالح.")
 
     return account
 
@@ -169,6 +169,7 @@ def _find_eligible_branch_rider(branch_id: int, db: Session):
             ShiftAttendanceLog.log_date == today,
             ShiftAttendanceLog.checkin_at.isnot(None),
             ShiftAttendanceLog.checkout_at.is_(None),
+            ShiftAttendanceLog.geofence_validated.is_(True),
         )
         .all()
     )
@@ -226,7 +227,7 @@ def cashier_login(payload: CashierLoginRequest, db: Session = Depends(get_db)):
     if not branch or not verify_pin(payload.pin, branch.cashier_access_pin):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials.",
+            detail="بيانات الدخول غير صحيحة.",
         )
 
     today = date.today()
@@ -269,7 +270,7 @@ def get_active_riders(
     Fields never exposed: full phone, iqama, salary, logistics company identity.
     """
     if branch_id_from_token != branch_id:
-        raise HTTPException(status_code=403, detail="Access denied to this branch.")
+        raise HTTPException(status_code=403, detail="غير مصرح بالوصول لهذا الفرع.")
 
     from app.models.merchant import ShiftAttendanceLog
     today = date.today()
@@ -302,7 +303,7 @@ def get_active_riders(
             attendance_log_id = log.id
             if log.checkout_at is not None:
                 checkin_status = "completed"
-            elif log.checkin_at is not None:
+            elif log.checkin_at is not None and log.geofence_validated:
                 checkin_status = "checked_in"
 
         masked_phone = _mask_phone(rider.phone)
@@ -332,11 +333,11 @@ def dispatch_order(
 ):
     """
     Auto-assigns to the checked-in rider for this branch today.
-    If no rider is checked in: HTTP 409 — "No rider is checked in at this branch."
+    If no rider is checked in: HTTP 409 — "لا يوجد مندوب حاضر في هذا الفرع حالياً."
     If rider has >= 3 active orders: HTTP 409.
     """
     if branch_id_from_token != branch_id:
-        raise HTTPException(status_code=403, detail="Access denied to this branch.")
+        raise HTTPException(status_code=403, detail="غير مصرح بالوصول لهذا الفرع.")
 
     from app.models.merchant import ShiftAttendanceLog
     today = date.today()
@@ -353,18 +354,19 @@ def dispatch_order(
             ShiftAttendanceLog.log_date == today,
             ShiftAttendanceLog.checkin_at.isnot(None),
             ShiftAttendanceLog.checkout_at.is_(None),
+            ShiftAttendanceLog.geofence_validated.is_(True),
         )
         .first()
     )
 
     if not checked_in_log:
-        raise HTTPException(status_code=409, detail="No rider is checked in at this branch.")
+        raise HTTPException(status_code=409, detail="لا يوجد مندوب حاضر في هذا الفرع حالياً.")
 
     booking = db.get(DedicatedShiftBooking, checked_in_log.dedicated_shift_booking_id)
     rider = db.get(Courier, checked_in_log.rider_id)
 
     if not booking or not rider:
-        raise HTTPException(status_code=409, detail="No rider is checked in at this branch.")
+        raise HTTPException(status_code=409, detail="لا يوجد مندوب حاضر في هذا الفرع حالياً.")
 
     active_orders_count = (
         db.query(BranchDispatchOrder)
@@ -378,7 +380,7 @@ def dispatch_order(
     if active_orders_count >= 3:
         raise HTTPException(
             status_code=409,
-            detail="Rider has reached maximum concurrent orders. Wait for current delivery to complete.",
+            detail="المندوب وصل للحد الأقصى من الطلبات المتزامنة (3 طلبات). يرجى الانتظار حتى تسليم الطلب الحالي.",
         )
 
     order = BranchDispatchOrder(
@@ -415,7 +417,7 @@ def get_active_orders(
     Ordered by dispatched_at ascending (oldest first).
     """
     if branch_id_from_token != branch_id:
-        raise HTTPException(status_code=403, detail="Access denied to this branch.")
+        raise HTTPException(status_code=403, detail="غير مصرح بالوصول لهذا الفرع.")
 
     today = date.today()
     orders = (
@@ -460,11 +462,11 @@ def get_monthly_statement(
     Exposes no sensitive fleet OS fields (e.g. iqama, salary, logistics company id).
     """
     if auth_account_id != merchant_account_id:
-        raise HTTPException(status_code=403, detail="Access denied to this merchant account.")
+        raise HTTPException(status_code=403, detail="غير مصرح بالوصول لحساب هذا التاجر.")
 
     account = db.get(MerchantAccount, merchant_account_id)
     if not account:
-        raise HTTPException(status_code=404, detail="Merchant account not found.")
+        raise HTTPException(status_code=404, detail="حساب التاجر غير موجود.")
 
     target_month_date = date(year, month, 1)
     days_in_month = calendar.monthrange(year, month)[1]
@@ -562,7 +564,7 @@ def pos_ingest_order(
         MerchantBranch.is_active.is_(True),
     ).first()
     if not branch:
-        raise HTTPException(status_code=403, detail="Branch not found or not authorised.")
+        raise HTTPException(status_code=403, detail="الفرع غير موجود أو غير مصرح به.")
 
     # Idempotency check scoped to (external_order_id, merchant_branch_id)
     existing = db.query(BranchDispatchOrder).filter(
@@ -582,7 +584,7 @@ def pos_ingest_order(
     if not eligible_rider and not ENABLE_OPEN_POOL:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="No dedicated rider is available at this branch.",
+            detail="لا يوجد مندوب مخصص متاح في هذا الفرع حالياً.",
         )
 
     order = BranchDispatchOrder(
