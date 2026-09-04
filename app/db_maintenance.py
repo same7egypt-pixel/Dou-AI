@@ -16,8 +16,8 @@ from .migrations import run_migrations
 from .models import (
     entities,  # noqa: F401 - core Phase 1 schema
     intelligence,  # noqa: F401 - DOU AI / notifications metadata
-    salary,  # noqa: F401 - salary structures, components, rider assignments
     merchant,  # noqa: F401 - DOU Flex / Merchant Phase 2
+    salary,  # noqa: F401 - salary structures, components, rider assignments
 )
 from .models.entities import Country, User, UserRole
 from .routers.auth import hash_password

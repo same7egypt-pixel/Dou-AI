@@ -21,6 +21,7 @@ from .middleware.security_headers import SecurityHeadersMiddleware
 from .middleware.size_limit import RequestSizeLimitMiddleware
 from .routers import (
     admin,
+    admin_dedicated,
     analytics,
     analytics_freshness,
     auth,
@@ -33,6 +34,7 @@ from .routers import (
     driver_dedicated,
     enterprise,
     fleet,
+    fleet_dedicated,
     geo,
     health,
     hr,
@@ -125,6 +127,8 @@ app.include_router(notifications.webhook_router)
 app.include_router(health.router)
 app.include_router(merchant.router)
 app.include_router(driver_dedicated.router)
+app.include_router(fleet_dedicated.router)
+app.include_router(admin_dedicated.router)
 
 # المنتج الحالي مخصص لإدارة سائقي الشركات. مسارات التجارة والطلبات والشحن
 # القديمة لا تُنشر إلا عند تفعيلها صراحة لأغراض التوافق أو العرض التجريبي.

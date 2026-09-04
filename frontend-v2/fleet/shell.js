@@ -14,6 +14,7 @@ const VIEW_LABELS_AR = {
   imports: 'مطابقة شيتات المنصات',
   rider360: 'ملف السائق 360',
   shifts: 'الورديات والحضور',
+  dedicatedShifts: 'عقود المطاعم (DOU Flex)',
   needsAttention: 'يحتاج انتباه',
   capacity: 'تخطيط السعة',
   reports: 'التقارير والتحليلات',
@@ -31,6 +32,7 @@ const VIEW_LABELS_EN = {
   imports: 'Platform Sheet Matching',
   rider360: 'Driver 360',
   shifts: 'Shifts & Attendance',
+  dedicatedShifts: 'Restaurant Shifts (DOU Flex)',
   needsAttention: 'Needs Attention',
   capacity: 'Capacity Planning',
   reports: 'Reports & Analytics',
@@ -50,6 +52,7 @@ const VIEW_ICONS = {
   imports: '🎯',
   rider360: '👤',
   shifts: '◷',
+  dedicatedShifts: '🏬',
   needsAttention: '⚠',
   capacity: '◫',
   reports: '📊',
@@ -64,7 +67,7 @@ const VIEW_ICONS = {
 const VIEW_GROUPS_AR = [
   { group: 'الرئيسية', views: ['commandCenter'] },
   { group: 'القوى العاملة', views: ['riders', 'imports'] },
-  { group: 'العمليات', views: ['shifts', 'capacity'] },
+  { group: 'العمليات', views: ['shifts', 'dedicatedShifts', 'capacity'] },
   { group: 'الأداء والامتثال', views: ['needsAttention', 'reports'] },
   { group: 'شبكة المورّدين', views: ['vendors', 'platformLink'] },
   { group: 'التكامل', views: ['integration'] },
@@ -76,7 +79,7 @@ const VIEW_GROUPS_AR = [
 const VIEW_GROUPS_EN = [
   { group: 'MAIN', views: ['commandCenter'] },
   { group: 'WORKFORCE', views: ['riders', 'imports'] },
-  { group: 'OPERATIONS', views: ['shifts', 'capacity'] },
+  { group: 'OPERATIONS', views: ['shifts', 'dedicatedShifts', 'capacity'] },
   { group: 'PERFORMANCE & COMPLIANCE', views: ['needsAttention', 'reports'] },
   { group: 'VENDOR NETWORK', views: ['vendors', 'platformLink'] },
   { group: 'INTEGRATION', views: ['integration'] },
@@ -103,6 +106,11 @@ export const CONTEXTUAL_PROMPTS_AR = {
     'نسبة الحضور لورديات اليوم',
     'الورديات التي تعاني من نقص في السائقين',
     'طلبات الإجازات المعلقة',
+  ],
+  dedicatedShifts: [
+    'كم عدد الورديات النشطة اليوم في المطاعم؟',
+    'ما هي فروع المطاعم التي ليس لها مناديب مسندين؟',
+    'ما إجمالي مستحقات فليكس المتوقعة هذا الشهر؟',
   ],
   needsAttention: [
     'ما هي الحالات الحرجة التي تتطلب تدخلاً فورياً؟',
@@ -147,6 +155,11 @@ export const CONTEXTUAL_PROMPTS_EN = {
     'Attendance rate for today\'s shifts',
     'Shifts facing driver shortage',
     'Pending leave requests',
+  ],
+  dedicatedShifts: [
+    'How many active dedicated shifts today?',
+    'Which restaurant branches have unassigned riders?',
+    'What is the expected Flex settlement this month?',
   ],
   needsAttention: [
     'Critical cases requiring immediate action',

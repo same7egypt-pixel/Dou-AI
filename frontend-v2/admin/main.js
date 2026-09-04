@@ -4,6 +4,7 @@ import { requireAuth, renderLogin } from '../shared/auth/guard.js';
 import { renderShell, registerViewLoaders } from './shell.js';
 import { loadOverview } from './views/overview.js';
 import { loadTenants } from './views/tenants.js?v=20260831-2';
+import { loadFlexBookings } from './views/flexBookings.js';
 import { loadRevenue, loadPlans, loadUsage, loadHealth, loadIntegrations, loadAudit, loadSettings } from './views/platform.js';
 import { initLang, startAutoTranslate } from '../shared/i18n/i18n.js';
 
@@ -26,6 +27,7 @@ async function startApp() {
   registerViewLoaders({
     overview: loadOverview,
     tenants: loadTenants,
+    flexBookings: loadFlexBookings,
     revenue: loadRevenue,
     plans: loadPlans,
     usage: loadUsage,

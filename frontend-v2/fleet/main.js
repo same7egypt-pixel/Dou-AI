@@ -15,6 +15,7 @@ const loadVendors = (c) => import('./views/vendors.js').then((m) => m.renderVend
 const loadPlatformLink = (c) => import('./views/platformLink.js').then((m) => m.renderPlatformLink(c));
 const loadIntegration = (c) => import('./views/integration.js').then((m) => m.renderIntegration(c));
 const loadImports = (c) => import('./views/imports.js').then((m) => m.renderImports(c));
+const loadDedicatedShifts = (c) => import('./views/dedicatedShifts.js').then((m) => m.loadDedicatedShifts(c));
 import { loadDouAI } from './views/douai.js';
 const loadSettings = (c) => import('./views/settings.js').then((m) => m.loadSettings(c));
 import { refreshNotificationCount } from '../shared/components/notifications.js';
@@ -57,6 +58,7 @@ async function startApp() {
     imports: loadImports,
     rider360: loadRider360,
     shifts: loadShifts,
+    dedicatedShifts: loadDedicatedShifts,
     needsAttention: loadNeedsAttention,
     capacity: loadCapacity,
     reports: loadReports,

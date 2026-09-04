@@ -8,8 +8,9 @@ production, with no error anywhere.
 """
 
 import re
-import tomllib  # noqa: F401 - stdlib probe, see _stdlib_modules
 from pathlib import Path
+
+import tomllib  # noqa: F401 - stdlib probe, see _stdlib_modules
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -47,17 +48,34 @@ def _declared() -> set[str]:
 
 def _third_party_imports() -> set[str]:
     """Top-level import names found in app/, excluding stdlib and local modules."""
+    import ast
     import sys
 
     stdlib = set(sys.stdlib_module_names)
     found = set()
-    pattern = re.compile(r"^\s*(?:from|import)\s+([a-zA-Z_][\w]*)", re.MULTILINE)
+    # Parsed, not pattern-matched. A regex for "^from X" also matches prose
+    # inside a docstring — a sentence beginning "from DOU. This entity is..."
+    # was read as an import of a package named DOU, and this guard failed the
+    # whole suite over an English sentence. The syntax tree only contains real
+    # imports.
     for path in (ROOT / "app").rglob("*.py"):
-        for match in pattern.finditer(path.read_text(encoding="utf-8")):
-            module = match.group(1)
-            if module in stdlib or module.startswith("_"):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                # A relative import is local by definition.
+                names = [node.module] if node.module and node.level == 0 else []
+            else:
                 continue
-            found.add(module)
+            for name in names:
+                module = name.split(".")[0]
+                if module in stdlib or module.startswith("_"):
+                    continue
+                found.add(module)
     return found - NOT_DIRECT_DEPENDENCIES
 
 

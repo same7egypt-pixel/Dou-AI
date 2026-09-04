@@ -1,6 +1,6 @@
 import calendar
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 
 def prorate(monthly_rate: Decimal, active_days: int, month_date: date) -> Decimal:

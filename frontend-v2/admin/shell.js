@@ -4,16 +4,18 @@ import { appStore } from '../shared/state/store.js';
 import { el } from '../shared/components/ui.js';
 import { t, getLang, toggleLang } from '../shared/i18n/i18n.js';
 
-export const VIEWS = ['overview', 'tenants', 'tenantDetail', 'revenue', 'plans', 'usage', 'health', 'integrations', 'audit', 'settings'];
+export const VIEWS = ['overview', 'tenants', 'tenantDetail', 'flexBookings', 'revenue', 'plans', 'usage', 'health', 'integrations', 'audit', 'settings'];
 
 export const VIEW_LABELS_AR = {
   overview: 'لوحة القيادة', tenants: 'الشركات المشتركة', tenantDetail: 'تفاصيل الشركة',
+  flexBookings: 'عقود المطاعم (DOU Flex)',
   revenue: 'التحصيل والإيرادات', plans: 'الباقات والأسعار', usage: 'الاستخدام والحدود',
   health: 'صحة المنصة', integrations: 'التكاملات', audit: 'سجل الإدارة', settings: 'إعدادات النظام',
 };
 
 export const VIEW_LABELS_EN = {
   overview: 'Dashboard Overview', tenants: 'Subscribed Companies', tenantDetail: 'Company Details',
+  flexBookings: 'Restaurant Shifts (DOU Flex)',
   revenue: 'Revenue & Billing', plans: 'Plans & Pricing', usage: 'Usage & Limits',
   health: 'Platform Health', integrations: 'Integrations', audit: 'Audit Logs', settings: 'System Settings',
 };
@@ -21,7 +23,7 @@ export const VIEW_LABELS_EN = {
 export const VIEW_LABELS = VIEW_LABELS_AR;
 
 export const VIEW_ICONS = {
-  overview: '▦', tenants: '🏢', tenantDetail: '🔍', revenue: '💰',
+  overview: '▦', tenants: '🏢', tenantDetail: '🔍', flexBookings: '🏬', revenue: '💰',
   plans: '📋', usage: '📊', health: '♥', integrations: '🔗',
   audit: '📝', settings: '⚙',
 };
@@ -45,11 +47,11 @@ function renderSidebar() {
   const nav = el('nav', { class: 'side-nav' });
   nav.append(el('div', { class: 'logo' }, [el('span', { class: 'logo-icon' }, '↗'), el('b', { text: 'DOU' }), el('small', { text: 'SUPER ADMIN' })]));
   const groups = isAr ? [
-    { title: 'المنصة', views: ['overview', 'tenants'] },
+    { title: 'المنصة', views: ['overview', 'tenants', 'flexBookings'] },
     { title: 'المالية', views: ['revenue', 'plans', 'usage'] },
     { title: 'النظام', views: ['health', 'integrations', 'audit', 'settings'] },
   ] : [
-    { title: 'PLATFORM', views: ['overview', 'tenants'] },
+    { title: 'PLATFORM', views: ['overview', 'tenants', 'flexBookings'] },
     { title: 'FINANCIALS', views: ['revenue', 'plans', 'usage'] },
     { title: 'SYSTEM', views: ['health', 'integrations', 'audit', 'settings'] },
   ];

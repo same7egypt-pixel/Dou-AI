@@ -1,10 +1,11 @@
-from datetime import datetime, timedelta, timezone
 import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+
 import bcrypt
+import jwt
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-import jwt
 
 from app.config import SECRET_KEY
 

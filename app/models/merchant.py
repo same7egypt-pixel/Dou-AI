@@ -1,5 +1,5 @@
-from decimal import Decimal
 import enum
+from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
@@ -19,7 +19,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.database import Base
-
 
 # ─── Enums ────────────────────────────────────────────────────────────────────
 
