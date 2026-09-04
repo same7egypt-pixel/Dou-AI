@@ -32,7 +32,8 @@ def _resolve_tenant_id(user: User, tenant_id_query: Optional[int] = None) -> int
     Otherwise strictly enforces user.tenant_id.
     """
     if user.role == UserRole.DOU_ADMIN:
-        return tenant_id_query or user.tenant_id or 1
+        resolved_t = tenant_id_query if isinstance(tenant_id_query, int) else None
+        return resolved_t or user.tenant_id or 1
     if not user.tenant_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -311,8 +312,8 @@ def get_fleet_monthly_settlement(
     tenant_name = tenant.name if tenant else "الشركة اللوجستية"
 
     now = datetime.now(timezone.utc)
-    target_month = month or now.month
-    target_year = year or now.year
+    target_month = month if isinstance(month, int) else now.month
+    target_year = year if isinstance(year, int) else now.year
 
     target_month_date = date(target_year, target_month, 1)
     days_in_month = calendar.monthrange(target_year, target_month)[1]
