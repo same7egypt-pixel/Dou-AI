@@ -212,6 +212,53 @@ async function openAddRider(container) {
     ]);
     const contracts = structure || [];
 
+    // A form whose first required field has nothing to choose is a wall, not a
+    // form. A new company clicked the most obvious action in the product, met
+    // "1️⃣ العقد التجاري *" above an empty list, and had nothing anywhere telling
+    // it where a contract comes from — the answer being a different tab on a
+    // different screen with no link to it. That is where a paid trial ends,
+    // before the customer has seen anything the product is good at.
+    //
+    // So the door opens onto the step that unblocks it, in one click, and comes
+    // back here when it is done.
+    if (!contracts.length) {
+      const isAr = getLang() === 'ar';
+      const body = el('div', { style: 'display:grid;gap:16px;direction:rtl;max-width:440px' }, [
+        el('p', { style: 'margin:0;font-size:14px;line-height:1.9;color:var(--text)' },
+          isAr
+            ? 'قبل أول مندوب، DOU محتاج يعرف هو بيشتغل على إيه: العقد التجاري مع العميل، والفرع أو المدينة اللي بيغطيها.'
+            : 'Before the first rider, DOU needs to know what they work on: the commercial contract with your client, and the branch or city it covers.'),
+        el('div', { style: 'background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:13px;line-height:2.1;color:var(--muted)' }, [
+          el('b', { style: 'display:block;color:var(--ink);margin-bottom:6px;font-size:12px' },
+            isAr ? 'الترتيب:' : 'The order:'),
+          el('div', {}, isAr
+            ? '1 · عقد تجاري وفرع تشغيل   →   2 · مشرف ميداني   →   3 · المناديب'
+            : '1 · Contract & branch   →   2 · Field supervisor   →   3 · Riders'),
+        ]),
+        el('p', { style: 'margin:0;font-size:12.5px;color:var(--muted)' },
+          isAr
+            ? 'دقيقة واحدة، ومرة واحدة بس. بعدها إضافة أي مندوب بتاخد ثواني.'
+            : 'One minute, once. After that, adding a rider takes seconds.'),
+        el('div', { style: 'display:flex;justify-content:flex-end;gap:10px;padding-top:12px;border-top:1px solid var(--border)' }, [
+          el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => gate.remove() },
+            isAr ? 'لاحقًا' : 'Later'),
+          el('button', {
+            type: 'button', class: 'btn btn-primary',
+            onclick: async () => {
+              gate.remove();
+              const { openCreateContractModal } = await import('./capacity.js');
+              openCreateContractModal(container);
+            }
+          }, isAr ? '➕ أنشئ العقد وفرع التشغيل' : '➕ Create contract & branch'),
+        ]),
+      ]);
+      const gate = modal(
+        isAr ? '🚧 خطوة واحدة قبل أول مندوب' : '🚧 One step before your first rider',
+        body
+      );
+      return;
+    }
+
     // Cascading state
     let selectedContract = contracts[0] || null;
     let availableBranches = selectedContract?.branches || [];
@@ -225,7 +272,7 @@ async function openAddRider(container) {
 
     function updateHierarchySummary() {
       const ctName = selectedContract?.name || 'العقد الرئيسي';
-      const brCity = selectedBranch?.city || 'فرع الرياض';
+      const brCity = selectedBranch?.city || (getLang() === 'ar' ? '—' : '—');
       const supVal = document.getElementById('ar-supervisor')?.value;
       const supObj = availableSupervisors.find(s => String(s.id) === supVal);
       const supName = supObj ? supObj.name : 'بدون مشرف';
@@ -264,7 +311,8 @@ async function openAddRider(container) {
     function updateBranchSelect() {
       branchSelect.innerHTML = '';
       if (!availableBranches.length) {
-        branchSelect.append(el('option', { value: '1' }, 'فرع الرياض'));
+        branchSelect.append(el('option', { value: '' },
+          getLang() === 'ar' ? 'لا توجد فروع في هذا العقد' : 'This contract has no branches'));
         return;
       }
       availableBranches.forEach(b => {

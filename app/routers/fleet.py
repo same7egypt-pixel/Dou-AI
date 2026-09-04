@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import or_, text
+from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session
 
 from ..config import ENABLE_LEGACY_DELIVERY
@@ -991,8 +991,30 @@ def fleet_overview(
         .count()
     )
 
+    # The first-run guide on the command center is a live checklist, not a
+    # banner: each step reports whether it is actually done. Without these two
+    # counts it could only ever congratulate the account on nothing.
+    contracts_total = (
+        db.query(func.count(Contract.id))
+        .filter(Contract.tenant_id == tenant_id)
+        .scalar()
+        or 0
+        if tenant_id
+        else 0
+    )
+    supervisors_total = (
+        db.query(func.count(User.id))
+        .filter(User.tenant_id == tenant_id, User.role == UserRole.SUPERVISOR)
+        .scalar()
+        or 0
+        if tenant_id
+        else 0
+    )
+
     return {
         "couriers_total": len(couriers),
+        "contracts_total": contracts_total,
+        "supervisors_total": supervisors_total,
         "couriers_online": sum(1 for c in couriers if c.is_online),
         "active_employees": active_employees,
         "on_leave": on_leave,
