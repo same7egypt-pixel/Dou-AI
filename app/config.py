@@ -24,6 +24,8 @@ ENABLE_LEGACY_DELIVERY = os.getenv("ENABLE_LEGACY_DELIVERY", "false").lower() ==
 ENABLE_PUBLIC_COMPANY_SIGNUP = (
     os.getenv("ENABLE_PUBLIC_COMPANY_SIGNUP", "false").lower() == "true"
 )
+ENABLE_OPEN_POOL = os.getenv("ENABLE_OPEN_POOL", "false").lower() == "true"
+
 GOOGLE_ANALYTICS_ID = os.getenv("GOOGLE_ANALYTICS_ID", "G-XF8YF12JVQ").strip()
 CORS_ORIGINS = [
     x.strip()

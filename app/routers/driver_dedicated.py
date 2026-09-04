@@ -7,9 +7,9 @@ from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.config import SECRET_KEY
+from app.config import ENABLE_OPEN_POOL, SECRET_KEY
 from app.database import get_db
-from app.models.entities import Courier, User
+from app.models.entities import Courier, DailyLog, User
 from app.models.merchant import (
     BookingStatus,
     BranchDispatchOrder,
@@ -319,6 +319,50 @@ def get_active_branch_orders(
     return results
 
 
+def _record_delivery_to_daily_log(
+    order: BranchDispatchOrder,
+    courier: Courier,
+    db: Session,
+) -> None:
+    """
+    Synchronizes delivered dedicated branch dispatch orders to DailyLog.
+    This ensures 3PL analytics, operational reports, and payroll (per-order/bonus)
+    seamlessly reflect completed branch deliveries.
+    """
+    log_date = order.order_date or date.today()
+    project_id = courier.primary_project_id
+
+    query = db.query(DailyLog).filter(
+        DailyLog.courier_id == courier.id,
+        DailyLog.log_date == log_date,
+    )
+    if project_id is not None:
+        query = query.filter(DailyLog.project_id == project_id)
+    else:
+        query = query.filter(DailyLog.project_id.is_(None))
+    daily_log = query.first()
+
+    if not daily_log:
+        daily_log = DailyLog(
+            courier_id=courier.id,
+            tenant_id=courier.tenant_id,
+            project_id=project_id,
+            log_date=log_date,
+            orders_count=1,
+            driver_orders=1,
+            verified_orders=1,
+            variance=0,
+            source_type="DEDICATED_BRANCH_DISPATCH",
+        )
+        db.add(daily_log)
+    else:
+        daily_log.orders_count = (daily_log.orders_count or 0) + 1
+        daily_log.driver_orders = (daily_log.driver_orders or 0) + 1
+        daily_log.verified_orders = (daily_log.verified_orders or 0) + 1
+        daily_log.variance = (daily_log.orders_count or 0) - (daily_log.driver_orders or 0)
+        daily_log.source_type = "DEDICATED_BRANCH_DISPATCH"
+
+
 @router.patch("/orders/{order_id}/status")
 def update_order_status(
     order_id: int,
@@ -359,6 +403,7 @@ def update_order_status(
             )
         order.status = OrderStatus.delivered
         order.delivered_at = datetime.now(timezone.utc)
+        _record_delivery_to_daily_log(order, current_rider, db)
     else:
         # Already delivered
         raise HTTPException(
@@ -390,6 +435,12 @@ def get_pool_orders(
     rider_id IS NULL, status='pending', order_date=today.
     Filters by Haversine distance from rider's current coords to branch lat/lng.
     """
+    if not ENABLE_OPEN_POOL:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Open pool is disabled.",
+        )
+
     today = date.today()
     pool_orders = (
         db.query(BranchDispatchOrder)
@@ -444,6 +495,12 @@ def claim_pool_order(
     Atomically claims a pool order using pessimistic locking (with_for_update).
     Returns HTTP 409 if already claimed.
     """
+    if not ENABLE_OPEN_POOL:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Open pool is disabled.",
+        )
+
     # with_for_update locks the row in Postgres
     order = (
         db.query(BranchDispatchOrder)

@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from app.config import SECRET_KEY
 from app.database import Base, get_db
 from app.main import app
-from app.models.entities import Country, Courier, CourierType, Tenant, User, UserRole
+from app.models.entities import Country, Courier, CourierType, DailyLog, Tenant, User, UserRole
 from app.models.merchant import (
     BookingStatus,
     BranchDispatchOrder,
@@ -439,6 +439,23 @@ def test_5_1_rider_status_transitions():
     assert res_del.json()["status"] == "delivered"
     assert res_del.json()["delivered_at"] is not None
 
+    # 4. Verify DailyLog synchronization for 3PL payroll and reporting
+    db = TestingSessionLocal()
+    daily_log = (
+        db.query(DailyLog)
+        .filter(
+            DailyLog.courier_id == 99,
+            DailyLog.log_date == date.today(),
+        )
+        .first()
+    )
+    assert daily_log is not None
+    assert daily_log.orders_count == 1
+    assert daily_log.verified_orders == 1
+    assert daily_log.driver_orders == 1
+    assert daily_log.source_type == "DEDICATED_BRANCH_DISPATCH"
+    db.close()
+
 
 def test_5_2_delivered_order_removed_from_active():
     rider_token = make_rider_token(99)
@@ -483,7 +500,7 @@ def test_6_1_monthly_statement_proration():
 
 # ─── BLOCK 7 — POS Ingestion, Dual-Routing & Concurrency ──────────────────────
 
-def test_7_1_pos_ingestion_auth_and_dual_routing(setup_database):
+def test_7_1_pos_ingestion_auth_and_dual_routing(setup_database, monkeypatch):
     key = setup_database["valid_api_key"]
 
     # 7.1: Missing key -> 422
@@ -559,7 +576,45 @@ def test_7_1_pos_ingestion_auth_and_dual_routing(setup_database):
     assert r_idem.status_code == 200
     assert r_idem.json()["order_id"] == data_a["order_id"]
 
-    # 7.6: Route B (Branch 2 has NO checked-in rider -> falls to open pool)
+    # 7.6: Open pool is DISABLED by default (ENABLE_OPEN_POOL=false)
+    # When Branch 2 has no rider, POS ingestion must reject with 409
+    r_route_b_disabled = client.post(
+        "/merchant/api/v1/orders",
+        headers={"X-Merchant-Key": key},
+        json={
+            "branch_id": 2,
+            "external_order_id": "POS-ROUTE-B-DISABLED",
+            "customer_name": "Mohammed Al-Otaibi",
+            "customer_phone": "0533445566",
+            "delivery_address_text": "Sitteen St, Riyadh",
+        },
+    )
+    assert r_route_b_disabled.status_code == 409
+    assert "No dedicated rider is available" in r_route_b_disabled.json()["detail"]
+
+    # Pool queries and claim endpoints must return 403 Forbidden
+    rider100_token = make_rider_token(100)
+    r_pool_disabled = client.get(
+        "/driver/orders/pool/available?lat=24.6600&lng=46.7200&radius_km=5",
+        headers={"Authorization": f"Bearer {rider100_token}"},
+    )
+    assert r_pool_disabled.status_code == 403
+    assert "Open pool is disabled" in r_pool_disabled.json()["detail"]
+
+    r_claim_disabled = client.patch(
+        "/driver/orders/999/claim",
+        headers={"Authorization": f"Bearer {rider100_token}"},
+    )
+    assert r_claim_disabled.status_code == 403
+    assert "Open pool is disabled" in r_claim_disabled.json()["detail"]
+
+    # 7.7: When ENABLE_OPEN_POOL=True is explicitly enabled, Route B falls back to pool
+    import app.routers.merchant as merchant_router
+    import app.routers.driver_dedicated as driver_router
+
+    monkeypatch.setattr(merchant_router, "ENABLE_OPEN_POOL", True)
+    monkeypatch.setattr(driver_router, "ENABLE_OPEN_POOL", True)
+
     r_route_b = client.post(
         "/merchant/api/v1/orders",
         headers={"X-Merchant-Key": key},
@@ -577,27 +632,24 @@ def test_7_1_pos_ingestion_auth_and_dual_routing(setup_database):
     assert data_b["assigned_rider_name"] is None
     pool_order_id = data_b["order_id"]
 
-    # 7.7: Pool orders query by nearby rider (lat: 24.66, lng: 46.72)
-    rider100_token = make_rider_token(100)
+    # Pool orders query by nearby rider (lat: 24.66, lng: 46.72)
     r_pool = client.get(
         "/driver/orders/pool/available?lat=24.6600&lng=46.7200&radius_km=5",
         headers={"Authorization": f"Bearer {rider100_token}"},
     )
     assert r_pool.status_code == 200
     orders = r_pool.json()
-    found_pool = any(o["order_id"] == pool_order_id for o in orders)
-    assert found_pool is True
+    assert any(o["order_id"] == pool_order_id for o in orders)
 
-    # 7.8: Far away rider (Jeddah: 21.38, 39.85) cannot see it
+    # Far away rider (Jeddah: 21.38, 39.85) cannot see it
     r_far = client.get(
         "/driver/orders/pool/available?lat=21.3891&lng=39.8579&radius_km=5",
         headers={"Authorization": f"Bearer {rider100_token}"},
     )
     assert r_far.status_code == 200
-    found_far = any(o["order_id"] == pool_order_id for o in r_far.json())
-    assert found_far is False
+    assert not any(o["order_id"] == pool_order_id for o in r_far.json())
 
-    # 7.9: Claim pool order
+    # Claim pool order
     r_claim = client.patch(
         f"/driver/orders/{pool_order_id}/claim",
         headers={"Authorization": f"Bearer {rider100_token}"},
@@ -605,7 +657,7 @@ def test_7_1_pos_ingestion_auth_and_dual_routing(setup_database):
     assert r_claim.status_code == 200
     assert r_claim.json()["claimed_by_rider_id"] == 100
 
-    # 7.10: Second claim fails with 409 (already claimed)
+    # Second claim fails with 409 (already claimed)
     rider101_token = make_rider_token(101)
     r_claim_again = client.patch(
         f"/driver/orders/{pool_order_id}/claim",
@@ -613,3 +665,4 @@ def test_7_1_pos_ingestion_auth_and_dual_routing(setup_database):
     )
     assert r_claim_again.status_code == 409
     assert "already claimed" in r_claim_again.json()["detail"].lower()
+

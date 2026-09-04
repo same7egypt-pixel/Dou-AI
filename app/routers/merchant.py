@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app.config import ENABLE_OPEN_POOL
 from app.database import get_db
 from app.models.entities import Courier
 from app.models.merchant import (
@@ -577,6 +578,12 @@ def pos_ingest_order(
         )
 
     eligible_rider, eligible_booking = _find_eligible_branch_rider(payload.branch_id, db)
+
+    if not eligible_rider and not ENABLE_OPEN_POOL:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No dedicated rider is available at this branch.",
+        )
 
     order = BranchDispatchOrder(
         merchant_branch_id=payload.branch_id,
