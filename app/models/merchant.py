@@ -83,6 +83,8 @@ class MerchantBranch(Base):
     merchant_account_id    = Column(Integer, ForeignKey("merchant_accounts.id"), nullable=False)
     branch_name            = Column(String(255), nullable=False)
     city                   = Column(String(100), nullable=False)
+    city_id                = Column(Integer, ForeignKey("geo_cities.id"), nullable=True)
+    country_id             = Column(Integer, ForeignKey("geo_countries.id"), nullable=True)
     district               = Column(String(100), nullable=True)
     latitude               = Column(Numeric(10, 7), nullable=False)
     longitude              = Column(Numeric(10, 7), nullable=False)
@@ -95,6 +97,8 @@ class MerchantBranch(Base):
     merchant_account = relationship("MerchantAccount", back_populates="branches")
     bookings         = relationship("DedicatedShiftBooking", back_populates="branch")
     orders           = relationship("BranchDispatchOrder", back_populates="branch")
+    geo_city         = relationship("GeoCity", foreign_keys=[city_id])
+    geo_country      = relationship("GeoCountry", foreign_keys=[country_id])
 
 
 # ─── DedicatedShiftBooking ────────────────────────────────────────────────────
@@ -109,6 +113,7 @@ class DedicatedShiftBooking(Base):
     merchant_branch_id          = Column(Integer, ForeignKey("merchant_branches.id"), nullable=False)
     logistics_company_tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
     rider_id                    = Column(Integer, ForeignKey("couriers.id"), nullable=False)
+    supervisor_id               = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     shift_type                  = Column(Enum(ShiftType, name="shifttype"), nullable=False)
     shift_start_time            = Column(Time, nullable=False)
@@ -129,6 +134,7 @@ class DedicatedShiftBooking(Base):
     branch          = relationship("MerchantBranch", back_populates="bookings")
     attendance_logs = relationship("ShiftAttendanceLog", back_populates="booking")
     orders          = relationship("BranchDispatchOrder", back_populates="booking")
+    supervisor      = relationship("User", foreign_keys=[supervisor_id])
 
 
 # ─── ShiftAttendanceLog ───────────────────────────────────────────────────────

@@ -333,6 +333,17 @@ function renderTopBar() {
     ? (isAr ? '🌐 منصة توصيل' : '🌐 Delivery Platform')
     : (isAr ? '🏢 شركة أساطيل' : '🏢 Fleet Partner')));
 
+  const { tenant } = appStore.get();
+  const tenantCountry = (tenant?.country || tenant?.market_code || 'SA').toUpperCase();
+  const countryFlag = tenantCountry === 'EG' ? '🇪🇬' : (tenantCountry === 'SA' ? '🇸🇦' : '🌍');
+  const countryName = tenantCountry === 'EG' ? (isAr ? 'مصر' : 'Egypt') : (tenantCountry === 'SA' ? (isAr ? 'السعودية' : 'Saudi Arabia') : tenantCountry);
+
+  topActions.push(el('span', {
+    class: 'badge badge-gray',
+    style: 'font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:20px',
+    title: isAr ? 'دولة الحساب مسجلة من السيرفر' : 'Account country from server'
+  }, `${countryFlag} ${countryName}`));
+
   // 2. Operator Dropdown if in Platform Mode
   if (isPlat) {
     const activeOp = appStore.get().activeOperatorId || '';

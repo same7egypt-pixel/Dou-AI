@@ -171,7 +171,7 @@ def index(request: Request):
         forwarded_host,
         direct_host,
     }:
-        return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
+        return FileResponse(os.path.join(FRONTEND_V2_DIR, "admin", "index.html"))
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
@@ -241,7 +241,7 @@ def fleet_app():
 @app.get("/admin")
 @app.get("/admin/")
 def admin_app():
-    return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
+    return FileResponse(os.path.join(FRONTEND_V2_DIR, "admin", "index.html"))
 
 
 @app.get("/app/workforce")
@@ -306,7 +306,7 @@ def android_asset_links():
     )
 
 
-@app.get("/download/driver-apk")
+@app.api_route("/download/driver-apk", methods=["GET", "HEAD"])
 def download_driver_apk():
     return FileResponse(
         os.path.join(STATIC_DIR, "DOU-Driver.apk"),

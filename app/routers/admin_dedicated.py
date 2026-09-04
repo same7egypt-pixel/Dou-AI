@@ -4,10 +4,11 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.entities import Courier, Tenant, User
+from app.models.entities import Courier, GeoCity, GeoCountry, Tenant, User, UserRole
 from app.models.merchant import (
     BookingStatus,
     DedicatedShiftBooking,
@@ -17,6 +18,7 @@ from app.models.merchant import (
     compute_and_set_margin,
 )
 from app.routers.admin import require_admin
+from app.services.operating_structure import active_tenant_city_ids
 from app.utils.security import generate_merchant_api_key, hash_pin
 
 router = APIRouter(prefix="/admin/dedicated", tags=["admin_dedicated"])
@@ -42,6 +44,8 @@ class AdminBranchOut(BaseModel):
     id: int
     branch_name: str
     city: str
+    city_id: Optional[int] = None
+    country_id: Optional[int] = None
     district: Optional[str]
     latitude: float
     longitude: float
@@ -78,6 +82,8 @@ class CreateBranchPayload(BaseModel):
     branch_name: Optional[str] = None
     name: Optional[str] = None
     city: str = "الرياض"
+    city_id: Optional[int] = None
+    country_id: Optional[int] = None
     district: Optional[str] = None
     latitude: float
     longitude: float
@@ -96,6 +102,8 @@ class AdminBookingOut(BaseModel):
     tenant_name: str
     rider_id: Optional[int]
     rider_name: Optional[str]
+    supervisor_id: Optional[int] = None
+    supervisor_name: Optional[str] = None
     shift_type: str
     shift_start_time: str
     shift_end_time: str
@@ -113,6 +121,7 @@ class CreateBookingPayload(BaseModel):
     logistics_company_tenant_id: Optional[int] = None
     tenant_id: Optional[int] = None
     rider_id: Optional[int] = None
+    supervisor_id: Optional[int] = None
     shift_type: ShiftType = ShiftType.full_day_8h
     shift_start_time: Optional[str] = None
     shift_end_time: Optional[str] = None
@@ -125,6 +134,7 @@ class CreateBookingPayload(BaseModel):
 
 class UpdateBookingPayload(BaseModel):
     rider_id: Optional[int] = None
+    supervisor_id: Optional[int] = None
     status: Optional[BookingStatus] = None
     monthly_fee_to_merchant: Optional[float] = None
     monthly_payout_to_logistics: Optional[float] = None
@@ -135,23 +145,49 @@ class UpdateBookingPayload(BaseModel):
 
 @router.get("/metrics", response_model=AdminFlexMetricsOut)
 def get_admin_flex_metrics(
+    country: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     _: User = Depends(_require_superadmin),
 ):
     """
     Returns platform-wide commercial overview of dedicated restaurant shifts:
     total contracts, gross billing, logistics payouts, and DOU Net Profit.
+    Supports server-side filtering by country code.
     """
-    total_bookings = db.query(DedicatedShiftBooking).count()
-    active_bookings_rows = (
+    c_id = None
+    if country:
+        c_code = country.strip().upper()
+        gc = db.query(GeoCountry).filter(func.upper(GeoCountry.code) == c_code).first()
+        c_id = gc.id if gc else None
+
+    b_query = (
         db.query(DedicatedShiftBooking)
-        .filter(DedicatedShiftBooking.status == BookingStatus.active)
+        .join(MerchantBranch, DedicatedShiftBooking.merchant_branch_id == MerchantBranch.id)
+    )
+    if c_id:
+        b_query = b_query.filter(MerchantBranch.country_id == c_id)
+
+    total_bookings = b_query.count()
+    active_bookings_rows = (
+        b_query.filter(DedicatedShiftBooking.status == BookingStatus.active)
         .all()
     )
     active_bookings = len(active_bookings_rows)
 
-    total_merchants = db.query(MerchantAccount).filter(MerchantAccount.is_active.is_(True)).count()
-    total_branches = db.query(MerchantBranch).filter(MerchantBranch.is_active.is_(True)).count()
+    branch_q = db.query(MerchantBranch).filter(MerchantBranch.is_active.is_(True))
+    if c_id:
+        branch_q = branch_q.filter(MerchantBranch.country_id == c_id)
+    total_branches = branch_q.count()
+
+    merchant_q = db.query(MerchantAccount).filter(MerchantAccount.is_active.is_(True))
+    if c_id:
+        merchant_ids_in_country = (
+            db.query(MerchantBranch.merchant_account_id)
+            .filter(MerchantBranch.country_id == c_id)
+            .distinct()
+        )
+        merchant_q = merchant_q.filter(MerchantAccount.id.in_(merchant_ids_in_country))
+    total_merchants = merchant_q.count()
 
     unique_riders = {b.rider_id for b in active_bookings_rows if b.rider_id}
 
@@ -184,12 +220,19 @@ def get_admin_flex_metrics(
 
 @router.get("/merchants", response_model=list[AdminMerchantOut])
 def list_merchants_admin(
+    country: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     _: User = Depends(_require_superadmin),
 ):
     """
-    Lists all restaurant accounts and their operational branches.
+    Lists all restaurant accounts and their operational branches, optionally filtered by country.
     """
+    c_id = None
+    if country:
+        c_code = country.strip().upper()
+        gc = db.query(GeoCountry).filter(func.upper(GeoCountry.code) == c_code).first()
+        c_id = gc.id if gc else None
+
     accounts = (
         db.query(MerchantAccount)
         .order_by(MerchantAccount.id.desc())
@@ -200,6 +243,8 @@ def list_merchants_admin(
     for a in accounts:
         branches_out: list[AdminBranchOut] = []
         for br in a.branches:
+            if c_id and br.country_id != c_id:
+                continue
             active_b_count = (
                 db.query(DedicatedShiftBooking)
                 .filter(
@@ -213,6 +258,8 @@ def list_merchants_admin(
                     id=br.id,
                     branch_name=br.branch_name,
                     city=br.city,
+                    city_id=br.city_id,
+                    country_id=br.country_id,
                     district=br.district,
                     latitude=float(br.latitude),
                     longitude=float(br.longitude),
@@ -221,6 +268,9 @@ def list_merchants_admin(
                     active_bookings_count=active_b_count,
                 )
             )
+
+        if c_id and not branches_out:
+            continue
 
         results.append(
             AdminMerchantOut(
@@ -308,10 +358,26 @@ def create_branch_admin(
 
     hashed_pin = hash_pin(pin)
 
+    city_str = payload.city.strip() if payload.city else "الرياض"
+    city_id = payload.city_id
+    country_id = payload.country_id
+    if city_id and not country_id:
+        geo_city = db.get(GeoCity, city_id)
+        if geo_city:
+            country_id = geo_city.country_id
+            city_str = geo_city.name
+    elif not city_id and city_str:
+        geo_city = db.query(GeoCity).filter(GeoCity.name.ilike(city_str)).first()
+        if geo_city:
+            city_id = geo_city.id
+            country_id = geo_city.country_id
+
     branch = MerchantBranch(
         merchant_account_id=account.id,
         branch_name=branch_name,
-        city=payload.city.strip(),
+        city=city_str,
+        city_id=city_id,
+        country_id=country_id,
         district=payload.district.strip() if payload.district else None,
         latitude=Decimal(str(payload.latitude)),
         longitude=Decimal(str(payload.longitude)),
@@ -339,11 +405,12 @@ def list_bookings_admin(
     status_filter: Optional[BookingStatus] = Query(None),
     merchant_id: Optional[int] = Query(None),
     tenant_id: Optional[int] = Query(None),
+    country: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     _: User = Depends(_require_superadmin),
 ):
     """
-    Lists all dedicated shift contracts with live commercial margins.
+    Lists all dedicated shift contracts with live commercial margins, optionally filtered by country.
     """
     q = (
         db.query(DedicatedShiftBooking)
@@ -356,6 +423,13 @@ def list_bookings_admin(
         q = q.filter(DedicatedShiftBooking.logistics_company_tenant_id == tenant_id)
     if merchant_id:
         q = q.filter(MerchantBranch.merchant_account_id == merchant_id)
+    if country:
+        c_code = country.strip().upper()
+        gc = db.query(GeoCountry).filter(func.upper(GeoCountry.code) == c_code).first()
+        if gc:
+            q = q.filter(MerchantBranch.country_id == gc.id)
+        else:
+            q = q.filter(MerchantBranch.city.ilike(f"%{c_code}%"))
 
     bookings = q.order_by(DedicatedShiftBooking.id.desc()).all()
 
@@ -365,6 +439,7 @@ def list_bookings_admin(
         account = db.get(MerchantAccount, branch.merchant_account_id) if branch else None
         tenant = db.get(Tenant, b.logistics_company_tenant_id)
         rider = db.get(Courier, b.rider_id) if b.rider_id else None
+        supervisor = db.get(User, b.supervisor_id) if b.supervisor_id else None
 
         results.append(
             AdminBookingOut(
@@ -378,6 +453,8 @@ def list_bookings_admin(
                 tenant_name=tenant.name if tenant else "شركة لوجستية",
                 rider_id=b.rider_id,
                 rider_name=rider.name if rider else None,
+                supervisor_id=b.supervisor_id,
+                supervisor_name=supervisor.name if supervisor else None,
                 shift_type=b.shift_type.value,
                 shift_start_time=b.shift_start_time.strftime("%H:%M"),
                 shift_end_time=b.shift_end_time.strftime("%H:%M"),
@@ -416,6 +493,15 @@ def create_booking_admin(
     if not tenant:
         raise HTTPException(status_code=404, detail="الشركة اللوجستية المحددة غير موجودة.")
 
+    # 1. Enforce operating city validation if branch has a designated city_id
+    if branch.city_id:
+        active_cities = active_tenant_city_ids(db, tenant.id)
+        if branch.city_id not in active_cities:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="الشركة اللوجستية لا تخدم مدينة هذا الفرع. يجب تفعيل مدينة التشغيل أولاً للشركة.",
+            )
+
     rider = db.get(Courier, payload.rider_id) if payload.rider_id else None
     if payload.rider_id and (not rider or rider.tenant_id != tenant.id):
         raise HTTPException(
@@ -448,11 +534,27 @@ def create_booking_admin(
     payout_dec = Decimal(str(payload.monthly_payout_to_logistics))
     margin_dec = fee_dec - payout_dec
     eff_from = payload.effective_from or payload.start_date or date.today()
+    supervisor_id = payload.supervisor_id
+    if supervisor_id:
+        supervisor = db.get(User, supervisor_id)
+        if not supervisor:
+            raise HTTPException(status_code=404, detail="المشرف المحدد غير موجود.")
+        if supervisor.tenant_id != tenant.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="المشرف المحدد لا ينتمي إلى هذه الشركة اللوجستية.",
+            )
+        if supervisor.role != UserRole.SUPERVISOR and supervisor.role != "SUPERVISOR":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="المستخدم المحدد ليس له صلاحية مشرف (SUPERVISOR).",
+            )
 
     booking = DedicatedShiftBooking(
         merchant_branch_id=branch.id,
         logistics_company_tenant_id=tenant.id,
         rider_id=rider.id,
+        supervisor_id=supervisor_id,
         shift_type=payload.shift_type,
         shift_start_time=t_start,
         shift_end_time=t_end,
@@ -500,6 +602,25 @@ def update_booking_admin(
         if not rider or rider.tenant_id != booking.logistics_company_tenant_id:
             raise HTTPException(status_code=400, detail="المندوب غير مسجل لدى نفس الشركة اللوجستية.")
         booking.rider_id = rider.id
+
+    if payload.supervisor_id is not None:
+        if payload.supervisor_id == 0:
+            booking.supervisor_id = None
+        else:
+            supervisor = db.get(User, payload.supervisor_id)
+            if not supervisor:
+                raise HTTPException(status_code=404, detail="المشرف المحدد غير موجود.")
+            if supervisor.tenant_id != booking.logistics_company_tenant_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="المشرف المحدد لا ينتمي إلى هذه الشركة اللوجستية.",
+                )
+            if supervisor.role != UserRole.SUPERVISOR and supervisor.role != "SUPERVISOR":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="المستخدم المحدد ليس له صلاحية مشرف (SUPERVISOR).",
+                )
+            booking.supervisor_id = supervisor.id
 
     if payload.status is not None:
         booking.status = payload.status

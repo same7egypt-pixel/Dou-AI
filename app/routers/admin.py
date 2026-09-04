@@ -5,7 +5,7 @@ from typing import Optional
 import jwt as pyjwt
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func, text
+from sqlalchemy import String, cast, func, or_, text
 from sqlalchemy.orm import Session
 
 from ..config import ADMIN_KEY, ENABLE_LEGACY_DELIVERY, ENABLE_PUBLIC_COMPANY_SIGNUP
@@ -17,6 +17,7 @@ from ..models.entities import (
     Courier,
     CourierType,
     Fleet,
+    GeoCountry,
     Merchant,
     PlatformOperator,
     Staff,
@@ -26,6 +27,7 @@ from ..models.entities import (
     User,
     UserRole,
 )
+from ..models.merchant import MerchantBranch
 from ..services.entitlements import (
     normalize_customer_type,
     resolve_capabilities,
@@ -349,11 +351,66 @@ class CompanyPatch(BaseModel):
     active: Optional[bool] = None
 
 
+@router.get("/countries")
+def list_admin_active_countries(db: Session = Depends(get_db), _: User = Depends(require_admin)):
+    """نقطة تعرض فقط الدول التي توجد بها بيانات فعلية في النظام (شركات أو فروع)."""
+    tenant_countries = set()
+    for row in db.query(Tenant.country, Tenant.market_code).all():
+        code = (row[1] or (row[0].value if hasattr(row[0], "value") else row[0]) or "").upper()
+        if code:
+            tenant_countries.add(code)
+
+    branch_country_ids = {
+        row[0]
+        for row in db.query(MerchantBranch.country_id)
+        .filter(MerchantBranch.country_id.isnot(None))
+        .distinct()
+        .all()
+    }
+    for cid in branch_country_ids:
+        gc = db.get(GeoCountry, cid)
+        if gc and gc.code:
+            tenant_countries.add(gc.code.upper())
+
+    active_codes = tenant_countries
+    if not active_codes:
+        active_codes = {"SA"}
+
+    results = []
+    for code in sorted(active_codes):
+        country_row = db.query(GeoCountry).filter(func.upper(GeoCountry.code) == code).first()
+        name = (
+            country_row.name
+            if country_row
+            else ("المملكة العربية السعودية" if code == "SA" else ("جمهورية مصر العربية" if code == "EG" else code))
+        )
+        flag = (
+            country_row.flag
+            if country_row and country_row.flag
+            else ("🇸🇦" if code == "SA" else ("🇪🇬" if code == "EG" else "🌍"))
+        )
+        results.append({
+            "code": code,
+            "name": name,
+            "flag": flag,
+        })
+    return results
+
+
 @router.get("/tenants")
-def list_tenants(db: Session = Depends(get_db)):
-    """الشركات المشتركة في DOU مع أعداد السائقين والمستخدمين."""
+def list_tenants(country: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    """الشركات المشتركة في DOU مع أعداد السائقين والمستخدمين، مع إمكانية التصفية بالدولة."""
+    q = db.query(Tenant)
+    if country:
+        c_upper = country.strip().upper()
+        q = q.filter(
+            or_(
+                func.upper(Tenant.market_code) == c_upper,
+                func.upper(cast(Tenant.country, String)) == c_upper,
+            )
+        )
     rows = []
-    for tenant in db.query(Tenant).order_by(Tenant.id.desc()).all():
+    for tenant in q.order_by(Tenant.id.desc()).all():
         last_login = (
             db.query(User)
             .filter(User.tenant_id == tenant.id)
@@ -429,8 +486,12 @@ def list_tenants(db: Session = Depends(get_db)):
 
 
 @router.get("/finance/summary")
-def finance_summary(month: Optional[str] = None, db: Session = Depends(get_db)):
-    """دفتر متابعة تحصيل الاشتراكات: الإيراد الفعلي، المتوقع، والمتأخرات حسب العملة."""
+def finance_summary(
+    month: Optional[str] = None,
+    country: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """دفتر متابعة تحصيل الاشتراكات: الإيراد الفعلي، المتوقع، والمتأخرات حسب العملة والدولة."""
     now = datetime.utcnow()
     try:
         month_start = (
@@ -441,7 +502,16 @@ def finance_summary(month: Optional[str] = None, db: Session = Depends(get_db)):
     except ValueError:
         raise HTTPException(400, "صيغة الشهر يجب أن تكون YYYY-MM")
     next_month = add_calendar_months(month_start, 1)
-    tenants = db.query(Tenant).order_by(Tenant.name).all()
+    tenants_query = db.query(Tenant)
+    if country:
+        c_code = country.strip().upper()
+        tenants_query = tenants_query.filter(
+            or_(
+                func.upper(Tenant.market_code) == c_code,
+                func.upper(cast(Tenant.country, String)) == c_code,
+            )
+        )
+    tenants = tenants_query.order_by(Tenant.name).all()
     payments = (
         db.query(SubscriptionPayment)
         .filter(
@@ -549,19 +619,28 @@ def system_status(db: Session = Depends(get_db)):
 
 
 @router.get("/dashboard")
-def admin_dashboard(db: Session = Depends(get_db)):
+def admin_dashboard(country: Optional[str] = Query(None), db: Session = Depends(get_db)):
     now = datetime.utcnow()
-    total_tenants = db.query(Tenant).count()
-    active_tenants = (
-        db.query(Tenant).filter(Tenant.subscription_status == "ACTIVE").count()
-    )
-    total_riders = db.query(Courier).count()
+    t_q = db.query(Tenant)
+    c_q = db.query(Courier)
+    p_q = db.query(SubscriptionPayment)
+    if country:
+        c_code = country.strip().upper()
+        t_q = t_q.filter(
+            or_(
+                func.upper(Tenant.market_code) == c_code,
+                func.upper(cast(Tenant.country, String)) == c_code,
+            )
+        )
+        matching_tids = [t.id for t in t_q.all()]
+        c_q = c_q.filter(Courier.tenant_id.in_(matching_tids))
+        p_q = p_q.filter(SubscriptionPayment.tenant_id.in_(matching_tids))
+
+    total_tenants = t_q.count()
+    active_tenants = t_q.filter(Tenant.subscription_status == "ACTIVE").count()
+    total_riders = c_q.count()
     month_start = datetime(now.year, now.month, 1)
-    payments = (
-        db.query(SubscriptionPayment)
-        .filter(SubscriptionPayment.paid_at >= month_start)
-        .all()
-    )
+    payments = p_q.filter(SubscriptionPayment.paid_at >= month_start).all()
     monthly_revenue = round(sum(p.amount or 0 for p in payments), 2)
     return {
         "total_tenants": total_tenants,

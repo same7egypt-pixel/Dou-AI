@@ -87,10 +87,47 @@ function renderTopBar() {
     }
   }, `🌐 ${nextLangLabel}`);
 
+  const activeCountry = appStore.get().selectedCountry || '';
+  const countries = appStore.get().adminCountries || [];
+
+  const countrySelect = el('select', {
+    id: 'admin-country-select',
+    class: 'input-select-country',
+    style: 'background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer',
+    onchange: (e) => {
+      const val = e.target.value || '';
+      appStore.set({ selectedCountry: val });
+      const content = document.getElementById('content-area');
+      if (content && viewLoaders[currentView]) viewLoaders[currentView](content);
+    }
+  }, [
+    el('option', { value: '', selected: activeCountry === '' }, isAr ? '🌐 كل الدول' : '🌐 All Countries'),
+    ...countries.map(c => el('option', { value: c.code, selected: c.code === activeCountry }, `${c.flag || '🌍'} ${c.name || c.code}`))
+  ]);
+
+  if (!countries.length) {
+    api.get('/admin/countries').then((list) => {
+      if (Array.isArray(list) && list.length) {
+        appStore.set({ adminCountries: list });
+        const sel = document.getElementById('admin-country-select');
+        if (sel) {
+          sel.innerHTML = `<option value="">${isAr ? '🌐 كل الدول' : '🌐 All Countries'}</option>`;
+          list.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.code;
+            opt.textContent = `${c.flag || '🌍'} ${c.name || c.code}`;
+            if (c.code === (appStore.get().selectedCountry || '')) opt.selected = true;
+            sel.appendChild(opt);
+          });
+        }
+      }
+    }).catch(() => {});
+  }
+
   const labels = isAr ? VIEW_LABELS_AR : VIEW_LABELS_EN;
   return el('header', { class: 'top-bar' }, [
     el('div', { class: 'breadcrumb' }, ['DOU / Super Admin / ', el('b', { id: 'crumb', text: labels[currentView] || currentView })]),
-    el('div', { class: 'top-actions', style: 'display:flex;gap:8px;align-items:center' }, [langToggleBtn]),
+    el('div', { class: 'top-actions', style: 'display:flex;gap:8px;align-items:center' }, [countrySelect, langToggleBtn]),
   ]);
 }
 

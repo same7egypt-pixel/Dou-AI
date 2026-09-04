@@ -1,5 +1,6 @@
 // Super Admin — Restaurant Dedicated Shifts (DOU Flex) Management & Commercial Margins
 import { api } from '../../shared/api/client.js';
+import { appStore } from '../../shared/state/store.js';
 import {
   el, loadingState, emptyState, errorState, table, button, escapeHtml,
   modal, metricCard, badge
@@ -41,28 +42,32 @@ export async function loadFlexBookings(container) {
   container.append(header, contentArea);
 
   try {
+    const country = appStore.get().selectedCountry;
+    const countryParam = country ? `?country=${encodeURIComponent(country)}` : '';
     const [metrics, bookings] = await Promise.all([
-      api.get('/admin/dedicated/metrics').catch(() => null),
-      api.get('/admin/dedicated/bookings').catch(() => []),
+      api.get(`/admin/dedicated/metrics${countryParam}`).catch(() => null),
+      api.get(`/admin/dedicated/bookings${countryParam}`).catch(() => []),
     ]);
 
     contentArea.innerHTML = '';
+
+    const currencyLabel = country === 'EG' ? (isAr ? 'ج.م' : 'EGP') : (isAr ? 'ر.س' : 'SAR');
 
     // Render High-Level Commercial KPIs
     if (metrics) {
       const kpis = el('div', { class: 'metrics-grid', style: 'margin-bottom:24px' }, [
         metricCard(
-          `${Number(metrics.gross_monthly_revenue || 0).toLocaleString()} ${isAr ? 'ر.س' : 'SAR'}`,
+          `${Number(metrics.gross_monthly_revenue || 0).toLocaleString()} ${currencyLabel}`,
           isAr ? 'إجمالي دخل الاشتراكات (من المطاعم)' : 'Gross Monthly Revenue (from Restaurants)',
           'blue'
         ),
         metricCard(
-          `${Number(metrics.total_logistics_payouts || 0).toLocaleString()} ${isAr ? 'ر.س' : 'SAR'}`,
+          `${Number(metrics.total_logistics_payouts || 0).toLocaleString()} ${currencyLabel}`,
           isAr ? 'مستحقات شركات التوصيل (اللوجستية)' : 'Total Fleet / Logistics Payouts',
           'purple'
         ),
         metricCard(
-          `${Number(metrics.dou_net_margin || 0).toLocaleString()} ${isAr ? 'ر.س' : 'SAR'} (${metrics.margin_percentage || 0}%)`,
+          `${Number(metrics.dou_net_margin || 0).toLocaleString()} ${currencyLabel} (${metrics.margin_percentage || 0}%)`,
           isAr ? 'صافي هامش ربح DOU للمنصة' : 'DOU Platform Net Margin',
           'green'
         ),
@@ -110,19 +115,19 @@ export async function loadFlexBookings(container) {
       },
       {
         key: 'financials',
-        label: isAr ? 'البيانات المالية والتعاقدية (ر.س/شهر)' : 'Financials (SAR/mo)',
+        label: isAr ? `البيانات المالية والتعاقدية (${currencyLabel}/شهر)` : `Financials (${currencyLabel}/mo)`,
         render: (_, row) => el('div', { style: 'font-size:12px;line-height:1.6' }, [
           el('div', {}, [
             el('span', { style: 'color:var(--muted)' }, isAr ? 'اشتراك المطعم لـ DOU: ' : 'Restaurant Fee: '),
-            el('b', {}, `${Number(row.monthly_fee_to_merchant || 0).toLocaleString()} ${isAr ? 'ر.س' : 'SAR'}`)
+            el('b', {}, `${row.monthly_fee_to_merchant != null ? Number(row.monthly_fee_to_merchant).toLocaleString() : '—'} ${currencyLabel}`)
           ]),
           el('div', {}, [
             el('span', { style: 'color:var(--muted)' }, isAr ? 'مستحق الشركة اللوجستية: ' : 'Logistics Payout: '),
-            el('b', {}, `${Number(row.monthly_payout_to_logistics || 0).toLocaleString()} ${isAr ? 'ر.س' : 'SAR'}`)
+            el('b', {}, `${row.monthly_payout_to_logistics != null ? Number(row.monthly_payout_to_logistics).toLocaleString() : '—'} ${currencyLabel}`)
           ]),
           el('div', { style: 'color:var(--green, #16a34a);font-weight:700' }, [
             el('span', {}, isAr ? 'صافي هامش DOU المحتجز: ' : 'DOU Margin: '),
-            el('span', {}, `${Number(row.dou_margin || 0).toLocaleString()} ${isAr ? 'ر.س' : 'SAR'}`)
+            el('span', {}, `${row.dou_margin != null ? Number(row.dou_margin).toLocaleString() : '—'} ${currencyLabel}`)
           ]),
         ])
       },
@@ -256,7 +261,7 @@ async function openNewBookingModal(mainContainer) {
 
     const marginDisplay = el('div', {
       style: 'padding:10px;border-radius:8px;background:rgba(37, 99, 235, 0.08);border:1px solid rgba(37, 99, 235, 0.25);font-size:13px;font-weight:700;color:var(--primary)'
-    }, isAr ? '🏢 صافي هامش ربح DOU المنصة: 1,500 ر.س (21.4%)' : 'DOU Platform Net Margin: 1,500 SAR (21.4%)');
+    }, isAr ? `🏢 صافي هامش ربح DOU المنصة: 1,500 ${currencyLabel} (21.4%)` : `DOU Platform Net Margin: 1,500 ${currencyLabel} (21.4%)`);
 
     function updateMarginCalculation() {
       const fee = parseFloat(merchantFeeInput.value) || 0;
@@ -264,8 +269,8 @@ async function openNewBookingModal(mainContainer) {
       const margin = fee - payout;
       const pct = fee > 0 ? (Math.round((margin / fee) * 1000) / 10) : 0;
       marginDisplay.textContent = isAr
-        ? `🏢 صافي هامش ربح DOU المنصة: ${margin.toLocaleString()} ر.س (${pct}%)`
-        : `DOU Platform Net Margin: ${margin.toLocaleString()} SAR (${pct}%)`;
+        ? `🏢 صافي هامش ربح DOU المنصة: ${margin.toLocaleString()} ${currencyLabel} (${pct}%)`
+        : `DOU Platform Net Margin: ${margin.toLocaleString()} ${currencyLabel} (${pct}%)`;
     }
 
     merchantFeeInput.oninput = updateMarginCalculation;
@@ -329,12 +334,12 @@ async function openNewBookingModal(mainContainer) {
       shiftTypeSelect,
       el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:10px' }, [
         el('div', {}, [
-          el('label', { style: 'font-size:12px;font-weight:700;display:block;margin-bottom:4px' }, isAr ? 'اشتراك المطعم الشهري لـ DOU (ر.س):' : 'Merchant Fee to DOU (SAR):'),
-          merchantFeeInput,
+          el('label', { style: 'font-size:12px;font-weight:700;display:block;margin-bottom:4px' }, isAr ? `اشتراك المطعم الشهري لـ DOU (${currencyLabel}):` : `Merchant Fee to DOU (${currencyLabel}):`),
+          merchantFeeInput
         ]),
         el('div', {}, [
-          el('label', { style: 'font-size:12px;font-weight:700;display:block;margin-bottom:4px' }, isAr ? 'مستحق الشركة اللوجستية (ر.س):' : 'Logistics Payout (SAR):'),
-          fleetPayoutInput,
+          el('label', { style: 'font-size:12px;font-weight:700;display:block;margin-bottom:4px' }, isAr ? `مستحق الشركة اللوجستية (${currencyLabel}):` : `Logistics Payout (${currencyLabel}):`),
+          fleetPayoutInput
         ]),
       ]),
       marginDisplay,
@@ -348,9 +353,10 @@ async function openNewBookingModal(mainContainer) {
   }
 }
 
-// Modal: Edit Contract
 function openEditBookingModal(booking, mainContainer) {
   const isAr = getLang() === 'ar';
+  const country = appStore.get().selectedCountry;
+  const currencyLabel = country === 'EG' ? (isAr ? 'ج.م' : 'EGP') : (isAr ? 'ر.س' : 'SAR');
   const overlay = modal(isAr ? `تعديل عقد وردية (${booking.branch_name})` : `Edit Contract (${booking.branch_name})`, el('div', {}, []));
   const modalBody = overlay.querySelector('.modal-body');
 
@@ -368,7 +374,9 @@ function openEditBookingModal(booking, mainContainer) {
   const merchantFeeInput = el('input', {
     type: 'number',
     step: '100',
-    value: String(booking.monthly_fee_to_merchant || booking.contract_value_monthly || 7000),
+    // `contract_value_monthly` was dropped in migration 0027 — a leftover from
+    // the commission model that was reverted. It can never carry a value now.
+    value: String(booking.monthly_fee_to_merchant || 7000),
     style: 'width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text)'
   });
 
@@ -389,8 +397,8 @@ function openEditBookingModal(booking, mainContainer) {
     const margin = fee - payout;
     const pct = fee > 0 ? (Math.round((margin / fee) * 1000) / 10) : 0;
     editMarginDisplay.textContent = isAr
-      ? `🏢 صافي هامش DOU: ${margin.toLocaleString()} ر.س (${pct}%)`
-      : `DOU Net Margin: ${margin.toLocaleString()} SAR (${pct}%)`;
+      ? `🏢 صافي هامش DOU: ${margin.toLocaleString()} ${currencyLabel} (${pct}%)`
+      : `DOU Net Margin: ${margin.toLocaleString()} ${currencyLabel} (${pct}%)`;
   }
 
   merchantFeeInput.oninput = updateEditMargin;
@@ -426,9 +434,9 @@ function openEditBookingModal(booking, mainContainer) {
   form.append(
     el('label', { style: 'font-size:12px;font-weight:700' }, isAr ? 'حالة العقد:' : 'Contract Status:'),
     statusSelect,
-    el('label', { style: 'font-size:12px;font-weight:700' }, isAr ? 'اشتراك المطعم الشهري لـ DOU (ر.س):' : 'Monthly Restaurant Fee to DOU (SAR):'),
+    el('label', { style: 'font-size:12px;font-weight:700' }, isAr ? `اشتراك المطعم الشهري لـ DOU (${currencyLabel}):` : `Monthly Restaurant Fee to DOU (${currencyLabel}):`),
     merchantFeeInput,
-    el('label', { style: 'font-size:12px;font-weight:700' }, isAr ? 'المستحق الشهري للشركة اللوجستية (ر.س):' : 'Monthly Logistics Payout (SAR):'),
+    el('label', { style: 'font-size:12px;font-weight:700' }, isAr ? `المستحق الشهري للشركة اللوجستية (${currencyLabel}):` : `Monthly Logistics Payout (${currencyLabel}):`),
     fleetPayoutInput,
     editMarginDisplay,
     saveBtn

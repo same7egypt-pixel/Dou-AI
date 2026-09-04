@@ -73,6 +73,8 @@ class FleetDedicatedBookingOut(BaseModel):
     effective_from: date
     effective_until: Optional[date]
     status: str
+    supervisor_id: Optional[int] = None
+    supervisor_name: Optional[str] = None
     rider: Optional[BookingRiderInfo]
     today_attendance: TodayAttendanceInfo
     today_orders_count: int
@@ -196,6 +198,8 @@ def get_fleet_bookings(
                 effective_from=b.effective_from,
                 effective_until=b.effective_until,
                 status=b.status.value,
+                supervisor_id=b.supervisor_id,
+                supervisor_name=db.get(User, b.supervisor_id).name if b.supervisor_id and db.get(User, b.supervisor_id) else None,
                 rider=BookingRiderInfo(
                     rider_id=rider.id,
                     name=rider.name,

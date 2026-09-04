@@ -11,27 +11,23 @@ the account is - so the console is the only place it can be set, and later
 corrected.
 """
 
-import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ADMIN_HTML = (ROOT / "static" / "admin.html").read_text(encoding="utf-8")
+TENANTS_JS = (ROOT / "frontend-v2" / "admin" / "views" / "tenants.js").read_text(encoding="utf-8")
 ADMIN_PY = (ROOT / "app" / "routers" / "admin.py").read_text(encoding="utf-8")
 
 
 def test_the_create_form_offers_both_account_types():
-    field = re.search(r'<select id="ncType".*?</select>', ADMIN_HTML, re.S)
-    assert field, "the create-company form has no account-type selector"
-    markup = field.group(0)
-    assert 'value="LOGISTICS_OPERATOR"' in markup
-    assert 'value="DELIVERY_PLATFORM"' in markup
+    assert "ncType" in TENANTS_JS, "the create-company form has no account-type selector"
+    assert "LOGISTICS_OPERATOR" in TENANTS_JS
+    assert "DELIVERY_PLATFORM" in TENANTS_JS
 
 
 def test_the_create_request_actually_sends_the_type():
     """The field existing is not enough; it has to reach the API."""
-    call = re.search(r'api\("/admin/tenants",\{method:"POST".*?\}\)', ADMIN_HTML, re.S)
-    assert call, "could not find the create-company request"
-    assert 'customer_type:document.getElementById("ncType").value' in call.group(0), (
+    assert "api.post('/admin/tenants'" in TENANTS_JS or 'api.post("/admin/tenants"' in TENANTS_JS
+    assert "payload['customer_type'] = typeSelect.value" in TENANTS_JS, (
         "the form collects a type and then posts without it, so every account "
         "is created as a logistics company"
     )
