@@ -14,8 +14,14 @@ Sets up real pilot data:
 Idempotent: Safe to run repeatedly.
 """
 
+import os
+import sys
 from datetime import date, time
 from decimal import Decimal
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT_DIR))
 
 from sqlalchemy import func
 
