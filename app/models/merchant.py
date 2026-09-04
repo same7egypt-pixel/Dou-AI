@@ -118,9 +118,8 @@ class DedicatedShiftBooking(Base):
     effective_from              = Column(Date, nullable=False)
     effective_until             = Column(Date, nullable=True)  # NULL = open-ended
 
-    monthly_fee_to_merchant     = Column(Numeric(10, 2), nullable=False)
-    monthly_payout_to_logistics = Column(Numeric(10, 2), nullable=False)
-    dou_margin                  = Column(Numeric(10, 2), nullable=False)  # stored on write
+    contract_value_monthly      = Column(Numeric(10, 2), nullable=False)  # Direct contract value between Restaurant & 3PL
+    dou_commission_monthly      = Column(Numeric(10, 2), nullable=False)  # Fixed monthly DOU platform SaaS fee due from 3PL
 
     status                      = Column(Enum(BookingStatus, name="bookingstatus"), nullable=False, default=BookingStatus.active)
     created_at                  = Column(DateTime(timezone=True), server_default=func.now())
@@ -225,7 +224,5 @@ class MonthlySettlementLedger(Base):
 
 
 def compute_and_set_margin(booking: DedicatedShiftBooking) -> None:
-    """Store dou_margin explicitly on write."""
-    booking.dou_margin = (booking.monthly_fee_to_merchant or Decimal("0.00")) - (
-        booking.monthly_payout_to_logistics or Decimal("0.00")
-    )
+    """Legacy helper preserved for backward compatibility; DOU charges a direct SaaS commission."""
+    pass

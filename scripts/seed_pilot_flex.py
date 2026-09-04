@@ -75,15 +75,14 @@ def seed_pilot_flex():
             db.add(courier)
             db.flush()
 
-        # 3. Create or update Pilot Merchant Account
+        # 3. Create or update Pilot Merchant Account (with rotated key)
         merchant = (
             db.query(MerchantAccount)
             .filter(MerchantAccount.trade_name == "شاورما كلاسيك (Shawarma Classic)")
             .first()
         )
-        raw_key = None
+        _, prefix, key_hash = generate_merchant_api_key("shawarma")
         if not merchant:
-            raw_key, prefix, key_hash = generate_merchant_api_key("shawarma")
             merchant = MerchantAccount(
                 trade_name="شاورما كلاسيك (Shawarma Classic)",
                 vat_number="310123456700003",
@@ -97,9 +96,14 @@ def seed_pilot_flex():
             db.add(merchant)
             db.flush()
             print(f"   ✓ Created Merchant: {merchant.trade_name} (ID: {merchant.id})")
-            print(f"     API Key: {raw_key}")
+            print(f"     API Key: dou_live_{prefix}_... (Redacted)")
         else:
+            # Rotate API key to invalidate any leaked key
+            merchant.api_key_prefix = prefix
+            merchant.api_key_hash = key_hash
+            db.flush()
             print(f"   ✓ Found Existing Merchant: {merchant.trade_name} (ID: {merchant.id})")
+            print(f"     Rotated API Key: dou_live_{prefix}_... (Redacted)")
 
         # 4. Create or update Pilot Branch
         branch = (
@@ -144,9 +148,8 @@ def seed_pilot_flex():
             )
             .first()
         )
-        fee = Decimal("7000.00")
-        payout = Decimal("5500.00")
-        margin = fee - payout
+        contract_val = Decimal("7000.00")
+        commission = Decimal("1500.00")
 
         if not booking:
             booking = DedicatedShiftBooking(
@@ -157,9 +160,8 @@ def seed_pilot_flex():
                 shift_start_time=time(12, 0),
                 shift_end_time=time(20, 0),
                 effective_from=date.today(),
-                monthly_fee_to_merchant=fee,
-                monthly_payout_to_logistics=payout,
-                dou_margin=margin,
+                contract_value_monthly=contract_val,
+                dou_commission_monthly=commission,
                 status=BookingStatus.active,
             )
             db.add(booking)
@@ -168,9 +170,8 @@ def seed_pilot_flex():
         else:
             booking.rider_id = courier.id
             booking.logistics_company_tenant_id = tenant.id
-            booking.monthly_fee_to_merchant = fee
-            booking.monthly_payout_to_logistics = payout
-            booking.dou_margin = margin
+            booking.contract_value_monthly = contract_val
+            booking.dou_commission_monthly = commission
             db.commit()
             print(f"   ✓ Updated Booking Contract (ID: {booking.id})")
 
@@ -183,11 +184,9 @@ def seed_pilot_flex():
         print(f"🌐 GPS Geofence:   Lat {branch.latitude}, Lng {branch.longitude} (150m)")
         print(f"🏢 Fleet Tenant:   {tenant.name} (ID: {tenant.id})")
         print(f"🛵 Assigned Rider: {courier.name} (ID: {courier.id})")
-        print(f"💰 Merchant Fee:   {fee} SAR / month")
-        print(f"💵 Fleet Payout:   {payout} SAR / month")
-        print(f"📈 DOU Net Margin: {margin} SAR / month ({(margin/fee)*100:.1f}%)")
-        if raw_key:
-            print(f"🔐 Merchant API:   {raw_key}")
+        print(f"💰 Contract Value: {contract_val} SAR / month (Direct)")
+        print(f"🏢 DOU Commission: {commission} SAR / month (Fixed SaaS)")
+        print(f"🔐 Merchant API:   dou_live_{prefix}_... (Redacted)")
         print("=" * 60 + "\n")
 
     except Exception as e:

@@ -136,9 +136,8 @@ def setup_phase4_db():
         shift_start_time=time(12, 0),
         shift_end_time=time(20, 0),
         effective_from=today,
-        monthly_fee_to_merchant=Decimal("7000.00"),
-        monthly_payout_to_logistics=Decimal("5500.00"),
-        dou_margin=Decimal("1500.00"),
+        contract_value_monthly=Decimal("7000.00"),
+        dou_commission_monthly=Decimal("1500.00"),
         status=BookingStatus.active,
     )
     db.add(booking)
@@ -153,7 +152,7 @@ def setup_phase4_db():
 # ─── TESTS: Fleet Dedicated Endpoints ─────────────────────────────────────────
 
 def test_fleet_bookings_tenant_isolation_and_commercial_privacy():
-    """Fleet company can only view their bookings and should NOT see merchant fee or DOU margin."""
+    """Fleet company can only view their bookings with contract value and DOU commission."""
     token_t10 = make_user_token(201, 10, "COMPANY")
     res = client.get("/fleet/dedicated/bookings", headers={"Authorization": f"Bearer {token_t10}"})
     assert res.status_code == 200
@@ -162,8 +161,9 @@ def test_fleet_bookings_tenant_isolation_and_commercial_privacy():
     item = data[0]
     assert item["id"] == 10
     assert item["branch_name"] == "Sulimaniyah Branch"
-    assert item["monthly_payout"] == 5500.0
-    # Commercial privacy: must NOT expose merchant fee or DOU margin to logistics company
+    assert item["contract_value_monthly"] == 7000.0
+    assert item["dou_commission_monthly"] == 1500.0
+    # Commercial privacy: legacy fields not exposed
     assert "monthly_fee_to_merchant" not in item
     assert "dou_margin" not in item
     assert item["rider"]["rider_name"] == "Ali Salem"
@@ -212,35 +212,35 @@ def test_fleet_assign_rider_cross_tenant_forbidden():
 
 
 def test_fleet_monthly_settlement_calculation():
-    """Fleet settlement calculates payout due from DOU without leaking margins."""
+    """Fleet settlement calculates DOU SaaS commission statement."""
     token_t10 = make_user_token(201, 10, "COMPANY")
     res = client.get("/fleet/dedicated/settlement?month=9&year=2026", headers={"Authorization": f"Bearer {token_t10}"})
     assert res.status_code == 200
     data = res.json()
     assert data["tenant_name"] == "FastFleet Logistics"
-    assert data["total_payout_due"] > 0
+    assert data["total_commission_due"] > 0
     assert "dou_margin" not in data
     assert len(data["line_items"]) == 1
-    assert data["line_items"][0]["monthly_payout_rate"] == 5500.0
+    assert data["line_items"][0]["contract_value_monthly"] == 7000.0
+    assert data["line_items"][0]["dou_commission_monthly"] == 1500.0
 
 
 # ─── TESTS: Super Admin Endpoints ─────────────────────────────────────────────
 
 def test_admin_metrics_and_margin_calculations():
-    """Super admin sees total revenue, logistics payouts, and DOU net margin."""
+    """Super admin sees total contracts volume and total DOU commissions."""
     admin_token = make_user_token(299, 1, "DOU_ADMIN")
     res = client.get("/admin/dedicated/metrics", headers={"Authorization": f"Bearer {admin_token}"})
     assert res.status_code == 200
     m = res.json()
     assert m["total_bookings"] >= 1
     assert m["active_bookings"] >= 1
-    assert m["gross_monthly_revenue"] == 7000.0
-    assert m["total_logistics_payouts"] == 5500.0
-    assert m["dou_net_margin"] == 1500.0
+    assert m["total_contracts_volume"] == 7000.0
+    assert m["total_dou_commissions"] == 1500.0
 
 
 def test_admin_create_booking_auto_margin():
-    """Super admin creates new contract, DOU net margin is automatically computed as fee - payout."""
+    """Super admin creates new contract with contract value and fixed DOU commission."""
     admin_token = make_user_token(299, 1, "DOU_ADMIN")
     payload = {
         "merchant_id": 10,
@@ -248,16 +248,15 @@ def test_admin_create_booking_auto_margin():
         "tenant_id": 20,
         "rider_id": 303,
         "shift_type": "peak_3h",
-        "monthly_fee_to_merchant": 3500.0,
-        "monthly_payout_to_logistics": 2500.0,
+        "contract_value_monthly": 3500.0,
+        "dou_commission_monthly": 1000.0,
         "start_date": "2026-09-01",
     }
     res = client.post("/admin/dedicated/bookings", json=payload, headers={"Authorization": f"Bearer {admin_token}"})
     assert res.status_code in (200, 201)
     created = res.json()
-    assert created["monthly_fee_to_merchant"] == 3500.0
-    assert created["monthly_payout_to_logistics"] == 2500.0
-    assert created["dou_margin"] == 1000.0  # 3500 - 2500
+    assert created["contract_value_monthly"] == 3500.0
+    assert created["dou_commission_monthly"] == 1000.0
 
 
 def test_admin_onboard_merchant_and_branch():

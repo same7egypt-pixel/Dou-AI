@@ -67,7 +67,9 @@ class FleetDedicatedBookingOut(BaseModel):
     shift_type: str
     shift_start: str
     shift_end: str
-    monthly_payout: float
+    contract_value_monthly: float
+    dou_commission_monthly: float
+    monthly_payout: Optional[float] = None
     effective_from: date
     effective_until: Optional[date]
     status: str
@@ -96,13 +98,18 @@ class FleetSettlementLineItem(BaseModel):
     shift_type: str
     active_days: int
     days_in_month: int
-    monthly_payout_rate: float
-    prorated_payout: float
+    contract_value_monthly: float
+    dou_commission_monthly: float
+    prorated_commission: float
+    monthly_payout_rate: Optional[float] = None
+    prorated_payout: Optional[float] = None
 
 
 class FleetSettlementOut(BaseModel):
     tenant_name: str
     settlement_month: str
+    total_commission_due: float
+    total_contracts_value: float
     total_payout_due: float
     currency: str
     settlement_status: str
@@ -190,7 +197,9 @@ def get_fleet_bookings(
                 shift_type=b.shift_type.value,
                 shift_start=b.shift_start_time.strftime("%H:%M"),
                 shift_end=b.shift_end_time.strftime("%H:%M"),
-                monthly_payout=float(b.monthly_payout_to_logistics),
+                contract_value_monthly=float(b.contract_value_monthly),
+                dou_commission_monthly=float(b.dou_commission_monthly),
+                monthly_payout=float(b.contract_value_monthly),
                 effective_from=b.effective_from,
                 effective_until=b.effective_until,
                 status=b.status.value,
@@ -326,7 +335,8 @@ def get_fleet_monthly_settlement(
     )
 
     line_items: list[FleetSettlementLineItem] = []
-    total_payout = Decimal("0.00")
+    total_commission = Decimal("0.00")
+    total_contracts = Decimal("0.00")
 
     for b in bookings:
         branch = db.get(MerchantBranch, b.merchant_branch_id)
@@ -341,8 +351,10 @@ def get_fleet_monthly_settlement(
         else:
             active_days = 0
 
-        payout_prorated = prorate(b.monthly_payout_to_logistics, active_days, target_month_date)
-        total_payout += payout_prorated
+        prorated_commission = prorate(b.dou_commission_monthly, active_days, target_month_date)
+        prorated_contract = prorate(b.contract_value_monthly, active_days, target_month_date)
+        total_commission += prorated_commission
+        total_contracts += prorated_contract
 
         line_items.append(
             FleetSettlementLineItem(
@@ -353,8 +365,11 @@ def get_fleet_monthly_settlement(
                 shift_type=b.shift_type.value,
                 active_days=active_days,
                 days_in_month=days_in_month,
-                monthly_payout_rate=float(b.monthly_payout_to_logistics),
-                prorated_payout=float(payout_prorated),
+                contract_value_monthly=float(b.contract_value_monthly),
+                dou_commission_monthly=float(b.dou_commission_monthly),
+                prorated_commission=float(prorated_commission),
+                monthly_payout_rate=float(b.contract_value_monthly),
+                prorated_payout=float(prorated_commission),
             )
         )
 
@@ -364,7 +379,9 @@ def get_fleet_monthly_settlement(
     return FleetSettlementOut(
         tenant_name=tenant_name,
         settlement_month=statement_str,
-        total_payout_due=float(total_payout),
+        total_commission_due=float(total_commission),
+        total_contracts_value=float(total_contracts),
+        total_payout_due=float(total_commission),
         currency="SAR",
         settlement_status="draft",
         line_items=line_items,
