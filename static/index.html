@@ -1357,20 +1357,33 @@
           'ENTERPRISE': ['تعدد المشاريع والشركات والفروع', 'هيكل تشغيلي وصلاحيات موسعة', 'تكاملات API و ERP مخصصة', 'تقارير مخصصة غير محدودة', 'مدير حساب ودعم مدار 24/7']
         };
 
+        // The feature list is stored with the two characters backslash-n, not a
+        // real newline — every plan in the database is written that way. Splitting
+        // on a real newline found nothing, so all five features rendered as one
+        // run of text with the separators showing: "الورديات\nتطبيق السائق".
+        // Both forms are accepted here, and a stray carriage return with them.
+        const splitFeatures = (text) =>
+          String(text).split(/\\n|\r?\n/).map(f => f.trim()).filter(Boolean);
+
         container.innerHTML = plans.map(p => {
+          // Dark card for both paid tiers, but "الأكثر طلباً" on one of them.
+          // Two cards claiming to be the most popular is not a recommendation,
+          // it is noise — and it made the page read as a mistake.
           const isFeatured = p.code === 'GROWTH' || p.code === 'BUSINESS';
+          const isMostPopular = p.code === 'GROWTH';
           const limitText = p.max_couriers > 0 ? `للأساطيل حتى ${p.max_couriers} سائقاً` : 'للشركات والمشغلين الكبرى (غير محدود)';
-          
-          const features = p.features_ar && p.features_ar.trim() 
-            ? p.features_ar.split('\n').map(f => f.trim()).filter(Boolean)
+
+          const features = p.features_ar && p.features_ar.trim()
+            ? splitFeatures(p.features_ar)
             : (defaultFeatures[p.code] || ['لوحة تحكم الأسطول', 'تطبيق السائق', 'إدارة الحضور والورديات', 'دعم فني متواصل']);
 
           if (isFeatured) {
             return `
             <div class="p-7 rounded-3xl bg-[#14181d] text-white border-2 border-[#ff5500] shadow-2xl relative flex flex-col justify-between transform lg:-translate-y-2">
+              ${isMostPopular ? `
               <div class="absolute -top-3.5 right-1/2 translate-x-1/2 px-4 py-1 rounded-full bg-[#ff5500] text-white font-black text-[10px] uppercase tracking-wider whitespace-nowrap">
                 الأكثر طلباً
-              </div>
+              </div>` : ''}
               <div>
                 <h3 class="text-lg font-bold text-white">${p.name} <span class="text-xs font-normal text-slate-400">(${p.name_en || p.code})</span></h3>
                 <div class="mt-2 mb-6">
