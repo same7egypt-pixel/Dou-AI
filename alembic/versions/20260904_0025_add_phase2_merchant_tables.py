@@ -98,7 +98,7 @@ def upgrade() -> None:
         sa.Column("customer_name", sa.String(255), nullable=False),
         sa.Column("customer_phone", sa.String(20), nullable=False),
         sa.Column("delivery_address_text", sa.Text(), nullable=False),
-        sa.Column("status", sa.Enum("pending", "en_route", "delivered", name="orderstatus"), nullable=False, server_default="pending"),
+        sa.Column("status", sa.Enum("pending", "en_route", "delivered", name="branchorderstatus"), nullable=False, server_default="pending"),
         sa.Column("order_source", sa.String(50), nullable=False, server_default="manual_cashier"),
         sa.Column("external_order_id", sa.String(100), nullable=True),
         sa.Column("is_pool_eligible", sa.Boolean(), nullable=False, server_default="false"),
@@ -142,5 +142,5 @@ def downgrade() -> None:
     if bind.dialect.name == "postgresql":
         op.execute("DROP TYPE IF EXISTS shifttype")
         op.execute("DROP TYPE IF EXISTS bookingstatus")
-        op.execute("DROP TYPE IF EXISTS orderstatus")
+        op.execute("DROP TYPE IF EXISTS branchorderstatus")
         op.execute("DROP TYPE IF EXISTS settlementstatus")

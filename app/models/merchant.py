@@ -183,7 +183,7 @@ class BranchDispatchOrder(Base):
     customer_phone             = Column(String(20), nullable=False)
     delivery_address_text      = Column(Text, nullable=False)
 
-    status                     = Column(Enum(OrderStatus, name="orderstatus"), nullable=False, default=OrderStatus.pending)
+    status                     = Column(Enum(OrderStatus, name="branchorderstatus"), nullable=False, default=OrderStatus.pending)
     order_source               = Column(String(50), nullable=False, default="manual_cashier")
     external_order_id          = Column(String(100), nullable=True)
     is_pool_eligible           = Column(Boolean, nullable=False, default=False)
