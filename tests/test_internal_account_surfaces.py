@@ -174,3 +174,21 @@ def test_the_capacity_screen_still_has_a_tab_for_every_role(env):
     assert "id: 'capacity'" in declared, (
         "every role must land on at least one tab that works"
     )
+
+
+def test_the_driver_app_knows_who_the_rider_is_before_asking_for_their_tasks():
+    """Tasks were requested inside the same Promise.all that fetched the rider,
+    from an id the very next line was about to store. On a first sign-in the id
+    was absent, `|| 0` stood in, and the rider's first view of their own day was
+    an empty list from GET /couriers/0/tasks — 404, filled in only on reload."""
+    source = (ROOT / "static" / "courier.html").read_text(encoding="utf-8")
+    body = source[source.index("async function loadCore()"):]
+    body = body[: body.index("async function refreshCore()")]
+    code = re.sub(r"//[^\n]*", "", body)
+
+    assert "|| 0" not in code, "the tasks request still falls back to courier 0"
+    promise_all = code[code.index("Promise.all(["):code.index("]);")]
+    assert "/tasks" not in promise_all, (
+        "tasks are still requested in parallel with the identity they depend on"
+    )
+    assert "courier?.id" in code, "the rider id must come from the response"

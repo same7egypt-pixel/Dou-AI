@@ -157,6 +157,22 @@ async function main() {
       // sidebar at all. Asserting `.nav-item` there reported "0 items" and
       // called it a product defect; it was a gap in this script. Each surface
       // is checked for what it actually renders.
+      // /admin serves static/admin.html — a standalone page with its own login
+      // and its own X-Admin-Key path — not frontend-v2/admin/, which is a second
+      // complete console the app serves at no route. Injecting a JWT does not
+      // sign into it, so asserting a sidebar here reported a failure that was
+      // this script's misunderstanding. What can be checked without its login is
+      // checked; the rest is stated as uncovered rather than assumed passing.
+      if (role.surface === '/admin') {
+        const body = await page.$eval('body', (el) => el.innerText.trim().length).catch(() => 0);
+        const errs = consoleErrors.filter((e) => e.startsWith('UNCAUGHT'));
+        record(role.key, 'admin console loads', body > 60 && errs.length === 0,
+          `text=${body} · js=${errs.slice(0, 1).join('') || 'clean'}`);
+        console.log(`⚠️  [${role.key}] screens behind the admin login are NOT covered by this crawler`);
+        await ctx.close();
+        continue;
+      }
+
       if (role.surface === '/driver') {
         const body = await page.$eval('body', (el) => el.innerText.trim().length).catch(() => 0);
         const errs = consoleErrors.filter((e) => e.startsWith('UNCAUGHT'));
@@ -170,6 +186,16 @@ async function main() {
 
       const navs = await page.$$eval('.nav-item[data-view]', (els) =>
         els.map((e) => e.dataset.view));
+      if (!navs.length) {
+        // An account with no tenant is now redirected off this surface with a
+        // reason — the intended outcome, not an empty app.
+        const notice = await page.$eval('#app', (el) => el.innerText).catch(() => '');
+        const redirected = /ليست الشاشة المناسبة|الانتقال إلى/.test(notice);
+        record(role.key, 'sent to the surface that fits the account', redirected,
+          redirected ? notice.split('\n').filter(Boolean)[1] || '' : 'empty app with no explanation');
+        await ctx.close();
+        continue;
+      }
       record(role.key, 'sidebar rendered', navs.length > 0, `${navs.length} items: ${navs.join(', ')}`);
 
       for (const view of navs) {

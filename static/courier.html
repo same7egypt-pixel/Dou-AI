@@ -948,17 +948,26 @@
   }
 
   async function loadCore(){
-    const [courier, shift, logs, hr, preferences, tasks] = await Promise.all([
+    // Tasks used to be requested inside this Promise.all, from a rider id that
+    // the very next line was about to store. On a first sign-in — or any time
+    // storage was cleared while the token survived — the id was absent, `|| 0`
+    // stood in, and the rider's first view of their own day was an empty list
+    // from GET /couriers/0/tasks (404). It only filled in on a reload.
+    // Who the rider is has to be known before asking what they have to do.
+    const [courier, shift, logs, hr, preferences] = await Promise.all([
       api('/couriers/me'),
       api('/shifts/me'),
       api('/hr/me/logs'),
       api('/hr/me/hr'),
-      api('/couriers/me/preferences').catch(()=>null),
-      api(`/couriers/${localStorage.getItem('dou_rider_id') || 0}/tasks`).catch(()=>[])
+      api('/couriers/me/preferences').catch(()=>null)
     ]);
     state.core = {courier, shift, logs, hr, preferences};
-    state.activeTasks = tasks || [];
     if(courier?.id) localStorage.setItem('dou_rider_id', courier.id);
+
+    const riderId = courier?.id || localStorage.getItem('dou_rider_id');
+    state.activeTasks = riderId
+      ? await api(`/couriers/${riderId}/tasks`).catch(()=>[])
+      : [];
   }
 
   async function refreshCore(){
