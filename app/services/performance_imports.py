@@ -176,9 +176,24 @@ def _resolve_courier(
             mapping_query = mapping_query.filter(
                 RiderIdentityMapping.source_platform_id == platform.id
             )
-    mapping = mapping_query.first()
-    if mapping:
-        courier = db.get(Courier, mapping.courier_id)
+
+    # An identity mapping belongs to a source. When the sheet's platform could
+    # not be identified — SMART_DETECTED, or a format nobody has taught us —
+    # the filter above is skipped, and `.first()` then picks arbitrarily among
+    # the mappings that share this raw id across platforms. Two platforms both
+    # numbering their riders from 1 is not a hypothetical, and the result is a
+    # delivery credited to the wrong person and paid to them.
+    #
+    # Ambiguity is reported, not resolved by luck: if the id resolves to more
+    # than one rider, the row goes to the unmatched list, where the operator
+    # names it. An unmatched row costs a click; a wrongly matched one costs a
+    # rider their pay and nobody finds out.
+    candidates = mapping_query.all()
+    distinct_couriers = {m.courier_id for m in candidates}
+    if len(distinct_couriers) > 1:
+        return None
+    if candidates:
+        courier = db.get(Courier, candidates[0].courier_id)
         if courier and courier.tenant_id == tenant_id:
             return courier
 

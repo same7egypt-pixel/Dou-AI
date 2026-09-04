@@ -1236,7 +1236,9 @@ function renderNativeDashboardContent(dashboard, factsData, overviewData) {
       { label: 'إجمالي الطلبات المكتملة', value: `${formatNum(s.total_completed)} طلب`, sub: `نسبة الإنجاز: ${s.completion_rate || 97.4}%`, color: 'var(--green)' },
       { label: 'ساعات العمل الفعلية', value: `${Number(s.total_actual_hours || 0).toFixed(1)} س`, sub: `استغلال الساعات: ${s.hours_utilization || 93.6}%`, color: 'var(--blue)' },
       { label: 'معدل قبول الطلبات', value: `${s.avg_acceptance_rate || 99}%`, sub: 'استجابة السائقين الميدانية', color: 'var(--teal)' },
-      { label: 'إجمالي السائقين النشطين', value: `${ov.total_riders || rows[0]?.riders_count || 8} سائق`, sub: 'موزعون على الفروع', color: 'var(--purple)' },
+      // `|| 8` meant a company with no riders read "8 سائق". A count the customer
+      // can check in one click is the worst possible place to guess.
+      { label: 'إجمالي السائقين النشطين', value: `${ov.total_riders ?? rows[0]?.riders_count ?? 0} سائق`, sub: 'موزعون على الفروع', color: 'var(--purple)' },
     ];
   } else if (dashboard.id === 3 || dashboard.key === 'workforce_readiness') {
     // Workforce Readiness

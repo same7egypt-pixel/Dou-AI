@@ -950,6 +950,14 @@ def metabase_dashboards(user: ent.User = Depends(get_current_user)):
             "metabase_url": None,
             "status": "NOT_CONFIGURED",
         }
+    # The dashboard catalogue used to ship a `kpis` array on every entry with
+    # values written by hand: "نسبة الحضور 94%", "معدل الإنجاز 98.2%",
+    # "جاهز للتشغيل 85%", "معدل القبول 96.5%". None was computed from anything.
+    # The tab stays hidden until Metabase is hosted, so no customer had seen
+    # them — which is why they were easy to leave in, and exactly the wrong
+    # reason to. One invented number beside real ones discredits the real ones.
+    # Metabase computes the figures for these dashboards; this endpoint lists
+    # what exists, it does not measure.
     dashboards = [
         {
             "id": 2,
@@ -960,11 +968,6 @@ def metabase_dashboards(user: ent.User = Depends(get_current_user)):
             "description": "نظرة شاملة على السائقين، الورديات، الحضور، ومعدل الامتثال العام للأسطول",
             "icon": "📊",
             "embed_url": _generate_metabase_embed_url(2, tenant_id),
-            "kpis": [
-                {"label": "إجمالي الأسطول", "value": "محدث"},
-                {"label": "نسبة الحضور", "value": "94%"},
-                {"label": "معدل الإنجاز", "value": "98.2%"},
-            ],
         },
         {
             "id": 3,
@@ -975,10 +978,6 @@ def metabase_dashboards(user: ent.User = Depends(get_current_user)):
             "description": "توزيع السائقين على الفروع، رصد الموانع التشغيلية، ومتابعة وثائق KYC",
             "icon": "👥",
             "embed_url": _generate_metabase_embed_url(3, tenant_id),
-            "kpis": [
-                {"label": "جاهز للتشغيل", "value": "85%"},
-                {"label": "وثائق مكتملة", "value": "91%"},
-            ],
         },
         {
             "id": 4,
@@ -989,10 +988,6 @@ def metabase_dashboards(user: ent.User = Depends(get_current_user)):
             "description": "تحليل أوقات الدخول والخروج، التأخير والغياب، وتغطية ساعات العمل",
             "icon": "⏱️",
             "embed_url": _generate_metabase_embed_url(4, tenant_id),
-            "kpis": [
-                {"label": "الالتزام بالورديات", "value": "92%"},
-                {"label": "متوسط الساعات", "value": "8.4 س"},
-            ],
         },
         {
             "id": 5,
@@ -1003,10 +998,6 @@ def metabase_dashboards(user: ent.User = Depends(get_current_user)):
             "description": "أعلى المناديب إنجازاً، معدل قبول الطلبات، ونسب تحقيق الأهداف",
             "icon": "🎯",
             "embed_url": _generate_metabase_embed_url(5, tenant_id),
-            "kpis": [
-                {"label": "معدل القبول", "value": "96.5%"},
-                {"label": "تحقيق التارجت", "value": "88%"},
-            ],
         },
         {
             "id": 6,
@@ -1017,10 +1008,6 @@ def metabase_dashboards(user: ent.User = Depends(get_current_user)):
             "description": "تفصيل الرواتب الأساسية، الحوافز المكتسبة، والخصومات المعتمدة",
             "icon": "💰",
             "embed_url": _generate_metabase_embed_url(6, tenant_id),
-            "kpis": [
-                {"label": "إجمالي المسير", "value": "مستقر"},
-                {"label": "نسبة الحوافز", "value": "18%"},
-            ],
         },
     ]
     return {
