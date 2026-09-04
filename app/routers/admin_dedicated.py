@@ -1,16 +1,13 @@
-import secrets
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
-import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
-from sqlalchemy import func
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.entities import Courier, Tenant, User, UserRole
+from app.models.entities import Courier, Tenant, User
 from app.models.merchant import (
     BookingStatus,
     DedicatedShiftBooking,
@@ -35,11 +32,10 @@ class AdminFlexMetricsOut(BaseModel):
     total_merchants: int
     total_branches: int
     total_riders_assigned: int
-    total_contracts_volume: float
-    total_dou_commissions: float
     gross_monthly_revenue: float
     total_logistics_payouts: float
     dou_net_margin: float
+    margin_percentage: float = 0.0
 
 
 class AdminBranchOut(BaseModel):
@@ -105,11 +101,9 @@ class AdminBookingOut(BaseModel):
     shift_end_time: str
     effective_from: date
     effective_until: Optional[date]
-    contract_value_monthly: float
-    dou_commission_monthly: float
-    monthly_fee_to_merchant: Optional[float] = None
-    monthly_payout_to_logistics: Optional[float] = None
-    dou_margin: Optional[float] = None
+    monthly_fee_to_merchant: float
+    monthly_payout_to_logistics: float
+    dou_margin: float
     status: str
 
 
@@ -125,17 +119,13 @@ class CreateBookingPayload(BaseModel):
     effective_from: Optional[date] = None
     start_date: Optional[date] = None
     effective_until: Optional[date] = None
-    contract_value_monthly: Optional[float] = None
-    dou_commission_monthly: Optional[float] = None
-    monthly_fee_to_merchant: Optional[float] = None
-    monthly_payout_to_logistics: Optional[float] = None
+    monthly_fee_to_merchant: float = 7000.0
+    monthly_payout_to_logistics: float = 5500.0
 
 
 class UpdateBookingPayload(BaseModel):
     rider_id: Optional[int] = None
     status: Optional[BookingStatus] = None
-    contract_value_monthly: Optional[float] = None
-    dou_commission_monthly: Optional[float] = None
     monthly_fee_to_merchant: Optional[float] = None
     monthly_payout_to_logistics: Optional[float] = None
     effective_until: Optional[date] = None
@@ -165,14 +155,19 @@ def get_admin_flex_metrics(
 
     unique_riders = {b.rider_id for b in active_bookings_rows if b.rider_id}
 
-    total_contracts = Decimal("0.00")
-    total_commissions = Decimal("0.00")
+    gross_rev = Decimal("0.00")
+    total_payout = Decimal("0.00")
+    net_margin = Decimal("0.00")
 
     for b in active_bookings_rows:
-        val = b.contract_value_monthly or Decimal("0.00")
-        comm = b.dou_commission_monthly or Decimal("0.00")
-        total_contracts += val
-        total_commissions += comm
+        fee = b.monthly_fee_to_merchant or Decimal("0.00")
+        payout = b.monthly_payout_to_logistics or Decimal("0.00")
+        margin = b.dou_margin if b.dou_margin is not None else (fee - payout)
+        gross_rev += fee
+        total_payout += payout
+        net_margin += margin
+
+    pct = round(float(net_margin / gross_rev * 100), 1) if gross_rev > 0 else 0.0
 
     return AdminFlexMetricsOut(
         total_bookings=total_bookings,
@@ -180,11 +175,10 @@ def get_admin_flex_metrics(
         total_merchants=total_merchants,
         total_branches=total_branches,
         total_riders_assigned=len(unique_riders),
-        total_contracts_volume=float(total_contracts),
-        total_dou_commissions=float(total_commissions),
-        gross_monthly_revenue=float(total_contracts),
-        total_logistics_payouts=float(total_contracts - total_commissions),
-        dou_net_margin=float(total_commissions),
+        gross_monthly_revenue=float(gross_rev),
+        total_logistics_payouts=float(total_payout),
+        dou_net_margin=float(net_margin),
+        margin_percentage=pct,
     )
 
 
@@ -389,11 +383,9 @@ def list_bookings_admin(
                 shift_end_time=b.shift_end_time.strftime("%H:%M"),
                 effective_from=b.effective_from,
                 effective_until=b.effective_until,
-                contract_value_monthly=float(b.contract_value_monthly),
-                dou_commission_monthly=float(b.dou_commission_monthly),
-                monthly_fee_to_merchant=float(b.contract_value_monthly),
-                monthly_payout_to_logistics=float(b.contract_value_monthly - b.dou_commission_monthly),
-                dou_margin=float(b.dou_commission_monthly),
+                monthly_fee_to_merchant=float(b.monthly_fee_to_merchant),
+                monthly_payout_to_logistics=float(b.monthly_payout_to_logistics),
+                dou_margin=float(b.dou_margin),
                 status=b.status.value,
             )
         )
@@ -408,7 +400,7 @@ def create_booking_admin(
     _: User = Depends(_require_superadmin),
 ):
     """
-    Creates a new Dedicated Shift contract with direct merchant value and fixed DOU SaaS commission.
+    Creates a new Dedicated Shift contract and automatically sets DOU net margin.
     """
     target_branch_id = payload.merchant_branch_id or payload.branch_id
     if not target_branch_id:
@@ -452,26 +444,9 @@ def create_booking_admin(
     except ValueError:
         raise HTTPException(status_code=400, detail="صيغة وقت الوردية غير صالحة. استخدم HH:MM (مثال: 19:00).")
 
-    contract_val = (
-        payload.contract_value_monthly
-        if payload.contract_value_monthly is not None
-        else payload.monthly_fee_to_merchant
-    )
-    if contract_val is None:
-        contract_val = 7000.00
-
-    dou_comm = (
-        payload.dou_commission_monthly
-        if payload.dou_commission_monthly is not None
-        else (
-            (payload.monthly_fee_to_merchant - payload.monthly_payout_to_logistics)
-            if (payload.monthly_fee_to_merchant is not None and payload.monthly_payout_to_logistics is not None)
-            else 1500.00
-        )
-    )
-
-    fee_dec = Decimal(str(contract_val))
-    comm_dec = Decimal(str(dou_comm))
+    fee_dec = Decimal(str(payload.monthly_fee_to_merchant))
+    payout_dec = Decimal(str(payload.monthly_payout_to_logistics))
+    margin_dec = fee_dec - payout_dec
     eff_from = payload.effective_from or payload.start_date or date.today()
 
     booking = DedicatedShiftBooking(
@@ -483,8 +458,9 @@ def create_booking_admin(
         shift_end_time=t_end,
         effective_from=eff_from,
         effective_until=payload.effective_until,
-        contract_value_monthly=fee_dec,
-        dou_commission_monthly=comm_dec,
+        monthly_fee_to_merchant=fee_dec,
+        monthly_payout_to_logistics=payout_dec,
+        dou_margin=margin_dec,
         status=BookingStatus.active,
     )
     compute_and_set_margin(booking)
@@ -497,12 +473,10 @@ def create_booking_admin(
         "ok": True,
         "id": booking.id,
         "booking_id": booking.id,
-        "contract_value_monthly": float(booking.contract_value_monthly),
-        "dou_commission_monthly": float(booking.dou_commission_monthly),
-        "monthly_fee_to_merchant": float(booking.contract_value_monthly),
-        "monthly_payout_to_logistics": float(booking.contract_value_monthly - booking.dou_commission_monthly),
-        "dou_margin": float(booking.dou_commission_monthly),
-        "dou_net_margin": float(booking.dou_commission_monthly),
+        "monthly_fee_to_merchant": float(booking.monthly_fee_to_merchant),
+        "monthly_payout_to_logistics": float(booking.monthly_payout_to_logistics),
+        "dou_margin": float(booking.dou_margin),
+        "dou_net_margin": float(booking.dou_margin),
         "message": "تم إنشاء عقد الوردية المخصصة بنجاح.",
     }
 
@@ -535,15 +509,10 @@ def update_booking_admin(
     if payload.effective_until is not None:
         booking.effective_until = payload.effective_until
 
-    if payload.contract_value_monthly is not None:
-        booking.contract_value_monthly = Decimal(str(payload.contract_value_monthly))
-    elif payload.monthly_fee_to_merchant is not None:
-        booking.contract_value_monthly = Decimal(str(payload.monthly_fee_to_merchant))
-
-    if payload.dou_commission_monthly is not None:
-        booking.dou_commission_monthly = Decimal(str(payload.dou_commission_monthly))
-    elif payload.monthly_fee_to_merchant is not None and payload.monthly_payout_to_logistics is not None:
-        booking.dou_commission_monthly = Decimal(str(payload.monthly_fee_to_merchant - payload.monthly_payout_to_logistics))
+    if payload.monthly_fee_to_merchant is not None:
+        booking.monthly_fee_to_merchant = Decimal(str(payload.monthly_fee_to_merchant))
+    if payload.monthly_payout_to_logistics is not None:
+        booking.monthly_payout_to_logistics = Decimal(str(payload.monthly_payout_to_logistics))
 
     compute_and_set_margin(booking)
     db.commit()
@@ -554,7 +523,8 @@ def update_booking_admin(
         "message": "تم تحديث بيانات العقد بنجاح.",
         "booking_id": booking.id,
         "status": booking.status.value,
-        "contract_value_monthly": float(booking.contract_value_monthly),
-        "dou_commission_monthly": float(booking.dou_commission_monthly),
-        "dou_net_margin": float(booking.dou_commission_monthly),
+        "monthly_fee_to_merchant": float(booking.monthly_fee_to_merchant),
+        "monthly_payout_to_logistics": float(booking.monthly_payout_to_logistics),
+        "dou_margin": float(booking.dou_margin),
+        "dou_net_margin": float(booking.dou_margin),
     }

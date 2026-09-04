@@ -1,5 +1,4 @@
 import enum
-from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
@@ -118,8 +117,9 @@ class DedicatedShiftBooking(Base):
     effective_from              = Column(Date, nullable=False)
     effective_until             = Column(Date, nullable=True)  # NULL = open-ended
 
-    contract_value_monthly      = Column(Numeric(10, 2), nullable=False)  # Direct contract value between Restaurant & 3PL
-    dou_commission_monthly      = Column(Numeric(10, 2), nullable=False)  # Fixed monthly DOU platform SaaS fee due from 3PL
+    monthly_fee_to_merchant     = Column(Numeric(10, 2), nullable=False)  # Charged to merchant
+    monthly_payout_to_logistics = Column(Numeric(10, 2), nullable=False)  # Payout to logistics company
+    dou_margin                  = Column(Numeric(10, 2), nullable=False)  # Net DOU margin
 
     status                      = Column(Enum(BookingStatus, name="bookingstatus"), nullable=False, default=BookingStatus.active)
     created_at                  = Column(DateTime(timezone=True), server_default=func.now())
@@ -224,5 +224,6 @@ class MonthlySettlementLedger(Base):
 
 
 def compute_and_set_margin(booking: DedicatedShiftBooking) -> None:
-    """Legacy helper preserved for backward compatibility; DOU charges a direct SaaS commission."""
-    pass
+    """Computes and stores dou_margin as monthly_fee_to_merchant - monthly_payout_to_logistics."""
+    if booking.monthly_fee_to_merchant is not None and booking.monthly_payout_to_logistics is not None:
+        booking.dou_margin = booking.monthly_fee_to_merchant - booking.monthly_payout_to_logistics

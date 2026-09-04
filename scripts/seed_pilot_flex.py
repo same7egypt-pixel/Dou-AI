@@ -148,8 +148,9 @@ def seed_pilot_flex():
             )
             .first()
         )
-        contract_val = Decimal("7000.00")
-        commission = Decimal("1500.00")
+        merchant_fee = Decimal("7000.00")
+        fleet_payout = Decimal("5500.00")
+        dou_margin = Decimal("1500.00")
 
         if not booking:
             booking = DedicatedShiftBooking(
@@ -160,8 +161,9 @@ def seed_pilot_flex():
                 shift_start_time=time(12, 0),
                 shift_end_time=time(20, 0),
                 effective_from=date.today(),
-                contract_value_monthly=contract_val,
-                dou_commission_monthly=commission,
+                monthly_fee_to_merchant=merchant_fee,
+                monthly_payout_to_logistics=fleet_payout,
+                dou_margin=dou_margin,
                 status=BookingStatus.active,
             )
             db.add(booking)
@@ -170,8 +172,9 @@ def seed_pilot_flex():
         else:
             booking.rider_id = courier.id
             booking.logistics_company_tenant_id = tenant.id
-            booking.contract_value_monthly = contract_val
-            booking.dou_commission_monthly = commission
+            booking.monthly_fee_to_merchant = merchant_fee
+            booking.monthly_payout_to_logistics = fleet_payout
+            booking.dou_margin = dou_margin
             db.commit()
             print(f"   ✓ Updated Booking Contract (ID: {booking.id})")
 
@@ -184,8 +187,9 @@ def seed_pilot_flex():
         print(f"🌐 GPS Geofence:   Lat {branch.latitude}, Lng {branch.longitude} (150m)")
         print(f"🏢 Fleet Tenant:   {tenant.name} (ID: {tenant.id})")
         print(f"🛵 Assigned Rider: {courier.name} (ID: {courier.id})")
-        print(f"💰 Contract Value: {contract_val} SAR / month (Direct)")
-        print(f"🏢 DOU Commission: {commission} SAR / month (Fixed SaaS)")
+        print(f"💰 Merchant Fee:   {merchant_fee} SAR / month (To DOU)")
+        print(f"🚚 Fleet Payout:   {fleet_payout} SAR / month (From DOU)")
+        print(f"🏢 DOU Net Margin: {dou_margin} SAR / month (21.4%)")
         print(f"🔐 Merchant API:   dou_live_{prefix}_... (Redacted)")
         print("=" * 60 + "\n")
 

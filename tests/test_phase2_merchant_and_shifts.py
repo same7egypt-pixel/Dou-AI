@@ -228,8 +228,9 @@ def setup_database():
         shift_end_time=time(22, 0),
         effective_from=today,
         effective_until=None,
-        contract_value_monthly=Decimal("7000.00"),
-        dou_commission_monthly=Decimal("1500.00"),
+        monthly_fee_to_merchant=Decimal("7000.00"),
+        monthly_payout_to_logistics=Decimal("5500.00"),
+        dou_margin=Decimal("1500.00"),
         status=BookingStatus.active,
     )
     db.add(booking1)

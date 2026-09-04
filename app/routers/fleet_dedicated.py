@@ -1,5 +1,5 @@
 import calendar
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -20,6 +20,7 @@ from app.models.merchant import (
     ShiftAttendanceLog,
 )
 from app.routers.auth import get_current_user
+from app.services.financial_calculations import month_bounds
 from app.utils.finance import prorate
 
 router = APIRouter(prefix="/fleet/dedicated", tags=["fleet_dedicated"])
@@ -68,9 +69,7 @@ class FleetDedicatedBookingOut(BaseModel):
     shift_type: str
     shift_start: str
     shift_end: str
-    contract_value_monthly: float
-    dou_commission_monthly: float
-    monthly_payout: Optional[float] = None
+    monthly_payout: float
     effective_from: date
     effective_until: Optional[date]
     status: str
@@ -99,18 +98,13 @@ class FleetSettlementLineItem(BaseModel):
     shift_type: str
     active_days: int
     days_in_month: int
-    contract_value_monthly: float
-    dou_commission_monthly: float
-    prorated_commission: float
-    monthly_payout_rate: Optional[float] = None
-    prorated_payout: Optional[float] = None
+    monthly_payout_rate: float
+    prorated_payout: float
 
 
 class FleetSettlementOut(BaseModel):
     tenant_name: str
     settlement_month: str
-    total_commission_due: float
-    total_contracts_value: float
     total_payout_due: float
     currency: str
     settlement_status: str
@@ -198,9 +192,7 @@ def get_fleet_bookings(
                 shift_type=b.shift_type.value,
                 shift_start=b.shift_start_time.strftime("%H:%M"),
                 shift_end=b.shift_end_time.strftime("%H:%M"),
-                contract_value_monthly=float(b.contract_value_monthly),
-                dou_commission_monthly=float(b.dou_commission_monthly),
-                monthly_payout=float(b.contract_value_monthly),
+                monthly_payout=float(b.monthly_payout_to_logistics),
                 effective_from=b.effective_from,
                 effective_until=b.effective_until,
                 status=b.status.value,
@@ -297,7 +289,7 @@ def assign_rider_to_booking(
 
 @router.get("/settlement", response_model=FleetSettlementOut)
 def get_fleet_monthly_settlement(
-    month: Optional[int] = Query(None),
+    month: Optional[str] = Query(None, description="Month in YYYY-MM format"),
     year: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -312,12 +304,21 @@ def get_fleet_monthly_settlement(
     tenant_name = tenant.name if tenant else "الشركة اللوجستية"
 
     now = datetime.now(timezone.utc)
-    target_month = month if isinstance(month, int) else now.month
-    target_year = year if isinstance(year, int) else now.year
+    if isinstance(month, str) and "-" in month:
+        month_str = month.strip()
+    elif isinstance(month, (int, str)) and str(month).isdigit():
+        resolved_year = year or now.year
+        month_str = f"{resolved_year}-{int(month):02d}"
+    else:
+        month_str = f"{now.year}-{now.month:02d}"
 
-    target_month_date = date(target_year, target_month, 1)
-    days_in_month = calendar.monthrange(target_year, target_month)[1]
-    month_end_date = date(target_year, target_month, days_in_month)
+    try:
+        start_date, next_month_date = month_bounds(month_str)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    days_in_month = (next_month_date - start_date).days
+    month_end_date = next_month_date - timedelta(days=1)
 
     # Find bookings overlapping with target month
     bookings = (
@@ -329,22 +330,21 @@ def get_fleet_monthly_settlement(
             DedicatedShiftBooking.effective_from <= month_end_date,
             or_(
                 DedicatedShiftBooking.effective_until.is_(None),
-                DedicatedShiftBooking.effective_until >= target_month_date,
+                DedicatedShiftBooking.effective_until >= start_date,
             ),
         )
         .all()
     )
 
     line_items: list[FleetSettlementLineItem] = []
-    total_commission = Decimal("0.00")
-    total_contracts = Decimal("0.00")
+    total_payout = Decimal("0.00")
 
     for b in bookings:
         branch = db.get(MerchantBranch, b.merchant_branch_id)
         account = db.get(MerchantAccount, branch.merchant_account_id) if branch else None
         rider = db.get(Courier, b.rider_id) if b.rider_id else None
 
-        start_active = max(b.effective_from, target_month_date)
+        start_active = max(b.effective_from, start_date)
         end_active = min(b.effective_until or month_end_date, month_end_date)
 
         if end_active >= start_active:
@@ -352,10 +352,8 @@ def get_fleet_monthly_settlement(
         else:
             active_days = 0
 
-        prorated_commission = prorate(b.dou_commission_monthly, active_days, target_month_date)
-        prorated_contract = prorate(b.contract_value_monthly, active_days, target_month_date)
-        total_commission += prorated_commission
-        total_contracts += prorated_contract
+        payout_prorated = prorate(b.monthly_payout_to_logistics, active_days, start_date)
+        total_payout += payout_prorated
 
         line_items.append(
             FleetSettlementLineItem(
@@ -366,23 +364,18 @@ def get_fleet_monthly_settlement(
                 shift_type=b.shift_type.value,
                 active_days=active_days,
                 days_in_month=days_in_month,
-                contract_value_monthly=float(b.contract_value_monthly),
-                dou_commission_monthly=float(b.dou_commission_monthly),
-                prorated_commission=float(prorated_commission),
-                monthly_payout_rate=float(b.contract_value_monthly),
-                prorated_payout=float(prorated_commission),
+                monthly_payout_rate=float(b.monthly_payout_to_logistics),
+                prorated_payout=float(payout_prorated),
             )
         )
 
-    month_name_en = calendar.month_name[target_month]
-    statement_str = f"{month_name_en} {target_year}"
+    month_name_en = calendar.month_name[start_date.month]
+    statement_str = f"{month_name_en} {start_date.year}"
 
     return FleetSettlementOut(
         tenant_name=tenant_name,
         settlement_month=statement_str,
-        total_commission_due=float(total_commission),
-        total_contracts_value=float(total_contracts),
-        total_payout_due=float(total_commission),
+        total_payout_due=float(total_payout),
         currency="SAR",
         settlement_status="draft",
         line_items=line_items,

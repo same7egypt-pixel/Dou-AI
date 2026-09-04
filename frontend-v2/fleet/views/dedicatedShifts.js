@@ -79,19 +79,16 @@ async function renderContractsView(contentArea, mainContainer) {
   // Calculate high-level KPIs
   const activeCount = bookings.filter(b => b.status === 'active').length;
   const assignedRidersCount = bookings.filter(b => b.rider && b.rider.rider_id).length;
-  const totalContractValue = bookings
+  const totalMonthlyPayout = bookings
     .filter(b => b.status === 'active')
-    .reduce((sum, b) => sum + (b.contract_value_monthly || 0), 0);
-  const totalDouCommission = bookings
-    .filter(b => b.status === 'active')
-    .reduce((sum, b) => sum + (b.dou_commission_monthly || 0), 0);
+    .reduce((sum, b) => sum + (b.monthly_payout || 0), 0);
   const totalTodayOrders = bookings.reduce((sum, b) => sum + (b.today_orders_count || 0), 0);
 
   const metricsGrid = el('div', { class: 'metrics-grid', style: 'margin-bottom:20px' }, [
     metricCard(activeCount, isAr ? 'عقود الفروع النشطة' : 'Active Branch Contracts', 'blue'),
     metricCard(assignedRidersCount, isAr ? 'المناديب المسكنون' : 'Assigned Riders', 'green'),
-    metricCard(`${totalContractValue.toLocaleString()} ${isAr ? 'ر.س' : 'SAR'}`, isAr ? 'إجمالي عقود المطاعم (تحصيل مباشر)' : 'Restaurant Contracts (Direct)', 'purple'),
-    metricCard(`${totalDouCommission.toLocaleString()} ${isAr ? 'ر.س' : 'SAR'}`, isAr ? 'عمولة منصة DOU الشهرية' : 'Monthly DOU Commission', 'amber'),
+    metricCard(`${totalMonthlyPayout.toLocaleString()} ${isAr ? 'ر.س' : 'SAR'}`, isAr ? 'إجمالي مستحقات الورديات من DOU' : 'Monthly Payout from DOU', 'purple'),
+    metricCard(`${totalTodayOrders.toLocaleString()}`, isAr ? 'طلبات الفروع اليوم' : 'Today Branch Orders', 'amber'),
   ]);
 
   const cardsContainer = el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill, minmax(360px, 1fr));gap:16px' });
@@ -130,12 +127,8 @@ async function renderContractsView(contentArea, mainContainer) {
             el('b', {}, `${b.shift_start} — ${b.shift_end}`),
           ]),
           el('div', { style: 'display:flex;justify-content:space-between' }, [
-            el('span', { style: 'color:var(--muted)' }, isAr ? '💵 قيمة العقد مع المطعم:' : '💵 Restaurant Contract:'),
-            el('b', { style: 'color:var(--ink);font-weight:800' }, `${(b.contract_value_monthly || 0).toLocaleString()} ${isAr ? 'ر.س (تحصيل مباشر)' : 'SAR (Direct)'}`),
-          ]),
-          el('div', { style: 'display:flex;justify-content:space-between' }, [
-            el('span', { style: 'color:var(--muted)' }, isAr ? '🏢 عمولة منصة DOU:' : '🏢 DOU Commission:'),
-            el('b', { style: 'color:var(--amber, #d97706);font-weight:800' }, `${(b.dou_commission_monthly || 0).toLocaleString()} ${isAr ? 'ر.س' : 'SAR'}`),
+            el('span', { style: 'color:var(--muted)' }, isAr ? '💵 دخل شركتكم الشهري من DOU:' : '💵 Monthly Payout from DOU:'),
+            el('b', { style: 'color:var(--ink);font-weight:800' }, `${(b.monthly_payout || 0).toLocaleString()} ${isAr ? 'ر.س' : 'SAR'}`),
           ]),
           el('div', { style: 'display:flex;justify-content:space-between;align-items:center' }, [
             el('span', { style: 'color:var(--muted)' }, isAr ? 'حضور اليوم:' : 'Today Attendance:'),
@@ -237,17 +230,16 @@ async function openAssignRiderModal(booking, mainContainer) {
 async function renderSettlementsView(contentArea) {
   const isAr = getLang() === 'ar';
   const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
+  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-  const settlement = await api.get(`/fleet/dedicated/settlement?month=${month}&year=${year}`);
+  const settlement = await api.get(`/fleet/dedicated/settlement?month=${monthStr}`);
 
   contentArea.innerHTML = '';
 
   const kpiRow = el('div', { class: 'metrics-grid', style: 'margin-bottom:20px' }, [
-    metricCard(`${Number(settlement.total_commission_due || 0).toLocaleString()} ${settlement.currency}`, isAr ? 'إجمالي عمولة DOU المستحقة للسداد' : 'Total DOU Commission Due', 'amber'),
-    metricCard(`${Number(settlement.total_contracts_value || 0).toLocaleString()} ${settlement.currency}`, isAr ? 'إجمالي قيمة عقود المطاعم' : 'Total Restaurant Contracts', 'blue'),
-    metricCard(settlement.settlement_month, isAr ? 'شهر المطابقة' : 'Settlement Month', 'purple'),
+    metricCard(`${Number(settlement.total_payout_due || 0).toLocaleString()} ${settlement.currency}`, isAr ? 'إجمالي المستحقات للتحويل من DOU' : 'Total Payout Due from DOU', 'purple'),
+    metricCard(`${settlement.line_items ? settlement.line_items.length : 0}`, isAr ? 'عدد العقود المفوترة' : 'Billed Contracts', 'blue'),
+    metricCard(settlement.settlement_month, isAr ? 'شهر المطابقة' : 'Settlement Month', 'amber'),
   ]);
 
   const columns = [
@@ -260,20 +252,16 @@ async function renderSettlementsView(contentArea) {
       render: (val) => val === 'peak_3h' ? (isAr ? 'ذروة 3س' : 'Peak 3h') : (isAr ? 'يومي 8س' : 'Daily 8h')
     },
     { key: 'active_days', label: isAr ? 'الأيام النشطة' : 'Active Days' },
+    { key: 'days_in_month', label: isAr ? 'أيام الشهر' : 'Days in Month' },
     {
-      key: 'contract_value_monthly',
-      label: isAr ? 'قيمة عقد المطعم' : 'Contract Value',
+      key: 'monthly_payout_rate',
+      label: isAr ? 'المستحق الشهري المعتمد' : 'Monthly Agreed Rate',
       render: (val) => `${Number(val || 0).toLocaleString()} ${settlement.currency}`
     },
     {
-      key: 'dou_commission_monthly',
-      label: isAr ? 'عمولة DOU الشهرية' : 'DOU Monthly Fee',
-      render: (val) => `${Number(val || 0).toLocaleString()} ${settlement.currency}`
-    },
-    {
-      key: 'prorated_commission',
-      label: isAr ? 'عمولة DOU المستحقة' : 'Commission Due',
-      render: (val) => el('b', { style: 'color:var(--amber, #d97706)' }, `${Number(val || 0).toLocaleString()} ${settlement.currency}`)
+      key: 'prorated_payout',
+      label: isAr ? 'المستحق الفعلي للتحويل' : 'Payout Due',
+      render: (val) => el('b', { style: 'color:var(--primary, #2563eb)' }, `${Number(val || 0).toLocaleString()} ${settlement.currency}`)
     },
   ];
 
@@ -282,8 +270,8 @@ async function renderSettlementsView(contentArea) {
   const statementBox = el('div', { class: 'card', style: 'background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:16px' }, [
     el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px' }, [
       el('div', {}, [
-        el('h2', { style: 'margin:0 0 4px;font-size:18px' }, isAr ? `بيان عمولة منصة DOU والمطابقة الشهرية — ${settlement.tenant_name}` : `DOU Platform Commission Statement — ${settlement.tenant_name}`),
-        el('div', { style: 'font-size:12px;color:var(--muted)' }, isAr ? 'كشف حساب عمولة النظام المستحقة للدفع لـ DOU (تحصيل عقود المطاعم يتم مباشرة من العميل)' : 'Statement of DOU platform SaaS commissions due (restaurant contracts are collected directly from client)'),
+        el('h2', { style: 'margin:0 0 4px;font-size:18px' }, isAr ? `كشف الحساب والمستحقات الشهرية — ${settlement.tenant_name}` : `Monthly Settlement Statement — ${settlement.tenant_name}`),
+        el('div', { style: 'font-size:12px;color:var(--muted)' }, isAr ? 'كشف حساب مستحقات التحويل من منصة DOU عن تشغيل الورديات المخصصة' : 'Statement of payouts due from DOU platform for dedicated shift operations'),
       ]),
       el('button', {
         class: 'btn btn-ghost btn-small',

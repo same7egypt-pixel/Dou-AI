@@ -504,8 +504,8 @@ def get_monthly_statement(
         else:
             active_days = 0
 
-        fee_prorated = prorate(b.contract_value_monthly, active_days, target_month_date)
-        payout_prorated = prorate(b.contract_value_monthly - b.dou_commission_monthly, active_days, target_month_date)
+        fee_prorated = prorate(b.monthly_fee_to_merchant, active_days, target_month_date)
+        payout_prorated = prorate(b.monthly_payout_to_logistics, active_days, target_month_date)
 
         gross_fee_total += fee_prorated
         total_payout_total += payout_prorated
