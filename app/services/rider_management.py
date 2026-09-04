@@ -113,6 +113,9 @@ def create_rider_record(
         city_id=city.id,
         work_city=branch.city or city.name,
         platform=project.name,
+        platform_courier_id=str(payload.get("platform_courier_id")).strip()
+        if payload.get("platform_courier_id")
+        else None,
     )
     db.add(courier)
     db.flush()

@@ -77,6 +77,7 @@ class CourierCreate(BaseModel):
     country: str  # SA | EG
     tenant_id: Optional[int] = None
     fleet_id: Optional[int] = None
+    platform_courier_id: Optional[str] = None
 
 
 class CourierOut(CourierCreate):
@@ -93,6 +94,7 @@ class CourierOut(CourierCreate):
     lat: Optional[float] = None
     lng: Optional[float] = None
     bank_iban: Optional[str] = None
+    platform_courier_id: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 

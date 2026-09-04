@@ -141,8 +141,12 @@ async function loadRiderList(container) {
     const columns = [
       { key: 'name', label: isAr ? 'السائق' : 'Driver', render: (v, r) => el('div', {}, [
         el('b', { style: 'display:block;color:var(--text)' }, v || '—'),
-        el('small', { style: 'color:var(--muted);font-size:11px' }, r.phone || '')
+        el('div', { style: 'display:flex;gap:6px;align-items:center;margin-top:2px' }, [
+          el('small', { style: 'color:var(--muted);font-size:11px' }, r.phone || ''),
+          r.platform_courier_id ? el('span', { class: 'badge badge-blue', style: 'font-size:10px;padding:1px 5px;' }, `🆔 ${r.platform_courier_id}`) : null
+        ].filter(Boolean))
       ]) },
+      { key: 'platform_courier_id', label: isAr ? 'معرّف المنصة (ID)' : 'Platform ID', render: (v) => v ? el('span', { class: 'badge badge-blue' }, `🆔 ${v}`) : el('span', { class: 'badge badge-gray' }, '—') },
       { key: 'courier_type', label: isAr ? 'نوع الانتماء' : 'Employment Type', render: (v) => {
         if (!v) return el('span', { class: 'badge badge-gray' }, '—');
         const type = String(v).toUpperCase();
@@ -288,6 +292,7 @@ async function openAddRider(container) {
       const phone = document.getElementById('ar-phone').value.trim();
       const password = document.getElementById('ar-password').value || 'Password123!';
       const nationalId = document.getElementById('ar-national-id').value.trim();
+      const platformCourierId = document.getElementById('ar-platform-courier-id')?.value.trim();
       const courierType = document.getElementById('ar-type').value;
       const salary = parseFloat(document.getElementById('ar-salary').value) || 0;
       const rate = parseFloat(document.getElementById('ar-rate').value) || 0;
@@ -306,6 +311,7 @@ async function openAddRider(container) {
         await api.post('/fleet/couriers', {
           name, phone, password,
           national_id_or_iqama: nationalId || undefined,
+          platform_courier_id: platformCourierId || undefined,
           courier_type: courierType,
           base_salary: salary,
           per_delivery_rate: rate,
@@ -344,6 +350,7 @@ async function openAddRider(container) {
         inputField('ar-phone', 'رقم الجوال (9665xxxxxxxx)', { required: true }),
         inputField('ar-password', 'كلمة المرور الابتدائية', { type: 'password', value: 'Password123!' }),
         inputField('ar-national-id', 'رقم الهوية الوطنية / الإقامة'),
+        inputField('ar-platform-courier-id', 'معرّف المندوب في المنصة (HungerStation / Ninja ID)', { placeholder: 'مثال: 94821 أو HS-1234' }),
         selectField('ar-type', 'نوع السائق / الانتماء', [
           { value: 'COMPANY', label: '🏢 كفالة شركة (Sponsored)' },
           { value: 'FREELANCER', label: '🛵 فريلانسر (Freelancer)' },
@@ -411,18 +418,10 @@ async function openEditRiderModal(courier, onUpdated) {
           el('input', { type: 'number', step: '0.5', id: 'er-per-order', value: p.per_delivery_rate || 0, style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' })
         ]),
       ]),
-      el('div', { style: 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px' }, [
+      el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:10px' }, [
         el('div', {}, [
-          el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' }, 'الحالة التشغيلية:'),
-          el('select', { id: 'er-status', style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' }, [
-            el('option', { value: 'ACTIVE', selected: p.employment_status === 'ACTIVE' }, '🟢 نشط ومفعل'),
-            el('option', { value: 'SUSPENDED', selected: p.employment_status === 'SUSPENDED' }, '🔴 موقوف مؤقتاً'),
-            el('option', { value: 'INACTIVE', selected: p.employment_status === 'INACTIVE' }, '⚪ غير نشط')
-          ])
-        ]),
-        el('div', {}, [
-          el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' }, 'رقم لوحة المركبة:'),
-          el('input', { id: 'er-plate', value: p.vehicle_plate || '', placeholder: 'أ ب ج 1234', style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' })
+          el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' }, 'معرّف المندوب في المنصة (HungerStation / Ninja ID):'),
+          el('input', { id: 'er-platform-id', value: p.platform_courier_id || '', placeholder: 'مثال: 94821 أو HS-1234', style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' })
         ]),
         el('div', {}, [
           el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' }, 'المشرف المسؤول:'),
@@ -441,6 +440,20 @@ async function openEditRiderModal(courier, onUpdated) {
           })
         ]),
       ]),
+      el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:10px' }, [
+        el('div', {}, [
+          el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' }, 'الحالة التشغيلية:'),
+          el('select', { id: 'er-status', style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' }, [
+            el('option', { value: 'ACTIVE', selected: p.employment_status === 'ACTIVE' }, '🟢 نشط ومفعل'),
+            el('option', { value: 'SUSPENDED', selected: p.employment_status === 'SUSPENDED' }, '🔴 موقوف مؤقتاً'),
+            el('option', { value: 'INACTIVE', selected: p.employment_status === 'INACTIVE' }, '⚪ غير نشط')
+          ])
+        ]),
+        el('div', {}, [
+          el('label', { style: 'display:block;font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)' }, 'رقم لوحة المركبة:'),
+          el('input', { id: 'er-plate', value: p.vehicle_plate || '', placeholder: 'أ ب ج 1234', style: 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px' })
+        ]),
+      ]),
       el('div', { style: 'display:flex;justify-content:flex-end;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)' }, [
         el('button', { type: 'button', class: 'btn btn-ghost', onclick: () => m.remove() }, 'إلغاء'),
         el('button', { type: 'submit', class: 'btn btn-primary' }, '💾 حفظ التعديلات')
@@ -455,6 +468,7 @@ async function openEditRiderModal(courier, onUpdated) {
         name: document.getElementById('er-name').value.trim(),
         phone: document.getElementById('er-phone').value.trim(),
         national_id_or_iqama: document.getElementById('er-iqama').value.trim(),
+        platform_courier_id: document.getElementById('er-platform-id').value.trim() || null,
         bank_iban: document.getElementById('er-iban').value.trim(),
         base_salary: parseFloat(document.getElementById('er-salary').value || 0),
         per_delivery_rate: parseFloat(document.getElementById('er-per-order').value || 0),

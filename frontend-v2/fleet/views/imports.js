@@ -170,11 +170,16 @@ function renderImportSummary(result) {
   const isAr = getLang() === 'ar';
   const errors = result.errors || [];
   const warnings = result.warnings || [];
-  const cards = el('div', { class: 'cards', style: 'grid-template-columns:repeat(auto-fit,minmax(120px,1fr))' }, [
-    metric(result.total_rows || 0, isAr ? 'إجمالي الصفوف' : 'Total Rows'),
-    metric(result.valid_rows || 0, isAr ? 'صالح' : 'Valid', 'trend'),
-    metric(result.invalid_rows || 0, isAr ? 'غير صالح' : 'Invalid', 'alert'),
-    metric(result.warning_rows || warnings.length || 0, isAr ? 'تحذيرات' : 'Warnings'),
+  const analytics = result.analytics || {};
+  const byCity = analytics.by_city || [];
+  const bySupervisor = analytics.by_supervisor || [];
+  const matchedCouriers = analytics.matched_couriers || [];
+
+  const cards = el('div', { class: 'cards', style: 'grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-bottom:14px;' }, [
+    metric(analytics.total_orders !== undefined ? analytics.total_orders : (result.valid_rows || 0), isAr ? 'إجمالي الطلبات' : 'Total Orders', 'good'),
+    metric(analytics.total_matched_riders || matchedCouriers.length || result.valid_rows || 0, isAr ? 'المناديب المطابقين' : 'Matched Riders', 'blue'),
+    metric(result.valid_rows || 0, isAr ? 'الصفوف الصالحة' : 'Valid Rows', 'trend'),
+    metric(result.invalid_rows || 0, isAr ? 'غير صالح / بحاجة لمطابقة' : 'Invalid Rows', result.invalid_rows ? 'alert' : ''),
   ]);
   const children = [];
 
@@ -191,14 +196,91 @@ function renderImportSummary(result) {
     const mappedCount = Object.keys(result.mapped_columns || {}).length;
 
     children.push(el('div', {
-      style: 'background:rgba(59,130,246,0.1);border:1px solid var(--primary, #3b82f6);padding:10px 14px;border-radius:8px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;'
+      style: 'background:rgba(59,130,246,0.1);border:1px solid var(--primary, #3b82f6);padding:12px 16px;border-radius:10px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;'
     }, [
-      el('div', { style: 'font-weight:600;font-size:13.5px;color:var(--text);' }, [
+      el('div', { style: 'font-weight:700;font-size:14px;color:var(--text);' }, [
         el('span', { text: '✨ ' }),
-        el('span', { text: isAr ? `تم التعرف على تنسيق الملف: ${platLabel}` : `Detected file format: ${platLabel}` }),
+        el('span', { text: isAr ? `تم التعرف على تنسيق المنصة تلقائياً: ${platLabel}` : `Platform Format Detected: ${platLabel}` }),
       ]),
-      el('span', { class: 'badge badge-green' }, isAr ? `مطابقة ${mappedCount} أعمدة تلقائياً` : `${mappedCount} columns auto-mapped`)
+      el('span', { class: 'badge badge-green', style: 'font-size:12px;padding:4px 8px;' }, isAr ? `تمت مطابقة ${mappedCount} أعمدة أوتوماتيكياً` : `${mappedCount} columns auto-mapped`)
     ]));
+  }
+
+  children.push(cards);
+
+  // Performance Breakdown: Cities & Supervisors
+  if (byCity.length || bySupervisor.length) {
+    const analyticsGrid = el('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;margin-bottom:16px;' }, [
+      // City Breakdown Card
+      byCity.length ? el('div', { class: 'card', style: 'background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;' }, [
+        el('h4', { style: 'margin:0 0 10px 0;font-size:13.5px;color:var(--text);display:flex;align-items:center;gap:6px;' }, [
+          el('span', { text: '📍' }),
+          el('span', { text: isAr ? 'توزيع الطلبات حسب المدن' : 'Orders by City' })
+        ]),
+        el('div', { style: 'display:flex;flex-direction:column;gap:8px;' }, byCity.map(c => el('div', {
+          style: 'display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg);border-radius:6px;font-size:12.5px;'
+        }, [
+          el('span', { style: 'font-weight:600;color:var(--text);' }, c.city),
+          el('div', { style: 'display:flex;gap:8px;align-items:center;' }, [
+            el('span', { class: 'badge badge-blue', style: 'font-size:11px;' }, `${c.riders_count} ${isAr ? 'مناديب' : 'riders'}`),
+            el('b', { style: 'color:var(--primary);' }, `${c.orders} ${isAr ? 'طلب' : 'orders'}`)
+          ])
+        ])))
+      ]) : null,
+
+      // Supervisor Breakdown Card
+      bySupervisor.length ? el('div', { class: 'card', style: 'background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;' }, [
+        el('h4', { style: 'margin:0 0 10px 0;font-size:13.5px;color:var(--text);display:flex;align-items:center;gap:6px;' }, [
+          el('span', { text: '👔' }),
+          el('span', { text: isAr ? 'أداء المشرفين' : 'Supervisor Performance' })
+        ]),
+        el('div', { style: 'display:flex;flex-direction:column;gap:8px;' }, bySupervisor.map(s => el('div', {
+          style: 'display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg);border-radius:6px;font-size:12.5px;'
+        }, [
+          el('span', { style: 'font-weight:600;color:var(--text);' }, s.supervisor),
+          el('div', { style: 'display:flex;gap:8px;align-items:center;' }, [
+            el('span', { class: 'badge badge-amber', style: 'font-size:11px;' }, `${s.riders_count} ${isAr ? 'مناديب' : 'riders'}`),
+            el('b', { style: 'color:var(--green);' }, `${s.orders} ${isAr ? 'طلب' : 'orders'}`)
+          ])
+        ])))
+      ]) : null,
+    ].filter(Boolean));
+
+    children.push(analyticsGrid);
+  }
+
+  // Matched Couriers Table: The Magic Moment
+  if (matchedCouriers.length) {
+    const courierTable = el('div', { class: 'card', style: 'margin-bottom:16px;border:1px solid var(--border);border-radius:10px;padding:14px;overflow-x:auto;' }, [
+      el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;' }, [
+        el('h4', { style: 'margin:0;font-size:14px;color:var(--text);display:flex;align-items:center;gap:6px;' }, [
+          el('span', { text: '🚴‍♂️' }),
+          el('span', { text: isAr ? `مطابقة المناديب بالأسماء (${matchedCouriers.length} مندوب)` : `Matched Couriers (${matchedCouriers.length})` })
+        ]),
+        el('span', { class: 'badge badge-green' }, isAr ? 'تم استخراج الأسماء تلقائياً بنجاح ✅' : 'Names auto-resolved ✅')
+      ]),
+      el('table', { class: 'table', style: 'width:100%;text-align:right;border-collapse:collapse;' }, [
+        el('thead', {}, el('tr', { style: 'border-bottom:2px solid var(--border);' }, [
+          el('th', { style: 'padding:8px 10px;font-size:12px;' }, isAr ? 'اسم المندوب' : 'Courier Name'),
+          el('th', { style: 'padding:8px 10px;font-size:12px;' }, isAr ? 'معرّف المنصة (Rider ID)' : 'Platform Rider ID'),
+          el('th', { style: 'padding:8px 10px;font-size:12px;' }, isAr ? 'المدينة' : 'City'),
+          el('th', { style: 'padding:8px 10px;font-size:12px;' }, isAr ? 'المشرف المسؤول' : 'Supervisor'),
+          el('th', { style: 'padding:8px 10px;font-size:12px;' }, isAr ? 'إجمالي الطلبات' : 'Total Orders'),
+          el('th', { style: 'padding:8px 10px;font-size:12px;' }, isAr ? 'الحالة' : 'Status'),
+        ])),
+        el('tbody', {}, matchedCouriers.slice(0, 30).map(c => el('tr', { style: 'border-bottom:1px solid var(--border);' }, [
+          el('td', { style: 'padding:8px 10px;font-weight:700;color:var(--text);' }, c.courier_name || '—'),
+          el('td', { style: 'padding:8px 10px;' }, c.platform_courier_id ? el('span', { class: 'badge badge-blue' }, `🆔 ${c.platform_courier_id}`) : el('span', { class: 'badge badge-gray' }, '—')),
+          el('td', { style: 'padding:8px 10px;' }, c.city_name || '—'),
+          el('td', { style: 'padding:8px 10px;' }, c.supervisor_name || '—'),
+          el('td', { style: 'padding:8px 10px;font-weight:700;color:var(--green);font-size:13px;' }, `${c.total_orders} ${isAr ? 'طلب' : 'orders'}`),
+          el('td', { style: 'padding:8px 10px;' }, el('span', { class: 'badge badge-green' }, isAr ? 'مطابق ✅' : 'Matched ✅')),
+        ]))),
+      ]),
+      matchedCouriers.length > 30 ? el('p', { style: 'margin:8px 0 0 0;font-size:11.5px;color:var(--muted);text-align:center;' }, isAr ? `عرض أول 30 مندوب من إجمالي ${matchedCouriers.length}...` : `Showing top 30 of ${matchedCouriers.length} couriers...`) : null
+    ]);
+
+    children.push(courierTable);
   }
 
   children.push(cards);

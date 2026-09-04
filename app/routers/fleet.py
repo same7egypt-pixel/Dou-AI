@@ -1706,6 +1706,7 @@ def update_courier(
         "national_id_or_iqama",
         "employment_model",
         "operator_tenant_id",
+        "platform_courier_id",
     }
     if "employment_status" in payload and user.role not in ACCOUNT_ADMIN_ROLES:
         raise HTTPException(
