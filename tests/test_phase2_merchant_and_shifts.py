@@ -15,6 +15,7 @@ from app.models.merchant import (
     DedicatedShiftBooking,
     MerchantAccount,
     MerchantBranch,
+    OrderStatus,
     ShiftAttendanceLog,
     ShiftType,
 )
@@ -460,7 +461,8 @@ def test_5_1_rider_status_transitions():
     assert daily_log is not None
     assert daily_log.orders_count == 1
     assert daily_log.verified_orders == 1
-    assert daily_log.driver_orders == 1
+    assert daily_log.driver_orders == 0
+    assert daily_log.variance == 1
     assert daily_log.source_type == "DEDICATED_BRANCH_DISPATCH"
     db.close()
 
@@ -482,6 +484,73 @@ def test_5_3_other_rider_cannot_update_order():
         json={"status": "en_route"},
     )
     assert res.status_code == 403
+
+
+def test_5_4_dailylog_multi_source_and_variance_integrity():
+    """
+    Verifies that when a rider already has platform orders (e.g. HungerStation 5 orders)
+    and manual claim (driver_orders = 5, variance = 0, source_type = "PLATFORM_INGESTION"):
+      1. A delivered restaurant order only increments verified_orders (to 6).
+      2. driver_orders remains untouched (at 5).
+      3. variance becomes +1 (6 - 5), without diluting fraud detection signals.
+      4. source_type preserves original platform origin ("PLATFORM_INGESTION+BRANCH").
+    """
+    db = TestingSessionLocal()
+    db.query(DailyLog).filter(DailyLog.courier_id == 100, DailyLog.log_date == date.today()).delete()
+    log = DailyLog(
+        courier_id=100,
+        tenant_id=1,
+        project_id=None,
+        log_date=date.today(),
+        orders_count=5,
+        driver_orders=5,
+        verified_orders=5,
+        variance=0,
+        source_type="PLATFORM_INGESTION",
+    )
+    db.add(log)
+
+    branch_order = BranchDispatchOrder(
+        merchant_branch_id=1,
+        dedicated_shift_booking_id=1,
+        rider_id=100,
+        order_date=date.today(),
+        customer_name="Multi-Source Test",
+        customer_phone="0500000000",
+        delivery_address_text="Riyadh Test",
+        status=OrderStatus.en_route,
+        order_source="manual_cashier",
+        is_pool_eligible=False,
+    )
+    db.add(branch_order)
+    db.commit()
+    db.refresh(branch_order)
+    order_id = branch_order.id
+    db.close()
+
+    rider100_token = make_rider_token(100)
+    res = client.patch(
+        f"/driver/orders/{order_id}/status",
+        headers={"Authorization": f"Bearer {rider100_token}"},
+        json={"status": "delivered"},
+    )
+    assert res.status_code == 200
+
+    db = TestingSessionLocal()
+    updated_log = (
+        db.query(DailyLog)
+        .filter(DailyLog.courier_id == 100, DailyLog.log_date == date.today())
+        .first()
+    )
+    assert updated_log is not None
+    assert updated_log.verified_orders == 6
+    assert updated_log.driver_orders == 5
+    assert updated_log.orders_count == 6
+    assert updated_log.variance == 1
+    assert updated_log.source_type == "PLATFORM_INGESTION+BRANCH"
+    assert "[+DEDICATED_BRANCH_DISPATCH]" in (updated_log.notes or "")
+    db.close()
+
 
 
 # ─── BLOCK 6 — Monthly Statement & Proration ──────────────────────────────────

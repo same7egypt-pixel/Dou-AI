@@ -326,8 +326,9 @@ def _record_delivery_to_daily_log(
 ) -> None:
     """
     Synchronizes delivered dedicated branch dispatch orders to DailyLog.
-    This ensures 3PL analytics, operational reports, and payroll (per-order/bonus)
-    seamlessly reflect completed branch deliveries.
+    Accredits verified_orders only (external confirmed source) without inflating
+    driver_orders (which is strictly the driver's manual self-report).
+    Preserves original source_type when merging with existing platform logs.
     """
     log_date = order.order_date or date.today()
     project_id = courier.primary_project_id
@@ -349,18 +350,29 @@ def _record_delivery_to_daily_log(
             project_id=project_id,
             log_date=log_date,
             orders_count=1,
-            driver_orders=1,
+            driver_orders=0,
             verified_orders=1,
-            variance=0,
+            variance=1,
             source_type="DEDICATED_BRANCH_DISPATCH",
         )
         db.add(daily_log)
     else:
-        daily_log.orders_count = (daily_log.orders_count or 0) + 1
-        daily_log.driver_orders = (daily_log.driver_orders or 0) + 1
         daily_log.verified_orders = (daily_log.verified_orders or 0) + 1
-        daily_log.variance = (daily_log.orders_count or 0) - (daily_log.driver_orders or 0)
-        daily_log.source_type = "DEDICATED_BRANCH_DISPATCH"
+        daily_log.orders_count = daily_log.verified_orders
+        daily_log.variance = daily_log.orders_count - (daily_log.driver_orders or 0)
+
+        # Preserve original source_type without losing platform origin
+        if not daily_log.source_type:
+            daily_log.source_type = "DEDICATED_BRANCH_DISPATCH"
+        elif daily_log.source_type != "DEDICATED_BRANCH_DISPATCH":
+            orig = daily_log.source_type
+            if "+BRANCH" not in orig and len(orig) + 7 <= 30:
+                daily_log.source_type = f"{orig}+BRANCH"
+            current_notes = daily_log.notes or ""
+            note_tag = "[+DEDICATED_BRANCH_DISPATCH]"
+            if note_tag not in current_notes:
+                daily_log.notes = f"{current_notes} {note_tag}".strip()[:300]
+
 
 
 @router.patch("/orders/{order_id}/status")
