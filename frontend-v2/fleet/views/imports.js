@@ -345,3 +345,51 @@ async function renderImportHistory(target, page = 1) {
   }
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The screen
+// ─────────────────────────────────────────────────────────────────────────────
+// This was a secondary button labelled "استيراد جماعي" inside the riders screen.
+// It is the single clearest reason a logistics company buys DOU: the accountant
+// spends days resolving HungerStation rider ids in a spreadsheet, and this turns
+// the same file into named riders, cities and supervisors in a minute. Nine nav
+// items competed for attention and the one that closes the sale was not among
+// them, under a label that does not say what it does.
+export async function renderImports(container) {
+  const isAr = getLang() === 'ar';
+  container.innerHTML = '';
+
+  container.append(el('div', { class: 'header' }, [
+    el('div', {}, [
+      el('div', { class: 'kicker' }, isAr ? 'استيراد ومطابقة' : 'Import & Matching'),
+      el('h1', { text: isAr ? 'مطابقة شيتات المنصات' : 'Platform Sheet Matching' }),
+    ]),
+    el('div', { class: 'header-actions' }, [
+      el('button', {
+        class: 'btn btn-ghost',
+        onclick: () => openImportHistoryModal(),
+      }, isAr ? '🕓 سجل الاستيراد' : '🕓 Import History'),
+    ]),
+  ]));
+
+  // What it does, in the customer's words, because the value is not obvious
+  // from a file-upload box.
+  container.append(el('div', {
+    style: 'background:var(--card);border:1px solid var(--border);border-inline-start:3px solid var(--primary);'
+         + 'border-radius:12px;padding:18px 20px;margin-bottom:18px'
+  }, [
+    el('p', { style: 'margin:0 0 10px;font-size:14px;line-height:1.9;color:var(--text)' },
+      isAr
+        ? 'شيت هنقرستيشن أو نينجا بييجي بأرقام المناديب بس، من غير أسامي. ارفعه هنا، وDOU يطلّعلك أسماء المناديب ومدنهم ومشرفيهم وإجمالي طلبات كل واحد — في أقل من دقيقة.'
+        : 'A HungerStation or Ninja sheet arrives with rider ids and no names. Drop it here and DOU returns the riders by name, with their cities, supervisors and order totals — in under a minute.'),
+    el('p', { style: 'margin:0;font-size:12.5px;color:var(--muted);line-height:1.9' },
+      isAr
+        ? 'المطابقة بتتم بمعرّف المندوب في المنصة، أو رقم جواله، أو رقم إقامته. أي صف ما يتطابقش بيظهر لك عشان تسمّيه، وما بيضيعش.'
+        : 'Matching runs on the platform rider id, the phone number, or the iqama. Any row that does not match is surfaced for you to name — nothing is dropped.'),
+  ]));
+
+  container.append(renderBulkImportWorkflow({
+    onPerformanceImported: () => {},
+    onRidersImported: () => {},
+  }));
+}

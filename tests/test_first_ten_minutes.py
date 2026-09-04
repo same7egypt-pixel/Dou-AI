@@ -190,3 +190,63 @@ def test_the_branch_dropdown_invents_nothing():
     code = re.sub(r"//[^\n]*", "", _source("riders.js"))
     assert "'فرع الرياض'" not in code, "the fabricated branch is back"
     assert "value: '1' }" not in code
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Nothing is stated that was not measured
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_a_rider_with_no_target_shows_none():
+    """`|| 400` printed a target nobody had set, beside an achievement
+    percentage computed against the real (absent) one — two numbers in adjacent
+    columns contradicting each other."""
+    code = re.sub(r"//[^\n]*", "", _source("reports.js"))
+    block = code[code.index("key: 'monthly_target'"):]
+    block = block[: block.index("key: 'achievement_pct'")]
+    assert "|| 400" not in block, "the target column still invents 400"
+    assert "'لم يُحدد'" in block or "not set" in block
+
+
+def test_the_csv_export_carries_no_invented_target():
+    """It left the product and landed in a spreadsheet someone acts on."""
+    code = re.sub(r"//[^\n]*", "", _source("reports.js"))
+    assert "r.monthly_target || 400" not in code
+
+
+def test_a_leave_policy_is_never_stated_on_the_company_s_behalf():
+    """`|| 21` told the rider an entitlement their company may never have set,
+    and the fallback invented a leave type with id 1."""
+    code = re.sub(r"//[^\n]*", "", _source("rider360.js"))
+    assert "max_days_per_year || 21" not in code
+    assert "value: 1, label: 'إجازة سنوية'" not in code
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# The thing that sells the product is in the product
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_the_sheet_matcher_has_its_own_screen_and_its_real_name():
+    """It was a secondary button labelled "استيراد جماعي" inside another
+    screen — the clearest reason a company buys this, under a name that does not
+    say what it does."""
+    shell = (ROOT / "frontend-v2" / "fleet" / "shell.js").read_text(encoding="utf-8")
+    main = (ROOT / "frontend-v2" / "fleet" / "main.js").read_text(encoding="utf-8")
+
+    assert "imports: loadImports" in main, "the screen has no loader"
+    assert "'مطابقة شيتات المنصات'" in shell, "still named for the mechanism, not the job"
+    assert "'Platform Sheet Matching'" in shell, "no English label"
+    assert "'imports'" in shell[shell.index("VIEW_GROUPS_AR"):shell.index("VIEW_GROUPS_EN")], (
+        "the screen is in no nav group"
+    )
+    assert "imports: 'MANUAL_PERFORMANCE_IMPORT'" in shell, (
+        "an account that did not buy it would be shown a screen it cannot use"
+    )
+
+
+def test_the_screen_says_what_it_does_before_asking_for_a_file():
+    code = _source("imports.js")
+    body = code[code.index("export async function renderImports("):]
+    assert "renderBulkImportWorkflow" in body, "the screen does not render the workflow"
+    assert "هنقرستيشن" in body, "a file-upload box with no explanation of the value"

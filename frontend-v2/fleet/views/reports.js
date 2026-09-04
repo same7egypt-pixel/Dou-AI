@@ -323,8 +323,14 @@ function renderDriverTargetsLayout(data, container) {
       { key: 'month_orders', label: isAr ? 'إجمالي الشهر' : 'Month Total', render: (v) => el('div', { style: 'text-align:center' }, [
         el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
       ]) },
+      // `|| 400` printed a target for a rider nobody had set one for — beside an
+      // achievement percentage computed against the real (absent) target, so the
+      // two numbers in adjacent columns contradicted each other. A target that
+      // has not been set is a thing the manager needs to see, not paper over.
       { key: 'monthly_target', label: isAr ? 'التارجت' : 'Target', render: (v) => el('div', { style: 'text-align:center' }, [
-        el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${v || 400} طلب`),
+        v
+          ? el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${v} طلب`)
+          : el('span', { style: 'font-size:12px;color:var(--muted)' }, isAr ? 'لم يُحدد' : 'not set'),
       ]) },
       { key: 'achievement_pct', label: isAr ? 'نسبة الإنجاز' : 'Achievement %', render: (v) => {
         const pct = Math.min(100, Math.max(0, v || 0));
@@ -611,7 +617,7 @@ function exportActiveLevelCsv(data) {
         r.checked_in ? `حاضر (${r.checkin_time || ''})` : 'غائب',
         r.today_orders || 0,
         r.month_orders || 0,
-        r.monthly_target || 400,
+        r.monthly_target || '',
         `"${r.achievement_pct || 0}%"`,
         r.remaining_orders || 0,
         r.required_daily_rate || 0,

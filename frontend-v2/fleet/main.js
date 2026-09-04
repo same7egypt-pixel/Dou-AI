@@ -14,6 +14,7 @@ import { loadPayroll } from './views/payroll.js';
 const loadVendors = (c) => import('./views/vendors.js').then((m) => m.renderVendors(c));
 const loadPlatformLink = (c) => import('./views/platformLink.js').then((m) => m.renderPlatformLink(c));
 const loadIntegration = (c) => import('./views/integration.js').then((m) => m.renderIntegration(c));
+const loadImports = (c) => import('./views/imports.js').then((m) => m.renderImports(c));
 import { loadDouAI } from './views/douai.js';
 const loadSettings = (c) => import('./views/settings.js').then((m) => m.loadSettings(c));
 import { refreshNotificationCount } from '../shared/components/notifications.js';
@@ -53,6 +54,7 @@ async function startApp() {
   registerViewLoaders({
     commandCenter: loadCommandCenter,
     riders: loadRiders,
+    imports: loadImports,
     rider360: loadRider360,
     shifts: loadShifts,
     needsAttention: loadNeedsAttention,

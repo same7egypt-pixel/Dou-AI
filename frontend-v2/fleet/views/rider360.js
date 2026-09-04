@@ -554,9 +554,19 @@ async function renderLeave() {
 window.openRequestLeaveModal = async (courierId) => {
   try {
     const types = await api.get('/leave/types');
-    const typeOptions = (types || []).map(t => ({ value: t.id, label: `${t.name_ar} (حد أقصى ${t.max_days_per_year || 21} يوم)` }));
+    // `|| 21` stated a leave entitlement the company may never have set, to the
+    // rider, as their policy. And the fallback below invented a leave type with
+    // id 1 when none existed — an id belonging to whichever company created the
+    // first one.
+    const typeOptions = (types || []).map(t => ({
+      value: t.id,
+      label: t.max_days_per_year
+        ? `${t.name_ar} (حد أقصى ${t.max_days_per_year} يوم)`
+        : t.name_ar,
+    }));
     if (!typeOptions.length) {
-      typeOptions.push({ value: 1, label: 'إجازة سنوية' });
+      alert('لم تُعرَّف أنواع الإجازات لهذه الشركة بعد. أضفها من الإعدادات أولًا.');
+      return;
     }
 
     const todayStr = new Date().toISOString().split('T')[0];

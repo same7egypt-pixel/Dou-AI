@@ -11,6 +11,7 @@ let viewLoaders = {};
 const VIEW_LABELS_AR = {
   commandCenter: 'مركز القيادة',
   riders: 'السائقون وفريق العمل',
+  imports: 'مطابقة شيتات المنصات',
   rider360: 'ملف السائق 360',
   shifts: 'الورديات والحضور',
   needsAttention: 'يحتاج انتباه',
@@ -27,6 +28,7 @@ const VIEW_LABELS_AR = {
 const VIEW_LABELS_EN = {
   commandCenter: 'Command Center',
   riders: 'Drivers & Workforce',
+  imports: 'Platform Sheet Matching',
   rider360: 'Driver 360',
   shifts: 'Shifts & Attendance',
   needsAttention: 'Needs Attention',
@@ -45,6 +47,7 @@ const VIEW_LABELS = VIEW_LABELS_AR;
 const VIEW_ICONS = {
   commandCenter: '▦',
   riders: '◉',
+  imports: '🎯',
   rider360: '👤',
   shifts: '◷',
   needsAttention: '⚠',
@@ -60,7 +63,7 @@ const VIEW_ICONS = {
 
 const VIEW_GROUPS_AR = [
   { group: 'الرئيسية', views: ['commandCenter'] },
-  { group: 'القوى العاملة', views: ['riders'] },
+  { group: 'القوى العاملة', views: ['riders', 'imports'] },
   { group: 'العمليات', views: ['shifts', 'capacity'] },
   { group: 'الأداء والامتثال', views: ['needsAttention', 'reports'] },
   { group: 'شبكة المورّدين', views: ['vendors', 'platformLink'] },
@@ -72,7 +75,7 @@ const VIEW_GROUPS_AR = [
 
 const VIEW_GROUPS_EN = [
   { group: 'MAIN', views: ['commandCenter'] },
-  { group: 'WORKFORCE', views: ['riders'] },
+  { group: 'WORKFORCE', views: ['riders', 'imports'] },
   { group: 'OPERATIONS', views: ['shifts', 'capacity'] },
   { group: 'PERFORMANCE & COMPLIANCE', views: ['needsAttention', 'reports'] },
   { group: 'VENDOR NETWORK', views: ['vendors', 'platformLink'] },
@@ -237,6 +240,7 @@ function renderSidebar() {
     vendors: 'MANAGE_OPERATORS',
     platformLink: 'VENDOR_PORTAL',
     integration: 'PERFORMANCE_API_INGESTION',
+    imports: 'MANUAL_PERFORMANCE_IMPORT',
   };
   // Settings carries user management and the subscription, so it is a role
   // decision rather than a capability one. The backend enforces the same set;
