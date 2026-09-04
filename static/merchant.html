@@ -1,0 +1,1156 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#090d13">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DOU Cashier">
+  <meta name="description" content="بوابة كاشير فرع المطعم — منصة DOU للورديات المخصصة وإسناد الطلبات الفورية">
+  <title>DOU Merchant | كاشير الفرع والورديات المخصصة</title>
+  <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root[data-theme="dark"] {
+      --bg: #090d13;
+      --surface: #111722;
+      --surface2: #182232;
+      --surface3: #222f42;
+      --ink: #f0f4f8;
+      --ink2: #9bb0c6;
+      --muted: #667d97;
+      --line: rgba(255,255,255,.08);
+      --line-strong: rgba(255,255,255,.16);
+      --orange: #ff5a13;
+      --orange-soft: rgba(255,90,19,.14);
+      --orange-glow: rgba(255,90,19,.28);
+      --green: #10b981;
+      --green-soft: rgba(16,185,129,.14);
+      --green-glow: rgba(16,185,129,.28);
+      --blue: #3b82f6;
+      --blue-soft: rgba(59,130,246,.14);
+      --amber: #f59e0b;
+      --amber-soft: rgba(245,158,11,.14);
+      --red: #ef4444;
+      --red-soft: rgba(239,68,68,.14);
+      --card-shadow: 0 4px 24px rgba(0,0,0,.35);
+    }
+    :root[data-theme="light"] {
+      --bg: #f4f6f9;
+      --surface: #ffffff;
+      --surface2: #f8fafc;
+      --surface3: #edf2f7;
+      --ink: #0f172a;
+      --ink2: #475569;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --line-strong: #cbd5e1;
+      --orange: #ea580c;
+      --orange-soft: #fff7ed;
+      --orange-glow: rgba(234,88,12,.2);
+      --green: #059669;
+      --green-soft: #ecfdf5;
+      --green-glow: rgba(5,150,105,.2);
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --amber: #d97706;
+      --amber-soft: #fffbeb;
+      --red: #dc2626;
+      --red-soft: #fef2f2;
+      --card-shadow: 0 4px 16px rgba(15,23,42,.06);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Alexandria, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      flex-direction: column;
+    }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button { cursor: pointer; border: none; background: none; }
+    button:disabled { cursor: not-allowed; opacity: 0.55; }
+    a { color: inherit; text-decoration: none; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* LAYOUT */
+    .app-shell {
+      width: 100%;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 16px 20px 60px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* TOPBAR */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--card-shadow);
+      position: sticky;
+      top: 12px;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .brand-wrap { display: flex; align-items: center; gap: 12px; }
+    .brand-logo {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .brand-dot { width: 10px; height: 10px; background: var(--orange); border-radius: 3px; }
+    .brand-badge {
+      font-size: 10px;
+      font-weight: 800;
+      background: var(--orange-soft);
+      color: var(--orange);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .branch-meta { display: flex; flex-direction: column; }
+    .branch-name { font-size: 14px; font-weight: 800; color: var(--ink); }
+    .branch-shift { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      transition: all .15s ease;
+    }
+    .action-btn:hover { background: var(--surface3); border-color: var(--line-strong); }
+    .action-btn.logout { color: var(--red); background: var(--red-soft); border-color: rgba(239,68,68,.2); }
+    .action-btn.logout:hover { background: rgba(239,68,68,.25); }
+
+    /* VIEW MANAGEMENT */
+    .view { display: none; animation: fadeIn .2s ease-out; }
+    .view.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* LOGIN SCREEN */
+    .login-wrapper {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      padding: 40px 16px;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 440px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 36px 28px;
+      box-shadow: 0 16px 40px rgba(0,0,0,.35);
+      text-align: center;
+    }
+    .login-title { font-size: 22px; font-weight: 900; margin-bottom: 8px; }
+    .login-sub { font-size: 13px; color: var(--muted); margin-bottom: 28px; line-height: 1.5; }
+    .form-group { text-align: right; margin-bottom: 18px; }
+    .form-label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; color: var(--ink2); }
+    .form-input {
+      width: 100%;
+      padding: 13px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font-size: 15px;
+      color: var(--ink);
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .form-input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-soft); }
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: var(--orange);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 800;
+      border-radius: 12px;
+      box-shadow: 0 4px 18px var(--orange-glow);
+      transition: transform .1s, opacity .15s;
+      margin-top: 10px;
+    }
+    .btn-submit:hover { opacity: .94; transform: translateY(-1px); }
+    .btn-submit:active { transform: translateY(1px); }
+    .login-alert {
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: none;
+      text-align: right;
+    }
+    .login-alert.error { background: var(--red-soft); color: var(--red); border: 1px solid rgba(239,68,68,.3); display: block; }
+
+    /* DASHBOARD GRID */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 960px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: var(--card-shadow);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--surface2);
+      color: var(--ink2);
+      border: 1px solid var(--line);
+    }
+
+    /* 1-CLICK DISPATCH FORM */
+    .dispatch-card {
+      background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+      border: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+    }
+    .dispatch-btn {
+      width: 100%;
+      padding: 16px;
+      background: var(--orange);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 900;
+      border-radius: 14px;
+      box-shadow: 0 6px 22px var(--orange-glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all .15s ease;
+      margin-top: 12px;
+    }
+    .dispatch-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px var(--orange-glow);
+    }
+    .dispatch-btn:active:not(:disabled) { transform: translateY(0); }
+    .dispatch-btn:disabled {
+      background: var(--surface3);
+      color: var(--muted);
+      box-shadow: none;
+    }
+
+    /* RIDER STATUS CARDS */
+    .rider-list { display: flex; flex-direction: column; gap: 12px; }
+    .rider-card {
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      transition: border-color .15s ease;
+    }
+    .rider-card.active { border-color: rgba(16,185,129,.4); background: rgba(16,185,129,.03); }
+    .rider-info { display: flex; align-items: center; gap: 12px; }
+    .rider-avatar {
+      width: 44px;
+      height: 44px;
+      background: var(--surface3);
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+    }
+    .rider-name-row { display: flex; align-items: center; gap: 8px; }
+    .rider-name { font-size: 14px; font-weight: 800; color: var(--ink); }
+    .rider-phone { font-size: 12px; color: var(--muted); }
+    .rider-shift-time { font-size: 11px; color: var(--ink2); margin-top: 3px; }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .status-pill.green { background: var(--green-soft); color: var(--green); border: 1px solid rgba(16,185,129,.3); }
+    .status-pill.amber { background: var(--amber-soft); color: var(--amber); border: 1px solid rgba(245,158,11,.3); }
+    .status-pill.blue { background: var(--blue-soft); color: var(--blue); border: 1px solid rgba(59,130,246,.3); }
+    .status-pill.red { background: var(--red-soft); color: var(--red); border: 1px solid rgba(239,68,68,.3); }
+
+    .capacity-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .capacity-dots { display: flex; gap: 4px; }
+    .cap-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--surface3); }
+    .cap-dot.filled { background: var(--orange); box-shadow: 0 0 6px var(--orange-glow); }
+    .cap-dot.full { background: var(--red); box-shadow: 0 0 6px rgba(239,68,68,.4); }
+
+    /* ACTIVE ORDERS TABLE / CARDS */
+    .orders-section {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: var(--card-shadow);
+    }
+    .orders-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .orders-filter { display: flex; gap: 8px; }
+    .filter-btn {
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      color: var(--ink2);
+      transition: all .15s ease;
+    }
+    .filter-btn.active {
+      background: var(--orange-soft);
+      color: var(--orange);
+      border-color: rgba(255,90,19,.4);
+    }
+
+    .orders-table-wrapper { overflow-x: auto; }
+    .orders-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: right;
+      font-size: 13px;
+    }
+    .orders-table th {
+      padding: 12px 14px;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      text-transform: uppercase;
+    }
+    .orders-table td {
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+    }
+    .orders-table tr:hover td { background: var(--surface2); }
+    .order-id-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      font-size: 12px;
+      background: var(--surface2);
+      padding: 3px 7px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+    }
+    .order-customer { font-weight: 800; color: var(--ink); }
+    .order-phone { font-size: 11px; color: var(--muted); }
+    .order-address {
+      max-width: 260px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 12px;
+      color: var(--ink2);
+    }
+    .order-time { font-size: 11px; color: var(--muted); }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-left: 4px;
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.3); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    /* EMPTY STATES */
+    .empty-state {
+      text-align: center;
+      padding: 48px 16px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.8; }
+    .empty-title { font-size: 15px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+    .empty-sub { font-size: 12px; }
+
+    /* TOAST ALERTS */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      min-width: 280px;
+      max-width: 420px;
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: 0 8px 30px rgba(0,0,0,.45);
+      animation: toastIn .2s ease-out;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .toast.success { background: var(--green); color: #fff; }
+    .toast.error { background: var(--red); color: #fff; }
+    .toast.warn { background: var(--amber); color: #000; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* SOUND CHIME TOGGLE */
+    .sound-badge {
+      font-size: 11px;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      user-select: none;
+    }
+    .sound-badge:hover { color: var(--ink); }
+  </style>
+</head>
+<body>
+
+  <div class="app-shell">
+
+    <!-- TOPBAR (Always Visible) -->
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-logo">
+          <span class="brand-dot"></span>
+          <span>DOU</span>
+          <span class="brand-badge">كاشير الفرع</span>
+        </div>
+        <div class="branch-meta" id="topbarBranchInfo" style="display:none;">
+          <div class="branch-name" id="topbarBranchName">جاري التحميل...</div>
+          <div class="branch-shift" id="topbarBranchShift">
+            <span>⏱️ الوردية: —</span>
+          </div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="sound-badge" id="soundToggleBtn" title="تفعيل/تعطيل التنبيهات الصوتية">
+          <span id="soundIcon">🔊</span>
+        </div>
+        <button class="action-btn" id="refreshBtn" title="تحديث فوري">
+          <span>🔄</span>
+          <span class="mono" id="refreshCountdown">10s</span>
+        </button>
+        <button class="action-btn" id="themeToggleBtn" title="تبديل النمط">
+          <span id="themeIcon">☀️</span>
+        </button>
+        <button class="action-btn logout" id="logoutBtn" style="display:none;" title="تسجيل الخروج">
+          <span>خروج</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- VIEW 1: CASHIER LOGIN -->
+    <section class="view active" id="loginView">
+      <div class="login-wrapper">
+        <div class="login-card">
+          <div style="font-size: 42px; margin-bottom: 12px;">🏪</div>
+          <h1 class="login-title">تسجيل دخول كاشير الفرع</h1>
+          <p class="login-sub">أدخل رقم معرّف الفرع ورقم الـ PIN للوصول إلى لوحة طلبات الوردية المخصصة</p>
+
+          <div class="login-alert" id="loginAlert"></div>
+
+          <form id="loginForm">
+            <div class="form-group">
+              <label class="form-label" for="inputBranchId">رقم معرّف الفرع (Branch ID)</label>
+              <input class="form-input mono" type="number" id="inputBranchId" placeholder="مثال: 1" required autofocus>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputPin">رمز PIN السري للفرع</label>
+              <input class="form-input mono" type="password" id="inputPin" placeholder="••••" maxlength="8" required>
+            </div>
+            <button type="submit" class="btn-submit" id="loginSubmitBtn">دخول لوحة الكاشير 🚀</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: OPERATIONS DASHBOARD -->
+    <section class="view" id="dashboardView">
+
+      <!-- GRID: DISPATCH FORM & RIDERS STATUS -->
+      <div class="dashboard-grid">
+
+        <!-- 1-CLICK ORDER DISPATCH CARD -->
+        <div class="card dispatch-card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <span>🚀</span>
+              <span>إرسال طلب توصيل فوري</span>
+            </h2>
+            <span class="card-badge">إسناد تلقائي لمندوب الفرع</span>
+          </div>
+
+          <form id="dispatchOrderForm">
+            <div class="form-group">
+              <label class="form-label" for="orderCustomerName">اسم العميل</label>
+              <input class="form-input" type="text" id="orderCustomerName" placeholder="مثال: سارة القحطاني" required autocomplete="off">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="orderCustomerPhone">رقم جوال العميل</label>
+              <input class="form-input mono" type="tel" id="orderCustomerPhone" placeholder="05XXXXXXXX" required autocomplete="off">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="orderDeliveryAddress">عنوان التوصيل بالتفصيل</label>
+              <input class="form-input" type="text" id="orderDeliveryAddress" placeholder="الحي، الشارع، رقم المبنى أو الفيلا" required autocomplete="off">
+            </div>
+
+            <button type="submit" class="dispatch-btn" id="dispatchSubmitBtn">
+              <span>🛵</span>
+              <span>إرسال الطلب للمندوب فوراً</span>
+            </button>
+          </form>
+          <div style="margin-top: 10px; font-size: 11px; color: var(--muted); text-align: center;">
+            💡 اختصار لوحة المفاتيح: اضغط <kbd class="mono" style="background:var(--surface3);padding:2px 5px;border-radius:4px;">Ctrl + Enter</kbd> للإرسال السريع
+          </div>
+        </div>
+
+        <!-- DEDICATED RIDERS STATUS CARD -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">
+              <span>🛵</span>
+              <span>مناديب الوردية المخصصون</span>
+            </h2>
+            <span class="card-badge" id="ridersCountBadge">0 مندوب</span>
+          </div>
+
+          <div class="rider-list" id="activeRidersList">
+            <div class="empty-state">
+              <div class="empty-icon">⏳</div>
+              <div class="empty-title">جاري تحميل بيانات المناديب...</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ACTIVE ORDERS SECTION -->
+      <div class="orders-section">
+        <div class="orders-header">
+          <div style="display:flex; align-items:center; gap: 10px;">
+            <h2 class="card-title">
+              <span>📦</span>
+              <span>الطلبات النشطة وقيد التوصيل</span>
+            </h2>
+            <span class="card-badge mono" id="activeOrdersCount">0 طلب</span>
+          </div>
+          <div class="orders-filter">
+            <button class="filter-btn active" data-filter="all">الكل</button>
+            <button class="filter-btn" data-filter="pending">في انتظار الاستلام</button>
+            <button class="filter-btn" data-filter="en_route">جاري التوصيل</button>
+          </div>
+        </div>
+
+        <div class="orders-table-wrapper">
+          <table class="orders-table">
+            <thead>
+              <tr>
+                <th>رقم الطلب</th>
+                <th>العميل</th>
+                <th>الجوال</th>
+                <th>العنوان</th>
+                <th>المندوب المسند</th>
+                <th>الوقت</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody">
+              <tr>
+                <td colspan="7">
+                  <div class="empty-state">
+                    <div class="empty-icon">✨</div>
+                    <div class="empty-title">لا توجد طلبات نشطة حالياً</div>
+                    <div class="empty-sub">الفرع جاهز لاستقبال الطلبات وإسنادها مباشرة لمناديب الوردية</div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // ─── STATE & CONFIG ────────────────────────────────────────────────────────
+      const API_BASE = window.location.origin;
+      let session = {
+        token: localStorage.getItem('dou_merchant_token') || sessionStorage.getItem('dou_merchant_token'),
+        branchId: localStorage.getItem('dou_branch_id') || sessionStorage.getItem('dou_branch_id'),
+        branchName: localStorage.getItem('dou_branch_name') || sessionStorage.getItem('dou_branch_name'),
+        shiftStart: localStorage.getItem('dou_shift_start') || sessionStorage.getItem('dou_shift_start'),
+        shiftEnd: localStorage.getItem('dou_shift_end') || sessionStorage.getItem('dou_shift_end'),
+      };
+
+      let soundEnabled = localStorage.getItem('dou_merchant_sound') !== 'false';
+      let activeOrdersData = [];
+      let activeFilter = 'all';
+      let countdownTimer = null;
+      let secondsLeft = 10;
+
+      // ─── SOUND SYNTHESIS (Web Audio API) ───────────────────────────────────────
+      const audioCtx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
+      function playSuccessChime() {
+        if (!soundEnabled || !audioCtx) return;
+        try {
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          const now = audioCtx.currentTime;
+          const osc1 = audioCtx.createOscillator();
+          const osc2 = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(523.25, now);
+          osc1.frequency.exponentialRampToValueAtTime(659.25, now + 0.12);
+
+          osc2.type = 'triangle';
+          osc2.frequency.setValueAtTime(659.25, now + 0.12);
+          osc2.frequency.exponentialRampToValueAtTime(783.99, now + 0.28);
+
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(audioCtx.destination);
+
+          osc1.start(now);
+          osc2.start(now + 0.12);
+          osc1.stop(now + 0.28);
+          osc2.stop(now + 0.5);
+        } catch (e) {
+          console.warn('Audio chime error:', e);
+        }
+      }
+
+      function playAlertChime() {
+        if (!soundEnabled || !audioCtx) return;
+        try {
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          const now = audioCtx.currentTime;
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.setValueAtTime(260, now + 0.15);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(now);
+          osc.stop(now + 0.4);
+        } catch (e) {}
+      }
+
+      // ─── TOAST NOTIFICATIONS ───────────────────────────────────────────────────
+      function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const el = document.createElement('div');
+        el.className = `toast ${type}`;
+        const icon = type === 'success' ? '✅' : (type === 'error' ? '⚠️' : 'ℹ️');
+        el.innerHTML = `<span>${icon}</span><span>${message}</span>`;
+        container.appendChild(el);
+        setTimeout(() => {
+          el.style.transition = 'opacity .25s, transform .25s';
+          el.style.opacity = '0';
+          el.style.transform = 'translateY(10px)';
+          setTimeout(() => el.remove(), 250);
+        }, 4000);
+      }
+
+      // ─── AUTH & SESSION ────────────────────────────────────────────────────────
+      function saveSession(data) {
+        session.token = data.access_token;
+        session.branchId = data.branch_id;
+        session.branchName = data.branch_name;
+        session.shiftStart = data.today_shift_start;
+        session.shiftEnd = data.today_shift_end;
+
+        localStorage.setItem('dou_merchant_token', data.access_token);
+        localStorage.setItem('dou_branch_id', data.branch_id);
+        localStorage.setItem('dou_branch_name', data.branch_name);
+        if (data.today_shift_start) localStorage.setItem('dou_shift_start', data.today_shift_start);
+        if (data.today_shift_end) localStorage.setItem('dou_shift_end', data.today_shift_end);
+      }
+
+      function clearSession() {
+        session = { token: null, branchId: null, branchName: null, shiftStart: null, shiftEnd: null };
+        localStorage.removeItem('dou_merchant_token');
+        localStorage.removeItem('dou_branch_id');
+        localStorage.removeItem('dou_branch_name');
+        localStorage.removeItem('dou_shift_start');
+        localStorage.removeItem('dou_shift_end');
+        sessionStorage.clear();
+      }
+
+      function updateViews() {
+        const loginView = document.getElementById('loginView');
+        const dashboardView = document.getElementById('dashboardView');
+        const topbarBranchInfo = document.getElementById('topbarBranchInfo');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        if (session.token && session.branchId) {
+          loginView.classList.remove('active');
+          dashboardView.classList.add('active');
+          topbarBranchInfo.style.display = 'flex';
+          logoutBtn.style.display = 'inline-flex';
+
+          document.getElementById('topbarBranchName').textContent = session.branchName || `فرع #${session.branchId}`;
+          const shiftText = session.shiftStart && session.shiftEnd ? `${session.shiftStart} - ${session.shiftEnd}` : 'غير محددة';
+          document.getElementById('topbarBranchShift').innerHTML = `<span>⏱️ الوردية: <strong>${shiftText}</strong></span>`;
+
+          startPolling();
+          fetchDashboardData();
+        } else {
+          dashboardView.classList.remove('active');
+          loginView.classList.add('active');
+          topbarBranchInfo.style.display = 'none';
+          logoutBtn.style.display = 'none';
+          stopPolling();
+        }
+      }
+
+      // ─── API REQUEST HELPER ───────────────────────────────────────────────────
+      async function apiFetch(endpoint, options = {}) {
+        const headers = options.headers || {};
+        if (session.token) {
+          headers['Authorization'] = `Bearer ${session.token}`;
+        }
+        headers['Content-Type'] = 'application/json';
+        options.headers = headers;
+
+        const res = await fetch(`${API_BASE}${endpoint}`, options);
+        if (res.status === 401) {
+          clearSession();
+          updateViews();
+          showToast('انتهت جلسة تسجيل الدخول، يرجى إعادة الدخول', 'error');
+          throw new Error('Unauthorized');
+        }
+        return res;
+      }
+
+      // ─── LOGIN FORM HANDLER ────────────────────────────────────────────────────
+      document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const branchIdInput = document.getElementById('inputBranchId');
+        const pinInput = document.getElementById('inputPin');
+        const submitBtn = document.getElementById('loginSubmitBtn');
+        const alertEl = document.getElementById('loginAlert');
+
+        alertEl.className = 'login-alert';
+        alertEl.style.display = 'none';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'جاري التحقق...';
+
+        try {
+          const res = await fetch(`${API_BASE}/merchant/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              branch_id: parseInt(branchIdInput.value.trim(), 10),
+              pin: pinInput.value.trim(),
+            }),
+          });
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alertEl.textContent = err.detail || 'رقم الفرع أو رمز PIN غير صحيح.';
+            alertEl.classList.add('error');
+            playAlertChime();
+            return;
+          }
+
+          const data = await res.json();
+          saveSession(data);
+          playSuccessChime();
+          showToast(`مرحباً بك! تم تسجيل الدخول لـ ${data.branch_name}`);
+          updateViews();
+        } catch (err) {
+          alertEl.textContent = 'تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى.';
+          alertEl.classList.add('error');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'دخول لوحة الكاشير 🚀';
+        }
+      });
+
+      // ─── LOGOUT HANDLER ────────────────────────────────────────────────────────
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        if (confirm('هل ترغب بتسجيل الخروج من فرع الكاشير؟')) {
+          clearSession();
+          updateViews();
+          showToast('تم تسجيل الخروج بنجاح');
+        }
+      });
+
+      // ─── DISPATCH ORDER FORM HANDLER ───────────────────────────────────────────
+      const dispatchForm = document.getElementById('dispatchOrderForm');
+      dispatchForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nameInput = document.getElementById('orderCustomerName');
+        const phoneInput = document.getElementById('orderCustomerPhone');
+        const addrInput = document.getElementById('orderDeliveryAddress');
+        const submitBtn = document.getElementById('dispatchSubmitBtn');
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span>⏳</span><span>جاري إسناد الطلب للمندوب...</span>';
+
+        try {
+          const res = await apiFetch(`/merchant/branch/${session.branchId}/orders`, {
+            method: 'POST',
+            body: JSON.stringify({
+              customer_name: nameInput.value.trim(),
+              customer_phone: phoneInput.value.trim(),
+              delivery_address: addrInput.value.trim(),
+            }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            playAlertChime();
+            showToast(data.detail || 'تعذر إسناد الطلب.', 'error');
+            return;
+          }
+
+          playSuccessChime();
+          showToast(`تم إسناد الطلب #${data.order_id} بنجاح إلى ${data.assigned_rider_name} 🚀`, 'success');
+
+          // Reset inputs
+          nameInput.value = '';
+          phoneInput.value = '';
+          addrInput.value = '';
+          nameInput.focus();
+
+          // Refresh lists
+          fetchActiveOrders();
+          fetchActiveRiders();
+        } catch (err) {
+          console.error('Dispatch error:', err);
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<span>🛵</span><span>إرسال الطلب للمندوب فوراً</span>';
+        }
+      });
+
+      // HOTKEY: Ctrl+Enter to submit dispatch form
+      window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          const activeView = document.getElementById('dashboardView');
+          if (activeView.classList.contains('active')) {
+            dispatchForm.requestSubmit();
+          }
+        }
+      });
+
+      // ─── FETCH RIDERS & ORDERS ─────────────────────────────────────────────────
+      async function fetchActiveRiders() {
+        if (!session.branchId) return;
+        try {
+          const res = await apiFetch(`/merchant/branch/${session.branchId}/riders/active`);
+          if (!res.ok) return;
+          const riders = await res.json();
+          renderActiveRiders(riders);
+        } catch (e) {
+          console.error('Error fetching riders:', e);
+        }
+      }
+
+      function renderActiveRiders(riders) {
+        const container = document.getElementById('activeRidersList');
+        const badge = document.getElementById('ridersCountBadge');
+        badge.textContent = `${riders.length} مندوب`;
+
+        if (!riders || riders.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">🛵</div>
+              <div class="empty-title">لا يوجد مناديب مسكنين لهذا الفرع اليوم</div>
+              <div class="empty-sub">يتم تسكين المناديب عبر عقود الورديات المخصصة في المنصة</div>
+            </div>
+          `;
+          return;
+        }
+
+        let html = '';
+        let hasCheckedInRider = false;
+
+        riders.forEach(r => {
+          let statusPill = '';
+          let isCheckedIn = false;
+
+          if (r.checkin_status === 'checked_in') {
+            statusPill = `<span class="status-pill green"><span class="pulse-dot" style="background:var(--green)"></span>حاضر بالفرع (داخل النطاق)</span>`;
+            isCheckedIn = true;
+            hasCheckedInRider = true;
+          } else if (r.checkin_status === 'completed') {
+            statusPill = `<span class="status-pill blue">أنهى الوردية</span>`;
+          } else {
+            statusPill = `<span class="status-pill amber">لم يحضر بعد</span>`;
+          }
+
+          html += `
+            <div class="rider-card ${isCheckedIn ? 'active' : ''}">
+              <div class="rider-info">
+                <div class="rider-avatar">${isCheckedIn ? '🛵' : '👤'}</div>
+                <div>
+                  <div class="rider-name-row">
+                    <span class="rider-name">${r.rider_name}</span>
+                    <span class="rider-phone mono">${r.rider_phone_masked}</span>
+                  </div>
+                  <div class="rider-shift-time">الوردية: <strong>${r.shift_start} - ${r.shift_end}</strong></div>
+                </div>
+              </div>
+              <div>${statusPill}</div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+
+        // Toggle dispatch button state if no rider is present
+        const dispatchBtn = document.getElementById('dispatchSubmitBtn');
+        if (!hasCheckedInRider) {
+          dispatchBtn.title = 'لا يمكن إرسال طلب لعدم وجود مندوب حاضر بالفرع حالياً';
+        } else {
+          dispatchBtn.title = '';
+        }
+      }
+
+      async function fetchActiveOrders() {
+        if (!session.branchId) return;
+        try {
+          const res = await apiFetch(`/merchant/branch/${session.branchId}/orders/active`);
+          if (!res.ok) return;
+          activeOrdersData = await res.json();
+          renderActiveOrders();
+        } catch (e) {
+          console.error('Error fetching orders:', e);
+        }
+      }
+
+      function renderActiveOrders() {
+        const tbody = document.getElementById('ordersTableBody');
+        const countBadge = document.getElementById('activeOrdersCount');
+
+        let filtered = activeOrdersData;
+        if (activeFilter === 'pending') filtered = activeOrdersData.filter(o => o.status === 'pending');
+        if (activeFilter === 'en_route') filtered = activeOrdersData.filter(o => o.status === 'en_route');
+
+        countBadge.textContent = `${activeOrdersData.length} طلب`;
+
+        if (!filtered || filtered.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="7">
+                <div class="empty-state">
+                  <div class="empty-icon">✨</div>
+                  <div class="empty-title">لا توجد طلبات نشطة ${activeFilter !== 'all' ? 'بهذا الفلتر' : 'حالياً'}</div>
+                  <div class="empty-sub">الفرع جاهز لاستقبال الطلبات وإسنادها مباشرة لمندوب الوردية</div>
+                </div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        let html = '';
+        filtered.forEach(o => {
+          const elapsedMin = Math.max(0, Math.floor((new Date() - new Date(o.dispatched_at)) / 60000));
+          const timeText = elapsedMin < 1 ? 'الآن' : `منذ ${elapsedMin} د`;
+
+          let statusBadge = '';
+          if (o.status === 'pending') {
+            statusBadge = `<span class="status-pill amber"><span class="pulse-dot" style="background:var(--amber)"></span>في الانتظار</span>`;
+          } else if (o.status === 'en_route') {
+            statusBadge = `<span class="status-pill blue"><span class="pulse-dot" style="background:var(--blue)"></span>جاري التوصيل</span>`;
+          } else if (o.status === 'delivered') {
+            statusBadge = `<span class="status-pill green">تم التسليم</span>`;
+          }
+
+          html += `
+            <tr>
+              <td><span class="order-id-tag">#${o.order_id}</span></td>
+              <td><div class="order-customer">${o.customer_name}</div></td>
+              <td><a class="mono order-phone" href="tel:${o.customer_phone}">${o.customer_phone}</a></td>
+              <td>
+                <div class="order-address" title="${o.delivery_address_text}">
+                  <span>📍 ${o.delivery_address_text}</span>
+                </div>
+              </td>
+              <td><strong>${o.assigned_rider_name || '—'}</strong></td>
+              <td><span class="order-time mono">${timeText}</span></td>
+              <td>${statusBadge}</td>
+            </tr>
+          `;
+        });
+
+        tbody.innerHTML = html;
+      }
+
+      // Filter tabs
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          activeFilter = btn.getAttribute('data-filter');
+          renderActiveOrders();
+        });
+      });
+
+      // ─── REFRESH & POLLING ENGINE ─────────────────────────────────────────────
+      function fetchDashboardData() {
+        fetchActiveRiders();
+        fetchActiveOrders();
+      }
+
+      function startPolling() {
+        stopPolling();
+        secondsLeft = 10;
+        updateCountdown();
+        countdownTimer = setInterval(() => {
+          secondsLeft--;
+          if (secondsLeft <= 0) {
+            secondsLeft = 10;
+            fetchDashboardData();
+          }
+          updateCountdown();
+        }, 1000);
+      }
+
+      function stopPolling() {
+        if (countdownTimer) clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+
+      function updateCountdown() {
+        const el = document.getElementById('refreshCountdown');
+        if (el) el.textContent = `${secondsLeft}s`;
+      }
+
+      document.getElementById('refreshBtn').addEventListener('click', () => {
+        secondsLeft = 10;
+        updateCountdown();
+        fetchDashboardData();
+        showToast('تم تحديث البيانات', 'success');
+      });
+
+      // ─── THEME & SOUND TOGGLES ────────────────────────────────────────────────
+      const themeBtn = document.getElementById('themeToggleBtn');
+      const themeIcon = document.getElementById('themeIcon');
+      themeBtn.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme') || 'dark';
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        themeIcon.textContent = next === 'dark' ? '☀️' : '🌙';
+      });
+
+      const soundBtn = document.getElementById('soundToggleBtn');
+      const soundIcon = document.getElementById('soundIcon');
+      soundIcon.textContent = soundEnabled ? '🔊' : '🔇';
+      soundBtn.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        localStorage.setItem('dou_merchant_sound', soundEnabled ? 'true' : 'false');
+        soundIcon.textContent = soundEnabled ? '🔊' : '🔇';
+        showToast(soundEnabled ? 'تم تفعيل التنبيهات الصوتية 🔊' : 'تم كتم الصوت 🔇', 'warn');
+      });
+
+      // ─── INIT ─────────────────────────────────────────────────────────────────
+      updateViews();
+
+    })();
+  </script>
+</body>
+</html>

@@ -259,6 +259,13 @@ def driver_app():
     return FileResponse(os.path.join(STATIC_DIR, "courier.html"))
 
 
+@app.get("/merchant")
+@app.get("/merchant/")
+def merchant_app():
+    return FileResponse(os.path.join(STATIC_DIR, "merchant.html"))
+
+
+
 @app.api_route("/sw.js", methods=["GET", "HEAD"])
 def rider_service_worker():
     return FileResponse(

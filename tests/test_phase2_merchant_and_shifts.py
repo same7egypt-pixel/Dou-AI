@@ -256,7 +256,15 @@ def make_rider_token(rider_id: int) -> str:
 
 # ─── BLOCK 1 — Authentication & Token Isolation ───────────────────────────────
 
+def test_1_0_merchant_portal_page_served():
+    res = client.get("/merchant")
+    assert res.status_code == 200
+    assert "DOU Merchant" in res.text
+    assert "كاشير الفرع" in res.text
+
+
 def test_1_1_cashier_login_success():
+
     res = client.post("/merchant/auth/login", json={"branch_id": 1, "pin": "1234"})
     assert res.status_code == 200
     data = res.json()
