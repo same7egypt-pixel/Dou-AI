@@ -264,6 +264,17 @@ def test_1_0_merchant_portal_page_served():
     assert "كاشير الفرع" in res.text
 
 
+def test_1_0_b_driver_portal_page_served_and_dedicated_hooks():
+    res = client.get("/driver")
+    assert res.status_code == 200
+    assert "DOU Rider" in res.text
+    assert "dedicatedShiftTitle" in res.text
+    assert "checkinDedicatedShift" in res.text
+    assert "updateBranchOrderStatus" in res.text
+    assert "startBranchOrdersPolling" in res.text
+    assert "renderDedicatedShiftSection" in res.text
+
+
 def test_1_1_cashier_login_success():
 
     res = client.post("/merchant/auth/login", json={"branch_id": 1, "pin": "1234"})
@@ -550,6 +561,96 @@ def test_5_4_dailylog_multi_source_and_variance_integrity():
     assert updated_log.source_type == "PLATFORM_INGESTION+BRANCH"
     assert "[+DEDICATED_BRANCH_DISPATCH]" in (updated_log.notes or "")
     db.close()
+
+
+def test_5_5_dedicated_shift_courier_e2e_flow():
+    """
+    End-to-end flow connecting Courier PWA with Cashier Portal:
+    1. Dedicated shift card retrieval (GET /driver/shifts/dedicated/today)
+    2. Geofence attendance check-in (POST /driver/shifts/dedicated/{id}/checkin)
+    3. Live order receipt from Cashier dispatch (GET /driver/orders/branch/active)
+    4. Pickup and En-route transition (PATCH /driver/orders/{id}/status -> en_route)
+    5. Delivery confirmation (PATCH /driver/orders/{id}/status -> delivered)
+    6. DailyLog accounting & queue clearing
+    """
+    rider99_token = make_rider_token(99)
+    rider_headers = {"Authorization": f"Bearer {rider99_token}"}
+    branch_token = create_branch_token(1)
+    branch_headers = {"Authorization": f"Bearer {branch_token}"}
+
+    # 1. Courier fetches dedicated shift card
+    r_card = client.get("/driver/shifts/dedicated/today", headers=rider_headers)
+    assert r_card.status_code == 200
+    card_data = r_card.json()
+    assert card_data["booking_id"] == 1
+    assert card_data["branch_name"] == "Olaya Main Branch"
+    assert card_data["shift_type"] == "peak_3h"
+    booking_id = card_data["booking_id"]
+
+    # 2. Courier checks in via geofence (Olaya: 24.7136, 46.6753)
+    r_checkin = client.post(
+        f"/driver/shifts/dedicated/{booking_id}/checkin",
+        headers=rider_headers,
+        json={"lat": 24.7136, "lng": 46.6753},
+    )
+    assert r_checkin.status_code == 200
+    checkin_data = r_checkin.json()
+    assert checkin_data["validated"] is True
+    assert checkin_data["distance_meters"] <= 150.0
+
+    # 3. Cashier verifies rider is checked in
+    r_riders = client.get("/merchant/branch/1/riders/active", headers=branch_headers)
+    assert r_riders.status_code == 200
+    olaya_riders = r_riders.json()
+    assert len(olaya_riders) > 0
+    assert olaya_riders[0]["checkin_status"] == "checked_in"
+    assert olaya_riders[0]["attendance_log_id"] is not None
+
+    # 4. Cashier dispatches an order
+    r_dispatch = client.post(
+        "/merchant/branch/1/orders",
+        headers=branch_headers,
+        json={
+            "customer_name": "Tariq Al-Harbi",
+            "customer_phone": "0544332211",
+            "delivery_address": "King Fahd Rd, Building 404, Riyadh",
+        },
+    )
+    assert r_dispatch.status_code == 200
+    dispatched_order = r_dispatch.json()
+    order_id = dispatched_order["order_id"]
+    assert dispatched_order["status"] == "pending"
+
+    # 5. Courier polls active branch orders
+    r_active = client.get("/driver/orders/branch/active", headers=rider_headers)
+    assert r_active.status_code == 200
+    active_orders = r_active.json()
+    assert any(o["order_id"] == order_id for o in active_orders)
+
+    # 6. Courier accepts & marks en_route
+    r_enroute = client.patch(
+        f"/driver/orders/{order_id}/status",
+        headers=rider_headers,
+        json={"status": "en_route"},
+    )
+    assert r_enroute.status_code == 200
+    assert r_enroute.json()["status"] == "en_route"
+    assert r_enroute.json()["acknowledged_at"] is not None
+
+    # 7. Courier confirms delivery
+    r_delivered = client.patch(
+        f"/driver/orders/{order_id}/status",
+        headers=rider_headers,
+        json={"status": "delivered"},
+    )
+    assert r_delivered.status_code == 200
+    assert r_delivered.json()["status"] == "delivered"
+    assert r_delivered.json()["delivered_at"] is not None
+
+    # 8. Courier active orders list is cleared
+    r_active_after = client.get("/driver/orders/branch/active", headers=rider_headers)
+    assert r_active_after.status_code == 200
+    assert not any(o["order_id"] == order_id for o in r_active_after.json())
 
 
 
