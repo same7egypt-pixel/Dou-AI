@@ -30,6 +30,7 @@ from .routers import (
     dashboard,
     documents,
     dou_ai,
+    driver_dedicated,
     enterprise,
     fleet,
     geo,
@@ -37,6 +38,7 @@ from .routers import (
     hr,
     imports,
     leave,
+    merchant,
     merchants,
     ninja_integration,
     notifications,
@@ -121,6 +123,8 @@ app.include_router(notifications.router)
 app.include_router(analytics_freshness.router)
 app.include_router(notifications.webhook_router)
 app.include_router(health.router)
+app.include_router(merchant.router)
+app.include_router(driver_dedicated.router)
 
 # المنتج الحالي مخصص لإدارة سائقي الشركات. مسارات التجارة والطلبات والشحن
 # القديمة لا تُنشر إلا عند تفعيلها صراحة لأغراض التوافق أو العرض التجريبي.

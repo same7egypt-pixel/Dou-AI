@@ -11,6 +11,7 @@ from app.database import Base
 from app.models import entities  # noqa: F401 - core Phase 1 schema
 from app.models import intelligence  # noqa: F401 - DOU AI, notifications, analytics
 from app.models import salary  # noqa: F401 - salary structures and components
+from app.models import merchant  # noqa: F401 - DOU Flex / Merchant Phase 2
 
 
 config = context.config

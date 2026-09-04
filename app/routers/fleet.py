@@ -1245,6 +1245,13 @@ def fleet_needs_attention(
     }
 
 
+@router.get("/riders")
+def fleet_riders_alias(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
+    return fleet_couriers(user=user, db=db)
+
+
 @router.get("/couriers")
 def fleet_couriers(
     user: User = Depends(get_current_user), db: Session = Depends(get_db)

@@ -237,7 +237,11 @@ def get_current_user(
     credentials_exc = HTTPException(401, "Invalid or expired token")
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if str(payload.get("sub", "")).startswith("merchant_branch:"):
+            raise HTTPException(403, "Branch token cannot access Fleet OS")
         user_id = int(payload["sub"])
+    except HTTPException:
+        raise
     except (jwt.InvalidTokenError, KeyError, ValueError):
         raise credentials_exc
     user = db.get(User, user_id)

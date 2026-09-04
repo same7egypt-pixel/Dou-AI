@@ -66,7 +66,16 @@ def create_analytics_views(engine: Engine) -> list[str]:
             # DROP then CREATE rather than CREATE OR REPLACE: SQLite has no
             # OR REPLACE for views, and PostgreSQL's refuses a changed column
             # list, which is exactly when a redeploy needs it most.
-            connection.execute(text(f"DROP VIEW IF EXISTS {name}"))
+            if dialect == "sqlite":
+                row = connection.execute(
+                    text("SELECT type FROM sqlite_master WHERE name = :n"), {"n": name}
+                ).fetchone()
+                if row and row[0] == "table":
+                    connection.execute(text(f"DROP TABLE IF EXISTS {name}"))
+                elif row and row[0] == "view":
+                    connection.execute(text(f"DROP VIEW IF EXISTS {name}"))
+            else:
+                connection.execute(text(f"DROP VIEW IF EXISTS {name}"))
             connection.execute(text(statement))
             created.append(name)
     return created
