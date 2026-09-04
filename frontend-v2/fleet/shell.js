@@ -243,6 +243,13 @@ function renderSidebar() {
   // this only keeps the nav honest about what the user can reach.
   const ROLE_ONLY = {
     settings: ['COMPANY', 'COMPANY_ADMIN'],
+    // /hr/payroll refuses anyone outside COMPANY_ROLES, so a supervisor opening
+    // this screen got a 403 and an empty page with nothing to explain it. The
+    // audit named this months ago and it survived; crawling production as a
+    // supervisor found it again, along with every tab behind it. A screen the
+    // account cannot use is absent, not merely empty — the same rule the
+    // capability gate already follows.
+    payroll: ['COMPANY', 'COMPANY_ADMIN', 'HR'],
   };
   const currentRole = appStore.get().role || localStorage.getItem('dou_role_v2') || '';
   const permitted = (v) =>

@@ -671,6 +671,25 @@ def fleet_me(user: User = Depends(get_current_user), db: Session = Depends(get_d
     ):
         raise HTTPException(403, "Not a fleet account")
     if user.role in (UserRole.DOU_ADMIN, UserRole.DOU_OPS):
+        # A DOU-internal account has no tenant, and every tenant-scoped endpoint
+        # behind the fleet app refuses it. This used to answer
+        # `permissions: ["*"]` with `tenant: null`, so the fleet shell believed
+        # it could do everything, rendered the full sidebar, and then failed 403
+        # on each of ten screens in turn — a whole role landing in an
+        # application where nothing works and nothing says why. Measured on
+        # production: 30+ failed requests for this account.
+        #
+        # It cannot simply refuse, either: /admin authenticates through this
+        # same endpoint, so a 403 here locks DOU staff out of their own console.
+        # That was the first attempt at this fix and it would have shipped.
+        #
+        # So it answers honestly instead: the account is real, it has no tenant,
+        # and `surfaces` says where it belongs. The fleet shell reads that and
+        # sends the user to /admin rather than drawing screens it cannot fill.
+        # The fleet endpoints are deliberately NOT opened to DOU staff — that
+        # would build a cross-tenant read path into the customer application,
+        # which this codebase treats as a P0. Staff reach a tenant through
+        # /admin support-login, which issues a token scoped to that tenant.
         return {
             "id": user.id,
             "name": user.name,
@@ -678,7 +697,13 @@ def fleet_me(user: User = Depends(get_current_user), db: Session = Depends(get_d
             "permissions": ["*"],
             "tenant": None,
             "fleets": [],
+            "surfaces": ["/admin"],
+            "surface_notice": (
+                "هذا حساب داخلي لفريق DOU ولا يتبع شركة. استخدم لوحة الإدارة، "
+                "أو ادخل إلى شركة محددة عبر «دخول الدعم» من صفحة المشترك."
+            ),
         }
+
     tenant = db.get(Tenant, user.tenant_id) if user.tenant_id else None
     fleets = []
     if tenant:

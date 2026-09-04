@@ -28,6 +28,27 @@ async function startApp() {
     renderLogin();
     return;
   }
+  // An account with no tenant has nothing to draw here: every screen behind
+  // this shell is tenant-scoped and answers 403. It used to render the full
+  // sidebar anyway and fail ten times in a row. The server says where the
+  // account belongs; send it there and say why.
+  if (!me.tenant && Array.isArray(me.surfaces) && me.surfaces.length) {
+    const target = me.surfaces[0];
+    document.getElementById('app').innerHTML =
+      `<div style="max-width:520px;margin:18vh auto;padding:28px;text-align:center;direction:rtl;
+                   background:var(--card);border:1px solid var(--border);border-radius:16px">
+         <div style="font-size:34px;margin-bottom:10px">🔀</div>
+         <h2 style="margin:0 0 10px;font-size:18px">هذه ليست الشاشة المناسبة لحسابك</h2>
+         <p style="font-size:13px;color:var(--muted);line-height:1.9;margin:0 0 20px">
+           ${me.surface_notice || 'حسابك لا يتبع شركة، ولا توجد بيانات لعرضها هنا.'}
+         </p>
+         <a href="${target}" style="display:inline-block;padding:10px 22px;border-radius:10px;
+            background:var(--primary);color:#fff;text-decoration:none;font-weight:700;font-size:13px">
+           الانتقال إلى ${target}
+         </a>
+       </div>`;
+    return;
+  }
   const requested = new URLSearchParams(location.search).get('view');
   registerViewLoaders({
     commandCenter: loadCommandCenter,

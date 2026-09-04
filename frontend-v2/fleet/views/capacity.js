@@ -54,8 +54,13 @@ export async function loadCapacity(container) {
   // Sub-Tabs Navigation
   const tabsList = [
     { id: 'capacity', label: isAr ? '📊 تخطيط السعة والاحتياج' : '📊 Capacity & Demand Planning' },
-    { id: 'contracts', label: isAr ? '📑 العقود التجارية وفروع التشغيل' : '📑 Commercial Contracts & Branches' },
   ];
+  // /hr/contracts refuses a supervisor, so this tab opened to a 403 and an empty
+  // panel. Offering a door that does not open is worse than not offering it.
+  const CONTRACT_ROLES = ['COMPANY', 'COMPANY_ADMIN', 'HR', 'OPERATIONS'];
+  if (CONTRACT_ROLES.includes(appStore.get().role || '')) {
+    tabsList.push({ id: 'contracts', label: isAr ? '📑 العقود التجارية وفروع التشغيل' : '📑 Commercial Contracts & Branches' });
+  }
   // Added for a platform, never substituted for the structure above.
   if (can('MANAGE_OPERATORS')) {
     tabsList.push({ id: 'operators', label: isAr ? '🏢 الشركات اللوجستية المشغلة (3PL)' : '🏢 3PL Operating Partners' });
