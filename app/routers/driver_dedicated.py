@@ -473,7 +473,7 @@ def _record_delivery_to_daily_log(
         db.add(daily_log)
     else:
         daily_log.verified_orders = (daily_log.verified_orders or 0) + 1
-        daily_log.orders_count = daily_log.verified_orders
+        daily_log.orders_count = (daily_log.orders_count or 0) + 1
         daily_log.variance = daily_log.orders_count - (daily_log.driver_orders or 0)
 
         # Preserve original source_type without losing platform origin
