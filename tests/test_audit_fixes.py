@@ -478,5 +478,59 @@ def test_fix_8_get_endpoints_do_not_commit_db():
         db.close()
 
 
+def test_fix_9_issued_invoice_preserves_stamped_vat():
+    from app.models.merchant import (
+        MerchantAccount,
+        MonthlySettlementLedger,
+        SettlementStatus,
+    )
+    from app.routers.merchant import get_tax_invoice
+
+    db = TestingSession()
+    try:
+        merchant = MerchantAccount(
+            trade_name="Shawarma Palace",
+            billing_contact_email="palace@shawarma.com",
+            billing_contact_phone="966500000004",
+        )
+        db.add(merchant)
+        db.flush()
+
+        # Issued settlement with stamped historical VAT rate and amount
+        target_month = date(2026, 7, 1)
+        ledger = MonthlySettlementLedger(
+            merchant_account_id=merchant.id,
+            settlement_month=target_month,
+            total_rider_shift_months=Decimal("1.0000"),
+            gross_fee_charged_to_merchant=Decimal("10000.00"),
+            total_payout_to_logistics=Decimal("8500.00"),
+            dou_net_margin=Decimal("1500.00"),
+            vat_rate=Decimal("0.15"),
+            vat_amount=Decimal("1500.00"),
+            settlement_status=SettlementStatus.issued,
+        )
+        db.add(ledger)
+        db.commit()
+
+        # No AppSetting for dou_vat_number exists in this test DB!
+        invoice = get_tax_invoice(
+            merchant_account_id=merchant.id,
+            billing_month="2026-07",
+            settlement_id=ledger.id,
+            month="2026-07",
+            db=db,
+            auth_account_id=merchant.id,
+        )
+
+        # On buggy code: has_dou_vat is False, so is_tax_invoice=False, vat_rate=0.0, vat_amount=0.0
+        assert invoice.is_tax_invoice is True, "Issued settlement with stamped VAT must remain a tax invoice"
+        assert invoice.vat_rate == 0.15
+        assert invoice.vat_amount == 1500.0
+        assert invoice.total_amount == 11500.0
+    finally:
+        db.close()
+
+
+
 
 
