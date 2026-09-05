@@ -581,8 +581,25 @@ def get_pool_orders(
         .all()
     )
 
+    # Map branches to their contracted logistics tenants
+    branch_contracts = (
+        db.query(
+            DedicatedShiftBooking.merchant_branch_id,
+            DedicatedShiftBooking.logistics_company_tenant_id,
+        )
+        .filter(DedicatedShiftBooking.status != BookingStatus.terminated)
+        .all()
+    )
+    branch_tenant_map: dict[int, set[int]] = {}
+    for bid, tid in branch_contracts:
+        if tid:
+            branch_tenant_map.setdefault(bid, set()).add(tid)
+
     matching_orders: list[PoolOrderOut] = []
     for order in pool_orders:
+        contracted_tenants = branch_tenant_map.get(order.merchant_branch_id)
+        if contracted_tenants and current_rider.tenant_id not in contracted_tenants:
+            continue
         branch = db.get(MerchantBranch, order.merchant_branch_id)
         if not branch:
             continue
@@ -637,6 +654,23 @@ def claim_pool_order(
     )
     if not order:
         raise HTTPException(status_code=404, detail="الطلب غير موجود.")
+
+    # Verify tenant isolation: order branch must not be contracted to a different fleet
+    contracted_tenants = set(
+        row[0]
+        for row in db.query(DedicatedShiftBooking.logistics_company_tenant_id)
+        .filter(
+            DedicatedShiftBooking.merchant_branch_id == order.merchant_branch_id,
+            DedicatedShiftBooking.status != BookingStatus.terminated,
+        )
+        .all()
+        if row[0] is not None
+    )
+    if contracted_tenants and current_rider.tenant_id not in contracted_tenants:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="غير مصرح: هذا الطلب تابع لفرع متعاقد مع شركة لوجستية أخرى.",
+        )
 
     if order.rider_id is not None or not order.is_pool_eligible or order.status != OrderStatus.pending:
         raise HTTPException(

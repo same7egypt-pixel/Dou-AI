@@ -338,3 +338,98 @@ def test_fix_6_unified_billable_bookings_filter():
         db.close()
 
 
+def test_fix_7_claim_pool_order_enforces_tenant_isolation(monkeypatch):
+    monkeypatch.setattr("app.routers.driver_dedicated.ENABLE_OPEN_POOL", True)
+    from datetime import time
+    from fastapi import HTTPException
+    from app.models.merchant import (
+        BookingStatus,
+        BranchDispatchOrder,
+        DedicatedShiftBooking,
+        MerchantAccount,
+        MerchantBranch,
+        OrderStatus,
+        ShiftType,
+    )
+    from app.routers.driver_dedicated import claim_pool_order
+
+    db = TestingSession()
+    try:
+        tenant_a = Tenant(name="Fleet A", country=Country.SA, plan="GROWTH")
+        tenant_b = Tenant(name="Fleet B", country=Country.SA, plan="GROWTH")
+        db.add_all([tenant_a, tenant_b])
+        db.flush()
+
+        rider_a = Courier(
+            tenant_id=tenant_a.id,
+            name="Rider A (Fleet A)",
+            phone="966500000031",
+            courier_type=CourierType.COMPANY,
+            country=Country.SA,
+        )
+        db.add(rider_a)
+        db.flush()
+
+        merchant = MerchantAccount(
+            trade_name="Burger Joint",
+            billing_contact_email="burger@joint.com",
+            billing_contact_phone="966500000003",
+        )
+        db.add(merchant)
+        db.flush()
+
+        branch = MerchantBranch(
+            merchant_account_id=merchant.id,
+            branch_name="Branch Fleet B",
+            city="Riyadh",
+            latitude=24.7,
+            longitude=46.6,
+            cashier_access_pin="1234",
+            city_id=1,
+        )
+        db.add(branch)
+        db.flush()
+
+        # Contract is exclusively with Fleet B
+        booking_b = DedicatedShiftBooking(
+            merchant_branch_id=branch.id,
+            logistics_company_tenant_id=tenant_b.id,
+            shift_type=ShiftType.full_day_8h,
+            shift_start_time=time(10, 0),
+            shift_end_time=time(18, 0),
+            effective_from=date.today(),
+            effective_until=None,
+            monthly_fee_to_merchant=Decimal("6000.00"),
+            monthly_payout_to_logistics=Decimal("5000.00"),
+            dou_margin=Decimal("1000.00"),
+            status=BookingStatus.active,
+        )
+        db.add(booking_b)
+        db.flush()
+
+        # Order created at Branch Fleet B
+        order = BranchDispatchOrder(
+            merchant_branch_id=branch.id,
+            order_date=date.today(),
+            customer_name="Customer 1",
+            customer_phone="966599999999",
+            delivery_address_text="Riyadh Street",
+            status=OrderStatus.pending,
+            order_source="quick_cashier",
+            is_pool_eligible=True,
+            rider_id=None,
+        )
+        db.add(order)
+        db.commit()
+
+        # Rider A from Fleet A attempts to claim Fleet B's pool order
+        with pytest.raises(HTTPException) as exc_info:
+            claim_pool_order(order_id=order.id, db=db, current_rider=rider_a)
+
+        assert exc_info.value.status_code in (403, 404)
+        assert "غير مصرح" in exc_info.value.detail or "شركة" in exc_info.value.detail
+    finally:
+        db.close()
+
+
+
