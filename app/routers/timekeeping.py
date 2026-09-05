@@ -98,7 +98,7 @@ class WorkSessionEnd(BaseModel):
 
 class CorrectionRequestCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    courier_id: int
+    courier_id: Optional[int] = None
     attendance_id: Optional[int] = None
     requested_check_in: Optional[datetime] = None
     requested_check_out: Optional[datetime] = None
@@ -390,17 +390,43 @@ def create_correction(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user, manage=True)
-    _same_tenant(db, ent.Courier, payload.courier_id, tenant_id)
+    if user.role == ent.UserRole.COURIER:
+        if not user.tenant_id or not user.courier_id:
+            raise HTTPException(403, "حساب السائق غير مرتبط بمندوب صالح")
+        tenant_id = user.tenant_id
+        target_courier_id = user.courier_id
+        if payload.courier_id and payload.courier_id != target_courier_id:
+            raise HTTPException(403, "لا يمكن تقديم طلب تصحيح لسائق آخر")
+    else:
+        tenant_id = _tenant_id(user, manage=True)
+        if not payload.courier_id:
+            raise HTTPException(400, "Courier ID is required")
+        target_courier_id = payload.courier_id
+        _same_tenant(db, ent.Courier, target_courier_id, tenant_id)
+
     if not payload.reason or not payload.reason.strip():
         raise HTTPException(400, "Reason is required")
+
+    if payload.attendance_id:
+        attendance = (
+            db.query(ent.Attendance)
+            .filter(
+                ent.Attendance.id == payload.attendance_id,
+                ent.Attendance.courier_id == target_courier_id,
+                ent.Attendance.tenant_id == tenant_id,
+            )
+            .first()
+        )
+        if not attendance:
+            raise HTTPException(404, "سجل الحضور غير موجود")
+
     row = ent.AttendanceCorrectionRequest(
         tenant_id=tenant_id,
-        courier_id=payload.courier_id,
+        courier_id=target_courier_id,
         attendance_id=payload.attendance_id,
         requested_check_in=payload.requested_check_in,
         requested_check_out=payload.requested_check_out,
-        reason=payload.reason,
+        reason=payload.reason.strip(),
         requested_by=user.id,
     )
     db.add(row)
@@ -415,16 +441,33 @@ def list_corrections(
     user: ent.User = Depends(get_current_user),
     db=Depends(get_db),
 ):
-    tenant_id = _tenant_id(user)
-    q = db.query(ent.AttendanceCorrectionRequest).filter(
-        ent.AttendanceCorrectionRequest.tenant_id == tenant_id
-    )
+    if user.role == ent.UserRole.COURIER:
+        if not user.tenant_id or not user.courier_id:
+            raise HTTPException(403, "حساب السائق غير مرتبط بمندوب صالح")
+        tenant_id = user.tenant_id
+        q = db.query(ent.AttendanceCorrectionRequest).filter(
+            ent.AttendanceCorrectionRequest.tenant_id == tenant_id,
+            ent.AttendanceCorrectionRequest.courier_id == user.courier_id,
+        )
+    else:
+        tenant_id = _tenant_id(user)
+        q = db.query(ent.AttendanceCorrectionRequest).filter(
+            ent.AttendanceCorrectionRequest.tenant_id == tenant_id
+        )
     if status_filter:
         q = q.filter(ent.AttendanceCorrectionRequest.status == status_filter)
+    rows = q.order_by(ent.AttendanceCorrectionRequest.created_at.desc()).all()
+    courier_ids = list({r.courier_id for r in rows if r.courier_id})
+    courier_map = (
+        {c.id: c.name for c in db.query(ent.Courier).filter(ent.Courier.id.in_(courier_ids)).all()}
+        if courier_ids
+        else {}
+    )
     return [
         {
             "id": r.id,
             "courier_id": r.courier_id,
+            "courier_name": courier_map.get(r.courier_id) or f"سائق #{r.courier_id}",
             "status": r.status,
             "reason": r.reason,
             "requested_check_in": r.requested_check_in.isoformat()
@@ -435,8 +478,9 @@ def list_corrections(
             else None,
             "decided_by": r.decided_by,
             "decided_at": r.decided_at.isoformat() if r.decided_at else None,
+            "decision_note": r.decision_note,
         }
-        for r in q.order_by(ent.AttendanceCorrectionRequest.created_at.desc()).all()
+        for r in rows
     ]
 
 
@@ -504,16 +548,24 @@ def list_overtime(
     q = db.query(ent.Overtime).filter(ent.Overtime.tenant_id == tenant_id)
     if status_filter:
         q = q.filter(ent.Overtime.status == status_filter)
+    rows = q.order_by(ent.Overtime.created_at.desc()).all()
+    courier_ids = list({r.courier_id for r in rows if r.courier_id})
+    courier_map = (
+        {c.id: c.name for c in db.query(ent.Courier).filter(ent.Courier.id.in_(courier_ids)).all()}
+        if courier_ids
+        else {}
+    )
     return [
         {
             "id": r.id,
             "courier_id": r.courier_id,
+            "courier_name": courier_map.get(r.courier_id) or f"سائق #{r.courier_id}",
             "overtime_date": r.overtime_date.isoformat(),
             "requested_minutes": r.requested_minutes,
             "approved_minutes": r.approved_minutes,
             "status": r.status,
         }
-        for r in q.order_by(ent.Overtime.created_at.desc()).all()
+        for r in rows
     ]
 
 

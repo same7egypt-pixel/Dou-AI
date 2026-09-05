@@ -1,5 +1,5 @@
 // Reusable UI components — DOU Fleet OS V2 Design System
-import { t } from '../i18n/i18n.js';
+import { t, getLang } from '../i18n/i18n.js';
 
 export function el(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
@@ -125,7 +125,7 @@ export function confirmModal({ title, message, impactText, onConfirm, confirmLab
 
 export function aiPromptBar(prompts = [], onSelect = null) {
   if (!prompts.length) return null;
-  const isAr = localStorage.getItem('dou_lang') !== 'en';
+  const isAr = getLang() === 'ar';
   return el('div', { class: 'ai-prompt-bar' }, [
     el('span', { class: 'ai-prompt-label' }, isAr ? '✨ استفسار سريع:' : '✨ Quick Query:'),
     el('div', { class: 'ai-chips-wrap' }, prompts.map((p) => el('button', {
@@ -136,13 +136,16 @@ export function aiPromptBar(prompts = [], onSelect = null) {
 }
 
 export function priorityActionCard({ title, description, severity = 'medium', count = null, actionLabel = 'فتح الإجراء', onAction = null }) {
-  const isAr = localStorage.getItem('dou_lang') !== 'en';
+  const isAr = getLang() === 'ar';
   const pClass = severity === 'high' ? 'p-high' : severity === 'medium' ? 'p-medium' : 'p-low';
   const badgeColor = severity === 'high' ? 'red' : severity === 'medium' ? 'amber' : 'blue';
   const sevLabel = isAr 
     ? (severity === 'high' ? 'عالي الأولوية' : severity === 'medium' ? 'متوسط' : 'معلوماتي')
     : (severity === 'high' ? 'High Priority' : severity === 'medium' ? 'Medium' : 'Info');
-  const countLabel = count !== null ? (isAr ? `${count} حالات` : `${count} cases`) : null;
+  const countLabel = count !== null
+    ? (isAr ? (Number(count) === 1 ? 'حالة واحدة' : `${count} حالات`)
+            : `${count} ${Number(count) === 1 ? 'case' : 'cases'}`)
+    : null;
 
   return el('div', { class: `priority-action-card ${pClass}` }, [
     el('div', { class: 'priority-action-info' }, [
@@ -373,3 +376,66 @@ export function searchableSelect({
 
   return wrap;
 }
+
+export function money(amount, currency = 'SAR', decimals = 2) {
+  const num = Number(amount || 0);
+  const formatted = num.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  const isAr = getLang() === 'ar';
+  const currLabels = {
+    SAR: isAr ? 'ر.س' : 'SAR',
+    EGP: isAr ? 'ج.م' : 'EGP',
+    AED: isAr ? 'د.إ' : 'AED',
+    KWD: isAr ? 'د.ك' : 'KWD',
+    USD: '$',
+  };
+  const label = currLabels[currency] || currency;
+  return `${formatted} ${label}`;
+}
+
+export function showToast(message, type = 'info', duration = 3500) {
+  let toastContainer = document.getElementById('dou-toast-container');
+  if (!toastContainer) {
+    toastContainer = el('div', {
+      id: 'dou-toast-container',
+      style: 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none;direction:rtl'
+    });
+    document.body.append(toastContainer);
+  }
+
+  const bgMap = {
+    info: 'rgba(30, 41, 59, 0.95)',
+    success: 'rgba(16, 185, 129, 0.95)',
+    error: 'rgba(239, 68, 68, 0.95)',
+    warn: 'rgba(245, 158, 11, 0.95)',
+  };
+
+  const iconMap = {
+    info: 'ℹ️',
+    success: '✅',
+    error: '⚠️',
+    warn: '🔔',
+  };
+
+  const toastEl = el('div', {
+    style: `background:${bgMap[type] || bgMap.info};color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 10px 25px rgba(0,0,0,0.25);display:flex;align-items:center;gap:10px;pointer-events:auto;transition:all 0.3s ease;transform:translateY(-10px);opacity:0`
+  }, [
+    el('span', { text: iconMap[type] || 'ℹ️' }),
+    el('span', { text: message }),
+  ]);
+
+  toastContainer.append(toastEl);
+  requestAnimationFrame(() => {
+    toastEl.style.transform = 'translateY(0)';
+    toastEl.style.opacity = '1';
+  });
+
+  setTimeout(() => {
+    toastEl.style.transform = 'translateY(-10px)';
+    toastEl.style.opacity = '0';
+    setTimeout(() => toastEl.remove(), 300);
+  }, duration);
+}
+

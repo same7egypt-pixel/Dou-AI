@@ -1,6 +1,6 @@
 // Needs Attention screen — intelligent action queue with contextual guidance and deep links
 import { api } from '../../shared/api/client.js';
-import { el, loadingState, emptyState, errorState, metricCard, badge, aiPromptBar, priorityActionCard } from '../../shared/components/ui.js';
+import { el, loadingState, emptyState, errorState, metricCard, badge, aiPromptBar, priorityActionCard, showToast } from '../../shared/components/ui.js';
 import { go, openAIDrawer, getContextualPrompts } from '../shell.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
 
@@ -11,6 +11,7 @@ const ROUTES_AR = {
   incomplete_onboarding: { view: 'riders', label: 'ملف السائقين ➔' },
   expiring_documents: { view: 'riders', label: 'مراجعة الوثائق ➔' },
   pending_attendance_corrections: { view: 'shifts', subtab: 'corrections', label: 'طابور التصحيحات ➔' },
+  overtime: { view: 'shifts', subtab: 'overtime', label: 'طلبات الإضافي ➔' },
   unassigned_platform_riders: { view: 'riders', label: 'توزيع المناديب ➔' },
   pending_b2b_settlements: { view: 'capacity', label: 'تسويات المشغلين ➔' },
 };
@@ -22,6 +23,7 @@ const ROUTES_EN = {
   incomplete_onboarding: { view: 'riders', label: 'Driver Profiles ➔' },
   expiring_documents: { view: 'riders', label: 'Review Documents ➔' },
   pending_attendance_corrections: { view: 'shifts', subtab: 'corrections', label: 'Corrections Queue ➔' },
+  overtime: { view: 'shifts', subtab: 'overtime', label: 'Overtime Queue ➔' },
   unassigned_platform_riders: { view: 'riders', label: 'Driver Distribution ➔' },
   pending_b2b_settlements: { view: 'capacity', label: 'Operator Settlements ➔' },
 };
@@ -33,6 +35,7 @@ const ACTION_EXPLANATIONS_AR = {
   incomplete_onboarding: 'سائقون بانتظار استكمال الوثائق أو المركبة لبدء العمل التشغيلي.',
   expiring_documents: 'وثائق قاربت على الانتهاء تتطلب التواصل مع السائق للتحديث قبل التعطيل الآلي.',
   pending_attendance_corrections: 'طلبات تصحيح أوقات الدخول والخروج بانتظار الاعتماد قبل إقفال مسير الرواتب.',
+  overtime: 'طلبات ساعات عمل إضافية بانتظار اعتماد الإدارة لإضافتها لمسير الرواتب.',
   unassigned_platform_riders: 'سائقون نشطون على المنصة دون إسناد لشركة تشغيل (3PL). عيّن المشغل المسؤول لتفعيل النطاق.',
   pending_b2b_settlements: 'تسويات مالية شهرية لشركات التشغيل محسوبة وبانتظار المراجعة والاعتماد النهائي.',
 };
@@ -44,6 +47,7 @@ const ACTION_EXPLANATIONS_EN = {
   incomplete_onboarding: 'Drivers awaiting document completion or vehicle assignment to begin operational shifts.',
   expiring_documents: 'Critical documents expiring soon requiring follow-up before automated suspension.',
   pending_attendance_corrections: 'Check-in/out correction requests pending approval before payroll cutoff.',
+  overtime: 'Overtime requests pending management approval to be added to payroll additions.',
   unassigned_platform_riders: 'Active drivers without 3PL operator assignment. Assign responsible operator to activate scope.',
   pending_b2b_settlements: 'Monthly 3PL operator financial settlements calculated and pending final review and approval.',
 };
@@ -55,6 +59,7 @@ const TITLES_EN = {
   incomplete_onboarding: 'Incomplete Onboarding Drivers',
   expiring_documents: 'Expiring Documents',
   pending_attendance_corrections: 'Pending Attendance Corrections',
+  overtime: 'Pending Overtime Requests',
   unassigned_platform_riders: 'Unassigned Platform Drivers',
   pending_b2b_settlements: 'Pending 3PL Settlements',
 };
@@ -231,6 +236,6 @@ async function decideEmployeeRequest(requestId, action, section, container) {
     await api.post(`/hr/employee-requests/${requestId}/decide`, { action, note });
     renderEmployeeRequests(section, container);
   } catch (err) {
-    alert((isAr ? '❌ تعذر حفظ القرار: ' : '❌ Could not save the decision: ') + err.message);
+    showToast((isAr ? '❌ تعذر حفظ القرار: ' : '❌ Could not save the decision: ') + err.message, 'error');
   }
 }

@@ -44,6 +44,20 @@ class SettlementStatus(str, enum.Enum):
     paid   = "paid"
 
 
+class PaymentMethod(str, enum.Enum):
+    """How the customer paid, which decides whether the rider carries cash.
+
+    `unknown` is the honest default for an order the cashier entered before the
+    quick-entry form existed. A rider must never be told to collect an amount
+    the system is only guessing at.
+    """
+
+    cash     = "cash"
+    card     = "card"
+    prepaid  = "prepaid"
+    unknown  = "unknown"
+
+
 # ─── MerchantAccount ──────────────────────────────────────────────────────────
 
 class MerchantAccount(Base):
@@ -112,7 +126,12 @@ class DedicatedShiftBooking(Base):
     id                          = Column(Integer, primary_key=True, index=True)
     merchant_branch_id          = Column(Integer, ForeignKey("merchant_branches.id"), nullable=False)
     logistics_company_tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    rider_id                    = Column(Integer, ForeignKey("couriers.id"), nullable=False)
+    # NULL is a contracted seat nobody fills yet. A branch that bought ten and
+    # is staffed with eight had no way to say so, and an SLA shortfall you
+    # cannot record is a shortfall you cannot bill for. Read paths already
+    # skip or mask a seat with no rider, so it stays invisible to the cashier
+    # and to the driver app until someone is assigned.
+    rider_id                    = Column(Integer, ForeignKey("couriers.id"), nullable=True)
     supervisor_id               = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     shift_type                  = Column(Enum(ShiftType, name="shifttype"), nullable=False)
@@ -189,6 +208,19 @@ class BranchDispatchOrder(Base):
 
     status                     = Column(Enum(OrderStatus, name="branchorderstatus"), nullable=False, default=OrderStatus.pending)
     order_source               = Column(String(50), nullable=False, default="manual_cashier")
+    # A branch order carried no money at all, so the rider could not be told
+    # whether to collect, the cashier could not clear the rider's float, and
+    # nobody could reconcile a day's cash. `cod_amount` is what the rider must
+    # take from the customer; `cod_settled_at` is when the cashier took it back.
+    order_amount               = Column(Numeric(10, 2), nullable=True)
+    payment_method             = Column(
+        Enum(PaymentMethod, name="branchorderpaymentmethod"),
+        nullable=False,
+        default=PaymentMethod.unknown,
+        server_default=PaymentMethod.unknown.value,
+    )
+    cod_amount                 = Column(Numeric(10, 2), nullable=False, default=0, server_default="0")
+    cod_settled_at             = Column(DateTime(timezone=True), nullable=True)
     external_order_id          = Column(String(100), nullable=True)
     is_pool_eligible           = Column(Boolean, nullable=False, default=False)
 
@@ -221,12 +253,41 @@ class MonthlySettlementLedger(Base):
 
     settlement_status             = Column(Enum(SettlementStatus, name="settlementstatus"), nullable=False, default=SettlementStatus.draft)
     issued_at                     = Column(DateTime(timezone=True), nullable=True)
+    vat_rate                      = Column(Numeric(5, 4), nullable=True)
+    vat_amount                    = Column(Numeric(12, 2), nullable=True)
     paid_at                       = Column(DateTime(timezone=True), nullable=True)
     bank_transfer_reference       = Column(String(255), nullable=True)
 
     created_at                    = Column(DateTime(timezone=True), server_default=func.now())
 
     merchant_account = relationship("MerchantAccount", back_populates="statements")
+
+
+# ─── MerchantCapacityRequest ──────────────────────────────────────────────────
+
+class MerchantCapacityRequest(Base):
+    """
+    Capacity increase or decrease request submitted by a merchant account owner
+    for a specific branch and future month, under a multi-stage review pattern.
+    """
+    __tablename__ = "merchant_capacity_requests"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    merchant_account_id = Column(Integer, ForeignKey("merchant_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    merchant_branch_id  = Column(Integer, ForeignKey("merchant_branches.id", ondelete="CASCADE"), nullable=False, index=True)
+    current_capacity    = Column(Integer, nullable=False)
+    requested_capacity  = Column(Integer, nullable=False)
+    effective_month     = Column(String(7), nullable=False)  # "YYYY-MM"
+    reason              = Column(Text, nullable=True)
+    status              = Column(String(20), nullable=False, default="requested")  # requested, under_review, approved, rejected
+    reviewed_by         = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewed_at         = Column(DateTime(timezone=True), nullable=True)
+    review_notes        = Column(Text, nullable=True)
+    created_at          = Column(DateTime(timezone=True), server_default=func.now())
+
+    merchant_account = relationship("MerchantAccount", backref="capacity_requests")
+    branch           = relationship("MerchantBranch", backref="capacity_requests")
+    reviewer         = relationship("User", foreign_keys=[reviewed_by])
 
 
 def compute_and_set_margin(booking: DedicatedShiftBooking) -> None:

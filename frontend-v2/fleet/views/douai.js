@@ -1,6 +1,6 @@
 // DOU AI screen — Deterministic Conversational BI & File Export
 import { api } from '../../shared/api/client.js';
-import { el, loadingState, emptyState, errorState, escapeHtml, badge } from '../../shared/components/ui.js';
+import { el, loadingState, emptyState, errorState, escapeHtml, badge, showToast } from '../../shared/components/ui.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
 
 let conversationId = null;
@@ -212,7 +212,7 @@ function renderAIResponse(data, originalQuestion = '') {
 // Global functions for instant client-side file export with UTF-8 BOM for flawless Excel Arabic support
 window.downloadDouaiCSV = function(exportId, fileName) {
   const item = window._douaiExports[exportId];
-  if (!item || !item.rows?.length) return alert('No export data found');
+  if (!item || !item.rows?.length) return showToast('No export data found', 'info');
 
   const cols = item.columns || Object.keys(item.rows[0] || {});
   
@@ -245,7 +245,7 @@ window.downloadDouaiCSV = function(exportId, fileName) {
 
 window.printDouaiPDF = function(exportId) {
   const item = window._douaiExports[exportId];
-  if (!item || !item.rows?.length) return alert('No export data found');
+  if (!item || !item.rows?.length) return showToast('No export data found', 'info');
 
   const isAr = getLang() === 'ar';
   const cols = item.columns || Object.keys(item.rows[0] || {});

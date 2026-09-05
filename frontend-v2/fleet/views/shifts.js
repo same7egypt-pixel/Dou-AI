@@ -3,10 +3,34 @@ import { api } from '../../shared/api/client.js';
 import { appStore } from '../../shared/state/store.js';
 import {
   el, loadingState, emptyState, errorState, table, button, escapeHtml,
-  modal, formRow, inputField, selectField, metricCard, badge, searchableSelect
-} from '../../shared/components/ui.js';
+  modal, formRow, inputField, selectField, metricCard, badge, searchableSelect, showToast } from '../../shared/components/ui.js';
 import { go } from '../shell.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
+
+// A queue that silently swallows a failed request tells the manager there is
+// nothing to approve. An unreviewed correction is an attendance record — and a
+// salary — that stays wrong, so a failure here has to be visible. This keeps
+// one dead source from blanking the screen, and reports what did not load.
+async function loadSources(sources) {
+  const settled = await Promise.all(
+    sources.map((s) => s.get().then((data) => ({ ok: true, data }), () => ({ ok: false }))),
+  );
+  return {
+    data: settled.map((r) => (r.ok ? r.data : [])),
+    failed: sources.filter((_, i) => !settled[i].ok).map((s) => s.label),
+  };
+}
+
+function partialLoadWarning(failed) {
+  if (!failed.length) return null;
+  return el('div', {
+    style: 'display:flex;gap:8px;align-items:flex-start;padding:10px 12px;margin-bottom:10px;'
+      + 'border:1px solid var(--danger,#c0392b);border-radius:8px;background:rgba(192,57,43,.07);font-size:12.5px',
+  }, [
+    el('span', { text: '⚠️' }),
+    el('span', {}, `تعذّر تحميل ${failed.join(' و')} — القائمة تحت غير مكتملة، وقد تكون هناك طلبات لا تظهر. حدّث الصفحة.`),
+  ]);
+}
 
 let currentTab = 'shifts'; // 'shifts' | 'attendance' | 'corrections'
 let selectedAttendanceDate = new Date().toISOString().split('T')[0];
@@ -28,6 +52,7 @@ export async function loadShifts(container, tabOverride = null) {
     { id: 'shifts', label: isAr ? '📅 جدول الورديات' : '📅 Shifts Schedule' },
     { id: 'attendance', label: isAr ? '⏱️ الحضور اليومي' : '⏱️ Daily Attendance' },
     { id: 'corrections', label: isAr ? '📝 تصحيحات الحضور' : '📝 Attendance Corrections' },
+    { id: 'overtime', label: isAr ? '⏰ العمل الإضافي' : '⏰ Overtime Requests' },
     { id: 'leaves', label: isAr ? '🌴 طلبات الإجازات' : '🌴 Leave Requests' },
   ];
 
@@ -84,6 +109,8 @@ function renderActiveTab(contentArea, headerActions, canManage) {
     renderAttendanceTab(contentArea, headerActions);
   } else if (currentTab === 'corrections') {
     renderCorrectionsTab(contentArea, headerActions, canManage);
+  } else if (currentTab === 'overtime') {
+    renderOvertimeTab(contentArea, headerActions, canManage);
   } else if (currentTab === 'leaves') {
     renderLeavesTab(contentArea, headerActions, canManage);
   }
@@ -173,7 +200,7 @@ function openAddShift() {
 
 window.assignRiderToShift = async (shiftId, shiftName = '') => {
   try {
-    const res = await api.get('/fleet/couriers/page?page=1&page_size=300').catch(() => []);
+    const res = await api.get('/fleet/couriers/page?page=1&page_size=300');
     const rows = Array.isArray(res) ? res : (res?.rows || []);
     if (!rows.length) {
       modal('إسناد سائق', el('p', { text: 'لا يوجد سائقون متاحون في المنظومة.' }));
@@ -319,7 +346,7 @@ window.assignRiderToShift = async (shiftId, shiftName = '') => {
 
 window.viewShiftRidersModal = async (shiftId, shiftName = '') => {
   try {
-    const riders = await api.get(`/shifts/${shiftId}/riders`).catch(() => []);
+    const riders = await api.get(`/shifts/${shiftId}/riders`);
     const body = el('div', { style: 'display:grid;gap:12px;direction:rtl;min-width:400px' });
 
     body.append(el('p', { style: 'margin:0;font-size:13px;color:var(--text)' }, [
@@ -347,7 +374,7 @@ window.viewShiftRidersModal = async (shiftId, shiftName = '') => {
                 window.viewShiftRidersModal(shiftId, shiftName);
                 loadShifts(document.getElementById('content-area'), 'shifts');
               } catch (err) {
-                alert('❌ تعذر إزالة السائق: ' + err.message);
+                showToast('❌ تعذر إزالة السائق: ' + err.message, 'error');
               }
             }
           }, '🗑️ إزالة')
@@ -369,7 +396,7 @@ window.viewShiftRidersModal = async (shiftId, shiftName = '') => {
 
 async function openAttendancePoliciesModal() {
   try {
-    const policies = await api.get('/hr/attendance-policies').catch(() => []);
+    const policies = await api.get('/hr/attendance-policies');
     const latePolicy = policies.find(p => p.event_type === 'LATE') || {};
     const absPolicy = policies.find(p => p.event_type === 'ABSENCE') || {};
 
@@ -432,14 +459,14 @@ async function openAttendancePoliciesModal() {
           deduction_amount: absAmount,
           is_active: true
         });
-        alert('✅ تم حفظ وتفعيل سياسات الحضور والخصم الآلي بنجاح.');
+        showToast('✅ تم حفظ وتفعيل سياسات الحضور والخصم الآلي بنجاح.', 'success');
         m.remove();
       } catch (err) {
-        alert('❌ تعذر حفظ السياسات: ' + err.message);
+        showToast('❌ تعذر حفظ السياسات: ' + err.message, 'error');
       }
     };
   } catch (err) {
-    alert('❌ خطأ: ' + err.message);
+    showToast('❌ خطأ: ' + err.message, 'error');
   }
 }
 async function renderAttendanceTab(container, headerActions) {
@@ -527,8 +554,8 @@ async function renderAttendanceTab(container, headerActions) {
       tableWrap.replaceChildren(table([
         { key: 'name', label: isAr ? 'السائق' : 'Driver', render: (v, row) => el('b', { text: v || (isAr ? `سائق #${row.courier_id || '—'}` : `Driver #${row.courier_id || '—'}`) }) },
         { key: 'shift', label: isAr ? 'الوردية' : 'Shift', render: (v) => v || (isAr ? 'وردية افتراضية' : 'Default Shift') },
-        { key: 'check_in', label: isAr ? 'وقت الحضور' : 'Check-in Time', render: (v) => v ? new Date(v).toLocaleTimeString(isAr ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : '—' },
-        { key: 'check_out', label: isAr ? 'وقت الانصراف' : 'Check-out Time', render: (v) => v ? new Date(v).toLocaleTimeString(isAr ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' }) : '—' },
+        { key: 'check_in', label: isAr ? 'وقت الحضور' : 'Check-in Time', render: (v) => v ? new Date(v).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—' },
+        { key: 'check_out', label: isAr ? 'وقت الانصراف' : 'Check-out Time', render: (v) => v ? new Date(v).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—' },
         { key: 'hours', label: isAr ? 'ساعات العمل' : 'Working Hours', render: (v, row) => v ? `${v} ${isAr ? 'س' : 'hrs'}` : (row.scheduled_hours ? `${row.scheduled_hours} ${isAr ? 'س (مجدولة)' : 'hrs (sched)'}` : '—') },
         { key: 'status', label: isAr ? 'الحالة' : 'Status', render: (v) => {
           const isLate = v === 'LATE';
@@ -593,14 +620,33 @@ async function renderCorrectionsTab(container, canManage) {
     tableWrap.replaceChildren(loadingState('جاري تحميل طابور وسجل التصحيحات...'));
 
     try {
-      const allCorrectionsPromise = api.get('/analytics/attendance/corrections?status_filter=ALL');
-      const filteredCorrectionsPromise = selectedCorrectionStatus === 'ALL'
-        ? allCorrectionsPromise
-        : api.get(`/analytics/attendance/corrections?status_filter=${selectedCorrectionStatus}`);
+      const { data: [analyticsList, timekeepingList], failed } = await loadSources([
+        { label: 'سجل التصحيحات', get: () => api.get('/analytics/attendance/corrections?status_filter=ALL') },
+        { label: 'طابور المراجعة', get: () => api.get('/timekeeping/corrections') },
+      ]);
 
-      const [allList, filteredList] = await Promise.all([allCorrectionsPromise, filteredCorrectionsPromise]);
+      const mappedTk = (timekeepingList || []).map((r) => ({
+        id: r.id,
+        source: 'timekeeping',
+        courier_id: r.courier_id,
+        courier_name: r.courier_name || `سائق #${r.courier_id}`,
+        status: r.status,
+        reason: r.reason,
+        original_check_in: null,
+        corrected_check_in: r.requested_check_in,
+        corrected_check_out: r.requested_check_out,
+        requested_at: r.created_at || r.decided_at,
+        review_note: r.decision_note,
+      }));
 
-      const all = allList || [];
+      const combined = [...(analyticsList || [])];
+      for (const tk of mappedTk) {
+        if (!combined.some((c) => c.id === tk.id && c.courier_id === tk.courier_id)) {
+          combined.push(tk);
+        }
+      }
+
+      const all = combined;
       const pendingCount = all.filter((c) => c.status === 'PENDING').length;
       const approvedCount = all.filter((c) => c.status === 'APPROVED').length;
       const rejectedCount = all.filter((c) => c.status === 'REJECTED').length;
@@ -649,19 +695,31 @@ async function renderCorrectionsTab(container, canManage) {
         createCorrCard(rejectedCount, 'مرفوض', 'normal', 'REJECTED', 'الطلبات المرفوضة')
       );
 
-      const rows = filteredList || [];
+      let rows = all;
+      if (selectedCorrectionStatus !== 'ALL') {
+        rows = all.filter((c) => c.status === selectedCorrectionStatus);
+      }
+
+      const warning = partialLoadWarning(failed);
+
       if (!rows.length) {
-        tableWrap.replaceChildren(emptyState('لا توجد طلبات تصحيح حضور ضمن هذه التصفية.'));
+        // "Nothing to review" is only true when everything actually loaded.
+        tableWrap.replaceChildren(...[
+          warning,
+          failed.length
+            ? emptyState('لم تُحمّل كل المصادر — لا يمكن تأكيد أن الطابور فارغ.')
+            : emptyState('لا توجد طلبات تصحيح حضور ضمن هذه التصفية.'),
+        ].filter(Boolean));
         return;
       }
 
-      tableWrap.replaceChildren(table([
+      tableWrap.replaceChildren(...[warning, table([
         { key: 'id', label: '#', render: (v) => `#${v}` },
         { key: 'courier_name', label: 'السائق', render: (v, row) => el('b', { text: v || `سائق #${row.courier_id}` }) },
-        { key: 'original_check_in', label: 'الدخول الأصلي', render: (v) => v ? new Date(v).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—' },
-        { key: 'corrected_check_in', label: 'الدخول المصحح', render: (v) => v ? el('b', { style: 'color:var(--green)', text: new Date(v).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) }) : '—' },
+        { key: 'original_check_in', label: 'الدخول الأصلي', render: (v) => v ? new Date(v).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—' },
+        { key: 'corrected_check_in', label: 'الدخول المصحح', render: (v) => v ? el('b', { style: 'color:var(--green)', text: new Date(v).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) }) : '—' },
         { key: 'reason', label: 'سبب التصحيح', render: (v) => el('span', { style: 'font-size:13px', text: v || '—' }) },
-        { key: 'requested_at', label: 'تاريخ الطلب', render: (v) => v ? new Date(v).toLocaleDateString('ar-SA') : '—' },
+        { key: 'requested_at', label: 'تاريخ الطلب', render: (v) => v ? new Date(v).toLocaleDateString('en-GB') : '—' },
         { key: 'status', label: 'الحالة', render: (v) => {
           const isPending = v === 'PENDING';
           const isApp = v === 'APPROVED';
@@ -679,7 +737,7 @@ async function renderCorrectionsTab(container, canManage) {
           }
           return '—';
         }},
-      ], rows));
+      ], rows)].filter(Boolean));
     } catch (e) {
       tableWrap.replaceChildren(errorState('تعذر تحميل تصحيحات الحضور: ' + e.message));
     }
@@ -696,8 +754,8 @@ function openReviewCorrectionModal(corr, onReviewed) {
         badge('قيد المراجعة', 'amber'),
       ]),
       el('p', { style: 'margin:4px 0' }, `👤 السائق: ${corr.courier_name || '#' + corr.courier_id}`),
-      el('p', { style: 'margin:4px 0' }, `⏱️ الدخول الأصلي: ${corr.original_check_in ? new Date(corr.original_check_in).toLocaleString('ar-SA') : 'غير مسجل'}`),
-      el('p', { style: 'margin:4px 0;color:var(--green)' }, `✨ الدخول المطلوب: ${corr.corrected_check_in ? new Date(corr.corrected_check_in).toLocaleString('ar-SA') : 'غير محدد'}`),
+      el('p', { style: 'margin:4px 0' }, `⏱️ الدخول الأصلي: ${corr.original_check_in ? new Date(corr.original_check_in).toLocaleString('en-US') : 'غير مسجل'}`),
+      el('p', { style: 'margin:4px 0;color:var(--green)' }, `✨ الدخول المطلوب: ${corr.corrected_check_in ? new Date(corr.corrected_check_in).toLocaleString('en-US') : 'غير محدد'}`),
       el('p', { style: 'margin:4px 0' }, `📝 سبب الطلب: ${corr.reason || '—'}`),
     ]),
     el('div', { style: 'margin-bottom:16px' }, [
@@ -712,11 +770,11 @@ function openReviewCorrectionModal(corr, onReviewed) {
     el('div', { style: 'display:flex;gap:8px;justify-content:flex-end' }, [
       el('button', {
         class: 'btn btn-green',
-        onclick: async () => submitDecision(corr.id, 'APPROVED', m, onReviewed)
+        onclick: async () => submitDecision(corr, 'APPROVED', m, onReviewed)
       }, '✅ اعتماد التصحيح'),
       el('button', {
         class: 'btn btn-red',
-        onclick: async () => submitDecision(corr.id, 'REJECTED', m, onReviewed)
+        onclick: async () => submitDecision(corr, 'REJECTED', m, onReviewed)
       }, '❌ رفض التصحيح'),
     ]),
     el('div', { id: 'corr-decision-msg', class: 'msg', style: 'margin-top:8px' }),
@@ -725,15 +783,23 @@ function openReviewCorrectionModal(corr, onReviewed) {
   const m = modal('مراجعة طلب تصحيح الحضور', content);
 }
 
-async function submitDecision(correctionId, decision, modalInstance, onDone) {
+async function submitDecision(corr, decision, modalInstance, onDone) {
   const msg = document.getElementById('corr-decision-msg');
   const note = document.getElementById('correction-review-note')?.value.trim() || null;
   msg.textContent = 'جاري حفظ القرار...';
   try {
-    await api.post(`/analytics/attendance/corrections/${correctionId}/review`, {
-      decision,
-      note,
-    });
+    if (corr && corr.source === 'timekeeping') {
+      await api.post(`/timekeeping/corrections/${corr.id}/decide`, {
+        decision,
+        note,
+      });
+    } else {
+      const id = typeof corr === 'object' ? corr.id : corr;
+      await api.post(`/analytics/attendance/corrections/${id}/review`, {
+        decision,
+        note,
+      });
+    }
     msg.style.color = 'var(--green)';
     msg.textContent = decision === 'APPROVED' ? '✅ تم اعتماد التصحيح وتحديث سجل الحضور.' : '❌ تم رفض طلب التصحيح.';
     setTimeout(() => {
@@ -743,6 +809,211 @@ async function submitDecision(correctionId, decision, modalInstance, onDone) {
   } catch (e) {
     msg.style.color = 'var(--red)';
     msg.textContent = '❌ تعذر إتمام الإجراء: ' + e.message;
+  }
+}
+
+// ----------------------------------------------------
+// TAB 4: OVERTIME APPROVALS QUEUE (Timekeeping W1-E4)
+// ----------------------------------------------------
+let selectedOvertimeStatus = 'ALL';
+
+async function renderOvertimeTab(container, headerActions, canManage) {
+  const isAr = getLang() === 'ar';
+  container.innerHTML = '';
+
+  const filterSelect = el('select', {
+    id: 'overtime-status-filter',
+    class: 'select',
+    onchange: (e) => {
+      selectedOvertimeStatus = e.target.value;
+      refreshOvertime();
+    }
+  }, [
+    el('option', { value: 'ALL', ...(selectedOvertimeStatus === 'ALL' ? { selected: 'selected' } : {}) }, isAr ? '📋 كل طلبات الإضافي (ALL)' : '📋 All Overtime (ALL)'),
+    el('option', { value: 'PENDING', ...(selectedOvertimeStatus === 'PENDING' ? { selected: 'selected' } : {}) }, isAr ? '⏳ قيد المراجعة (PENDING)' : '⏳ Pending Review (PENDING)'),
+    el('option', { value: 'APPROVED', ...(selectedOvertimeStatus === 'APPROVED' ? { selected: 'selected' } : {}) }, isAr ? '✅ معتمدة (APPROVED)' : '✅ Approved (APPROVED)'),
+    el('option', { value: 'REJECTED', ...(selectedOvertimeStatus === 'REJECTED' ? { selected: 'selected' } : {}) }, isAr ? '❌ مرفوضة (REJECTED)' : '❌ Rejected (REJECTED)'),
+  ]);
+
+  headerActions.append(
+    filterSelect,
+    el('button', { class: 'btn btn-ghost', onclick: () => refreshOvertime() }, isAr ? '↻ تحديث' : '↻ Refresh')
+  );
+
+  const infoBanner = el('div', {
+    style: 'background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:12.5px;color:var(--text)'
+  }, [
+    el('div', { style: 'display:flex;align-items:center;gap:8px' }, [
+      el('span', { style: 'font-size:16px' }, '⏰'),
+      el('span', {}, [
+        el('b', {}, isAr ? 'اعتماد العمل الإضافي: ' : 'Overtime Approval: '),
+        el('span', {}, isAr ? 'يتم احتساب الدقائق المعتمدة وإضافتها تلقائياً إلى بنود مسير الرواتب الشهرية.' : 'Approved overtime minutes are automatically calculated and added to monthly payroll additions.')
+      ])
+    ]),
+    el('div', { id: 'ot-quick-filters', style: 'display:flex;gap:6px' })
+  ]);
+
+  const metricsWrap = el('div', { class: 'cards', id: 'ot-metrics', style: 'margin-bottom:16px' });
+  const tableWrap = el('div', { id: 'ot-table-wrap' }, [loadingState(isAr ? 'جاري تحميل طابور العمل الإضافي...' : 'Loading overtime queue...')]);
+
+  container.append(infoBanner, metricsWrap, tableWrap);
+
+  async function refreshOvertime() {
+    tableWrap.replaceChildren(loadingState(isAr ? 'جاري تحديث البيانات...' : 'Updating data...'));
+    try {
+      const allRows = await api.get('/timekeeping/overtime');
+      const all = allRows || [];
+      const pendingCount = all.filter(r => r.status === 'PENDING').length;
+      const approvedCount = all.filter(r => r.status === 'APPROVED').length;
+      const rejectedCount = all.filter(r => r.status === 'REJECTED').length;
+      const approvedMinutes = all.filter(r => r.status === 'APPROVED').reduce((sum, r) => sum + (Number(r.approved_minutes) || 0), 0);
+
+      // Quick filter buttons
+      const quickFiltersWrap = document.getElementById('ot-quick-filters');
+      if (quickFiltersWrap) {
+        quickFiltersWrap.innerHTML = '';
+        [
+          { id: 'ALL', label: isAr ? 'الكل' : 'All', count: all.length, color: 'blue' },
+          { id: 'PENDING', label: isAr ? 'قيد المراجعة' : 'Pending', count: pendingCount, color: 'amber' },
+          { id: 'APPROVED', label: isAr ? 'المعتمدة' : 'Approved', count: approvedCount, color: 'green' },
+          { id: 'REJECTED', label: isAr ? 'المرفوضة' : 'Rejected', count: rejectedCount, color: 'red' },
+        ].forEach(f => {
+          const isActive = selectedOvertimeStatus === f.id;
+          quickFiltersWrap.append(el('button', {
+            class: `btn btn-small ${isActive ? 'btn-primary' : 'btn-ghost'}`,
+            style: isActive ? '' : 'border:1px solid var(--border)',
+            onclick: () => {
+              selectedOvertimeStatus = f.id;
+              filterSelect.value = f.id;
+              refreshOvertime();
+            }
+          }, `${f.label} (${f.count})`));
+        });
+      }
+
+      // Metric Cards
+      metricsWrap.innerHTML = '';
+      const createOtCard = (count, title, color, statusKey, hint) => {
+        const isSel = selectedOvertimeStatus === statusKey;
+        return el('div', {
+          style: `cursor:pointer;transition:all .15s ease;border:${isSel ? '2px solid var(--primary)' : '1px solid var(--border)'};border-radius:12px;background:${isSel ? 'var(--soft)' : 'var(--card)'};padding:2px`,
+          onclick: () => {
+            selectedOvertimeStatus = statusKey;
+            filterSelect.value = statusKey;
+            refreshOvertime();
+          }
+        }, [metricCard(count, title, color, null, hint)]);
+      };
+
+      metricsWrap.append(
+        createOtCard(all.length, isAr ? 'إجمالي طلبات الإضافي' : 'Total Requests', 'blue', 'ALL', isAr ? 'اضغط لعرض كافة الطلبات' : 'Click to view all'),
+        createOtCard(pendingCount, isAr ? 'قيد المراجعة' : 'Pending Review', pendingCount ? 'alert' : 'blue', 'PENDING', isAr ? 'بانتظار قرار الإدارة' : 'Awaiting decision'),
+        createOtCard(approvedCount, isAr ? 'طلبات معتمدة' : 'Approved Requests', 'trend', 'APPROVED', isAr ? `${Math.round(approvedMinutes / 60 * 10) / 10} ساعة معتمدة` : `${Math.round(approvedMinutes / 60 * 10) / 10} hrs approved`),
+        createOtCard(rejectedCount, isAr ? 'مرفوضة' : 'Rejected', 'normal', 'REJECTED', isAr ? 'الطلبات المرفوضة' : 'Rejected requests')
+      );
+
+      let filtered = all;
+      if (selectedOvertimeStatus !== 'ALL') {
+        filtered = all.filter(r => r.status === selectedOvertimeStatus);
+      }
+
+      if (!filtered.length) {
+        tableWrap.replaceChildren(emptyState(isAr ? 'لا توجد طلبات عمل إضافي ضمن هذه التصفية.' : 'No overtime requests found matching this filter.'));
+        return;
+      }
+
+      tableWrap.replaceChildren(table([
+        { key: 'id', label: '#', render: (v) => `#${v}` },
+        { key: 'courier_name', label: isAr ? 'السائق' : 'Driver', render: (v, row) => el('b', { text: v || (isAr ? `سائق #${row.courier_id}` : `Driver #${row.courier_id}`) }) },
+        { key: 'overtime_date', label: isAr ? 'التاريخ' : 'Date', render: (v) => v || '—' },
+        { key: 'requested_minutes', label: isAr ? 'الوقت المطلوب' : 'Requested', render: (v) => `${v} ${isAr ? 'دقيقة' : 'min'} (${Math.round((v / 60) * 10) / 10} ${isAr ? 'س' : 'hr'})` },
+        { key: 'approved_minutes', label: isAr ? 'الوقت المعتمد' : 'Approved', render: (v, row) => row.status === 'APPROVED' ? el('b', { style: 'color:var(--green)', text: `${v || 0} ${isAr ? 'دقيقة' : 'min'}` }) : '—' },
+        { key: 'status', label: isAr ? 'الحالة' : 'Status', render: (v) => {
+          const isPending = v === 'PENDING';
+          const isApp = v === 'APPROVED';
+          return el('span', { class: `badge badge-${isPending ? 'amber' : isApp ? 'green' : 'alert'}` }, isPending ? (isAr ? '⏳ قيد المراجعة' : '⏳ Pending') : isApp ? (isAr ? '✅ معتمد' : '✅ Approved') : (isAr ? '❌ مرفوض' : '❌ Rejected'));
+        }},
+        { key: 'actions', label: isAr ? 'الإجراء' : 'Actions', render: (_, row) => {
+          if (row.status === 'PENDING' && canManage) {
+            return el('button', {
+              class: 'btn btn-blue btn-small',
+              onclick: () => openReviewOvertimeModal(row, refreshOvertime)
+            }, isAr ? 'مراجعة واتخاذ قرار' : 'Review & Decide');
+          }
+          return '—';
+        }},
+      ], filtered));
+    } catch (e) {
+      tableWrap.replaceChildren(errorState((isAr ? 'تعذر تحميل طلبات العمل الإضافي: ' : 'Failed to load overtime: ') + e.message));
+    }
+  }
+
+  refreshOvertime();
+}
+
+function openReviewOvertimeModal(ot, onReviewed) {
+  const isAr = getLang() === 'ar';
+  const content = el('div', { class: 'review-overtime-modal' }, [
+    el('div', { class: 'card', style: 'margin-bottom:16px;background:var(--surface-sunken)' }, [
+      el('div', { style: 'display:flex;justify-content:space-between;margin-bottom:8px' }, [
+        el('b', { text: `${isAr ? 'طلب عمل إضافي' : 'Overtime Request'} #${ot.id}` }),
+        badge(isAr ? 'قيد المراجعة' : 'Pending Review', 'amber'),
+      ]),
+      el('p', { style: 'margin:4px 0' }, `👤 ${isAr ? 'السائق' : 'Driver'}: ${ot.courier_name || '#' + ot.courier_id}`),
+      el('p', { style: 'margin:4px 0' }, `📅 ${isAr ? 'تاريخ العمل الإضافي' : 'Date'}: ${ot.overtime_date}`),
+      el('p', { style: 'margin:4px 0;font-weight:700' }, `⏱️ ${isAr ? 'الدقائق المطلوبة' : 'Requested Minutes'}: ${ot.requested_minutes} ${isAr ? 'دقيقة' : 'minutes'}`),
+    ]),
+    el('div', { style: 'margin-bottom:14px' }, [
+      el('label', { text: isAr ? 'الدقائق المعتمدة للعمل الإضافي:' : 'Approved Overtime Minutes:', style: 'display:block;margin-bottom:4px;font-weight:600' }),
+      el('input', {
+        type: 'number',
+        id: 'ot-approved-minutes',
+        value: ot.requested_minutes,
+        min: 1,
+        style: 'width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid var(--border)'
+      }),
+    ]),
+    el('div', { style: 'display:flex;gap:8px;justify-content:flex-end' }, [
+      el('button', {
+        class: 'btn btn-green',
+        onclick: async () => {
+          const mins = parseInt(document.getElementById('ot-approved-minutes')?.value || ot.requested_minutes, 10);
+          submitOvertimeDecision(ot.id, 'APPROVED', mins, m, onReviewed);
+        }
+      }, isAr ? '✅ اعتماد الإضافي' : '✅ Approve Overtime'),
+      el('button', {
+        class: 'btn btn-red',
+        onclick: async () => submitOvertimeDecision(ot.id, 'REJECTED', 0, m, onReviewed)
+      }, isAr ? '❌ رفض الطلب' : '❌ Reject Request'),
+    ]),
+    el('div', { id: 'ot-decision-msg', class: 'msg', style: 'margin-top:8px' }),
+  ]);
+
+  const m = modal(isAr ? 'مراجعة طلب العمل الإضافي' : 'Review Overtime Request', content);
+}
+
+async function submitOvertimeDecision(overtimeId, decision, approvedMinutes, modalInstance, onDone) {
+  const isAr = getLang() === 'ar';
+  const msg = document.getElementById('ot-decision-msg');
+  if (msg) msg.textContent = isAr ? 'جاري حفظ القرار...' : 'Saving decision...';
+  try {
+    await api.post(`/timekeeping/overtime/${overtimeId}/decide`, {
+      decision,
+      approved_minutes: approvedMinutes,
+    });
+    if (msg) {
+      msg.style.color = 'var(--green)';
+      msg.textContent = decision === 'APPROVED' ? (isAr ? '✅ تم اعتماد العمل الإضافي بنجاح.' : '✅ Overtime approved successfully.') : (isAr ? '❌ تم رفض الطلب.' : '❌ Request rejected.');
+    }
+    setTimeout(() => {
+      modalInstance.remove();
+      if (onDone) onDone();
+    }, 800);
+  } catch (e) {
+    if (msg) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = (isAr ? '❌ تعذر إتمام الإجراء: ' : '❌ Failed: ') + e.message;
+    }
   }
 }
 
@@ -795,8 +1066,8 @@ async function renderLeavesTab(container, headerActions, canManage) {
     tableWrap.replaceChildren(loadingState('جاري تحديث البيانات...'));
     try {
       const [all, filtered] = await Promise.all([
-        api.get('/leave/requests?status_filter=ALL').catch(() => []),
-        api.get(`/leave/requests?status_filter=${selectedLeaveStatus}`).catch(() => []),
+        api.get('/leave/requests?status_filter=ALL'),
+        api.get(`/leave/requests?status_filter=${selectedLeaveStatus}`),
       ]);
 
       const allList = all || [];

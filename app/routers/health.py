@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..config import APP_ENV
 from ..database import get_db
+from ..services.observability import COMMIT, SENTRY_DSN
 
 router = APIRouter(prefix="/health", tags=["health"])
 
@@ -23,6 +24,8 @@ async def liveness():
         "version": "2.0.0",
         "environment": APP_ENV,
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "commit": COMMIT,
+        "error_reporting": "on" if SENTRY_DSN else "off",
     }
 
 

@@ -338,7 +338,7 @@ async function renderImportHistory(target, page = 1) {
       { key: 'valid_rows', label: isAr ? 'صالح' : 'Valid' },
       { key: 'invalid_rows', label: isAr ? 'غير صالح' : 'Invalid' },
       { key: 'status', label: isAr ? 'الحالة' : 'Status' },
-      { key: 'created_at', label: isAr ? 'التاريخ' : 'Date', render: (v) => v ? new Date(v).toLocaleDateString(isAr ? 'ar-SA' : 'en-US') : '—' },
+      { key: 'created_at', label: isAr ? 'التاريخ' : 'Date', render: (v) => v ? new Date(v).toLocaleDateString('en-GB') : '—' },
     ], rows));
   } catch (e) {
     target.replaceChildren(errorState((isAr ? 'تعذر التحميل: ' : 'Failed to load: ') + e.message));

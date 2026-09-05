@@ -214,11 +214,11 @@
     /* DASHBOARD GRID */
     .dashboard-grid {
       display: grid;
-      grid-template-columns: 1.2fr 1fr;
+      grid-template-columns: 440px 1fr;
       gap: 20px;
       margin-bottom: 24px;
     }
-    @media (max-width: 960px) {
+    @media (max-width: 1040px) {
       .dashboard-grid { grid-template-columns: 1fr; }
     }
 
@@ -252,19 +252,98 @@
       border: 1px solid var(--line);
     }
 
-    /* 1-CLICK DISPATCH FORM */
+    /* 1-CLICK DISPATCH FORM & QUICK ENTRY */
     .dispatch-card {
       background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
       border: 1px solid var(--line);
       position: relative;
       overflow: hidden;
     }
+    .dispatch-mode-toggle {
+      display: flex;
+      gap: 8px;
+      background: var(--surface2);
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      margin-bottom: 14px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all .15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+    .mode-btn.active {
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+      border: 1px solid var(--line);
+    }
+    .quick-entry-row {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 500px) {
+      .quick-entry-row { grid-template-columns: 1fr; }
+    }
+    .payment-chips {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .payment-chip {
+      padding: 10px 6px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--surface2);
+      color: var(--ink2);
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      transition: all .15s ease;
+    }
+    .payment-chip:hover { border-color: var(--line-strong); }
+    .payment-chip.active {
+      border-color: var(--orange);
+      background: var(--orange-soft);
+      color: var(--orange);
+      box-shadow: 0 0 12px var(--orange-glow);
+    }
+    .collapsible-trigger {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 12px 0 8px;
+      user-select: none;
+    }
+    .collapsible-trigger:hover { color: var(--ink); }
     .dispatch-btn {
       width: 100%;
-      padding: 16px;
+      padding: 15px;
       background: var(--orange);
       color: #fff;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 900;
       border-radius: 14px;
       box-shadow: 0 6px 22px var(--orange-glow);
@@ -286,20 +365,28 @@
       box-shadow: none;
     }
 
-    /* RIDER STATUS CARDS */
-    .rider-list { display: flex; flex-direction: column; gap: 12px; }
+    /* RIDER GRID & CARDS */
+    .rider-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 14px;
+    }
     .rider-card {
       background: var(--surface2);
       border: 1px solid var(--line);
-      border-radius: 14px;
+      border-radius: 16px;
       padding: 16px;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      transition: border-color .15s ease;
+      flex-direction: column;
+      gap: 12px;
+      transition: all .2s ease;
+      position: relative;
     }
-    .rider-card.active { border-color: rgba(16,185,129,.4); background: rgba(16,185,129,.03); }
+    .rider-card.ready { border-color: rgba(16,185,129,.4); background: rgba(16,185,129,.03); }
+    .rider-card.en_route { border-color: rgba(59,130,246,.4); background: rgba(59,130,246,.03); }
+    .rider-card.vacant { border: 1.5px dashed var(--line-strong); background: rgba(255,255,255,.01); opacity: 0.85; }
+    .rider-card.vacant:hover { opacity: 1; border-color: var(--muted); }
+    .rider-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
     .rider-info { display: flex; align-items: center; gap: 12px; }
     .rider-avatar {
       width: 44px;
@@ -309,11 +396,61 @@
       display: grid;
       place-items: center;
       font-size: 18px;
+      flex-shrink: 0;
     }
     .rider-name-row { display: flex; align-items: center; gap: 8px; }
     .rider-name { font-size: 14px; font-weight: 800; color: var(--ink); }
     .rider-phone { font-size: 12px; color: var(--muted); }
     .rider-shift-time { font-size: 11px; color: var(--ink2); margin-top: 3px; }
+
+    .rider-card-body { display: flex; flex-direction: column; gap: 8px; font-size: 11.5px; }
+    .rider-badge-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+    .float-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 9px;
+      border-radius: 8px;
+      background: var(--orange-soft);
+      color: var(--orange);
+      border: 1px solid var(--orange-glow);
+      font-weight: 800;
+      font-size: 11.5px;
+    }
+    .source-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10.5px;
+      color: var(--muted);
+    }
+    .card-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+      flex-wrap: wrap;
+    }
+    .action-btn-sm {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11.5px;
+      font-weight: 700;
+      border: 1px solid var(--line);
+      background: var(--surface3);
+      color: var(--ink);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all .15s ease;
+    }
+    .action-btn-sm:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+    .action-btn-sm.settle { background: var(--green-soft); color: var(--green); border-color: rgba(16,185,129,.3); }
+    .action-btn-sm.checkin { background: var(--amber-soft); color: var(--amber); border-color: rgba(245,158,11,.3); }
+    .action-btn-sm.assign { background: var(--orange-soft); color: var(--orange); border-color: var(--orange-glow); }
 
     .status-pill {
       display: inline-flex;
@@ -329,19 +466,7 @@
     .status-pill.amber { background: var(--amber-soft); color: var(--amber); border: 1px solid rgba(245,158,11,.3); }
     .status-pill.blue { background: var(--blue-soft); color: var(--blue); border: 1px solid rgba(59,130,246,.3); }
     .status-pill.red { background: var(--red-soft); color: var(--red); border: 1px solid rgba(239,68,68,.3); }
-
-    .capacity-indicator {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      font-weight: 700;
-      margin-top: 4px;
-    }
-    .capacity-dots { display: flex; gap: 4px; }
-    .cap-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--surface3); }
-    .cap-dot.filled { background: var(--orange); box-shadow: 0 0 6px var(--orange-glow); }
-    .cap-dot.full { background: var(--red); box-shadow: 0 0 6px rgba(239,68,68,.4); }
+    .status-pill.purple { background: rgba(168,85,247,.12); color: #a855f7; border: 1px dashed rgba(168,85,247,.35); }
 
     /* ACTIVE ORDERS TABLE / CARDS */
     .orders-section {
@@ -505,6 +630,13 @@
         </div>
       </div>
       <div class="top-actions">
+        <button class="action-btn" id="statementBtn" style="display:none;" title="كشف الحساب والفوترة">
+          <span>🧾</span>
+          <span id="txtStatementBtn">كشف الحساب</span>
+        </button>
+        <button class="action-btn" id="langToggleBtn" title="Language / اللغة">
+          <span id="langIcon">🌐 English</span>
+        </button>
         <div class="sound-badge" id="soundToggleBtn" title="تفعيل/تعطيل التنبيهات الصوتية">
           <span id="soundIcon">🔊</span>
         </div>
@@ -516,7 +648,7 @@
           <span id="themeIcon">☀️</span>
         </button>
         <button class="action-btn logout" id="logoutBtn" style="display:none;" title="تسجيل الخروج">
-          <span>خروج</span>
+          <span id="txtLogout">خروج</span>
         </button>
       </div>
     </header>
@@ -526,18 +658,26 @@
       <div class="login-wrapper">
         <div class="login-card">
           <div style="font-size: 42px; margin-bottom: 12px;">🏪</div>
-          <h1 class="login-title">تسجيل دخول كاشير الفرع</h1>
-          <p class="login-sub">أدخل رقم معرّف الفرع ورقم الـ PIN للوصول إلى لوحة طلبات الوردية المخصصة</p>
+          <h1 class="login-title" id="txtLoginTitle">تسجيل دخول كاشير الفرع</h1>
+          <p class="login-sub" id="txtLoginSub">اختر فرع المطعم وأدخل رمز PIN للوصول إلى لوحة طلبات الوردية المخصصة</p>
 
           <div class="login-alert" id="loginAlert"></div>
 
           <form id="loginForm">
-            <div class="form-group">
-              <label class="form-label" for="inputBranchId">رقم معرّف الفرع (Branch ID)</label>
-              <input class="form-input mono" type="number" id="inputBranchId" placeholder="مثال: 1" required autofocus>
+            <div class="form-group" id="branchSelectGroup">
+              <label class="form-label" for="inputBranchSearch" id="lblSelectBranch">فرع المطعم</label>
+              <input class="form-input" type="search" id="inputBranchSearch" autocomplete="off"
+                     placeholder="اكتب اسم المطعم أو المدينة…" style="margin-bottom:8px">
+              <select class="form-input" id="selectBranch" style="background:var(--surface2);cursor:pointer;">
+                <option value="">-- اكتب اسم مطعمك للبحث --</option>
+              </select>
+            </div>
+            <div class="form-group" id="manualBranchGroup" style="display:none;">
+              <label class="form-label" for="inputBranchId" id="lblManualBranch">رقم معرّف الفرع يدويًا (Branch ID)</label>
+              <input class="form-input mono" type="number" id="inputBranchId" placeholder="مثال: 1">
             </div>
             <div class="form-group">
-              <label class="form-label" for="inputPin">رمز PIN السري للفرع</label>
+              <label class="form-label" for="inputPin" id="lblPin">رمز PIN السري للفرع</label>
               <input class="form-input mono" type="password" id="inputPin" placeholder="••••" maxlength="8" required>
             </div>
             <button type="submit" class="btn-submit" id="loginSubmitBtn">دخول لوحة الكاشير 🚀</button>
@@ -552,56 +692,127 @@
       <!-- GRID: DISPATCH FORM & RIDERS STATUS -->
       <div class="dashboard-grid">
 
-        <!-- 1-CLICK ORDER DISPATCH CARD -->
+        <!-- 1-CLICK ORDER DISPATCH & FAST ENTRY CARD -->
         <div class="card dispatch-card">
           <div class="card-header">
             <h2 class="card-title">
               <span>🚀</span>
-              <span>إرسال طلب توصيل فوري</span>
+              <span id="txtDispatchTitle">إرسال طلب فوري (إدخال سريع ⚡)</span>
             </h2>
-            <span class="card-badge">إسناد تلقائي لمندوب الفرع</span>
+            <span class="card-badge" id="txtDispatchBadge">إسناد ذكي</span>
+          </div>
+
+          <!-- DISPATCH MODE SELECTOR: ROUND ROBIN VS NAMED -->
+          <div class="dispatch-mode-toggle">
+            <div class="mode-btn active" id="modeRoundRobinBtn">
+              <span>🔄</span>
+              <span id="txtModeRoundRobin">بالدور (توزيع عادل)</span>
+            </div>
+            <div class="mode-btn" id="modeNamedBtn">
+              <span>👤</span>
+              <span id="txtModeNamed">إسناد بالاسم</span>
+            </div>
           </div>
 
           <form id="dispatchOrderForm">
-            <div class="form-group">
-              <label class="form-label" for="orderCustomerName">اسم العميل</label>
-              <input class="form-input" type="text" id="orderCustomerName" placeholder="مثال: سارة القحطاني" required autocomplete="off">
+            <!-- NAMED RIDER SELECTION (visible only in named mode) -->
+            <div class="form-group" id="namedRiderGroup" style="display:none;">
+              <label class="form-label" for="dispatchRiderSelect" id="lblSelectRider">المندوب المطلوب للإسناد بالاسم</label>
+              <select class="form-input" id="dispatchRiderSelect">
+                <option value="">-- اختر المندوب من القائمة --</option>
+              </select>
             </div>
 
-            <div class="form-group">
-              <label class="form-label" for="orderCustomerPhone">رقم جوال العميل</label>
-              <input class="form-input mono" type="tel" id="orderCustomerPhone" placeholder="05XXXXXXXX" required autocomplete="off">
+            <!-- FAST POS ENTRY FIELDS (5-10 SECONDS) -->
+            <div class="quick-entry-row">
+              <div class="form-group">
+                <label class="form-label" for="orderExternalId" id="lblInvoice">رقم الفاتورة / الطلب</label>
+                <input class="form-input mono" type="text" id="orderExternalId" placeholder="مثال: #1029 أو POS-5" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="orderAmount" id="lblAmount">المبلغ الإجمالي (ر.س)</label>
+                <input class="form-input mono" type="number" step="0.5" id="orderAmount" placeholder="0.00" autocomplete="off">
+              </div>
             </div>
 
+            <!-- PAYMENT METHOD CHIPS -->
             <div class="form-group">
-              <label class="form-label" for="orderDeliveryAddress">عنوان التوصيل بالتفصيل</label>
-              <input class="form-input" type="text" id="orderDeliveryAddress" placeholder="الحي، الشارع، رقم المبنى أو الفيلا" required autocomplete="off">
+              <label class="form-label" id="lblPaymentMethod">طريقة الدفع والتحصيل</label>
+              <div class="payment-chips">
+                <div class="payment-chip active" data-method="cash" id="payChipCash">
+                  <span style="font-size:18px">💵</span>
+                  <span id="txtPayCash">كاش (نقدي)</span>
+                  <span style="font-size:9.5px;opacity:.7" id="subPayCash">عهدة ع المندوب</span>
+                </div>
+                <div class="payment-chip" data-method="card" id="payChipCard">
+                  <span style="font-size:18px">💳</span>
+                  <span id="txtPayCard">شبكة / مدى</span>
+                  <span style="font-size:9.5px;opacity:.7" id="subPayCard">عهدة = 0</span>
+                </div>
+                <div class="payment-chip" data-method="prepaid" id="payChipPrepaid">
+                  <span style="font-size:18px">📱</span>
+                  <span id="txtPayPrepaid">مدفوع مسبقاً</span>
+                  <span style="font-size:9.5px;opacity:.7" id="subPayPrepaid">أونلاين / تطبيق</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- COLLAPSIBLE CUSTOMER DETAILS (OPTIONAL IF INVOICE GIVEN) -->
+            <div class="collapsible-trigger" id="toggleCustomerDetailsBtn">
+              <span id="customerDetailsArrow">▶</span>
+              <span id="txtCustomerDetailsToggle">بيانات العميل وعنوان التوصيل (اختياري)</span>
+            </div>
+
+            <div id="customerDetailsSection" style="display:none;">
+              <div class="form-group">
+                <label class="form-label" for="orderCustomerName" id="lblCustomerName">اسم العميل</label>
+                <input class="form-input" type="text" id="orderCustomerName" placeholder="مثال: سارة القحطاني" autocomplete="off">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="orderCustomerPhone" id="lblCustomerPhone">رقم جوال العميل</label>
+                <input class="form-input mono" type="tel" id="orderCustomerPhone" placeholder="05XXXXXXXX" autocomplete="off">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="orderDeliveryAddress" id="lblDeliveryAddress">عنوان التوصيل بالتفصيل</label>
+                <input class="form-input" type="text" id="orderDeliveryAddress" placeholder="الحي، الشارع، رقم المبنى أو الفيلا" autocomplete="off">
+              </div>
             </div>
 
             <button type="submit" class="dispatch-btn" id="dispatchSubmitBtn">
               <span>🛵</span>
-              <span>إرسال الطلب للمندوب فوراً</span>
+              <span id="txtDispatchSubmit">إرسال الطلب للمندوب فوراً</span>
             </button>
           </form>
           <div style="margin-top: 10px; font-size: 11px; color: var(--muted); text-align: center;">
-            💡 اختصار لوحة المفاتيح: اضغط <kbd class="mono" style="background:var(--surface3);padding:2px 5px;border-radius:4px;">Ctrl + Enter</kbd> للإرسال السريع
+            💡 <span id="txtHotkeyTip">اضغط</span> <kbd class="mono" style="background:var(--surface3);padding:2px 5px;border-radius:4px;">Ctrl + Enter</kbd> <span id="txtHotkeyAction">للإرسال السريع</span>
           </div>
         </div>
 
-        <!-- DEDICATED RIDERS STATUS CARD -->
+        <!-- DEDICATED RIDERS STATUS & GRID CARD -->
         <div class="card">
           <div class="card-header">
             <h2 class="card-title">
               <span>🛵</span>
-              <span>مناديب الوردية المخصصون</span>
+              <span id="txtRidersGridTitle">شبكة مناديب الفرع والورديات</span>
             </h2>
-            <span class="card-badge" id="ridersCountBadge">0 مندوب</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="card-badge" id="ridersCountBadge">0 مقعد</span>
+            </div>
           </div>
 
-          <div class="rider-list" id="activeRidersList">
+          <!-- LIVE SUMMARY PILLS -->
+          <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+            <span class="status-pill green" id="readyCountBadge">0 جاهز بالفرع</span>
+            <span class="status-pill blue" id="enrouteCountBadge">0 في مشوار</span>
+            <span class="status-pill amber" id="openFloatTotalBadge">عهد مفتوحة: 0.00 ر.س</span>
+          </div>
+
+          <div class="rider-grid" id="activeRidersList">
             <div class="empty-state">
               <div class="empty-icon">⏳</div>
-              <div class="empty-title">جاري تحميل بيانات المناديب...</div>
+              <div class="empty-title">جاري تحميل بيانات شبكة المناديب...</div>
             </div>
           </div>
         </div>
@@ -657,6 +868,87 @@
 
   </div>
 
+  <!-- STATEMENT & BILLING MODAL -->
+  <div class="modal-overlay" id="statementModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:20px;">
+    <div class="modal-card" style="background:var(--surface);border:1px solid var(--line-strong);border-radius:18px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;padding:24px;box-shadow:var(--card-shadow);position:relative;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:24px">🧾</span>
+          <div>
+            <h2 style="font-size:18px;font-weight:800;margin:0" id="stmtModalTitle">كشف الحساب الشهري والفوترة</h2>
+            <div style="font-size:11px;color:var(--muted)" id="stmtModalSub">عقد الورديات المخصصة — منصة DOU Flex</div>
+          </div>
+        </div>
+        <button id="closeStatementModalBtn" style="font-size:18px;line-height:1;padding:6px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);cursor:pointer;color:var(--ink)">✕</button>
+      </div>
+      <div id="statementModalBody">
+        <div style="text-align:center;padding:30px;color:var(--muted)">جاري تحميل كشف الحساب...</div>
+      </div>
+    </div>
+  </div>
+  <!-- COD SETTLEMENT MODAL -->
+  <div class="modal-overlay" id="settleModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:210;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:20px;">
+    <div class="modal-card" style="background:var(--surface);border:1px solid var(--line-strong);border-radius:18px;max-width:520px;width:100%;padding:24px;box-shadow:var(--card-shadow);position:relative;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:24px">💵</span>
+          <div>
+            <h2 style="font-size:17px;font-weight:800;margin:0" id="settleModalTitle">استلام الكاش وتصفية العهدة</h2>
+            <div style="font-size:11px;color:var(--muted)" id="settleModalSub">إقفال مالي نهائي لطلبات الدفع النقدي المسلمة</div>
+          </div>
+        </div>
+        <button id="closeSettleModalBtn" style="font-size:18px;line-height:1;padding:6px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);cursor:pointer;color:var(--ink)">✕</button>
+      </div>
+      <div id="settleModalBody">
+        <div style="text-align:center;padding:12px 0;">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:6px" id="settleRiderLabel">المندوب: <strong id="settleRiderName" style="color:var(--ink)">—</strong></div>
+          <div style="font-size:32px;font-weight:900;color:var(--green);font-family:'JetBrains Mono',monospace;margin-bottom:8px" id="settleAmountDisplay">0.00 SAR</div>
+          <div style="background:var(--surface3);border-radius:10px;padding:12px 16px;font-size:11.5px;color:var(--muted);text-align:right;line-height:1.6;margin-bottom:20px;">
+            ⚠️ <span id="settleWarningText">تأكيد هذا الإجراء يسجل استلام المبلغ الفعلي من المندوب ويقفل عهدته نهائياً في النظام المالي. السجل المالي غير قابل للتعديل أو الحذف بعد الإقفال.</span>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="action-btn" id="cancelSettleBtn" style="padding:10px 18px">إلغاء</button>
+            <button class="btn-submit" id="confirmSettleBtn" style="width:auto;padding:10px 24px;margin:0;background:var(--green)">
+              <span>✅</span>
+              <span id="txtConfirmSettle">استلمت الكاش وأقفل العهدة</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CASHIER FALLBACK CHECKIN MODAL -->
+  <div class="modal-overlay" id="checkinModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);z-index:210;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:20px;">
+    <div class="modal-card" style="background:var(--surface);border:1px solid var(--line-strong);border-radius:18px;max-width:520px;width:100%;padding:24px;box-shadow:var(--card-shadow);position:relative;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:24px">✋</span>
+          <div>
+            <h2 style="font-size:17px;font-weight:800;margin:0" id="checkinModalTitle">تأكيد حضور المندوب يدوياً (احتياطي)</h2>
+            <div style="font-size:11px;color:var(--muted)" id="checkinModalSub">اعتماد احتياطي عند تعذر GPS داخل المبنى</div>
+          </div>
+        </div>
+        <button id="closeCheckinModalBtn" style="font-size:18px;line-height:1;padding:6px 12px;border-radius:8px;background:var(--surface2);border:1px solid var(--line);cursor:pointer;color:var(--ink)">✕</button>
+      </div>
+      <div id="checkinModalBody">
+        <div style="text-align:center;padding:12px 0;">
+          <div style="font-size:14px;color:var(--ink);margin-bottom:12px" id="checkinRiderLabel">هل تؤكد تواجد المندوب <strong id="checkinRiderName">—</strong> أمامك بالفرع؟</div>
+          <div style="background:var(--surface3);border-radius:10px;padding:12px 16px;font-size:11.5px;color:var(--muted);text-align:right;line-height:1.6;margin-bottom:20px;">
+            ℹ️ <span id="checkinWarningText">يستخدم هذا الخيار عندما يتعذر على هاتف السائق التقاط إشارة GPS داخل المركز التجاري أو المطعم. سيتم توثيق الحضور بشكل دائم كـ «تأكيد كاشير يدوي» لتمييزه عن تأكيد الـ GPS في سجلات الرواتب والعمليات.</span>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button class="action-btn" id="cancelCheckinBtn" style="padding:10px 18px">إلغاء</button>
+            <button class="btn-submit" id="confirmCheckinBtn" style="width:auto;padding:10px 24px;margin:0;background:var(--orange)">
+              <span>✋</span>
+              <span id="txtConfirmCheckin">تأكيد حضور المندوب</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST CONTAINER -->
   <div class="toast-container" id="toastContainer"></div>
 
@@ -666,19 +958,259 @@
 
       // ─── STATE & CONFIG ────────────────────────────────────────────────────────
       const API_BASE = window.location.origin;
+      let currentLang = localStorage.getItem('dou_merchant_lang') || 'ar';
+      function getLang() { return currentLang; }
+
       let session = {
         token: localStorage.getItem('dou_merchant_token') || sessionStorage.getItem('dou_merchant_token'),
         branchId: localStorage.getItem('dou_branch_id') || sessionStorage.getItem('dou_branch_id'),
         branchName: localStorage.getItem('dou_branch_name') || sessionStorage.getItem('dou_branch_name'),
+        merchantAccountId: localStorage.getItem('dou_merchant_account_id') || sessionStorage.getItem('dou_merchant_account_id'),
         shiftStart: localStorage.getItem('dou_shift_start') || sessionStorage.getItem('dou_shift_start'),
         shiftEnd: localStorage.getItem('dou_shift_end') || sessionStorage.getItem('dou_shift_end'),
       };
 
       let soundEnabled = localStorage.getItem('dou_merchant_sound') !== 'false';
+      let selectedDispatchMode = 'round_robin'; // 'round_robin' | 'named'
+      let selectedPaymentMethod = 'cash'; // 'cash' | 'card' | 'prepaid'
+      let activeRidersData = [];
       let activeOrdersData = [];
       let activeFilter = 'all';
       let countdownTimer = null;
       let secondsLeft = 10;
+      let publicBranches = [];
+      let targetSettleRider = null;
+      let targetCheckinRider = null;
+
+      // ─── I18N DICTIONARY ───────────────────────────────────────────────────────
+      const I18N = {
+        ar: {
+          brandBadge: 'كاشير الفرع',
+          txtStatementBtn: 'كشف الحساب',
+          langBtn: '🌐 English',
+          txtLogout: 'خروج',
+          txtLoginTitle: 'تسجيل دخول كاشير الفرع',
+          txtLoginSub: 'اختر فرع المطعم وأدخل رمز PIN للوصول إلى لوحة طلبات الوردية المخصصة',
+          lblSelectBranch: 'فرع المطعم',
+          lblManualBranch: 'رقم معرّف الفرع يدويًا (Branch ID)',
+          lblPin: 'رمز PIN السري للفرع',
+          loginBtn: 'دخول لوحة الكاشير 🚀',
+          stmtTitle: 'كشف الحساب الشهري والفوترة',
+          stmtSub: 'عقد الورديات المخصصة — منصة DOU Flex',
+          loadingBranches: '-- جاري تحميل الفروع... --',
+          selectBranchPrompt: '-- اختر الفرع --',
+          manualBranchOption: '➕ إدخال رقم المعرّف يدوياً...',
+          txtDispatchTitle: 'إرسال طلب فوري (إدخال سريع ⚡)',
+          txtDispatchBadge: 'إسناد ذكي',
+          txtModeRoundRobin: 'بالدور (توزيع عادل)',
+          txtModeNamed: 'إسناد بالاسم',
+          lblSelectRider: 'المندوب المطلوب للإسناد بالاسم',
+          lblInvoice: 'رقم الفاتورة / الطلب',
+          lblAmount: 'المبلغ الإجمالي (ر.س)',
+          lblPaymentMethod: 'طريقة الدفع والتحصيل',
+          txtPayCash: 'كاش (نقدي)',
+          subPayCash: 'عهدة ع المندوب',
+          txtPayCard: 'شبكة / مدى',
+          subPayCard: 'عهدة = 0',
+          txtPayPrepaid: 'مدفوع مسبقاً',
+          subPayPrepaid: 'أونلاين / تطبيق',
+          txtCustomerDetailsToggle: 'بيانات العميل وعنوان التوصيل (اختياري)',
+          lblCustomerName: 'اسم العميل',
+          lblCustomerPhone: 'رقم جوال العميل',
+          lblDeliveryAddress: 'عنوان التوصيل بالتفصيل',
+          txtDispatchSubmit: 'إرسال الطلب للمندوب فوراً',
+          txtHotkeyTip: 'اضغط',
+          txtHotkeyAction: 'للإرسال السريع',
+          txtRidersGridTitle: 'شبكة مناديب الفرع والورديات',
+          settleModalTitle: 'استلام الكاش وتصفية العهدة',
+          settleModalSub: 'إقفال مالي نهائي لطلبات الدفع النقدي المسلمة',
+          settleWarningText: 'تأكيد هذا الإجراء يسجل استلام المبلغ الفعلي من المندوب ويقفل عهدته نهائياً في النظام المالي. السجل المالي غير قابل للتعديل أو الحذف بعد الإقفال.',
+          txtConfirmSettle: 'استلمت الكاش وأقفل العهدة',
+          cancelSettleBtn: 'إلغاء',
+          checkinModalTitle: 'تأكيد حضور المندوب يدوياً (احتياطي)',
+          checkinModalSub: 'اعتماد احتياطي عند تعذر GPS داخل المبنى',
+          checkinWarningText: 'يستخدم هذا الخيار عندما يتعذر على هاتف السائق التقاط إشارة GPS داخل المركز التجاري أو المطعم. سيتم توثيق الحضور بشكل دائم كـ «تأكيد كاشير يدوي» لتمييزه عن تأكيد الـ GPS في سجلات الرواتب والعمليات.',
+          txtConfirmCheckin: 'تأكيد حضور المندوب',
+          cancelCheckinBtn: 'إلغاء',
+          seatsSuffix: 'مقعد',
+          readyAtBranch: 'جاهز بالفرع',
+          enRouteStatus: 'في مشوار',
+          openFloatsPrefix: 'عهد مفتوحة: ',
+          currencySar: 'ر.س',
+          selectRiderPrompt: '-- اختر المندوب من القائمة --',
+          noRidersAssigned: 'لا يوجد مناديب مسكنين لهذا الفرع اليوم',
+          noRidersSub: 'يتم تسكين المناديب عبر عقود الورديات المخصصة في المنصة',
+          vacantSeatTitle: 'مقعد شاغر (عقد متعاقد)',
+          vacantSeatPill: 'شاغر لم يُسكن',
+          vacantSeatSub: 'يتم التسكين من شركة الخدمات اللوجستية',
+          readyStatusPill: 'في الفرع جاهز',
+          breakStatusPill: 'في استراحة',
+          notYetStatusPill: 'لم يحضر بعد',
+          completedStatusPill: 'أنهى الوردية',
+          cashierCheckinTag: '✋ تأكيد كاشير',
+          gpsTag: '📍 GPS',
+          floatTag: 'عهدة: ',
+          assignBtn: 'إسناد له',
+          collectCashBtn: 'استلمت الكاش',
+          confirmAttendanceBtn: 'تأكيد حضور',
+          ordersFilterAll: 'الكل',
+          ordersFilterPending: 'في انتظار الاستلام',
+          ordersFilterEnRoute: 'جاري التوصيل',
+          noOrdersYet: 'لا توجد طلبات نشطة حالياً',
+          noOrdersSub: 'الفرع جاهز لاستقبال الطلبات وإسنادها مباشرة لمناديب الوردية',
+          shiftPrefix: 'الوردية: ',
+          notSet: 'غير محددة',
+        },
+        en: {
+          brandBadge: 'Branch Cashier',
+          txtStatementBtn: 'Billing Statement',
+          langBtn: '🌐 العربية',
+          txtLogout: 'Logout',
+          txtLoginTitle: 'Branch Cashier Login',
+          txtLoginSub: 'Select your restaurant branch and enter PIN to access dedicated shift orders',
+          lblSelectBranch: 'Restaurant Branch',
+          lblManualBranch: 'Branch ID (Manual Entry)',
+          lblPin: 'Branch Secret PIN',
+          loginBtn: 'Enter Cashier Portal 🚀',
+          stmtTitle: 'Monthly Billing Statement',
+          stmtSub: 'Dedicated Shift Contract — DOU Flex Platform',
+          loadingBranches: '-- Loading branches... --',
+          selectBranchPrompt: '-- Select Branch --',
+          manualBranchOption: '➕ Enter Branch ID manually...',
+          txtDispatchTitle: 'Instant Order Dispatch (Fast Entry ⚡)',
+          txtDispatchBadge: 'Smart Dispatch',
+          txtModeRoundRobin: 'Fair Round-Robin',
+          txtModeNamed: 'Dispatch by Name',
+          lblSelectRider: 'Target Rider for Direct Dispatch',
+          lblInvoice: 'Invoice / Order #',
+          lblAmount: 'Total Amount (SAR)',
+          lblPaymentMethod: 'Payment & Collection Method',
+          txtPayCash: 'Cash (COD)',
+          subPayCash: 'Rider Float',
+          txtPayCard: 'Card / Mada',
+          subPayCard: 'Zero Float',
+          txtPayPrepaid: 'Prepaid / Online',
+          subPayPrepaid: 'App / Online',
+          txtCustomerDetailsToggle: 'Customer Details & Delivery Address (Optional)',
+          lblCustomerName: 'Customer Name',
+          lblCustomerPhone: 'Customer Phone',
+          lblDeliveryAddress: 'Delivery Address Details',
+          txtDispatchSubmit: 'Dispatch Order to Rider Now',
+          txtHotkeyTip: 'Press',
+          txtHotkeyAction: 'for quick dispatch',
+          txtRidersGridTitle: 'Branch Riders Network & Shifts',
+          settleModalTitle: 'Collect Cash & Settle Float',
+          settleModalSub: 'Final financial settlement for delivered cash orders',
+          settleWarningText: 'Confirming this records actual cash collection and permanently closes the float. Financial records cannot be modified after settlement.',
+          txtConfirmSettle: 'Cash Received & Settle Float',
+          cancelSettleBtn: 'Cancel',
+          checkinModalTitle: 'Manual Rider Check-in (Fallback)',
+          checkinModalSub: 'Backup verification when indoor GPS fails',
+          checkinWarningText: 'Used when rider GPS fails indoors. Attendance is permanently logged as Cashier Fallback to distinguish it from GPS check-in in payroll and logs.',
+          txtConfirmCheckin: 'Confirm Rider Attendance',
+          cancelCheckinBtn: 'Cancel',
+          seatsSuffix: 'Seats',
+          readyAtBranch: 'Ready at Branch',
+          enRouteStatus: 'En Route',
+          openFloatsPrefix: 'Open Floats: ',
+          currencySar: 'SAR',
+          selectRiderPrompt: '-- Select Rider from list --',
+          noRidersAssigned: 'No riders assigned for this branch today',
+          noRidersSub: 'Riders are contracted via Dedicated Shift contracts in DOU platform',
+          vacantSeatTitle: 'Vacant Seat (Contracted)',
+          vacantSeatPill: 'Vacant — Unstaffed',
+          vacantSeatSub: 'To be assigned by logistics company',
+          readyStatusPill: 'Ready at Branch',
+          breakStatusPill: 'On Break',
+          notYetStatusPill: 'Not Checked In',
+          completedStatusPill: 'Shift Completed',
+          cashierCheckinTag: '✋ Cashier Check-in',
+          gpsTag: '📍 GPS',
+          floatTag: 'Float: ',
+          assignBtn: 'Assign',
+          collectCashBtn: 'Collect Cash',
+          confirmAttendanceBtn: 'Confirm Check-in',
+          ordersFilterAll: 'All',
+          ordersFilterPending: 'Pending Pickup',
+          ordersFilterEnRoute: 'En Route',
+          noOrdersYet: 'No active orders right now',
+          noOrdersSub: 'Branch is ready to receive orders and dispatch directly to dedicated riders',
+          shiftPrefix: 'Shift: ',
+          notSet: 'Not set',
+        }
+      };
+
+      function applyLang(lang) {
+        currentLang = lang;
+        localStorage.setItem('dou_merchant_lang', lang);
+        const strings = I18N[lang] || I18N.ar;
+        document.documentElement.setAttribute('lang', lang);
+        document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+
+        const setText = (id, val) => {
+          const el = document.getElementById(id);
+          if (el && val !== undefined) el.textContent = val;
+        };
+
+        const elBrand = document.querySelector('.brand-badge');
+        if (elBrand) elBrand.textContent = strings.brandBadge;
+        setText('txtStatementBtn', strings.txtStatementBtn);
+        setText('langIcon', strings.langBtn);
+        setText('txtLogout', strings.txtLogout);
+        setText('txtLoginTitle', strings.txtLoginTitle);
+        setText('txtLoginSub', strings.txtLoginSub);
+        setText('lblSelectBranch', strings.lblSelectBranch);
+        setText('lblManualBranch', strings.lblManualBranch);
+        setText('lblPin', strings.lblPin);
+
+        const elLoginSubmit = document.getElementById('loginSubmitBtn');
+        if (elLoginSubmit && !elLoginSubmit.disabled) elLoginSubmit.textContent = strings.loginBtn;
+
+        setText('stmtModalTitle', strings.stmtTitle);
+        setText('stmtModalSub', strings.stmtSub);
+        setText('txtDispatchTitle', strings.txtDispatchTitle);
+        setText('txtDispatchBadge', strings.txtDispatchBadge);
+        setText('txtModeRoundRobin', strings.txtModeRoundRobin);
+        setText('txtModeNamed', strings.txtModeNamed);
+        setText('lblSelectRider', strings.lblSelectRider);
+        setText('lblInvoice', strings.lblInvoice);
+        setText('lblAmount', strings.lblAmount);
+        setText('lblPaymentMethod', strings.lblPaymentMethod);
+        setText('txtPayCash', strings.txtPayCash);
+        setText('subPayCash', strings.subPayCash);
+        setText('txtPayCard', strings.txtPayCard);
+        setText('subPayCard', strings.subPayCard);
+        setText('txtPayPrepaid', strings.txtPayPrepaid);
+        setText('subPayPrepaid', strings.subPayPrepaid);
+        setText('txtCustomerDetailsToggle', strings.txtCustomerDetailsToggle);
+        setText('lblCustomerName', strings.lblCustomerName);
+        setText('lblCustomerPhone', strings.lblCustomerPhone);
+        setText('lblDeliveryAddress', strings.lblDeliveryAddress);
+        setText('txtDispatchSubmit', strings.txtDispatchSubmit);
+        setText('txtHotkeyTip', strings.txtHotkeyTip);
+        setText('txtHotkeyAction', strings.txtHotkeyAction);
+        setText('txtRidersGridTitle', strings.txtRidersGridTitle);
+
+        setText('settleModalTitle', strings.settleModalTitle);
+        setText('settleModalSub', strings.settleModalSub);
+        setText('settleWarningText', strings.settleWarningText);
+        setText('txtConfirmSettle', strings.txtConfirmSettle);
+        setText('cancelSettleBtn', strings.cancelSettleBtn);
+
+        setText('checkinModalTitle', strings.checkinModalTitle);
+        setText('checkinModalSub', strings.checkinModalSub);
+        setText('checkinWarningText', strings.checkinWarningText);
+        setText('txtConfirmCheckin', strings.txtConfirmCheckin);
+        setText('cancelCheckinBtn', strings.cancelCheckinBtn);
+
+        renderBranchOptions();
+        if (activeRidersData.length > 0) renderActiveRiders(activeRidersData);
+        if (activeOrdersData.length > 0) renderActiveOrders();
+      }
+
+      document.getElementById('langToggleBtn')?.addEventListener('click', () => {
+        applyLang(currentLang === 'ar' ? 'en' : 'ar');
+      });
 
       // ─── SOUND SYNTHESIS (Web Audio API) ───────────────────────────────────────
       const audioCtx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
@@ -755,21 +1287,24 @@
         session.token = data.access_token;
         session.branchId = data.branch_id;
         session.branchName = data.branch_name;
+        session.merchantAccountId = data.merchant_account_id || 1;
         session.shiftStart = data.today_shift_start;
         session.shiftEnd = data.today_shift_end;
 
         localStorage.setItem('dou_merchant_token', data.access_token);
         localStorage.setItem('dou_branch_id', data.branch_id);
         localStorage.setItem('dou_branch_name', data.branch_name);
+        if (data.merchant_account_id) localStorage.setItem('dou_merchant_account_id', data.merchant_account_id);
         if (data.today_shift_start) localStorage.setItem('dou_shift_start', data.today_shift_start);
         if (data.today_shift_end) localStorage.setItem('dou_shift_end', data.today_shift_end);
       }
 
       function clearSession() {
-        session = { token: null, branchId: null, branchName: null, shiftStart: null, shiftEnd: null };
+        session = { token: null, branchId: null, branchName: null, merchantAccountId: null, shiftStart: null, shiftEnd: null };
         localStorage.removeItem('dou_merchant_token');
         localStorage.removeItem('dou_branch_id');
         localStorage.removeItem('dou_branch_name');
+        localStorage.removeItem('dou_merchant_account_id');
         localStorage.removeItem('dou_shift_start');
         localStorage.removeItem('dou_shift_end');
         sessionStorage.clear();
@@ -780,16 +1315,18 @@
         const dashboardView = document.getElementById('dashboardView');
         const topbarBranchInfo = document.getElementById('topbarBranchInfo');
         const logoutBtn = document.getElementById('logoutBtn');
+        const stmtBtn = document.getElementById('statementBtn');
 
         if (session.token && session.branchId) {
           loginView.classList.remove('active');
           dashboardView.classList.add('active');
           topbarBranchInfo.style.display = 'flex';
           logoutBtn.style.display = 'inline-flex';
+          if (stmtBtn) stmtBtn.style.display = 'inline-flex';
 
           document.getElementById('topbarBranchName').textContent = session.branchName || `فرع #${session.branchId}`;
-          const shiftText = session.shiftStart && session.shiftEnd ? `${session.shiftStart} - ${session.shiftEnd}` : 'غير محددة';
-          document.getElementById('topbarBranchShift').innerHTML = `<span>⏱️ الوردية: <strong>${shiftText}</strong></span>`;
+          const shiftText = session.shiftStart && session.shiftEnd ? `${session.shiftStart} - ${session.shiftEnd}` : (currentLang === 'ar' ? 'غير محددة' : 'Not set');
+          document.getElementById('topbarBranchShift').innerHTML = `<span>⏱️ ${currentLang === 'ar' ? 'الوردية: ' : 'Shift: '}<strong>${shiftText}</strong></span>`;
 
           startPolling();
           fetchDashboardData();
@@ -798,9 +1335,84 @@
           loginView.classList.add('active');
           topbarBranchInfo.style.display = 'none';
           logoutBtn.style.display = 'none';
+          if (stmtBtn) stmtBtn.style.display = 'none';
           stopPolling();
         }
       }
+
+      // ─── PUBLIC BRANCHES LOADER ────────────────────────────────────────────────
+      // The endpoint no longer lists every branch — that published the whole
+      // customer book to anyone with the URL. A branch normally arrives by its
+      // own link (?branch_id=); this search is the manual setup path.
+      async function loadPublicBranches(term = '') {
+        const q = (term || '').trim();
+        if (q.length < 2) { publicBranches = []; renderBranchOptions(); return; }
+        try {
+          const res = await fetch(`${API_BASE}/merchant/branches/public?q=${encodeURIComponent(q)}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          publicBranches = await res.json();
+        } catch (e) {
+          publicBranches = [];
+          const alertEl = document.getElementById('loginAlert');
+          if (alertEl) {
+            alertEl.style.display = 'block';
+            alertEl.textContent = currentLang === 'ar'
+              ? 'تعذّر البحث عن الفروع. جرّب تاني أو ادخل برقم معرّف الفرع.'
+              : 'Branch search failed. Retry, or enter the branch id.';
+          }
+        }
+        renderBranchOptions();
+      }
+
+      let branchSearchTimer = null;
+      document.addEventListener('input', (ev) => {
+        if (ev.target && ev.target.id === 'inputBranchSearch') {
+          clearTimeout(branchSearchTimer);
+          branchSearchTimer = setTimeout(() => loadPublicBranches(ev.target.value), 300);
+        }
+      });
+
+      function renderBranchOptions() {
+        const selectEl = document.getElementById('selectBranch');
+        if (!selectEl) return;
+        const isAr = currentLang === 'ar';
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlBranchId = urlParams.get('branch_id');
+        const prevSelected = selectEl.value || urlBranchId || '';
+
+        selectEl.innerHTML = '';
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = isAr ? '-- اختر فرع المطعم --' : '-- Select Restaurant Branch --';
+        selectEl.appendChild(defaultOpt);
+
+        publicBranches.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = String(b.id);
+          opt.textContent = `${b.branch_name}${b.merchant_name ? ` (${b.merchant_name})` : ''}${b.city ? ` - ${b.city}` : ''}`;
+          if (String(b.id) === String(prevSelected)) {
+            opt.selected = true;
+          }
+          selectEl.appendChild(opt);
+        });
+
+        const manualOpt = document.createElement('option');
+        manualOpt.value = 'manual';
+        manualOpt.textContent = isAr ? '➕ إدخال رقم المعرّف يدوياً...' : '➕ Enter Branch ID manually...';
+        if (prevSelected === 'manual') manualOpt.selected = true;
+        selectEl.appendChild(manualOpt);
+
+        toggleManualBranchInput();
+      }
+
+      function toggleManualBranchInput() {
+        const selectEl = document.getElementById('selectBranch');
+        const manualGroup = document.getElementById('manualBranchGroup');
+        if (!selectEl || !manualGroup) return;
+        manualGroup.style.display = selectEl.value === 'manual' ? 'block' : 'none';
+      }
+
+      document.getElementById('selectBranch')?.addEventListener('change', toggleManualBranchInput);
 
       // ─── API REQUEST HELPER ───────────────────────────────────────────────────
       async function apiFetch(endpoint, options = {}) {
@@ -815,7 +1427,7 @@
         if (res.status === 401) {
           clearSession();
           updateViews();
-          showToast('انتهت جلسة تسجيل الدخول، يرجى إعادة الدخول', 'error');
+          showToast(currentLang === 'ar' ? 'انتهت جلسة تسجيل الدخول، يرجى إعادة الدخول' : 'Session expired, please sign in again', 'error');
           throw new Error('Unauthorized');
         }
         return res;
@@ -824,30 +1436,47 @@
       // ─── LOGIN FORM HANDLER ────────────────────────────────────────────────────
       document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const selectBranch = document.getElementById('selectBranch');
         const branchIdInput = document.getElementById('inputBranchId');
         const pinInput = document.getElementById('inputPin');
         const submitBtn = document.getElementById('loginSubmitBtn');
         const alertEl = document.getElementById('loginAlert');
 
+        let branchId = null;
+        if (selectBranch && selectBranch.value && selectBranch.value !== 'manual') {
+          branchId = parseInt(selectBranch.value, 10);
+        } else if (branchIdInput && branchIdInput.value.trim()) {
+          branchId = parseInt(branchIdInput.value.trim(), 10);
+        }
+
+        const isAr = currentLang === 'ar';
+        if (!branchId || isNaN(branchId)) {
+          alertEl.textContent = isAr ? 'يرجى اختيار الفرع أو كتابة رقم المعرّف.' : 'Please select a branch or enter Branch ID.';
+          alertEl.className = 'login-alert error';
+          alertEl.style.display = 'block';
+          return;
+        }
+
         alertEl.className = 'login-alert';
         alertEl.style.display = 'none';
         submitBtn.disabled = true;
-        submitBtn.textContent = 'جاري التحقق...';
+        submitBtn.textContent = isAr ? 'جاري التحقق...' : 'Verifying...';
 
         try {
           const res = await fetch(`${API_BASE}/merchant/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              branch_id: parseInt(branchIdInput.value.trim(), 10),
+              branch_id: branchId,
               pin: pinInput.value.trim(),
             }),
           });
 
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            alertEl.textContent = err.detail || 'رقم الفرع أو رمز PIN غير صحيح.';
+            alertEl.textContent = err.detail || (isAr ? 'رقم الفرع أو رمز PIN غير صحيح.' : 'Invalid Branch or PIN.');
             alertEl.classList.add('error');
+            alertEl.style.display = 'block';
             playAlertChime();
             return;
           }
@@ -855,165 +1484,681 @@
           const data = await res.json();
           saveSession(data);
           playSuccessChime();
-          showToast(`مرحباً بك! تم تسجيل الدخول لـ ${data.branch_name}`);
+          showToast(isAr ? `مرحباً بك! تم تسجيل الدخول لـ ${data.branch_name}` : `Welcome! Signed in to ${data.branch_name}`);
           updateViews();
         } catch (err) {
-          alertEl.textContent = 'تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى.';
+          alertEl.textContent = isAr ? 'تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى.' : 'Failed to connect to server. Please retry.';
           alertEl.classList.add('error');
+          alertEl.style.display = 'block';
         } finally {
           submitBtn.disabled = false;
-          submitBtn.textContent = 'دخول لوحة الكاشير 🚀';
+          submitBtn.textContent = isAr ? 'دخول لوحة الكاشير 🚀' : 'Enter Cashier Portal 🚀';
         }
       });
+
+      // ─── STATEMENT & BILLING MODAL HANDLER ────────────────────────────────────
+      document.getElementById('statementBtn')?.addEventListener('click', openStatementModal);
+      document.getElementById('closeStatementModalBtn')?.addEventListener('click', () => {
+        document.getElementById('statementModal').style.display = 'none';
+      });
+      document.getElementById('statementModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'statementModal') e.target.style.display = 'none';
+      });
+
+      async function openStatementModal() {
+        const modal = document.getElementById('statementModal');
+        const body = document.getElementById('statementModalBody');
+        modal.style.display = 'flex';
+        const isAr = currentLang === 'ar';
+        body.innerHTML = `<div style="text-align:center;padding:36px;color:var(--muted)">${isAr ? 'جاري تحميل كشف الحساب والفوترة...' : 'Loading monthly billing statement...'}</div>`;
+
+        try {
+          const accountId = session.merchantAccountId || 1;
+          const res = await apiFetch(`/merchant/account/${accountId}/statement`);
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            body.innerHTML = `<div style="padding:24px;color:var(--red);text-align:center">⚠️ ${err.detail || (isAr ? 'تعذر استرجاع كشف الحساب' : 'Failed to retrieve statement')}</div>`;
+            return;
+          }
+          const data = await res.json();
+          renderStatementData(data, body);
+        } catch (err) {
+          body.innerHTML = `<div style="padding:24px;color:var(--red);text-align:center">⚠️ ${isAr ? 'خطأ بالاتصال: ' : 'Connection error: '}${err.message}</div>`;
+        }
+      }
+
+      function renderStatementData(data, body) {
+        const isAr = currentLang === 'ar';
+        const totalFormatted = (data.total_amount_due || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+        const items = data.line_items || [];
+
+        body.innerHTML = `
+          <div style="display:grid;gap:18px">
+            <div style="background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+              <div>
+                <div style="font-size:12px;color:var(--muted)">${isAr ? 'حساب المنشأة التجارية' : 'Merchant Account'}</div>
+                <div style="font-size:18px;font-weight:900;color:var(--ink)">${data.merchant_name || '—'}</div>
+                <div style="font-size:12px;color:var(--ink2);margin-top:2px">📅 ${data.statement_month || '—'}</div>
+              </div>
+              <div style="text-align:${isAr ? 'left' : 'right'}">
+                <span class="badge ${data.settlement_status === 'approved' ? 'green' : 'amber'}" style="font-size:12px;padding:4px 10px">
+                  ${data.settlement_status === 'approved' ? (isAr ? '✅ معتمدة ومقفلة' : '✅ Settled') : (isAr ? '⏳ مسودة شهرية' : '⏳ Draft Statement')}
+                </span>
+                <div style="font-size:11px;color:var(--muted);margin-top:4px">${isAr ? 'تاريخ الاستحقاق: ' : 'Due date: '}${data.due_date || '—'}</div>
+              </div>
+            </div>
+
+            <div style="background:linear-gradient(135deg, rgba(255,90,19,0.08) 0%, rgba(16,185,129,0.08) 100%);border:1px solid var(--orange-glow);border-radius:14px;padding:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+              <div>
+                <div style="font-size:13px;font-weight:700;color:var(--ink2)">${isAr ? 'إجمالي الرسوم المستحقة للمطعم' : 'Total Amount Due'}</div>
+                <div style="font-size:11px;color:var(--muted);margin-top:2px">${isAr ? 'رسوم العقد التجاري للوردية المخصصة (7,000 ر.س شهرياً للسائق)' : 'Dedicated shift commercial fee (7,000 SAR/month per driver)'}</div>
+              </div>
+              <div style="font-size:28px;font-weight:900;color:var(--orange);font-family:'JetBrains Mono',monospace">
+                ${totalFormatted} <span style="font-size:15px;color:var(--ink)">${data.currency || 'SAR'}</span>
+              </div>
+            </div>
+
+            <div>
+              <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:var(--ink)">${isAr ? 'تفاصيل بنود الورديات والمناديب' : 'Shift & Driver Itemization'}</div>
+              <table style="width:100%;border-collapse:collapse;font-size:12.5px;border-radius:10px;overflow:hidden;border:1px solid var(--line)">
+                <thead>
+                  <tr style="background:var(--surface2);text-align:${isAr ? 'right' : 'left'};border-bottom:1px solid var(--line)">
+                    <th style="padding:10px 14px">${isAr ? 'الفرع' : 'Branch'}</th>
+                    <th style="padding:10px 14px">${isAr ? 'نوع الوردية' : 'Shift Type'}</th>
+                    <th style="padding:10px 14px">${isAr ? 'المندوب' : 'Rider'}</th>
+                    <th style="padding:10px 14px">${isAr ? 'الأيام النشطة' : 'Active Days'}</th>
+                    <th style="padding:10px 14px;text-align:${isAr ? 'left' : 'right'}">${isAr ? 'المبلغ المستحق' : 'Prorated Fee'}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${items.map(item => `
+                    <tr style="border-bottom:1px solid var(--line)">
+                      <td style="padding:10px 14px;font-weight:700">${item.branch_name || '—'}</td>
+                      <td style="padding:10px 14px"><span class="badge blue">${item.shift_type === 'full_day_8h' ? (isAr ? 'وردية كاملة 8 ساعات' : 'Full Day 8h') : item.shift_type}</span></td>
+                      <td style="padding:10px 14px">${item.rider_name || '—'}</td>
+                      <td style="padding:10px 14px">${item.active_days} / ${item.days_in_month} ${isAr ? 'يوم' : 'days'}</td>
+                      <td style="padding:10px 14px;font-weight:800;color:var(--green);text-align:${isAr ? 'left' : 'right'};font-family:'JetBrains Mono',monospace">${(item.prorated_fee || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${data.currency || 'SAR'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div style="background:var(--surface3);border-radius:10px;padding:12px 16px;font-size:11.5px;color:var(--muted);line-height:1.6">
+              💡 ${isAr
+                ? 'يتم إصدار الفاتورة الضريبية الرسمية وتوثيق الدفع وفق الشروط التجارية المعتمدة. للاستفسار يرجى التواصل مع فريق حسابات كبار العملاء في DOU.'
+                : 'Official VAT tax invoice is generated following contract payment terms. For inquiries contact your dedicated DOU account manager.'}
+            </div>
+
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px">
+              <button class="action-btn" onclick="window.print()" style="display:inline-flex;padding:8px 16px;background:var(--surface2);border:1px solid var(--line);border-radius:8px">
+                🖨️ ${isAr ? 'طباعة / حفظ PDF' : 'Print / Save PDF'}
+              </button>
+              <button class="btn-submit" onclick="document.getElementById('statementModal').style.display='none'" style="width:auto;padding:8px 22px;margin:0">
+                ${isAr ? 'إغلاق' : 'Close'}
+              </button>
+            </div>
+          </div>
+        `;
+      }
 
       // ─── LOGOUT HANDLER ────────────────────────────────────────────────────────
       document.getElementById('logoutBtn').addEventListener('click', () => {
-        if (confirm('هل ترغب بتسجيل الخروج من فرع الكاشير؟')) {
-          clearSession();
-          updateViews();
-          showToast('تم تسجيل الخروج بنجاح');
+        clearSession();
+        updateViews();
+        showToast(isAr ? 'تم تسجيل الخروج بنجاح' : 'Logged out successfully');
+      });
+
+      // ─── DISPATCH MODE & PAYMENT METHOD HANDLERS ───────────────────────────────
+      const modeRoundRobinBtn = document.getElementById('modeRoundRobinBtn');
+      const modeNamedBtn = document.getElementById('modeNamedBtn');
+      const namedRiderGroup = document.getElementById('namedRiderGroup');
+
+      function setDispatchMode(mode) {
+        selectedDispatchMode = mode;
+        if (mode === 'round_robin') {
+          modeRoundRobinBtn?.classList.add('active');
+          modeNamedBtn?.classList.remove('active');
+          if (namedRiderGroup) namedRiderGroup.style.display = 'none';
+        } else {
+          modeNamedBtn?.classList.add('active');
+          modeRoundRobinBtn?.classList.remove('active');
+          if (namedRiderGroup) namedRiderGroup.style.display = 'block';
+        }
+      }
+      modeRoundRobinBtn?.addEventListener('click', () => setDispatchMode('round_robin'));
+      modeNamedBtn?.addEventListener('click', () => setDispatchMode('named'));
+
+      document.querySelectorAll('.payment-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          document.querySelectorAll('.payment-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          selectedPaymentMethod = chip.getAttribute('data-method') || 'cash';
+        });
+      });
+
+      // ─── COLLAPSIBLE CUSTOMER DETAILS ──────────────────────────────────────────
+      const toggleCustomerDetailsBtn = document.getElementById('toggleCustomerDetailsBtn');
+      const customerDetailsSection = document.getElementById('customerDetailsSection');
+      const customerDetailsArrow = document.getElementById('customerDetailsArrow');
+      toggleCustomerDetailsBtn?.addEventListener('click', () => {
+        if (!customerDetailsSection) return;
+        const isHidden = customerDetailsSection.style.display === 'none' || !customerDetailsSection.style.display;
+        customerDetailsSection.style.display = isHidden ? 'block' : 'none';
+        if (customerDetailsArrow) {
+          customerDetailsArrow.textContent = isHidden ? '▼' : '▶';
         }
       });
 
-      // ─── DISPATCH ORDER FORM HANDLER ───────────────────────────────────────────
-      const dispatchForm = document.getElementById('dispatchOrderForm');
-      dispatchForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const nameInput = document.getElementById('orderCustomerName');
-        const phoneInput = document.getElementById('orderCustomerPhone');
-        const addrInput = document.getElementById('orderDeliveryAddress');
-        const submitBtn = document.getElementById('dispatchSubmitBtn');
+      // ─── COD SETTLEMENT MODAL LOGIC ────────────────────────────────────────────
+      function openSettleModal(riderId, riderName, openFloat) {
+        targetSettleRider = { id: riderId, name: riderName, amount: openFloat };
+        const isAr = getLang() === 'ar';
+        const nameEl = document.getElementById('settleRiderName');
+        const amountEl = document.getElementById('settleAmountDisplay');
+        const modal = document.getElementById('settleModal');
+        if (nameEl) nameEl.textContent = riderName;
+        if (amountEl) amountEl.textContent = `${Number(openFloat).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${isAr ? 'ر.س' : 'SAR'}`;
+        if (modal) modal.style.display = 'flex';
+      }
 
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span>⏳</span><span>جاري إسناد الطلب للمندوب...</span>';
+      function closeSettleModal() {
+        const modal = document.getElementById('settleModal');
+        if (modal) modal.style.display = 'none';
+        targetSettleRider = null;
+      }
+
+      document.getElementById('closeSettleModalBtn')?.addEventListener('click', closeSettleModal);
+      document.getElementById('cancelSettleBtn')?.addEventListener('click', closeSettleModal);
+      document.getElementById('settleModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'settleModal') closeSettleModal();
+      });
+
+      document.getElementById('confirmSettleBtn')?.addEventListener('click', async () => {
+        if (!targetSettleRider || !session.branchId) return;
+        const btn = document.getElementById('confirmSettleBtn');
+        const isAr = getLang() === 'ar';
+        btn.disabled = true;
+        btn.innerHTML = `<span>⏳</span><span>${isAr ? 'جاري الإقفال...' : 'Settling...'}</span>`;
 
         try {
-          const res = await apiFetch(`/merchant/branch/${session.branchId}/orders`, {
+          const res = await apiFetch(`/merchant/branch/${session.branchId}/riders/${targetSettleRider.id}/settle-cod`, {
             method: 'POST',
-            body: JSON.stringify({
-              customer_name: nameInput.value.trim(),
-              customer_phone: phoneInput.value.trim(),
-              delivery_address: addrInput.value.trim(),
-            }),
           });
+          const data = await res.json().catch(() => ({}));
 
-          const data = await res.json();
-
+          if (res.status === 409) {
+            playAlertChime();
+            showToast(isAr ? '⚠️ لا توجد عهد نقدية مفتوحة لهذا المندوب (تم إقفالها مسبقاً).' : '⚠️ No open cash float found for this rider.', 'warn');
+            closeSettleModal();
+            fetchActiveRiders();
+            return;
+          }
+          if (res.status === 403) {
+            playAlertChime();
+            showToast(isAr ? '⚠️ غير مصرح لك بتصفية عهدة هذا الفرع. تأكد من صلاحيات الحساب.' : '⚠️ Unauthorized to settle float for this branch.', 'error');
+            return;
+          }
           if (!res.ok) {
             playAlertChime();
-            showToast(data.detail || 'تعذر إسناد الطلب.', 'error');
+            showToast(data.detail || (isAr ? 'فشلت عملية تصفية العهدة.' : 'Settlement failed.'), 'error');
             return;
           }
 
           playSuccessChime();
-          showToast(`تم إسناد الطلب #${data.order_id} بنجاح إلى ${data.assigned_rider_name} 🚀`, 'success');
+          const settledAmt = data.settled_amount != null ? Number(data.settled_amount).toFixed(2) : targetSettleRider.amount.toFixed(2);
+          showToast(isAr ? `تم استلام الكاش (${settledAmt} ر.س) وإقفال العهدة بنجاح ✅` : `Cash collected (${settledAmt} SAR) and float settled ✅`, 'success');
+          closeSettleModal();
+          fetchActiveRiders();
+          fetchActiveOrders();
+        } catch (e) {
+          console.error('Settle error:', e);
+          showToast(isAr ? 'خطأ في الاتصال بالخادم' : 'Server connection error', 'error');
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = `<span>✅</span><span id="txtConfirmSettle">${isAr ? 'استلمت الكاش وأقفل العهدة' : 'Cash Received & Settle Float'}</span>`;
+        }
+      });
 
-          // Reset inputs
-          nameInput.value = '';
-          phoneInput.value = '';
-          addrInput.value = '';
-          nameInput.focus();
+      // ─── CASHIER FALLBACK CHECK-IN MODAL LOGIC ─────────────────────────────────
+      function openCheckinModal(riderId, riderName) {
+        targetCheckinRider = { id: riderId, name: riderName };
+        const nameEl = document.getElementById('checkinRiderName');
+        const modal = document.getElementById('checkinModal');
+        if (nameEl) nameEl.textContent = riderName;
+        if (modal) modal.style.display = 'flex';
+      }
 
-          // Refresh lists
+      function closeCheckinModal() {
+        const modal = document.getElementById('checkinModal');
+        if (modal) modal.style.display = 'none';
+        targetCheckinRider = null;
+      }
+
+      document.getElementById('closeCheckinModalBtn')?.addEventListener('click', closeCheckinModal);
+      document.getElementById('cancelCheckinBtn')?.addEventListener('click', closeCheckinModal);
+      document.getElementById('checkinModal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'checkinModal') closeCheckinModal();
+      });
+
+      document.getElementById('confirmCheckinBtn')?.addEventListener('click', async () => {
+        if (!targetCheckinRider || !session.branchId) return;
+        const btn = document.getElementById('confirmCheckinBtn');
+        const isAr = getLang() === 'ar';
+        btn.disabled = true;
+        btn.innerHTML = `<span>⏳</span><span>${isAr ? 'جاري الاعتماد...' : 'Confirming...'}</span>`;
+
+        try {
+          const res = await apiFetch(`/merchant/branch/${session.branchId}/riders/${targetCheckinRider.id}/cashier-checkin`, {
+            method: 'POST',
+          });
+          const data = await res.json().catch(() => ({}));
+
+          if (res.status === 403) {
+            playAlertChime();
+            showToast(isAr ? '⚠️ غير مصرح لك بتأكيد حضور مناديب هذا الفرع.' : '⚠️ Unauthorized to confirm attendance for this branch.', 'error');
+            return;
+          }
+          if (!res.ok) {
+            playAlertChime();
+            showToast(data.detail || (isAr ? 'تعذر تأكيد حضور المندوب.' : 'Failed to confirm check-in.'), 'error');
+            return;
+          }
+
+          playSuccessChime();
+          showToast(isAr ? `تم تأكيد حضور المندوب ${targetCheckinRider.name} يدوياً بنجاح (تأكيد كاشير احتياطي) ✋` : `Rider ${targetCheckinRider.name} checked in via cashier fallback ✋`, 'success');
+          closeCheckinModal();
+          fetchActiveRiders();
+        } catch (e) {
+          console.error('Check-in error:', e);
+          showToast(isAr ? 'خطأ في الاتصال بالخادم' : 'Server connection error', 'error');
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = `<span>✋</span><span id="txtConfirmCheckin">${isAr ? 'تأكيد حضور المندوب' : 'Confirm Rider Attendance'}</span>`;
+        }
+      });
+
+      function selectRiderForDispatch(riderId) {
+        setDispatchMode('named');
+        const selectEl = document.getElementById('dispatchRiderSelect');
+        if (selectEl) selectEl.value = String(riderId);
+        const extInput = document.getElementById('orderExternalId');
+        if (extInput) extInput.focus();
+        const card = document.querySelector('.dispatch-card');
+        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      function escapeJs(str) {
+        return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      }
+
+      // ─── DISPATCH ORDER FORM HANDLER (FAST ENTRY 5-10s) ─────────────────────────
+      const dispatchForm = document.getElementById('dispatchOrderForm');
+      dispatchForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const isAr = getLang() === 'ar';
+        const externalIdInput = document.getElementById('orderExternalId');
+        const amountInput = document.getElementById('orderAmount');
+        const nameInput = document.getElementById('orderCustomerName');
+        const phoneInput = document.getElementById('orderCustomerPhone');
+        const addrInput = document.getElementById('orderDeliveryAddress');
+        const riderSelect = document.getElementById('dispatchRiderSelect');
+        const submitBtn = document.getElementById('dispatchSubmitBtn');
+
+        const externalOrderId = externalIdInput?.value.trim() || null;
+        const rawAmount = amountInput?.value.trim();
+        const orderAmount = rawAmount ? parseFloat(rawAmount) : null;
+        const customerName = nameInput?.value.trim() || null;
+        const customerPhone = phoneInput?.value.trim() || null;
+        const deliveryAddress = addrInput?.value.trim() || null;
+
+        // Validation: must provide at least Invoice # or Delivery Address
+        if (!externalOrderId && !deliveryAddress) {
+          showToast(isAr ? 'يرجى إدخال رقم الفاتورة أو عنوان التوصيل لإتمام الإسناد.' : 'Please enter either Invoice # or Delivery Address.', 'warn');
+          if (externalIdInput) externalIdInput.focus();
+          return;
+        }
+
+        let targetRiderId = null;
+        let isRoundRobin = true;
+
+        if (selectedDispatchMode === 'named') {
+          const rId = riderSelect ? parseInt(riderSelect.value, 10) : null;
+          if (!rId || isNaN(rId)) {
+            showToast(isAr ? 'يرجى اختيار المندوب من القائمة للإسناد بالاسم.' : 'Please select a rider from the list for direct dispatch.', 'warn');
+            if (riderSelect) riderSelect.focus();
+            return;
+          }
+          targetRiderId = rId;
+          isRoundRobin = false;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span>⏳</span><span>${isAr ? 'جاري إسناد الطلب للمندوب...' : 'Dispatching order to rider...'}</span>`;
+
+        try {
+          const payload = {
+            customer_name: customerName,
+            customer_phone: customerPhone,
+            delivery_address: deliveryAddress,
+            external_order_id: externalOrderId,
+            order_amount: orderAmount,
+            payment_method: selectedPaymentMethod,
+            rider_id: targetRiderId,
+            round_robin: isRoundRobin,
+          };
+
+          const res = await apiFetch(`/merchant/branch/${session.branchId}/orders`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (res.status === 403) {
+            playAlertChime();
+            showToast(isAr ? 'غير مصرح بهذا الإجراء لهذا الفرع. تأكد من صحة بيانات الدخول أو مراجعة إدارة العمليات.' : 'Unauthorized for this branch.', 'error');
+            return;
+          }
+
+          if (!res.ok) {
+            playAlertChime();
+            showToast(data.detail || (isAr ? 'تعذر إسناد الطلب.' : 'Failed to dispatch order.'), 'error');
+            return;
+          }
+
+          playSuccessChime();
+          showToast(isAr ? `تم إسناد الطلب #${data.order_id} بنجاح إلى ${data.assigned_rider_name} 🚀` : `Order #${data.order_id} dispatched to ${data.assigned_rider_name} 🚀`, 'success');
+
+          // Reset fast inputs
+          if (externalIdInput) externalIdInput.value = '';
+          if (amountInput) amountInput.value = '';
+          if (nameInput) nameInput.value = '';
+          if (phoneInput) phoneInput.value = '';
+          if (addrInput) addrInput.value = '';
+          if (externalIdInput) externalIdInput.focus();
+
           fetchActiveOrders();
           fetchActiveRiders();
         } catch (err) {
           console.error('Dispatch error:', err);
+          showToast(isAr ? 'خطأ بالاتصال بالخادم أثناء إسناد الطلب.' : 'Connection error during dispatch.', 'error');
         } finally {
           submitBtn.disabled = false;
-          submitBtn.innerHTML = '<span>🛵</span><span>إرسال الطلب للمندوب فوراً</span>';
+          submitBtn.innerHTML = `<span>🛵</span><span id="txtDispatchSubmit">${isAr ? 'إرسال الطلب للمندوب فوراً' : 'Dispatch Order to Rider Now'}</span>`;
         }
       });
 
-      // HOTKEY: Ctrl+Enter to submit dispatch form
+      // HOTKEY: Ctrl+Enter / Cmd+Enter to submit dispatch form
       window.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
           const activeView = document.getElementById('dashboardView');
-          if (activeView.classList.contains('active')) {
-            dispatchForm.requestSubmit();
+          if (activeView && activeView.classList.contains('active')) {
+            dispatchForm?.requestSubmit();
           }
         }
       });
 
-      // ─── FETCH RIDERS & ORDERS ─────────────────────────────────────────────────
+      // ─── FETCH RIDERS (WITH VACANT SEATS & NO ERROR SWALLOWING) ─────────────────
       async function fetchActiveRiders() {
         if (!session.branchId) return;
+        const isAr = getLang() === 'ar';
         try {
-          const res = await apiFetch(`/merchant/branch/${session.branchId}/riders/active`);
-          if (!res.ok) return;
-          const riders = await res.json();
-          renderActiveRiders(riders);
+          const res = await apiFetch(`/merchant/branch/${session.branchId}/riders/active?include_vacant=true`);
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const container = document.getElementById('activeRidersList');
+            if (container) {
+              container.innerHTML = `
+                <div class="empty-state error" style="background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.2);border-radius:14px;padding:24px;text-align:center;">
+                  <div class="empty-icon" style="font-size:32px;">⚠️</div>
+                  <div class="empty-title" style="color:var(--red);font-weight:800;font-size:15px;margin:8px 0 4px;">
+                    ${isAr ? 'فشل تحميل بيانات شبكة المناديب' : 'Failed to load branch riders'}
+                  </div>
+                  <div class="empty-sub" style="color:var(--muted);font-size:12px;margin-bottom:12px;">
+                    ${err.detail || (isAr ? `خطأ بالاتصال بالخادم (${res.status})` : `Server error (${res.status})`)}
+                  </div>
+                  <button class="action-btn" onclick="window.fetchActiveRiders()" style="display:inline-flex;margin:0 auto;">
+                    🔄 ${isAr ? 'إعادة المحاولة' : 'Retry'}
+                  </button>
+                </div>
+              `;
+            }
+            showToast(isAr ? `تعذر تحميل شبكة المناديب: ${err.detail || res.status}` : `Failed to load riders: ${err.detail || res.status}`, 'error');
+            return;
+          }
+          activeRidersData = await res.json();
+          renderActiveRiders(activeRidersData);
         } catch (e) {
           console.error('Error fetching riders:', e);
+          const container = document.getElementById('activeRidersList');
+          if (container) {
+            container.innerHTML = `
+              <div class="empty-state error" style="background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.2);border-radius:14px;padding:24px;text-align:center;">
+                <div class="empty-icon" style="font-size:32px;">⚠️</div>
+                <div class="empty-title" style="color:var(--red);font-weight:800;font-size:15px;margin:8px 0 4px;">
+                  ${isAr ? 'خطأ بالاتصال بالشبكة' : 'Network Connection Error'}
+                </div>
+                <div class="empty-sub" style="color:var(--muted);font-size:12px;margin-bottom:12px;">${e.message}</div>
+                <button class="action-btn" onclick="window.fetchActiveRiders()" style="display:inline-flex;margin:0 auto;">
+                  🔄 ${isAr ? 'إعادة المحاولة' : 'Retry'}
+                </button>
+              </div>
+            `;
+          }
         }
       }
 
       function renderActiveRiders(riders) {
         const container = document.getElementById('activeRidersList');
         const badge = document.getElementById('ridersCountBadge');
-        badge.textContent = `${riders.length} مندوب`;
+        const readyBadge = document.getElementById('readyCountBadge');
+        const enrouteBadge = document.getElementById('enrouteCountBadge');
+        const openFloatBadge = document.getElementById('openFloatTotalBadge');
+        const riderSelect = document.getElementById('dispatchRiderSelect');
+        const isAr = getLang() === 'ar';
 
-        if (!riders || riders.length === 0) {
+        if (!riders) riders = [];
+
+        let readyCount = 0;
+        let enrouteCount = 0;
+        let totalFloat = 0;
+        let hasCheckedInRider = false;
+
+        // Populate dropdown
+        if (riderSelect) {
+          const prevVal = riderSelect.value;
+          riderSelect.innerHTML = `<option value="">${isAr ? '-- اختر المندوب من القائمة --' : '-- Select Rider from list --'}</option>`;
+          riders.forEach(r => {
+            if (!r.is_vacant && r.rider_id) {
+              const opt = document.createElement('option');
+              opt.value = String(r.rider_id);
+              let statusText = isAr ? 'لم يحضر' : 'Not present';
+              if (r.current_status === 'ready') statusText = isAr ? 'جاهز بالفرع' : 'Ready';
+              else if (r.current_status === 'en_route') statusText = isAr ? `في مشوار (${r.active_orders_count})` : `En route (${r.active_orders_count})`;
+              else if (r.current_status === 'break') statusText = isAr ? 'استراحة' : 'Break';
+              opt.textContent = `${r.rider_name} [${statusText}] — عهدة: ${(r.open_float || 0).toFixed(2)} ${isAr ? 'ر.س' : 'SAR'}`;
+              if (String(r.rider_id) === String(prevVal)) opt.selected = true;
+              riderSelect.appendChild(opt);
+            }
+          });
+        }
+
+        riders.forEach(r => {
+          if (!r.is_vacant) {
+            if (r.current_status === 'ready') readyCount++;
+            if (r.current_status === 'en_route') enrouteCount++;
+            totalFloat += (r.open_float || 0);
+            if (r.checkin_status === 'checked_in') hasCheckedInRider = true;
+          }
+        });
+
+        if (badge) badge.textContent = `${riders.length} ${isAr ? 'مقعد' : 'Seats'}`;
+        if (readyBadge) readyBadge.textContent = `${readyCount} ${isAr ? 'جاهز بالفرع' : 'Ready'}`;
+        if (enrouteBadge) enrouteBadge.textContent = `${enrouteCount} ${isAr ? 'في مشوار' : 'En Route'}`;
+        if (openFloatBadge) openFloatBadge.textContent = `${isAr ? 'عهد مفتوحة: ' : 'Open Floats: '}${totalFloat.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${isAr ? 'ر.س' : 'SAR'}`;
+
+        if (riders.length === 0) {
           container.innerHTML = `
             <div class="empty-state">
               <div class="empty-icon">🛵</div>
-              <div class="empty-title">لا يوجد مناديب مسكنين لهذا الفرع اليوم</div>
-              <div class="empty-sub">يتم تسكين المناديب عبر عقود الورديات المخصصة في المنصة</div>
+              <div class="empty-title">${isAr ? 'لا يوجد مناديب مسكنين لهذا الفرع اليوم' : 'No riders assigned for this branch today'}</div>
+              <div class="empty-sub">${isAr ? 'يتم تسكين المناديب عبر عقود الورديات المخصصة في المنصة' : 'Riders are contracted via Dedicated Shift contracts in DOU platform'}</div>
             </div>
           `;
           return;
         }
 
         let html = '';
-        let hasCheckedInRider = false;
-
         riders.forEach(r => {
-          let statusPill = '';
-          let isCheckedIn = false;
-
-          if (r.checkin_status === 'checked_in') {
-            statusPill = `<span class="status-pill green"><span class="pulse-dot" style="background:var(--green)"></span>حاضر بالفرع (داخل النطاق)</span>`;
-            isCheckedIn = true;
-            hasCheckedInRider = true;
-          } else if (r.checkin_status === 'completed') {
-            statusPill = `<span class="status-pill blue">أنهى الوردية</span>`;
-          } else {
-            statusPill = `<span class="status-pill amber">لم يحضر بعد</span>`;
-          }
-
-          html += `
-            <div class="rider-card ${isCheckedIn ? 'active' : ''}">
-              <div class="rider-info">
-                <div class="rider-avatar">${isCheckedIn ? '🛵' : '👤'}</div>
-                <div>
-                  <div class="rider-name-row">
-                    <span class="rider-name">${r.rider_name}</span>
-                    <span class="rider-phone mono">${r.rider_phone_masked}</span>
+          if (r.is_vacant) {
+            html += `
+              <div class="rider-card vacant">
+                <div class="rider-info">
+                  <div class="rider-avatar">🪑</div>
+                  <div>
+                    <div class="rider-name-row">
+                      <span class="rider-name" style="color:var(--muted)">${isAr ? 'مقعد شاغر (عقد متعاقد)' : 'Vacant Seat (Contracted)'}</span>
+                    </div>
+                    <div class="rider-shift-time">${isAr ? 'وردية: ' : 'Shift: '}<strong>${r.shift_start} - ${r.shift_end}</strong></div>
+                    <div style="font-size:10.5px;color:var(--muted);margin-top:2px;">${isAr ? 'بانتظار تسكين مندوب من الشركة' : 'Awaiting driver staffing from logistics'}</div>
                   </div>
-                  <div class="rider-shift-time">الوردية: <strong>${r.shift_start} - ${r.shift_end}</strong></div>
+                </div>
+                <div>
+                  <span class="status-pill" style="background:var(--surface3);color:var(--muted);border:1px dashed var(--line);">${isAr ? 'شاغر لم يُسكن' : 'Unstaffed Seat'}</span>
                 </div>
               </div>
-              <div>${statusPill}</div>
-            </div>
-          `;
+            `;
+          } else {
+            let statusPill = '';
+            let cardClass = '';
+
+            if (r.current_status === 'ready') {
+              statusPill = `<span class="status-pill green"><span class="pulse-dot" style="background:var(--green)"></span>${isAr ? 'في الفرع جاهز' : 'Ready at Branch'}</span>`;
+              cardClass = 'ready active';
+            } else if (r.current_status === 'en_route') {
+              statusPill = `<span class="status-pill blue"><span class="pulse-dot" style="background:var(--blue)"></span>${isAr ? `في مشوار (${r.active_orders_count} طلب)` : `En Route (${r.active_orders_count})`}</span>`;
+              cardClass = 'en_route';
+            } else if (r.current_status === 'break') {
+              statusPill = `<span class="status-pill amber">${isAr ? 'في استراحة' : 'On Break'}</span>`;
+            } else if (r.current_status === 'completed') {
+              statusPill = `<span class="status-pill blue">${isAr ? 'أنهى الوردية' : 'Shift Done'}</span>`;
+            } else {
+              statusPill = `<span class="status-pill amber">${isAr ? 'لم يحضر بعد' : 'Not Checked In'}</span>`;
+            }
+
+            let checkinTag = '';
+            if (r.checkin_source === 'cashier') {
+              checkinTag = `<span class="badge amber" style="font-size:10px;padding:2px 6px;" title="${isAr ? 'حضور معتمد بواسطة الكاشير (احتياطي)' : 'Cashier fallback verified'}">✋ ${isAr ? 'تأكيد كاشير' : 'Cashier'}</span>`;
+            } else if (r.checkin_source === 'gps') {
+              checkinTag = `<span class="badge green" style="font-size:10px;padding:2px 6px;" title="GPS Verified">📍 GPS</span>`;
+            }
+
+            const openFloatVal = Number(r.open_float || 0);
+            let floatTag = '';
+            if (openFloatVal > 0) {
+              floatTag = `<span class="badge red mono" style="font-size:10.5px;font-weight:800;">💵 ${isAr ? 'عهدة: ' : 'Float: '}${openFloatVal.toFixed(2)} ${isAr ? 'ر.س' : 'SAR'}</span>`;
+            } else {
+              floatTag = `<span class="badge gray mono" style="font-size:10px;color:var(--muted)">${isAr ? 'عهدة: 0.00 ر.س' : 'Float: 0.00 SAR'}</span>`;
+            }
+
+            let actionsHtml = `
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:8px;border-top:1px solid var(--line);">
+                <button type="button" class="action-btn-sm assign" onclick="window.selectRiderForDispatch(${r.rider_id})" title="${isAr ? 'إسناد طلب فوري لهذا المندوب' : 'Assign order to this rider'}">
+                  <span>👤</span>
+                  <span>${isAr ? 'إسناد له' : 'Assign'}</span>
+                </button>
+            `;
+
+            if (openFloatVal > 0) {
+              actionsHtml += `
+                <button type="button" class="action-btn-sm settle" onclick="window.openSettleModal(${r.rider_id}, '${escapeJs(r.rider_name)}', ${openFloatVal})" title="${isAr ? 'استلام المبالغ النقدية وتصفية العهدة' : 'Collect cash and settle float'}">
+                  <span>💵</span>
+                  <span>${isAr ? 'استلمت الكاش' : 'Collect Cash'}</span>
+                </button>
+              `;
+            }
+
+            if (r.checkin_status !== 'checked_in') {
+              actionsHtml += `
+                <button type="button" class="action-btn-sm checkin" onclick="window.openCheckinModal(${r.rider_id}, '${escapeJs(r.rider_name)}')" title="${isAr ? 'تأكيد حضور المندوب يدوياً (احتياطي عند تعذر GPS)' : 'Confirm check-in manually (GPS fallback)'}">
+                  <span>✋</span>
+                  <span>${isAr ? 'تأكيد حضور' : 'Confirm Check-in'}</span>
+                </button>
+              `;
+            }
+
+            actionsHtml += `</div>`;
+
+            html += `
+              <div class="rider-card ${cardClass}" data-rider-id="${r.rider_id}">
+                <div class="rider-info">
+                  <div class="rider-avatar">${r.current_status === 'ready' ? '🛵' : '👤'}</div>
+                  <div style="flex:1;">
+                    <div class="rider-name-row">
+                      <span class="rider-name">${r.rider_name}</span>
+                      <span class="rider-phone mono">${r.rider_phone_masked}</span>
+                    </div>
+                    <div class="rider-shift-time">${isAr ? 'الوردية: ' : 'Shift: '}<strong>${r.shift_start} - ${r.shift_end}</strong></div>
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
+                      ${checkinTag}
+                      ${floatTag}
+                    </div>
+                  </div>
+                </div>
+                <div style="text-align:${isAr ? 'left' : 'right'}">
+                  ${statusPill}
+                </div>
+                ${actionsHtml}
+              </div>
+            `;
+          }
         });
 
         container.innerHTML = html;
 
-        // Toggle dispatch button state if no rider is present
         const dispatchBtn = document.getElementById('dispatchSubmitBtn');
-        if (!hasCheckedInRider) {
-          dispatchBtn.title = 'لا يمكن إرسال طلب لعدم وجود مندوب حاضر بالفرع حالياً';
-        } else {
-          dispatchBtn.title = '';
+        if (dispatchBtn) {
+          if (!hasCheckedInRider) {
+            dispatchBtn.title = isAr ? 'تنبيه: لا يوجد مندوب حاضر بالفرع حالياً، يمكنك تأكيد الحضور أو الإسناد المباشر' : 'Notice: No rider checked in at branch currently';
+          } else {
+            dispatchBtn.title = '';
+          }
         }
       }
 
+      // ─── FETCH ORDERS (WITH FINANCIAL INFO & ERROR HANDLING) ────────────────────
       async function fetchActiveOrders() {
         if (!session.branchId) return;
+        const isAr = getLang() === 'ar';
         try {
           const res = await apiFetch(`/merchant/branch/${session.branchId}/orders/active`);
-          if (!res.ok) return;
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const tbody = document.getElementById('ordersTableBody');
+            if (tbody) {
+              tbody.innerHTML = `
+                <tr>
+                  <td colspan="7">
+                    <div class="empty-state error" style="padding:24px;text-align:center;">
+                      <div class="empty-icon" style="font-size:32px;">⚠️</div>
+                      <div class="empty-title" style="color:var(--red);font-weight:800;font-size:15px;margin:8px 0 4px;">
+                        ${isAr ? 'فشل تحميل الطلبات النشطة' : 'Failed to load active orders'}
+                      </div>
+                      <div class="empty-sub" style="color:var(--muted);font-size:12px;margin-bottom:12px;">
+                        ${err.detail || (isAr ? `خطأ بالخادم (${res.status})` : `Server error (${res.status})`)}
+                      </div>
+                      <button class="action-btn" onclick="window.fetchActiveOrders()" style="display:inline-flex;margin:0 auto;">
+                        🔄 ${isAr ? 'إعادة المحاولة' : 'Retry'}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }
+            showToast(isAr ? `تعذر تحميل الطلبات: ${err.detail || res.status}` : `Failed to load orders: ${err.detail || res.status}`, 'error');
+            return;
+          }
           activeOrdersData = await res.json();
           renderActiveOrders();
         } catch (e) {
@@ -1024,12 +2169,13 @@
       function renderActiveOrders() {
         const tbody = document.getElementById('ordersTableBody');
         const countBadge = document.getElementById('activeOrdersCount');
+        const isAr = getLang() === 'ar';
 
         let filtered = activeOrdersData;
         if (activeFilter === 'pending') filtered = activeOrdersData.filter(o => o.status === 'pending');
         if (activeFilter === 'en_route') filtered = activeOrdersData.filter(o => o.status === 'en_route');
 
-        countBadge.textContent = `${activeOrdersData.length} طلب`;
+        if (countBadge) countBadge.textContent = `${activeOrdersData.length} ${isAr ? 'طلب' : 'orders'}`;
 
         if (!filtered || filtered.length === 0) {
           tbody.innerHTML = `
@@ -1037,8 +2183,8 @@
               <td colspan="7">
                 <div class="empty-state">
                   <div class="empty-icon">✨</div>
-                  <div class="empty-title">لا توجد طلبات نشطة ${activeFilter !== 'all' ? 'بهذا الفلتر' : 'حالياً'}</div>
-                  <div class="empty-sub">الفرع جاهز لاستقبال الطلبات وإسنادها مباشرة لمندوب الوردية</div>
+                  <div class="empty-title">${isAr ? 'لا توجد طلبات نشطة ' + (activeFilter !== 'all' ? 'بهذا الفلتر' : 'حالياً') : 'No active orders ' + (activeFilter !== 'all' ? 'with this filter' : 'currently')}</div>
+                  <div class="empty-sub">${isAr ? 'الفرع جاهز لاستقبال الطلبات وإسنادها مباشرة لمناديب الوردية' : 'Branch is ready to receive orders and dispatch directly to riders'}</div>
                 </div>
               </td>
             </tr>
@@ -1049,21 +2195,49 @@
         let html = '';
         filtered.forEach(o => {
           const elapsedMin = Math.max(0, Math.floor((new Date() - new Date(o.dispatched_at)) / 60000));
-          const timeText = elapsedMin < 1 ? 'الآن' : `منذ ${elapsedMin} د`;
+          const timeText = elapsedMin < 1 ? (isAr ? 'الآن' : 'Just now') : (isAr ? `منذ ${elapsedMin} د` : `${elapsedMin}m ago`);
 
           let statusBadge = '';
           if (o.status === 'pending') {
-            statusBadge = `<span class="status-pill amber"><span class="pulse-dot" style="background:var(--amber)"></span>في الانتظار</span>`;
+            statusBadge = `<span class="status-pill amber"><span class="pulse-dot" style="background:var(--amber)"></span>${isAr ? 'في الانتظار' : 'Pending'}</span>`;
           } else if (o.status === 'en_route') {
-            statusBadge = `<span class="status-pill blue"><span class="pulse-dot" style="background:var(--blue)"></span>جاري التوصيل</span>`;
+            statusBadge = `<span class="status-pill blue"><span class="pulse-dot" style="background:var(--blue)"></span>${isAr ? 'جاري التوصيل' : 'En Route'}</span>`;
           } else if (o.status === 'delivered') {
-            statusBadge = `<span class="status-pill green">تم التسليم</span>`;
+            statusBadge = `<span class="status-pill green">${isAr ? 'تم التسليم' : 'Delivered'}</span>`;
+          }
+
+          let invoiceTag = '';
+          if (o.external_order_id) {
+            invoiceTag = `<div class="mono" style="font-size:11px;color:var(--orange);font-weight:700;">#${o.external_order_id}</div>`;
+          }
+
+          let payBadge = '';
+          if (o.payment_method === 'cash') {
+            payBadge = `<span class="badge amber" style="font-size:10px;">💵 ${isAr ? 'كاش' : 'Cash'}</span>`;
+          } else if (o.payment_method === 'card') {
+            payBadge = `<span class="badge blue" style="font-size:10px;">💳 ${isAr ? 'شبكة' : 'Card'}</span>`;
+          } else if (o.payment_method === 'prepaid') {
+            payBadge = `<span class="badge green" style="font-size:10px;">📱 ${isAr ? 'مسبق' : 'Prepaid'}</span>`;
+          }
+
+          let amountDisplay = '';
+          if (o.order_amount != null) {
+            amountDisplay = `<div class="mono" style="font-size:11px;font-weight:800;color:var(--ink);">${Number(o.order_amount).toFixed(2)} ${isAr ? 'ر.س' : 'SAR'}</div>`;
           }
 
           html += `
             <tr>
-              <td><span class="order-id-tag">#${o.order_id}</span></td>
-              <td><div class="order-customer">${o.customer_name}</div></td>
+              <td>
+                <span class="order-id-tag">#${o.order_id}</span>
+                ${invoiceTag}
+              </td>
+              <td>
+                <div class="order-customer">${o.customer_name}</div>
+                <div style="margin-top:2px;display:flex;gap:4px;align-items:center;">
+                  ${payBadge}
+                  ${amountDisplay}
+                </div>
+              </td>
               <td><a class="mono order-phone" href="tel:${o.customer_phone}">${o.customer_phone}</a></td>
               <td>
                 <div class="order-address" title="${o.delivery_address_text}">
@@ -1120,34 +2294,43 @@
         if (el) el.textContent = `${secondsLeft}s`;
       }
 
-      document.getElementById('refreshBtn').addEventListener('click', () => {
+      document.getElementById('refreshBtn')?.addEventListener('click', () => {
         secondsLeft = 10;
         updateCountdown();
         fetchDashboardData();
-        showToast('تم تحديث البيانات', 'success');
+        showToast(getLang() === 'ar' ? 'تم تحديث البيانات' : 'Data refreshed', 'success');
       });
 
       // ─── THEME & SOUND TOGGLES ────────────────────────────────────────────────
       const themeBtn = document.getElementById('themeToggleBtn');
       const themeIcon = document.getElementById('themeIcon');
-      themeBtn.addEventListener('click', () => {
+      themeBtn?.addEventListener('click', () => {
         const current = document.documentElement.getAttribute('data-theme') || 'dark';
         const next = current === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', next);
-        themeIcon.textContent = next === 'dark' ? '☀️' : '🌙';
+        if (themeIcon) themeIcon.textContent = next === 'dark' ? '☀️' : '🌙';
       });
 
       const soundBtn = document.getElementById('soundToggleBtn');
       const soundIcon = document.getElementById('soundIcon');
-      soundIcon.textContent = soundEnabled ? '🔊' : '🔇';
-      soundBtn.addEventListener('click', () => {
+      if (soundIcon) soundIcon.textContent = soundEnabled ? '🔊' : '🔇';
+      soundBtn?.addEventListener('click', () => {
         soundEnabled = !soundEnabled;
         localStorage.setItem('dou_merchant_sound', soundEnabled ? 'true' : 'false');
-        soundIcon.textContent = soundEnabled ? '🔊' : '🔇';
-        showToast(soundEnabled ? 'تم تفعيل التنبيهات الصوتية 🔊' : 'تم كتم الصوت 🔇', 'warn');
+        if (soundIcon) soundIcon.textContent = soundEnabled ? '🔊' : '🔇';
+        showToast(soundEnabled ? (getLang() === 'ar' ? 'تم تفعيل التنبيهات الصوتية 🔊' : 'Sound enabled 🔊') : (getLang() === 'ar' ? 'تم كتم الصوت 🔇' : 'Sound muted 🔇'), 'warn');
       });
 
+      // Export functions for HTML onclick handlers
+      window.openSettleModal = openSettleModal;
+      window.openCheckinModal = openCheckinModal;
+      window.selectRiderForDispatch = selectRiderForDispatch;
+      window.fetchActiveRiders = fetchActiveRiders;
+      window.fetchActiveOrders = fetchActiveOrders;
+
       // ─── INIT ─────────────────────────────────────────────────────────────────
+      applyLang(currentLang);
+      loadPublicBranches();
       updateViews();
 
     })();

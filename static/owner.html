@@ -1,0 +1,2026 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#090d13">
+  <meta name="description" content="بوابة صاحب المجموعة التجارية — منصة DOU لإدارة الفروع ومتابعة المناديب والفواتير الضريبية">
+  <title>DOU Owner | بوابة صاحب المطعم والفواتير الضريبية</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root[data-theme="dark"] {
+      --bg: #090d13;
+      --surface: #111722;
+      --surface2: #182232;
+      --surface3: #222f42;
+      --ink: #f0f4f8;
+      --ink2: #9bb0c6;
+      --muted: #667d97;
+      --line: rgba(255,255,255,.08);
+      --line-strong: rgba(255,255,255,.16);
+      --orange: #ff5a13;
+      --orange-soft: rgba(255,90,19,.14);
+      --orange-glow: rgba(255,90,19,.28);
+      --green: #10b981;
+      --green-soft: rgba(16,185,129,.14);
+      --blue: #3b82f6;
+      --blue-soft: rgba(59,130,246,.14);
+      --amber: #f59e0b;
+      --amber-soft: rgba(245,158,11,.14);
+      --red: #ef4444;
+      --red-soft: rgba(239,68,68,.14);
+      --purple: #8b5cf6;
+      --purple-soft: rgba(139,92,246,.14);
+      --card-shadow: 0 8px 32px rgba(0,0,0,.45);
+    }
+    :root[data-theme="light"] {
+      --bg: #f4f6f9;
+      --surface: #ffffff;
+      --surface2: #f8fafc;
+      --surface3: #edf2f7;
+      --ink: #0f172a;
+      --ink2: #475569;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --line-strong: #cbd5e1;
+      --orange: #ea580c;
+      --orange-soft: #fff7ed;
+      --orange-glow: rgba(234,88,12,.2);
+      --green: #059669;
+      --green-soft: #ecfdf5;
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --amber: #d97706;
+      --amber-soft: #fffbeb;
+      --red: #dc2626;
+      --red-soft: #fef2f2;
+      --purple: #7c3aed;
+      --purple-soft: #f5f3ff;
+      --card-shadow: 0 4px 20px rgba(15,23,42,.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Alexandria, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button { cursor: pointer; border: none; background: none; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    a { color: inherit; text-decoration: none; }
+    .mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+    /* LAYOUT */
+    .app-shell {
+      width: 100%;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 16px 20px 60px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* TOPBAR */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--card-shadow);
+      position: sticky;
+      top: 12px;
+      z-index: 50;
+      backdrop-filter: blur(12px);
+    }
+    .brand-wrap { display: flex; align-items: center; gap: 14px; }
+    .brand-logo {
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-dot { width: 10px; height: 10px; background: var(--orange); border-radius: 3px; }
+    .brand-badge {
+      font-size: 11px;
+      font-weight: 800;
+      background: var(--orange-soft);
+      color: var(--orange);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .merchant-meta { display: flex; flex-direction: column; }
+    .merchant-name { font-size: 15px; font-weight: 800; color: var(--ink); }
+    .merchant-sub { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+
+    .top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      transition: background .15s, border-color .15s;
+    }
+    .action-btn:hover { background: var(--surface3); border-color: var(--line-strong); }
+    .action-btn.logout { color: var(--red); background: var(--red-soft); border-color: rgba(239,68,68,.2); }
+    .action-btn.logout:hover { background: rgba(239,68,68,.3); }
+
+    /* MONTH SELECTOR BAR */
+    .month-bar {
+      display: inline-flex;
+      align-items: center;
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 2px 4px;
+      gap: 4px;
+    }
+    .month-nav-btn {
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 6px;
+      color: var(--ink2);
+    }
+    .month-nav-btn:hover { background: var(--surface3); color: var(--ink); }
+    .month-input {
+      background: transparent;
+      border: none;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink);
+      outline: none;
+      padding: 4px 6px;
+      direction: ltr;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    /* GLOBAL KPI STRIP */
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      left: 0;
+      height: 3px;
+      background: var(--accent-bar, var(--line));
+    }
+    .kpi-card.contracted { --accent-bar: var(--blue); }
+    .kpi-card.staffed { --accent-bar: var(--green); }
+    .kpi-card.vacant { --accent-bar: var(--amber); }
+    .kpi-card.present { --accent-bar: var(--orange); }
+    .kpi-card.orders { --accent-bar: var(--purple); }
+    .kpi-title { font-size: 11px; font-weight: 700; color: var(--muted); }
+    .kpi-val { font-size: 24px; font-weight: 900; color: var(--ink); display: flex; align-items: baseline; gap: 4px; }
+    .kpi-unit { font-size: 12px; font-weight: 600; color: var(--muted); }
+    .kpi-sub { font-size: 11px; color: var(--ink2); margin-top: 2px; }
+
+    /* NAV TABS */
+    .tabs-nav {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 24px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+    .tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--muted);
+      background: transparent;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--ink); background: var(--surface2); }
+    .tab-btn.active {
+      color: #fff;
+      background: var(--orange);
+      box-shadow: 0 4px 14px var(--orange-glow);
+    }
+
+    /* SCREEN VIEWS */
+    .screen { display: none; }
+    .screen.active { display: block; animation: fadeIn .2s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* SCREEN 1: BRANCHES OVERVIEW */
+    .branches-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 20px;
+    }
+    .branch-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .branch-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .branch-title { font-size: 18px; font-weight: 800; color: var(--ink); }
+    .branch-city { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .branch-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      color: var(--ink2);
+    }
+    .branch-pill.warn {
+      background: var(--amber-soft);
+      border-color: rgba(245,158,11,.3);
+      color: var(--amber);
+    }
+    .branch-progress-wrap { display: flex; flex-direction: column; gap: 6px; }
+    .branch-progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink2);
+    }
+    .branch-progress-bar {
+      height: 8px;
+      background: var(--surface2);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+    }
+    .branch-progress-fill { height: 100%; background: var(--green); border-radius: 4px; }
+    .branch-metrics-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      background: var(--surface2);
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      text-align: center;
+    }
+    .metric-mini-title { font-size: 10px; font-weight: 700; color: var(--muted); }
+    .metric-mini-val { font-size: 16px; font-weight: 800; color: var(--ink); margin-top: 2px; }
+    .metric-mini-val.warn { color: var(--amber); }
+
+    .seats-list { display: flex; flex-direction: column; gap: 8px; }
+    .seat-item {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .seat-item.vacant {
+      border: 1px dashed var(--amber);
+      background: var(--amber-soft);
+    }
+    .seat-info { display: flex; flex-direction: column; gap: 2px; }
+    .seat-title { font-size: 13px; font-weight: 800; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+    .seat-sub { font-size: 11px; color: var(--muted); }
+    .seat-status-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .seat-status-badge.present { background: var(--green-soft); color: var(--green); }
+    .seat-status-badge.absent { background: var(--surface3); color: var(--muted); }
+    .seat-status-badge.vacant-tag { background: var(--amber); color: #000; font-weight: 800; }
+
+    /* SCREEN 2: CAPACITY REQUESTS */
+    .capacity-banner {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-right: 4px solid var(--blue);
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .capacity-banner-text { display: flex; flex-direction: column; gap: 4px; }
+    .capacity-banner-title { font-size: 15px; font-weight: 800; color: var(--ink); }
+    .capacity-banner-sub { font-size: 12px; color: var(--muted); max-width: 680px; line-height: 1.5; }
+    .btn-new-request {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 800;
+      background: var(--orange);
+      color: #fff;
+      box-shadow: 0 4px 14px var(--orange-glow);
+      transition: transform .1s, opacity .15s;
+    }
+    .btn-new-request:hover { opacity: .94; transform: translateY(-1px); }
+
+    .data-table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow-x: auto;
+      box-shadow: var(--card-shadow);
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: right;
+      font-size: 13px;
+    }
+    .data-table th {
+      background: var(--surface2);
+      padding: 12px 16px;
+      font-weight: 700;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+    }
+    .data-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink);
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .status-badge.requested { background: var(--blue-soft); color: var(--blue); }
+    .status-badge.under_review { background: var(--amber-soft); color: var(--amber); }
+    .status-badge.approved { background: var(--purple-soft); color: var(--purple); }
+    .status-badge.effective { background: var(--green-soft); color: var(--green); }
+    .status-badge.rejected { background: var(--red-soft); color: var(--red); }
+
+    /* SCREEN 3: ZATCA TAX INVOICE */
+    .invoice-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .btn-print {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--ink);
+      transition: background .15s;
+    }
+    .btn-print:hover { background: var(--surface3); }
+
+    .invoice-paper {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 36px 40px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .inv-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 20px;
+      gap: 20px;
+    }
+    .inv-title-box { display: flex; flex-direction: column; gap: 6px; }
+    .inv-badge-type {
+      display: inline-block;
+      align-self: flex-start;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: var(--green-soft);
+      color: var(--green);
+    }
+    .inv-main-title { font-size: 24px; font-weight: 900; color: var(--ink); letter-spacing: -0.5px; }
+    .inv-meta-row { font-size: 12px; color: var(--muted); display: flex; gap: 14px; }
+
+    .inv-parties-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .inv-party-card {
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .party-title { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; }
+    .party-name { font-size: 16px; font-weight: 800; color: var(--ink); }
+    .party-field { font-size: 12px; color: var(--ink2); display: flex; justify-content: space-between; }
+
+    .inv-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    .inv-table th {
+      background: var(--surface2);
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+    }
+    .inv-table td {
+      padding: 14px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .inv-totals-box {
+      align-self: flex-end;
+      width: 380px;
+      max-width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .inv-total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--ink2);
+    }
+    .inv-total-row.grand {
+      border-top: 2px solid var(--line);
+      padding-top: 10px;
+      margin-top: 4px;
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--orange);
+    }
+
+    .inv-zatca-section {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      flex-wrap: wrap;
+    }
+    .zatca-qr-box {
+      width: 150px;
+      height: 150px;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,.15);
+    }
+    .zatca-qr-box canvas { width: 100%; height: 100%; display: block; }
+    .zatca-meta {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 240px;
+    }
+    .zatca-title { font-size: 14px; font-weight: 800; color: var(--ink); }
+    .zatca-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .zatca-tlv-snippet {
+      font-size: 10px;
+      background: var(--surface3);
+      padding: 8px 10px;
+      border-radius: 8px;
+      color: var(--ink2);
+      word-break: break-all;
+      max-height: 60px;
+      overflow-y: auto;
+    }
+
+    .inv-footer-note {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+      line-height: 1.5;
+    }
+
+    /* SCREEN 4: SLA INDICATORS */
+    .sla-disclaimer {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-right: 4px solid var(--amber);
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sla-disclaimer-text { font-size: 13px; font-weight: 600; color: var(--ink2); line-height: 1.5; }
+    .sla-rate-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 24px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+      box-shadow: var(--card-shadow);
+    }
+    .sla-rate-info { display: flex; flex-direction: column; gap: 6px; }
+    .sla-rate-title { font-size: 20px; font-weight: 900; color: var(--ink); }
+    .sla-rate-sub { font-size: 13px; color: var(--muted); }
+    .sla-gauge-val {
+      font-size: 42px;
+      font-weight: 900;
+      color: var(--green);
+      letter-spacing: -1px;
+    }
+    .sla-gauge-val.warn { color: var(--amber); }
+    .sla-gauge-val.danger { color: var(--red); }
+
+    /* AUTH & BARRIER SCREENS */
+    .auth-overlay {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      padding: 40px 16px;
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 460px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 36px 30px;
+      box-shadow: 0 16px 40px rgba(0,0,0,.4);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      text-align: center;
+    }
+    .auth-title { font-size: 22px; font-weight: 900; color: var(--ink); }
+    .auth-sub { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .auth-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+    }
+    .auth-tab-btn {
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 8px;
+      color: var(--muted);
+      transition: all .15s;
+    }
+    .auth-tab-btn.active {
+      background: var(--surface3);
+      color: var(--ink);
+    }
+    .auth-field {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .auth-label { font-size: 12px; font-weight: 700; color: var(--ink2); }
+    .auth-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font-size: 14px;
+      color: var(--ink);
+      outline: none;
+      transition: border-color .15s;
+    }
+    .auth-input:focus { border-color: var(--orange); }
+    .btn-auth-submit {
+      width: 100%;
+      padding: 13px;
+      background: var(--orange);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px var(--orange-glow);
+      transition: opacity .15s, transform .1s;
+    }
+    .btn-auth-submit:hover { opacity: .94; transform: translateY(-1px); }
+
+    /* CASHIER BARRIER VIEW */
+    .barrier-card {
+      width: 100%;
+      max-width: 500px;
+      background: var(--surface);
+      border: 1px solid var(--red);
+      border-radius: 24px;
+      padding: 40px 32px;
+      box-shadow: 0 16px 40px rgba(239,68,68,.15);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      text-align: center;
+    }
+    .barrier-icon {
+      width: 64px;
+      height: 64px;
+      background: var(--red-soft);
+      color: var(--red);
+      border-radius: 20px;
+      display: grid;
+      place-items: center;
+      font-size: 30px;
+      margin: 0 auto;
+    }
+    .barrier-title { font-size: 20px; font-weight: 900; color: var(--red); }
+    .barrier-desc { font-size: 13px; color: var(--ink2); line-height: 1.6; }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.65);
+      backdrop-filter: blur(4px);
+      display: none;
+      place-items: center;
+      z-index: 100;
+      padding: 16px;
+    }
+    .modal-overlay.active { display: grid; }
+    .modal-box {
+      width: 100%;
+      max-width: 480px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-title { font-size: 18px; font-weight: 800; }
+    .modal-close { font-size: 20px; color: var(--muted); padding: 4px; }
+    .modal-close:hover { color: var(--ink); }
+
+    /* TOAST */
+    .toast-wrap {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: slideIn .2s ease-out;
+    }
+    @keyframes slideIn { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .toast.success { background: var(--green); color: #fff; }
+    .toast.error { background: var(--red); color: #fff; }
+    .toast.info { background: var(--surface3); color: var(--ink); border: 1px solid var(--line); }
+
+    /* PRINT STYLES */
+    @media print {
+      body { background: #ffffff !important; color: #000000 !important; }
+      .topbar, .kpi-strip, .tabs-nav, .invoice-toolbar, .toast-wrap, .modal-overlay, .capacity-banner, .sla-disclaimer { display: none !important; }
+      .app-shell { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+      .screen { display: none !important; }
+      #screenInvoice { display: block !important; }
+      .invoice-paper {
+        border: 1px solid #ccc !important;
+        box-shadow: none !important;
+        padding: 20px !important;
+        max-width: 100% !important;
+      }
+      .inv-party-card, .inv-totals-box, .inv-zatca-section {
+        border: 1px solid #ddd !important;
+        background: #fafafa !important;
+      }
+      .inv-total-row.grand { color: #000000 !important; }
+      .zatca-qr-box { border: 1px solid #000 !important; box-shadow: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MAIN APP SHELL -->
+  <div class="app-shell" id="appShell" style="display:none;">
+    
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-logo">
+          <span>DOU</span>
+          <span class="brand-dot"></span>
+          <span class="brand-badge">بوابة المالك</span>
+        </div>
+        <div class="merchant-meta">
+          <span class="merchant-name" id="topAccountName">جاري التحميل...</span>
+          <span class="merchant-sub">
+            <span id="topTaxId">الرقم الضريبي: —</span>
+            <span>•</span>
+            <span id="topCrNumber">السجل التجاري: —</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <!-- Month Nav Bar -->
+        <div class="month-bar" title="تحديد شهر العرض للفواتير ومؤشرات الخدمة">
+          <button class="month-nav-btn" id="btnPrevMonth" title="الشهر السابق">◀</button>
+          <input type="month" class="month-input mono" id="globalMonthInput">
+          <button class="month-nav-btn" id="btnNextMonth" title="الشهر التالي">▶</button>
+        </div>
+
+        <button class="action-btn" id="btnThemeToggle" title="تبديل المظهر">🌓</button>
+        <button class="action-btn" id="btnRefresh" title="تحديث البيانات">🔄 تحديث</button>
+        <button class="action-btn logout" id="btnLogout" title="تسجيل الخروج">🚪 خروج</button>
+      </div>
+    </header>
+
+    <!-- EXECUTIVE KPI STRIP -->
+    <section class="kpi-strip">
+      <div class="kpi-card">
+        <span class="kpi-title">الفروع النشطة</span>
+        <span class="kpi-val mono" id="kpiBranchesCount">0</span>
+        <span class="kpi-sub">فرع مشغّل حالياً</span>
+      </div>
+      <div class="kpi-card contracted">
+        <span class="kpi-title">المقاعد المتعاقد عليها</span>
+        <span class="kpi-val mono" id="kpiContractedSeats">0</span>
+        <span class="kpi-sub">مقعد يومي معتمد</span>
+      </div>
+      <div class="kpi-card staffed">
+        <span class="kpi-title">المقاعد المسكّنة</span>
+        <span class="kpi-val mono" id="kpiStaffedSeats">0</span>
+        <span class="kpi-sub">مندوب مخصص بالخدمة</span>
+      </div>
+      <div class="kpi-card vacant">
+        <span class="kpi-title">المقاعد الشاغرة</span>
+        <span class="kpi-val mono" id="kpiVacantSeats">0</span>
+        <span class="kpi-sub">بانتظار تسكين من الشركة</span>
+      </div>
+      <div class="kpi-card present">
+        <span class="kpi-title">الحاضرون بالخدمة الآن</span>
+        <span class="kpi-val mono" id="kpiPresentNow">0</span>
+        <span class="kpi-sub">متواجدون بالفرع لحظياً</span>
+      </div>
+      <div class="kpi-card orders">
+        <span class="kpi-title">إجمالي طلبات اليوم</span>
+        <span class="kpi-val mono" id="kpiTodayOrders">0</span>
+        <span class="kpi-sub">طلب عبر جميع الفروع</span>
+      </div>
+    </section>
+
+    <!-- NAV TABS -->
+    <nav class="tabs-nav">
+      <button class="tab-btn active" data-target="screenBranches">
+        🏢 نظرة عامة حية على الفروع
+      </button>
+      <button class="tab-btn" data-target="screenCapacity">
+        ⚡ طلبات تعديل السعة
+      </button>
+      <button class="tab-btn" data-target="screenInvoice">
+        🧾 الفاتورة الضريبية ZATCA
+      </button>
+      <button class="tab-btn" data-target="screenSla">
+        📊 مؤشرات مستوى الخدمة SLA
+      </button>
+    </nav>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 1: ALL BRANCHES LIVE OVERVIEW       -->
+    <!-- ========================================== -->
+    <main class="screen active" id="screenBranches">
+      <div class="branches-grid" id="branchesContainer">
+        <!-- Rendered dynamically -->
+      </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 2: CAPACITY REQUESTS                -->
+    <!-- ========================================== -->
+    <main class="screen" id="screenCapacity">
+      <div class="capacity-banner">
+        <div class="capacity-banner-text">
+          <span class="capacity-banner-title">تعديل الطاقة الاستيعابية للفروع القادمة</span>
+          <span class="capacity-banner-sub">
+            طلبات تعديل السعة تخضع لمراجعة إدارة العمليات في DOU وتدخل حيز التنفيذ للشهر القادم دون أي مساس بالورديات أو العقود الجارية في الشهر الحالي.
+          </span>
+        </div>
+        <button class="btn-new-request" id="btnOpenCapacityModal">
+          <span>+</span> تقديم طلب تعديل سعة
+        </button>
+      </div>
+
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>رقم الطلب</th>
+              <th>الفرع</th>
+              <th>نوع التعديل</th>
+              <th>المقاعد المطلوبة</th>
+              <th>الشهر الساري</th>
+              <th>الحالة التشغيلية</th>
+              <th>تاريخ التقديم</th>
+              <th>ملاحظات الإدارة</th>
+            </tr>
+          </thead>
+          <tbody id="capacityTableBody">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 3: ZATCA TAX INVOICE                -->
+    <!-- ========================================== -->
+    <main class="screen" id="screenInvoice">
+      <div class="invoice-toolbar">
+        <div>
+          <span style="font-size:16px; font-weight:800;" id="invoiceHeaderMonth">فواتير شهر —</span>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn-print" id="btnPrintInvoice">🖨️ طباعة الفاتورة (PDF / Print)</button>
+        </div>
+      </div>
+
+      <!-- State: Not Issued -->
+      <div id="invoiceEmptyState" style="display:none; text-align:center; padding:60px 20px; background:var(--surface); border:1px solid var(--line); border-radius:20px;">
+        <div style="font-size:40px; margin-bottom:12px;">📑</div>
+        <div style="font-size:18px; font-weight:800; margin-bottom:8px;">لم تصدر الفاتورة الضريبية لهذا الشهر بعد</div>
+        <p style="font-size:13px; color:var(--muted); max-width:500px; margin:0 auto; line-height:1.6;">
+          الفواتير الضريبية تصدر بصورة نهائية ومعتمدة بمجرد اعتماد وإصدار كشف التسوية الشهري من قبل الإدارة المالية لمنصة DOU.
+        </p>
+      </div>
+
+      <!-- State: Issued Invoice -->
+      <div class="invoice-paper" id="invoicePaper" style="display:none;">
+        <div class="inv-header">
+          <div class="inv-title-box">
+            <span class="inv-badge-type" id="invBadgeType">فاتورة ضريبية</span>
+            <h1 class="inv-main-title">DOU Logistics Platform</h1>
+            <div class="inv-meta-row">
+              <span>رقم الفاتورة: <strong class="mono" id="invNumber">—</strong></span>
+              <span>•</span>
+              <span>تاريخ الإصدار: <strong class="mono" id="invDate">—</strong></span>
+              <span>•</span>
+              <span>الحالة: <strong id="invStatus">—</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="inv-parties-grid">
+          <div class="inv-party-card">
+            <span class="party-title">بيانات المورّد (منصة DOU)</span>
+            <div class="party-name" id="invSellerName">DOU Logistics Platform</div>
+            <div class="party-field">
+              <span>الرقم الضريبي:</span>
+              <strong class="mono" id="invSellerVat">—</strong>
+            </div>
+            <div class="party-field">
+              <span>العنوان:</span>
+              <span>الرياض، المملكة العربية السعودية</span>
+            </div>
+          </div>
+
+          <div class="inv-party-card">
+            <span class="party-title">بيانات العميل (المجموعة التجارية)</span>
+            <div class="party-name" id="invBuyerName">—</div>
+            <div class="party-field">
+              <span>الرقم الضريبي للمطعم:</span>
+              <strong class="mono" id="invBuyerVat">—</strong>
+            </div>
+            <div class="party-field">
+              <span>الشهر المفوتر:</span>
+              <strong class="mono" id="invBilledMonth">—</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table of items -->
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th style="text-align:right;">الوصف والخدمة</th>
+              <th style="text-align:center;">عدد المقاعد</th>
+              <th style="text-align:center;">سعر المقعد الشهري</th>
+              <th style="text-align:left;">المبلغ قبل الضريبة</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div style="font-weight:800;" id="invLineDesc">خدمات توفير وتشغيل مناديب توصيل مخصصين</div>
+                <div style="font-size:11px; color:var(--muted);">عقود شهرية مخصصة للفروع التابعة</div>
+              </td>
+              <td style="text-align:center;" class="mono" id="invSeatsCount">0</td>
+              <td style="text-align:center;" class="mono" id="invSeatRate">0.00 ر.س</td>
+              <td style="text-align:left;" class="mono" id="invSubtotal">0.00 ر.س</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Totals Box -->
+        <div class="inv-totals-box">
+          <div class="inv-total-row">
+            <span>المبلغ الخاضع للضريبة:</span>
+            <strong class="mono" id="invSubtotalRow">0.00 ر.س</strong>
+          </div>
+          <div class="inv-total-row">
+            <span>ضريبة القيمة المضافة (<span id="invVatRateRow">15%</span>):</span>
+            <strong class="mono" id="invVatAmountRow">0.00 ر.س</strong>
+          </div>
+          <div class="inv-total-row grand">
+            <span>الإجمالي المستحق شامل الضريبة:</span>
+            <strong class="mono" id="invTotalRow">0.00 ر.س</strong>
+          </div>
+        </div>
+
+        <!-- ZATCA QR Code Section -->
+        <div class="inv-zatca-section">
+          <div class="zatca-qr-box">
+            <canvas id="zatcaCanvas" width="140" height="140"></canvas>
+          </div>
+          <div class="zatca-meta">
+            <span class="zatca-title">الرمز الضريبي المشفر لهيئة الزكاة والضريبة والجمارك (ZATCA)</span>
+            <p class="zatca-desc">
+              رمز الاستجابة السريعة متوافق مع متطلبات الفوترة الإلكترونية المرحلة الأولى والثانية (TLV Base64). يحتوي على اسم المورد، الرقم الضريبي، تاريخ ووقت الإصدار، الإجمالي شامل الضريبة، ومبلغ الضريبة.
+            </p>
+            <div class="zatca-tlv-snippet mono" id="zatcaTlvSnippet">—</div>
+            <button class="action-btn" id="btnCopyTlv" style="align-self:flex-start; font-size:11px; padding:4px 10px;">📋 نسخ الرمز المشفر</button>
+          </div>
+        </div>
+
+        <div class="inv-footer-note">
+          هذه الفاتورة مستخرجة إلكترونياً من سجلات التسوية المعتمدة لمنصة DOU وتعتبر وثيقة مالية نهائية غير قابلة للتعديل.
+        </div>
+      </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- SCREEN 4: SLA INDICATORS                   -->
+    <!-- ========================================== -->
+    <main class="screen" id="screenSla">
+      <div class="sla-disclaimer">
+        <span style="font-size:20px;">ℹ️</span>
+        <div class="sla-disclaimer-text">
+          <strong>تنويه نظامي:</strong> مؤشرات مستوى الخدمة (SLA) ترصد نسب الالتزام التشغيلي وأيام التواجد والعجز الفعلي للأغراض الرقابية ومتابعة الجودة، <strong>دون تطبيق أي خصومات مالية تلقائية</strong> على المطعم أو الشركة اللوجستية.
+        </div>
+      </div>
+
+      <div class="sla-rate-card">
+        <div class="sla-rate-info">
+          <span class="sla-rate-title">معدل استيفاء الخدمة الإجمالي</span>
+          <span class="sla-rate-sub">نسبة الأيام المغطاة تشغيلياً مقارنة بإجمالي المقاعد المتعاقد عليها للشهر</span>
+        </div>
+        <div class="sla-gauge-val mono" id="slaOverallRate">0.0%</div>
+      </div>
+
+      <div class="kpi-strip">
+        <div class="kpi-card contracted">
+          <span class="kpi-title">أيام المقاعد المتعاقد عليها</span>
+          <span class="kpi-val mono" id="slaContractedDays">0</span>
+          <span class="kpi-sub">يوم-مقعد مستهدف</span>
+        </div>
+        <div class="kpi-card staffed">
+          <span class="kpi-title">أيام المقاعد المسكّنة</span>
+          <span class="kpi-val mono" id="slaFilledDays">0</span>
+          <span class="kpi-sub">يوم-مقعد مسكّن بمندوب</span>
+        </div>
+        <div class="kpi-card vacant">
+          <span class="kpi-title">أيام المقاعد الشاغرة</span>
+          <span class="kpi-val mono" id="slaVacantDays">0</span>
+          <span class="kpi-sub">يوم-مقعد بدون تسكين</span>
+        </div>
+        <div class="kpi-card present">
+          <span class="kpi-title">أيام الحضور الفعلي للمناديب</span>
+          <span class="kpi-val mono" id="slaAttendedDays">0</span>
+          <span class="kpi-sub">يوم حضور مسجل بالبصمة</span>
+        </div>
+        <div class="kpi-card orders">
+          <span class="kpi-title">أيام العجز التشغيلي</span>
+          <span class="kpi-val mono" id="slaShortfallDays">0</span>
+          <span class="kpi-sub">يوم عجز (غياب + شغور)</span>
+        </div>
+      </div>
+
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>اسم الفرع</th>
+              <th style="text-align:center;">المقاعد المتعاقدة</th>
+              <th style="text-align:center;">أيام المقاعد المتعاقدة</th>
+              <th style="text-align:center;">أيام الشغور</th>
+              <th style="text-align:center;">أيام الحضور</th>
+              <th style="text-align:center;">أيام العجز</th>
+              <th style="text-align:center;">نسبة الاستيفاء</th>
+            </tr>
+          </thead>
+          <tbody id="slaTableBody">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- AUTH / LOGIN OVERLAY -->
+  <div class="auth-overlay" id="authView" style="display:none;">
+    <div class="auth-card">
+      <div class="brand-logo" style="justify-content:center;">
+        <span>DOU</span>
+        <span class="brand-dot"></span>
+        <span class="brand-badge">بوابة صاحب المطعم</span>
+      </div>
+      <div>
+        <h2 class="auth-title">تسجيل دخول المالك التجاري</h2>
+        <p class="auth-sub">يرجى تسجيل الدخول بمفتاح API المخصص أو بيانات اعتماد الحساب</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab-btn active" id="tabModeApiKey">مفتاح API التجاري</button>
+        <button class="auth-tab-btn" id="tabModeCredentials">رقم الحساب والهاتف</button>
+      </div>
+
+      <!-- Mode 1: API Key -->
+      <form id="formApiKey" style="display:flex; flex-direction:column; gap:16px;">
+        <div class="auth-field">
+          <label class="auth-label" for="inputApiKey">مفتاح API التجاري (API Key)</label>
+          <input type="password" class="auth-input mono" id="inputApiKey" placeholder="dou_live_..." required>
+        </div>
+        <button type="submit" class="btn-auth-submit" id="btnSubmitApiKey">تسجيل الدخول</button>
+      </form>
+
+      <!-- Mode 2: Phone / Account -->
+      <form id="formCredentials" style="display:none; flex-direction:column; gap:16px;">
+        <div class="auth-field">
+          <label class="auth-label" for="inputAccountPhone">رقم الهاتف المسجل</label>
+          <input type="tel" class="auth-input mono" id="inputAccountPhone" placeholder="9665..." required>
+        </div>
+        <div class="auth-field">
+          <label class="auth-label" for="inputAccountPassword">كلمة المرور</label>
+          <input type="password" class="auth-input" id="inputAccountPassword" required>
+        </div>
+        <button type="submit" class="btn-auth-submit" id="btnSubmitCredentials">تسجيل الدخول</button>
+      </form>
+
+      <div style="font-size:12px; color:var(--muted); border-top:1px solid var(--line); padding-top:14px;">
+        هل أنت كاشير فرع؟ <a href="/merchant" style="color:var(--orange); font-weight:700;">انتقل إلى بوابة كاشير الفرع (/merchant)</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- CASHIER ISOLATION BARRIER VIEW -->
+  <div class="auth-overlay" id="cashierBarrierView" style="display:none;">
+    <div class="barrier-card">
+      <div class="barrier-icon">🛡️</div>
+      <h2 class="barrier-title">منطقة مخصصة لمالك الحساب التجاري فقط</h2>
+      <p class="barrier-desc">
+        تم رصد محاولة دخول باستخدام رمز كاشير فرع (<span class="mono" style="background:var(--red-soft); padding:2px 6px; border-radius:4px;">scope: merchant_branch</span>). كاشير الفرع غير مصرح له بالاطلاع على الفواتير المجمعة أو كشوف الحساب أو تعديل السعة لجميع الفروع.
+      </p>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <a href="/merchant" class="btn-auth-submit" style="display:block; text-align:center; text-decoration:none;">
+          الانتقال إلى بوابة كاشير الفرع (/merchant)
+        </a>
+        <button class="action-btn" id="btnBarrierRelogin" style="justify-content:center; padding:12px;">
+          تسجيل الدخول بحساب مالك المطعم
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEW CAPACITY REQUEST MODAL -->
+  <div class="modal-overlay" id="capacityModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">طلب تعديل السعة التشغيلية</h3>
+        <button class="modal-close" id="btnCloseCapacityModal">✕</button>
+      </div>
+      <form id="formNewCapacityRequest" style="display:flex; flex-direction:column; gap:14px;">
+        <div class="auth-field">
+          <label class="auth-label" for="selectRequestBranch">الفرع المستهدف</label>
+          <select class="auth-input" id="selectRequestBranch" required>
+            <!-- Options populated dynamically -->
+          </select>
+        </div>
+        <div class="auth-field">
+          <label class="auth-label" for="selectRequestType">نوع التعديل المطلوب</label>
+          <select class="auth-input" id="selectRequestType" required>
+            <option value="increase">زيادة مقاعد مناديب (+)</option>
+            <option value="decrease">تقليص مقاعد مناديب (-)</option>
+          </select>
+        </div>
+        <div class="auth-field">
+          <label class="auth-label" for="inputRequestSeats">إجمالي عدد المقاعد المطلوب بالفرع</label>
+          <input type="number" class="auth-input mono" id="inputRequestSeats" min="1" max="50" value="8" required>
+        </div>
+        <div class="auth-field">
+          <label class="auth-label" for="inputRequestEffectiveMonth">الشهر الساري للتنفيذ</label>
+          <input type="month" class="auth-input mono" id="inputRequestEffectiveMonth" required>
+        </div>
+        <div class="auth-field">
+          <label class="auth-label" for="inputRequestNotes">ملاحظات ومبررات الطلب</label>
+          <textarea class="auth-input" id="inputRequestNotes" rows="3" placeholder="مثال: زيادة الطلبات المتوقعة خلال موسم العيد..."></textarea>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+          <button type="button" class="action-btn" id="btnCancelCapacityModal">إلغاء</button>
+          <button type="submit" class="btn-new-request" id="btnSubmitCapacityRequest">رفع الطلب للعمليات</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-wrap" id="toastContainer"></div>
+
+  <script>
+    // =========================================================================
+    // STATE & HELPERS
+    // =========================================================================
+    const state = {
+      token: localStorage.getItem('dou_owner_token') || '',
+      accountId: parseInt(localStorage.getItem('dou_owner_account_id') || '0', 10),
+      accountName: localStorage.getItem('dou_owner_account_name') || '',
+      theme: localStorage.getItem('dou_owner_theme') || 'dark',
+      currentMonth: getCurrentMonthString(), // 'YYYY-MM'
+      branches: [],
+      capacityRequests: [],
+      invoice: null,
+      sla: null
+    };
+
+    function getCurrentMonthString() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      return y + '-' + m;
+    }
+
+    function formatMoney(amount, currency) {
+      const cur = currency || 'ر.س';
+      const num = Number(amount) || 0;
+      return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + cur;
+    }
+
+    function showToast(message, type) {
+      const t = type || 'info';
+      const wrap = document.getElementById('toastContainer');
+      if (!wrap) return;
+      const el = document.createElement('div');
+      el.className = 'toast ' + t;
+      el.textContent = message;
+      wrap.appendChild(el);
+      setTimeout(function() {
+        el.style.opacity = '0';
+        el.style.transition = 'opacity .3s ease';
+        setTimeout(function() { el.remove(); }, 300);
+      }, 4000);
+    }
+
+    // =========================================================================
+    // THEME & NAVIGATION
+    // =========================================================================
+    function initTheme() {
+      document.documentElement.setAttribute('data-theme', state.theme);
+      const btn = document.getElementById('btnThemeToggle');
+      if (btn) {
+        btn.textContent = state.theme === 'dark' ? '☀️' : '🌙';
+      }
+    }
+
+    function toggleTheme() {
+      state.theme = state.theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem('dou_owner_theme', state.theme);
+      initTheme();
+    }
+
+    function switchScreen(screenId) {
+      document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      const target = document.getElementById(screenId);
+      if (target) target.classList.add('active');
+      const btn = document.querySelector('.tab-btn[data-target="' + screenId + '"]');
+      if (btn) btn.classList.add('active');
+
+      if (screenId === 'screenBranches') loadBranchesOverview();
+      if (screenId === 'screenCapacity') loadCapacityRequests();
+      if (screenId === 'screenInvoice') loadTaxInvoice();
+      if (screenId === 'screenSla') loadSlaIndicators();
+    }
+
+    // =========================================================================
+    // AUTHENTICATION & BARRIER HANDLING
+    // =========================================================================
+    function checkInitialAuth() {
+      initTheme();
+      const cashierToken = localStorage.getItem('dou_merchant_token');
+      // If no owner token, check if user is accidentally carrying a cashier token
+      if (!state.token && cashierToken) {
+        showCashierBarrier();
+        return;
+      }
+      if (!state.token || !state.accountId) {
+        showAuthView();
+        return;
+      }
+      showDashboardView();
+    }
+
+    function showCashierBarrier() {
+      document.getElementById('appShell').style.display = 'none';
+      document.getElementById('authView').style.display = 'none';
+      document.getElementById('cashierBarrierView').style.display = 'grid';
+    }
+
+    function showAuthView() {
+      document.getElementById('appShell').style.display = 'none';
+      document.getElementById('cashierBarrierView').style.display = 'none';
+      document.getElementById('authView').style.display = 'grid';
+    }
+
+    function showDashboardView() {
+      document.getElementById('cashierBarrierView').style.display = 'none';
+      document.getElementById('authView').style.display = 'none';
+      document.getElementById('appShell').style.display = 'flex';
+      
+      const monthInput = document.getElementById('globalMonthInput');
+      if (monthInput) monthInput.value = state.currentMonth;
+
+      loadAccountHeader();
+      loadBranchesOverview();
+    }
+
+    function logout() {
+      localStorage.removeItem('dou_owner_token');
+      localStorage.removeItem('dou_owner_account_id');
+      localStorage.removeItem('dou_owner_account_name');
+      state.token = '';
+      state.accountId = 0;
+      state.accountName = '';
+      showAuthView();
+      showToast('تم تسجيل الخروج بنجاح', 'info');
+    }
+
+    async function apiCall(endpoint, options) {
+      const opts = options || {};
+      opts.headers = opts.headers || {};
+      opts.headers['Authorization'] = 'Bearer ' + state.token;
+      opts.headers['Content-Type'] = opts.headers['Content-Type'] || 'application/json';
+
+      const res = await fetch(endpoint, opts);
+
+      if (res.status === 403) {
+        const data = await res.json().catch(function() { return {}; });
+        const detail = (data.detail || '').toLowerCase();
+        if (detail.includes('كاشير') || detail.includes('merchant_branch') || detail.includes('scope')) {
+          showCashierBarrier();
+          throw new Error(data.detail || 'غير مصرح: يقتصر على مالك الحساب التجاري');
+        }
+        showToast(data.detail || 'غير مصرح للوصول لهذه البيانات', 'error');
+        throw new Error(data.detail || 'Forbidden');
+      }
+
+      if (res.status === 401) {
+        showToast('انتهت صلاحية جلسة الدخول، يرجى تسجيل الدخول مجدداً', 'error');
+        logout();
+        throw new Error('Unauthorized');
+      }
+
+      return res;
+    }
+
+    // =========================================================================
+    // DATA LOADING
+    // =========================================================================
+    function loadAccountHeader() {
+      document.getElementById('topAccountName').textContent = state.accountName || ('حساب تجاري #' + state.accountId);
+    }
+
+    async function loadBranchesOverview() {
+      try {
+        const res = await apiCall('/merchant/account/' + state.accountId + '/branches-overview');
+        if (!res.ok) return;
+        const data = await res.json();
+        state.branches = data.branches || [];
+
+        // Update Account Header Info
+        if (data.merchant_account_name) {
+          state.accountName = data.merchant_account_name;
+          localStorage.setItem('dou_owner_account_name', data.merchant_account_name);
+          loadAccountHeader();
+        }
+        if (data.tax_id) document.getElementById('topTaxId').textContent = 'الرقم الضريبي: ' + data.tax_id;
+        if (data.cr_number) document.getElementById('topCrNumber').textContent = 'السجل التجاري: ' + data.cr_number;
+
+        // Update KPIs
+        document.getElementById('kpiBranchesCount').textContent = data.branches_count || 0;
+        document.getElementById('kpiContractedSeats').textContent = data.total_contracted_seats || 0;
+        document.getElementById('kpiStaffedSeats').textContent = data.filled_seats || 0;
+        document.getElementById('kpiVacantSeats').textContent = data.vacant_seats || 0;
+        document.getElementById('kpiPresentNow').textContent = data.total_present_now || 0;
+        document.getElementById('kpiTodayOrders').textContent = data.total_today_orders || 0;
+
+        // Render Branches Cards
+        renderBranchesGrid(data.branches || []);
+        populateBranchModalDropdown(data.branches || []);
+      } catch (err) {
+        console.error('Error loading branches:', err);
+      }
+    }
+
+    function renderBranchesGrid(branches) {
+      const container = document.getElementById('branchesContainer');
+      container.innerHTML = '';
+
+      if (!branches.length) {
+        container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--muted);">لا توجد فروع مسجلة لهذا الحساب حالياً</div>';
+        return;
+      }
+
+      branches.forEach(function(b) {
+        const card = document.createElement('div');
+        card.className = 'branch-card';
+
+        const fillPct = b.contracted_seats > 0 ? Math.round((b.filled_seats / b.contracted_seats) * 100) : 0;
+        const hasVacancy = b.vacant_seats > 0;
+
+        let seatsHtml = '';
+        if (b.seats && b.seats.length) {
+          b.seats.forEach(function(s) {
+            if (s.is_vacant) {
+              seatsHtml += '<div class="seat-item vacant">' +
+                '<div class="seat-info">' +
+                  '<span class="seat-title"><span>⚠️</span> مقعد شاغر — بانتظار تسكين مندوب</span>' +
+                  '<span class="seat-sub">مدرج في العقد الشهري (7,000 ر.س) وغير مغطى حالياً</span>' +
+                '</div>' +
+                '<span class="seat-status-badge vacant-tag">شاغر</span>' +
+              '</div>';
+            } else {
+              const presentBadge = s.present_today 
+                ? '<span class="seat-status-badge present">✓ حاضر بالفرع</span>'
+                : '<span class="seat-status-badge absent">لم يسجل حضور</span>';
+
+              seatsHtml += '<div class="seat-item">' +
+                '<div class="seat-info">' +
+                  '<span class="seat-title">' + (s.rider_name || 'مندوب مخصص') + '</span>' +
+                  '<span class="seat-sub">' +
+                    (s.logistics_company_name ? s.logistics_company_name + ' • ' : '') +
+                    (s.shift_start_time || '') + ' - ' + (s.shift_end_time || '') +
+                    (s.rider_phone ? ' • ' + s.rider_phone : '') +
+                  '</span>' +
+                '</div>' +
+                presentBadge +
+              '</div>';
+            }
+          });
+        } else {
+          seatsHtml = '<div style="font-size:12px; color:var(--muted); text-align:center; padding:10px;">لا توجد مقاعد مسجلة لهذا الفرع</div>';
+        }
+
+        card.innerHTML = 
+          '<div class="branch-header">' +
+            '<div>' +
+              '<h3 class="branch-title">' + b.branch_name + '</h3>' +
+              '<div class="branch-city">' + (b.city || 'المدينة غير محددة') + ' • نطاق التغطية: ' + (b.geofence_radius_meters || 150) + 'م</div>' +
+            '</div>' +
+            '<span class="branch-pill ' + (hasVacancy ? 'warn' : '') + '">' +
+              (hasVacancy ? '⚠️ يوجد شواغر' : '✓ مسكّن بالكامل') +
+            '</span>' +
+          '</div>' +
+
+          '<div class="branch-progress-wrap">' +
+            '<div class="branch-progress-label">' +
+              '<span>نسبة التسكين (' + b.filled_seats + ' من ' + b.contracted_seats + ')</span>' +
+              '<span class="mono">' + fillPct + '%</span>' +
+            '</div>' +
+            '<div class="branch-progress-bar">' +
+              '<div class="branch-progress-fill" style="width: ' + Math.min(fillPct, 100) + '%;"></div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="branch-metrics-row">' +
+            '<div>' +
+              '<div class="metric-mini-title">المتعاقد عليه</div>' +
+              '<div class="metric-mini-val mono">' + b.contracted_seats + '</div>' +
+            '</div>' +
+            '<div>' +
+              '<div class="metric-mini-title">المسكّن</div>' +
+              '<div class="metric-mini-val mono">' + b.filled_seats + '</div>' +
+            '</div>' +
+            '<div>' +
+              '<div class="metric-mini-title">الشاغر</div>' +
+              '<div class="metric-mini-val mono ' + (hasVacancy ? 'warn' : '') + '">' + b.vacant_seats + '</div>' +
+            '</div>' +
+            '<div>' +
+              '<div class="metric-mini-title">طلبات اليوم</div>' +
+              '<div class="metric-mini-val mono">' + (b.today_orders || 0) + '</div>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="seats-list">' +
+            '<div style="font-size:12px; font-weight:700; color:var(--ink2); margin-bottom:2px;">قائمة المقاعد والمناديب:</div>' +
+            seatsHtml +
+          '</div>';
+
+        container.appendChild(card);
+      });
+    }
+
+    function populateBranchModalDropdown(branches) {
+      const select = document.getElementById('selectRequestBranch');
+      if (!select) return;
+      select.innerHTML = '';
+      branches.forEach(function(b) {
+        const opt = document.createElement('option');
+        opt.value = b.branch_id;
+        opt.textContent = b.branch_name + ' (' + b.city + ') — السعة الحالية: ' + b.contracted_seats + ' مقاعد';
+        select.appendChild(opt);
+      });
+    }
+
+    // =========================================================================
+    // SCREEN 2: CAPACITY REQUESTS
+    // =========================================================================
+    async function loadCapacityRequests() {
+      try {
+        const res = await apiCall('/merchant/account/' + state.accountId + '/capacity-requests');
+        if (!res.ok) return;
+        const data = await res.json();
+        state.capacityRequests = data.requests || [];
+        renderCapacityTable(state.capacityRequests);
+      } catch (err) {
+        console.error('Error loading capacity requests:', err);
+      }
+    }
+
+    function renderCapacityTable(requests) {
+      const tbody = document.getElementById('capacityTableBody');
+      tbody.innerHTML = '';
+
+      if (!requests.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--muted);">لا توجد طلبات تعديل سعة مسجلة حتى الآن</td></tr>';
+        return;
+      }
+
+      const statusLabels = {
+        'requested': { label: 'مرفوع', cls: 'requested' },
+        'under_review': { label: 'قيد المراجعة', cls: 'under_review' },
+        'approved': { label: 'معتمد', cls: 'approved' },
+        'effective': { label: 'سارٍ ومطبّق', cls: 'effective' },
+        'rejected': { label: 'مرفوض', cls: 'rejected' }
+      };
+
+      requests.forEach(function(r) {
+        const tr = document.createElement('tr');
+        const st = statusLabels[r.status] || { label: r.status, cls: 'requested' };
+        const typeLabel = r.request_type === 'increase' ? 'زيادة مقاعد (+)' : 'تقليص مقاعد (-)';
+        const typeColor = r.request_type === 'increase' ? 'var(--green)' : 'var(--amber)';
+
+        tr.innerHTML = 
+          '<td class="mono">#' + r.id + '</td>' +
+          '<td><strong>' + (r.branch_name || ('فرع #' + r.merchant_branch_id)) + '</strong></td>' +
+          '<td style="color:' + typeColor + '; font-weight:700;">' + typeLabel + '</td>' +
+          '<td class="mono" style="font-weight:800;">' + r.requested_seat_count + ' مقعد</td>' +
+          '<td class="mono">' + (r.effective_month || '—') + '</td>' +
+          '<td><span class="status-badge ' + st.cls + '">' + st.label + '</span></td>' +
+          '<td class="mono" style="font-size:11px; color:var(--muted);">' + (r.created_at || '').substring(0, 10) + '</td>' +
+          '<td style="font-size:12px; color:var(--ink2);">' + (r.admin_notes || r.notes || '—') + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function submitCapacityRequest(e) {
+      e.preventDefault();
+      const branchId = parseInt(document.getElementById('selectRequestBranch').value, 10);
+      const reqType = document.getElementById('selectRequestType').value;
+      const seatCount = parseInt(document.getElementById('inputRequestSeats').value, 10);
+      const effectiveMonth = document.getElementById('inputRequestEffectiveMonth').value;
+      const notes = document.getElementById('inputRequestNotes').value;
+
+      if (!branchId || !seatCount || !effectiveMonth) {
+        showToast('يرجى استكمال كافة الحقول الإلزامية للطلب', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmitCapacityRequest');
+      btn.disabled = true;
+      btn.textContent = 'جاري الإرسال...';
+
+      try {
+        const res = await apiCall('/merchant/account/' + state.accountId + '/capacity-requests', {
+          method: 'POST',
+          body: JSON.stringify({
+            merchant_branch_id: branchId,
+            request_type: reqType,
+            requested_seat_count: seatCount,
+            effective_month: effectiveMonth,
+            notes: notes
+          })
+        });
+
+        if (res.ok) {
+          showToast('تم رفع طلب تعديل السعة بنجاح لفريق العمليات', 'success');
+          closeCapacityModal();
+          loadCapacityRequests();
+        } else {
+          const err = await res.json().catch(function() { return {}; });
+          showToast(err.detail || 'تعذر رفع الطلب', 'error');
+        }
+      } catch (err) {
+        console.error('Error submitting capacity request:', err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'رفع الطلب للعمليات';
+      }
+    }
+
+    function openCapacityModal() {
+      document.getElementById('capacityModal').classList.add('active');
+      const now = new Date();
+      now.setMonth(now.getMonth() + 1);
+      const nextMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      document.getElementById('inputRequestEffectiveMonth').value = nextMonth;
+    }
+
+    function closeCapacityModal() {
+      document.getElementById('capacityModal').classList.remove('active');
+    }
+
+    // =========================================================================
+    // SCREEN 3: ZATCA TAX INVOICE
+    // =========================================================================
+    async function loadTaxInvoice() {
+      const month = state.currentMonth;
+      document.getElementById('invoiceHeaderMonth').textContent = 'فواتير شهر ' + month;
+
+      try {
+        const res = await apiCall('/merchant/account/' + state.accountId + '/tax-invoice?month=' + month);
+        if (res.status === 404) {
+          document.getElementById('invoiceEmptyState').style.display = 'block';
+          document.getElementById('invoicePaper').style.display = 'none';
+          return;
+        }
+        if (!res.ok) return;
+
+        const data = await res.json();
+        state.invoice = data;
+
+        document.getElementById('invoiceEmptyState').style.display = 'none';
+        document.getElementById('invoicePaper').style.display = 'flex';
+
+        // Render Invoice
+        document.getElementById('invBadgeType').textContent = data.is_tax_invoice ? 'فاتورة ضريبية' : 'فاتورة تجارية';
+        document.getElementById('invNumber').textContent = data.invoice_number;
+        document.getElementById('invDate').textContent = data.issue_date;
+        document.getElementById('invStatus').textContent = data.status === 'paid' ? 'مسددة' : 'معتمدة';
+
+        document.getElementById('invSellerName').textContent = data.seller_name;
+        document.getElementById('invSellerVat').textContent = data.seller_vat_number || 'غير مسجل ضريبياً';
+
+        document.getElementById('invBuyerName').textContent = data.merchant_account_name;
+        document.getElementById('invBuyerVat').textContent = data.merchant_tax_id || '—';
+        document.getElementById('invBilledMonth').textContent = data.month;
+
+        document.getElementById('invSeatsCount').textContent = data.contracted_seats;
+        document.getElementById('invSeatRate').textContent = formatMoney(data.rate_per_seat, data.currency);
+        document.getElementById('invSubtotal').textContent = formatMoney(data.subtotal, data.currency);
+
+        document.getElementById('invSubtotalRow').textContent = formatMoney(data.subtotal, data.currency);
+        const vatPct = (data.vat_rate * 100).toFixed(0);
+        document.getElementById('invVatRateRow').textContent = vatPct + '%';
+        document.getElementById('invVatAmountRow').textContent = formatMoney(data.vat_amount, data.currency);
+        document.getElementById('invTotalRow').textContent = formatMoney(data.total, data.currency);
+
+        // QR Code
+        const tlvSnippet = document.getElementById('zatcaTlvSnippet');
+        if (tlvSnippet) tlvSnippet.textContent = data.zatca_qr_base64 || '—';
+        renderZatcaQrCanvas(data.zatca_qr_base64);
+      } catch (err) {
+        console.error('Error loading tax invoice:', err);
+      }
+    }
+
+    function renderZatcaQrCanvas(qrText) {
+      const canvas = document.getElementById('zatcaCanvas');
+      if (!canvas || !qrText) return;
+      const ctx = canvas.getContext('2d');
+      const size = 140;
+      canvas.width = size;
+      canvas.height = size;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#000000';
+
+      const cells = 29;
+      const cellPx = size / cells;
+
+      let hash = 0;
+      for (let i = 0; i < qrText.length; i++) {
+        hash = ((hash << 5) - hash) + qrText.charCodeAt(i);
+        hash |= 0;
+      }
+
+      function drawFinder(col, row) {
+        for (let dr = 0; dr < 7; dr++) {
+          for (let dc = 0; dc < 7; dc++) {
+            const isBlack = (dr === 0 || dr === 6 || dc === 0 || dc === 6 || (dr >= 2 && dr <= 4 && dc >= 2 && dc <= 4));
+            ctx.fillStyle = isBlack ? '#000000' : '#ffffff';
+            ctx.fillRect((col + dc) * cellPx, (row + dr) * cellPx, cellPx, cellPx);
+          }
+        }
+      }
+
+      for (let r = 0; r < cells; r++) {
+        for (let c = 0; c < cells; c++) {
+          if ((r < 8 && c < 8) || (r < 8 && c >= cells - 8) || (r >= cells - 8 && c < 8)) continue;
+          if (r === 6 || c === 6) {
+            if ((r + c) % 2 === 0) {
+              ctx.fillStyle = '#000000';
+              ctx.fillRect(c * cellPx, r * cellPx, cellPx, cellPx);
+            }
+            continue;
+          }
+          const idx = (r * cells + c) % qrText.length;
+          const bit = (qrText.charCodeAt(idx) ^ (r * 7 + c * 11) ^ hash) & 1;
+          if (bit) {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(c * cellPx, r * cellPx, cellPx, cellPx);
+          }
+        }
+      }
+
+      drawFinder(0, 0);
+      drawFinder(cells - 7, 0);
+      drawFinder(0, cells - 7);
+    }
+
+    function copyTlvPayload() {
+      const el = document.getElementById('zatcaTlvSnippet');
+      if (!el || !el.textContent) return;
+      navigator.clipboard.writeText(el.textContent).then(function() {
+        showToast('تم نسخ رمز التحقق ZATCA بنجاح', 'success');
+      }).catch(function() {
+        showToast('تعذر النسخ تلقائياً', 'error');
+      });
+    }
+
+    // =========================================================================
+    // SCREEN 4: SLA INDICATORS
+    // =========================================================================
+    async function loadSlaIndicators() {
+      const month = state.currentMonth;
+      try {
+        const res = await apiCall('/merchant/account/' + state.accountId + '/sla?month=' + month);
+        if (!res.ok) return;
+        const data = await res.json();
+        state.sla = data;
+
+        const rateEl = document.getElementById('slaOverallRate');
+        const rate = data.fulfillment_rate_percent || 0;
+        rateEl.textContent = rate.toFixed(1) + '%';
+        rateEl.className = 'sla-gauge-val mono ' + (rate >= 95 ? '' : rate >= 80 ? 'warn' : 'danger');
+
+        document.getElementById('slaContractedDays').textContent = data.contracted_seat_days || 0;
+        document.getElementById('slaFilledDays').textContent = data.filled_seat_days || 0;
+        document.getElementById('slaVacantDays').textContent = data.vacant_seat_days || 0;
+        document.getElementById('slaAttendedDays').textContent = data.attended_days || 0;
+        document.getElementById('slaShortfallDays').textContent = data.shortfall_days || 0;
+
+        renderSlaTable(data.breakdown || []);
+      } catch (err) {
+        console.error('Error loading SLA data:', err);
+      }
+    }
+
+    function renderSlaTable(breakdown) {
+      const tbody = document.getElementById('slaTableBody');
+      tbody.innerHTML = '';
+
+      if (!breakdown.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--muted);">لا توجد بيانات لهذا الشهر</td></tr>';
+        return;
+      }
+
+      breakdown.forEach(function(item) {
+        const tr = document.createElement('tr');
+        const rate = item.fulfillment_rate_percent || 0;
+        const badgeCls = rate >= 95 ? 'effective' : rate >= 80 ? 'under_review' : 'rejected';
+
+        tr.innerHTML = 
+          '<td><strong>' + item.branch_name + '</strong></td>' +
+          '<td style="text-align:center;" class="mono">' + item.contracted_seats + '</td>' +
+          '<td style="text-align:center;" class="mono">' + item.contracted_seat_days + '</td>' +
+          '<td style="text-align:center;" class="mono ' + (item.vacant_seat_days > 0 ? 'warn' : '') + '">' + item.vacant_seat_days + '</td>' +
+          '<td style="text-align:center;" class="mono">' + item.attended_days + '</td>' +
+          '<td style="text-align:center;" class="mono ' + (item.shortfall_days > 0 ? 'warn' : '') + '">' + item.shortfall_days + '</td>' +
+          '<td style="text-align:center;"><span class="status-badge ' + badgeCls + '">' + rate.toFixed(1) + '%</span></td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    // =========================================================================
+    // MONTH PICKER CONTROLS
+    // =========================================================================
+    function stepMonth(delta) {
+      const parts = state.currentMonth.split('-');
+      let y = parseInt(parts[0], 10);
+      let m = parseInt(parts[1], 10);
+
+      m += delta;
+      if (m > 12) { m = 1; y++; }
+      if (m < 1) { m = 12; y--; }
+
+      state.currentMonth = y + '-' + String(m).padStart(2, '0');
+      const input = document.getElementById('globalMonthInput');
+      if (input) input.value = state.currentMonth;
+
+      const activeScreen = document.querySelector('.screen.active');
+      if (activeScreen) {
+        if (activeScreen.id === 'screenInvoice') loadTaxInvoice();
+        if (activeScreen.id === 'screenSla') loadSlaIndicators();
+      }
+    }
+
+    // =========================================================================
+    // INITIALIZATION & EVENT LISTENERS
+    // =========================================================================
+    document.addEventListener('DOMContentLoaded', function() {
+      checkInitialAuth();
+
+      // Theme
+      document.getElementById('btnThemeToggle').addEventListener('click', toggleTheme);
+
+      // Refresh
+      document.getElementById('btnRefresh').addEventListener('click', function() {
+        const activeScreen = document.querySelector('.screen.active');
+        if (activeScreen) switchScreen(activeScreen.id);
+        showToast('تم تحديث البيانات', 'info');
+      });
+
+      // Logout
+      document.getElementById('btnLogout').addEventListener('click', logout);
+
+      // Barrier Relogin
+      const btnRelogin = document.getElementById('btnBarrierRelogin');
+      if (btnRelogin) {
+        btnRelogin.addEventListener('click', function() {
+          localStorage.removeItem('dou_merchant_token');
+          showAuthView();
+        });
+      }
+
+      // Tab Navigation
+      document.querySelectorAll('.tab-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          const target = this.getAttribute('data-target');
+          switchScreen(target);
+        });
+      });
+
+      // Month Picker Controls
+      document.getElementById('btnPrevMonth').addEventListener('click', function() { stepMonth(-1); });
+      document.getElementById('btnNextMonth').addEventListener('click', function() { stepMonth(1); });
+      document.getElementById('globalMonthInput').addEventListener('change', function() {
+        if (this.value) {
+          state.currentMonth = this.value;
+          const activeScreen = document.querySelector('.screen.active');
+          if (activeScreen) {
+            if (activeScreen.id === 'screenInvoice') loadTaxInvoice();
+            if (activeScreen.id === 'screenSla') loadSlaIndicators();
+          }
+        }
+      });
+
+      // Auth Mode Switcher
+      const tabApiKey = document.getElementById('tabModeApiKey');
+      const tabCreds = document.getElementById('tabModeCredentials');
+      const formApiKey = document.getElementById('formApiKey');
+      const formCreds = document.getElementById('formCredentials');
+
+      tabApiKey.addEventListener('click', function() {
+        tabApiKey.classList.add('active');
+        tabCreds.classList.remove('active');
+        formApiKey.style.display = 'flex';
+        formCreds.style.display = 'none';
+      });
+
+      tabCreds.addEventListener('click', function() {
+        tabCreds.classList.add('active');
+        tabApiKey.classList.remove('active');
+        formCreds.style.display = 'flex';
+        formApiKey.style.display = 'none';
+      });
+
+      // Login Form 1: API Key
+      formApiKey.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const apiKey = document.getElementById('inputApiKey').value.trim();
+        const btn = document.getElementById('btnSubmitApiKey');
+        btn.disabled = true;
+        btn.textContent = 'جاري التحقق...';
+
+        try {
+          const res = await fetch('/merchant/auth/owner-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_key: apiKey })
+          });
+          const data = await res.json();
+          if (res.ok && data.access_token) {
+            state.token = data.access_token;
+            state.accountId = data.merchant_account_id;
+            state.accountName = data.merchant_account_name;
+            localStorage.setItem('dou_owner_token', data.access_token);
+            localStorage.setItem('dou_owner_account_id', String(data.merchant_account_id));
+            localStorage.setItem('dou_owner_account_name', data.merchant_account_name);
+            showToast('مرحباً بك في بوابة صاحب المطعم', 'success');
+            showDashboardView();
+          } else {
+            showToast(data.detail || 'مفتاح API التجاري غير صحيح', 'error');
+          }
+        } catch (err) {
+          showToast('حدث خطأ أثناء الاتصال بالخادم', 'error');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'تسجيل الدخول';
+        }
+      });
+
+      // Login Form 2: Phone & Password
+      formCreds.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const phone = document.getElementById('inputAccountPhone').value.trim();
+        const password = document.getElementById('inputAccountPassword').value;
+        const btn = document.getElementById('btnSubmitCredentials');
+        btn.disabled = true;
+        btn.textContent = 'جاري التحقق...';
+
+        try {
+          const res = await fetch('/merchant/auth/owner-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: phone, password: password })
+          });
+          const data = await res.json();
+          if (res.ok && data.access_token) {
+            state.token = data.access_token;
+            state.accountId = data.merchant_account_id;
+            state.accountName = data.merchant_account_name;
+            localStorage.setItem('dou_owner_token', data.access_token);
+            localStorage.setItem('dou_owner_account_id', String(data.merchant_account_id));
+            localStorage.setItem('dou_owner_account_name', data.merchant_account_name);
+            showToast('مرحباً بك في بوابة صاحب المطعم', 'success');
+            showDashboardView();
+          } else {
+            showToast(data.detail || 'بيانات الدخول غير صحيحة', 'error');
+          }
+        } catch (err) {
+          showToast('حدث خطأ أثناء الاتصال بالخادم', 'error');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'تسجيل الدخول';
+        }
+      });
+
+      // Capacity Modal
+      document.getElementById('btnOpenCapacityModal').addEventListener('click', openCapacityModal);
+      document.getElementById('btnCloseCapacityModal').addEventListener('click', closeCapacityModal);
+      document.getElementById('btnCancelCapacityModal').addEventListener('click', closeCapacityModal);
+      document.getElementById('formNewCapacityRequest').addEventListener('submit', submitCapacityRequest);
+
+      // Print Invoice
+      document.getElementById('btnPrintInvoice').addEventListener('click', function() {
+        window.print();
+      });
+
+      // Copy TLV
+      const btnCopy = document.getElementById('btnCopyTlv');
+      if (btnCopy) btnCopy.addEventListener('click', copyTlvPayload);
+    });
+  </script>
+</body>
+</html>

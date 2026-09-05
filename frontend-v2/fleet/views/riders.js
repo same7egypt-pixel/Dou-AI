@@ -1,7 +1,7 @@
 // Riders screen — list/search/filter/create/edit/open Rider 360 with Driver Taxonomy & Readiness
 import { api } from '../../shared/api/client.js';
 import { appStore, isDeliveryPlatform } from '../../shared/state/store.js';
-import { el, loadingState, emptyState, errorState, table, button, escapeHtml, modal, formRow, inputField, selectField, badge, searchableSelect } from '../../shared/components/ui.js';
+import { el, loadingState, emptyState, errorState, table, button, escapeHtml, modal, formRow, inputField, selectField, badge, searchableSelect, showToast } from '../../shared/components/ui.js';
 import { go } from '../shell.js';
 import { loadRider360 } from './rider360.js';
 import { openBulkImportModal, openImportHistoryModal } from './imports.js';
@@ -185,13 +185,22 @@ async function loadRiderList(container) {
           class: 'btn btn-ghost btn-small',
           style: 'padding:4px 8px;font-size:11.5px;color:var(--red);border-color:rgba(220,38,38,0.2)',
           onclick: async () => {
-            if (!confirm(isAr ? `هل تريد بالتأكيد حذف / تعطيل السائق (${row.name})؟` : `Are you sure you want to suspend / delete driver (${row.name})?`)) return;
+            // The server decides: a rider with operational history is deactivated
+            // so the reports stay whole, and only a record created by mistake is
+            // removed. It says which one it did — saying "delete / deactivate"
+            // before and after leaves the manager guessing about a rider's file.
+            if (!confirm(isAr
+              ? `إيقاف السائق (${row.name})؟\n\nلو له سجل تشغيلي (طلبات أو حضور) هيتم تعطيله وتفضل تقاريره كما هي. لو اتضاف بالخطأ ومفيش عليه أي حركة، هيتشال نهائيًا.`
+              : `Stop driver (${row.name})?\n\nIf they have operational history (orders or attendance) they are deactivated and their records are kept. If the record was created by mistake with no activity, it is removed permanently.`)) return;
             try {
-              await api.delete(`/fleet/couriers/${row.id}`);
-              alert(isAr ? '✅ تم حذف / تعطيل السائق بنجاح.' : '✅ Driver suspended/deleted successfully.');
+              const res = await api.delete(`/fleet/couriers/${row.id}`);
+              const removed = res?.action === 'deleted';
+              showToast(isAr
+                ? (removed ? '✅ تم حذف سجل السائق نهائيًا (لم يكن عليه أي حركة).' : '✅ تم تعطيل السائق، وتقاريره وسجلاته محفوظة.')
+                : (removed ? '✅ Driver record permanently removed (it had no activity).' : '✅ Driver deactivated — their records and reports are preserved.'), 'success');
               loadRiderList(container);
             } catch (err) {
-              alert((isAr ? '❌ تعذر الحذف: ' : '❌ Failed to delete: ') + err.message);
+              showToast((isAr ? '❌ تعذر الحذف: ' : '❌ Failed to delete: ') + err.message, 'error');
             }
           }
         }, isAr ? '🗑️ حذف' : '🗑️ Delete'),
@@ -207,8 +216,8 @@ async function loadRiderList(container) {
 async function openAddRider(container) {
   try {
     const [structure, allSupervisors] = await Promise.all([
-      api.get('/hr/contract-structure').catch(() => []),
-      api.get('/hr/supervisors').catch(() => []),
+      api.get('/hr/contract-structure'),
+      api.get('/hr/supervisors'),
     ]);
     const contracts = structure || [];
 
@@ -350,9 +359,9 @@ async function openAddRider(container) {
       const branchId = document.getElementById('ar-branch').value;
       const supervisorId = document.getElementById('ar-supervisor').value;
 
-      if (!name || !phone) return alert('الاسم والجوال مطلوبان.');
+      if (!name || !phone) return showToast('الاسم والجوال مطلوبان.', 'info');
       if (!contractId || !branchId || !selectedBranch) {
-        return alert('اختر العقد وفرع التشغيل قبل إضافة السائق.');
+        return showToast('اختر العقد وفرع التشغيل قبل إضافة السائق.', 'info');
       }
 
       try {
@@ -371,11 +380,11 @@ async function openAddRider(container) {
           country: 'SA',
           city_id: selectedBranch?.city_id || 1,
         });
-        alert('✅ أُضيف السائق بنجاح وتم ربطه بالهيكل التشغيلي.');
+        showToast('✅ أُضيف السائق بنجاح وتم ربطه بالهيكل التشغيلي.', 'success');
         m.close();
         loadRiderList(container);
       } catch (err) {
-        alert('❌ فشل إضافة السائق: ' + err.message);
+        showToast('❌ فشل إضافة السائق: ' + err.message, 'error');
       }
     }}, [
       hierarchySummary,
@@ -421,15 +430,15 @@ async function openAddRider(container) {
 
     m = modal('➕ إضافة سائق جديد وربطه بالهيكل التشغيلي', content);
   } catch (err) {
-    alert('تعذر فتح نموذج الإضافة: ' + err.message);
+    showToast('تعذر فتح نموذج الإضافة: ' + err.message, 'error');
   }
 }
 
 async function openEditRiderModal(courier, onUpdated) {
   try {
     const [structure, allSupervisors, fullProfile] = await Promise.all([
-      api.get('/hr/contract-structure').catch(() => []),
-      api.get('/hr/supervisors').catch(() => []),
+      api.get('/hr/contract-structure'),
+      api.get('/hr/supervisors'),
       api.get(`/fleet/couriers/${courier.id}`).catch(() => courier),
     ]);
     const contracts = structure || [];
@@ -527,15 +536,15 @@ async function openEditRiderModal(courier, onUpdated) {
 
       try {
         await api.patch(`/fleet/couriers/${courier.id}`, payload);
-        alert('✅ تم تحديث بيانات السائق بنجاح.');
+        showToast('✅ تم تحديث بيانات السائق بنجاح.', 'success');
         m.remove();
         onUpdated();
       } catch (err) {
-        alert('❌ تعذر التحديث: ' + err.message);
+        showToast('❌ تعذر التحديث: ' + err.message, 'error');
       }
     };
   } catch (err) {
-    alert('تعذر فتح نموذج التعديل: ' + err.message);
+    showToast('تعذر فتح نموذج التعديل: ' + err.message, 'error');
   }
 }
 
@@ -547,7 +556,7 @@ export async function openVehiclesFleetModal(container) {
     const role = appStore.get().role || localStorage.getItem('dou_role_v2') || 'COMPANY_ADMIN';
     const isAdmin = ['COMPANY', 'COMPANY_ADMIN', 'OPERATIONS', 'DOU_ADMIN', 'DOU_OPS'].includes(role);
 
-    const vehicles = await api.get('/vehicles/').catch(() => []);
+    const vehicles = await api.get('/vehicles/');
 
     const content = el('div', { style: 'display:grid;gap:14px;min-width:650px;direction:rtl' }, [
       el('div', { style: 'display:flex;justify-content:space-between;align-items:center' }, [
@@ -582,11 +591,11 @@ export async function openVehiclesFleetModal(container) {
               if (!confirm(`هل تريد بالتأكيد تعطيل/حذف المركبة ${r.plate_number}؟`)) return;
               try {
                 await api.delete(`/vehicles/${r.id}`);
-                alert('✅ تم تعطيل المركبة بنجاح.');
+                showToast('✅ تم تعطيل المركبة بنجاح.', 'success');
                 m.remove();
                 openVehiclesFleetModal(container);
               } catch (err) {
-                alert('❌ تعذر الحذف: ' + err.message);
+                showToast('❌ تعذر الحذف: ' + err.message, 'error');
               }
             }
           }, '🗑️ حذف'),
@@ -597,7 +606,7 @@ export async function openVehiclesFleetModal(container) {
     const m = modal('🚗 إدارة أسطول المركبات والعهد التشغيلية', content);
 
   } catch (e) {
-    alert('تعذر فتح سجل المركبات: ' + e.message);
+    showToast('تعذر فتح سجل المركبات: ' + e.message, 'error');
   }
 }
 
@@ -652,11 +661,11 @@ async function openEditVehicleModal(vehicle, onUpdated) {
         model: document.getElementById('ev-model').value.trim() || undefined,
         operational_status: document.getElementById('ev-status').value,
       });
-      alert('✅ تم تعديل بيانات المركبة بنجاح.');
+      showToast('✅ تم تعديل بيانات المركبة بنجاح.', 'success');
       m.remove();
       onUpdated();
     } catch (err) {
-      alert('❌ تعذر التعديل: ' + err.message);
+      showToast('❌ تعذر التعديل: ' + err.message, 'error');
     }
   };
 }
@@ -717,11 +726,11 @@ async function openAddVehicleModal(onCreated) {
         market_code: 'SA',
         is_exclusive: true
       });
-      alert('✅ تم تسجيل المركبة بنجاح.');
+      showToast('✅ تم تسجيل المركبة بنجاح.', 'success');
       m.remove();
       onCreated();
     } catch (err) {
-      alert('❌ تعذر تسجيل المركبة: ' + err.message);
+      showToast('❌ تعذر تسجيل المركبة: ' + err.message, 'error');
     }
   };
 }

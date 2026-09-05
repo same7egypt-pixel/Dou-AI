@@ -9,7 +9,7 @@ import { appStore } from '../../shared/state/store.js';
 import {
   el, loadingState, emptyState, errorState, table, badge, modal, metricCard,
   formRow, inputField, selectField, escapeHtml,
-} from '../../shared/components/ui.js';
+  money, showToast } from '../../shared/components/ui.js';
 import { getLang } from '../../shared/i18n/i18n.js';
 
 let activeTab = 'users';
@@ -194,7 +194,7 @@ async function setUserActive(row, active, container) {
     await api.patch(`/fleet/users/${row.id}`, { is_active: active });
     loadSettings(container);
   } catch (err) {
-    alert((isAr ? '❌ تعذر تحديث الحالة: ' : '❌ Could not update: ') + err.message);
+    showToast((isAr ? '❌ تعذر تحديث الحالة: ' : '❌ Could not update: ') + err.message, 'error');
   }
 }
 
@@ -208,7 +208,7 @@ async function deleteUser(row, container) {
     await api.del(`/fleet/users/${row.id}`);
     loadSettings(container);
   } catch (err) {
-    alert((isAr ? '❌ تعذر الحذف: ' : '❌ Could not delete: ') + err.message);
+    showToast((isAr ? '❌ تعذر الحذف: ' : '❌ Could not delete: ') + err.message, 'error');
   }
 }
 
@@ -265,7 +265,6 @@ async function renderSubscription() {
   const isAr = getLang() === 'ar';
   const wrap = el('div', {});
   const status = await api.get('/billing/status');
-  const money = (v) => `${Number(v || 0).toLocaleString('en-US')} ${isAr ? 'ر.س' : 'SAR'}`;
 
   const tone = status.status === 'ACTIVE' ? 'green' : status.status === 'SUSPENDED' ? 'red' : 'amber';
   const statusLabel = isAr

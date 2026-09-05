@@ -24,7 +24,7 @@ export async function openNotificationsModal() {
         return el('div', { class: `card notif-card ${isUnread ? 'unread' : ''}`, style: 'margin-bottom:8px;padding:12px;border:1px solid var(--border)' }, [
           el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px' }, [
             badge(n.severity || 'INFO', n.severity === 'CRITICAL' ? 'red' : n.severity === 'WARNING' ? 'amber' : 'blue'),
-            el('small', { style: 'color:var(--text-muted)' }, n.created_at ? new Date(n.created_at).toLocaleTimeString('ar-SA') : ''),
+            el('small', { style: 'color:var(--text-muted)' }, n.created_at ? new Date(n.created_at).toLocaleTimeString('en-GB') : ''),
           ]),
           el('b', { text: n.title }),
           el('p', { style: 'margin:4px 0;font-size:13px;color:var(--text-sub)' }, n.message),

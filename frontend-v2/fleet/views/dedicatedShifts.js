@@ -2,8 +2,7 @@
 import { api } from '../../shared/api/client.js';
 import {
   el, loadingState, emptyState, errorState, table, button, escapeHtml,
-  modal, metricCard, badge
-} from '../../shared/components/ui.js';
+  modal, metricCard, badge, showToast } from '../../shared/components/ui.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
 
 let currentSubTab = 'contracts'; // 'contracts' | 'settlement'
@@ -193,7 +192,7 @@ async function openAssignRiderModal(booking, mainContainer) {
     submitBtn.onclick = async () => {
       const selectedId = Number(select.value);
       if (!selectedId) {
-        alert(isAr ? 'يرجى اختيار مندوب أولاً' : 'Please select a courier first');
+        showToast(isAr ? 'يرجى اختيار مندوب أولاً' : 'Please select a courier first', 'info');
         return;
       }
       submitBtn.disabled = true;
@@ -203,7 +202,7 @@ async function openAssignRiderModal(booking, mainContainer) {
         overlay.close();
         loadDedicatedShifts(mainContainer, 'contracts');
       } catch (e) {
-        alert(e.message || (isAr ? 'فشل حفظ المندوب' : 'Failed to assign rider'));
+        showToast(e.message || (isAr ? 'فشل حفظ المندوب' : 'Failed to assign rider'), 'error');
         submitBtn.disabled = false;
         submitBtn.textContent = isAr ? 'تأكيد إسناد المندوب' : 'Confirm Assignment';
       }

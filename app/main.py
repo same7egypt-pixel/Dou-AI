@@ -273,6 +273,14 @@ def merchant_app():
     return FileResponse(os.path.join(STATIC_DIR, "merchant.html"))
 
 
+@app.get("/owner")
+@app.head("/owner")
+@app.get("/owner/")
+@app.head("/owner/")
+def owner_app():
+    return FileResponse(os.path.join(STATIC_DIR, "owner.html"))
+
+
 
 
 @app.api_route("/sw.js", methods=["GET", "HEAD"])

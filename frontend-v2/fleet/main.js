@@ -16,6 +16,10 @@ const loadPlatformLink = (c) => import('./views/platformLink.js').then((m) => m.
 const loadIntegration = (c) => import('./views/integration.js').then((m) => m.renderIntegration(c));
 const loadImports = (c) => import('./views/imports.js').then((m) => m.renderImports(c));
 const loadDedicatedShifts = (c) => import('./views/dedicatedShifts.js').then((m) => m.loadDedicatedShifts(c));
+const loadVehicles = (c) => import('./views/vehicles.js').then((m) => m.loadVehicles(c));
+const loadDocuments = (c) => import('./views/documents.js').then((m) => m.loadDocuments(c));
+const loadSupervisor = (c) => import('./views/supervisor.js').then((m) => m.loadSupervisor(c));
+const loadWorkforce = (c) => import('./views/workforce.js').then((m) => m.loadWorkforce(c));
 import { loadDouAI } from './views/douai.js';
 const loadSettings = (c) => import('./views/settings.js').then((m) => m.loadSettings(c));
 import { refreshNotificationCount } from '../shared/components/notifications.js';
@@ -57,6 +61,10 @@ async function startApp() {
     riders: loadRiders,
     imports: loadImports,
     rider360: loadRider360,
+    vehicles: loadVehicles,
+    documents: loadDocuments,
+    supervisor: loadSupervisor,
+    workforce: loadWorkforce,
     shifts: loadShifts,
     dedicatedShifts: loadDedicatedShifts,
     needsAttention: loadNeedsAttention,

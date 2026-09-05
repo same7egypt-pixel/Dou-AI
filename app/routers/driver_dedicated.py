@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import ENABLE_OPEN_POOL, SECRET_KEY
 from app.database import get_db
-from app.models.entities import Courier, DailyLog, User
+from app.models.entities import Courier, DailyLog, Tenant, User
 from app.models.merchant import (
     BookingStatus,
     BranchDispatchOrder,
@@ -18,6 +18,7 @@ from app.models.merchant import (
     OrderStatus,
     ShiftAttendanceLog,
 )
+from app.services.cash_float import open_cod_float, open_cod_summary
 from app.utils.geo import haversine_distance_meters
 from app.utils.security import security_bearer
 
@@ -92,6 +93,8 @@ class DedicatedShiftCard(BaseModel):
     shift_end: str
     shift_type: str
     checkin_status: str  # "not_yet" | "checked_in" | "completed"
+    unsettled_float: float = 0.0
+    currency: str = "SAR"
 
 
 class CheckinRequest(BaseModel):
@@ -123,6 +126,29 @@ class RiderOrderOut(BaseModel):
     dispatched_at: datetime
     acknowledged_at: Optional[datetime] = None
     delivered_at: Optional[datetime] = None
+    order_amount: Optional[float] = None
+    payment_method: str = "unknown"
+    cod_amount: float = 0.0
+    cod_settled_at: Optional[datetime] = None
+    external_order_id: Optional[str] = None
+    currency: str = "SAR"
+
+
+class DriverFloatOrderOut(BaseModel):
+    id: int
+    external_order_id: Optional[str] = None
+    order_amount: Optional[float] = None
+    cod_amount: float
+    payment_method: str
+    delivered_at: Optional[datetime] = None
+    cod_settled_at: Optional[datetime] = None
+
+
+class DriverFloatOut(BaseModel):
+    unsettled_amount: float
+    currency: str = "SAR"
+    delivered_orders_count: int
+    orders: list[DriverFloatOrderOut] = []
 
 
 class PoolOrderOut(BaseModel):
@@ -199,6 +225,13 @@ def get_today_dedicated_shift(
 
     address = f"{branch.city}, {branch.district or ''}".strip(", ")
 
+    rider_currency = "SAR"
+    if current_rider.tenant_id:
+        t = db.get(Tenant, current_rider.tenant_id)
+        if t and t.currency:
+            rider_currency = t.currency
+    unsettled_float = open_cod_float(db, rider_id=current_rider.id)
+
     return DedicatedShiftCard(
         booking_id=booking.id,
         merchant_name=account.trade_name if account else "DOU Merchant",
@@ -210,6 +243,8 @@ def get_today_dedicated_shift(
         shift_end=booking.shift_end_time.strftime("%H:%M"),
         shift_type=booking.shift_type.value,
         checkin_status=checkin_status,
+        unsettled_float=unsettled_float,
+        currency=rider_currency,
     )
 
 
@@ -328,9 +363,16 @@ def get_active_branch_orders(
         .all()
     )
 
+    rider_currency = "SAR"
+    if current_rider.tenant_id:
+        t = db.get(Tenant, current_rider.tenant_id)
+        if t and t.currency:
+            rider_currency = t.currency
+
     results: list[RiderOrderOut] = []
     for o in orders:
         branch = db.get(MerchantBranch, o.merchant_branch_id)
+        pm = o.payment_method.value if hasattr(o.payment_method, "value") else str(o.payment_method or "unknown")
         results.append(
             RiderOrderOut(
                 order_id=o.id,
@@ -345,9 +387,51 @@ def get_active_branch_orders(
                 dispatched_at=o.dispatched_at or datetime.now(timezone.utc),
                 acknowledged_at=o.acknowledged_at,
                 delivered_at=o.delivered_at,
+                order_amount=float(o.order_amount) if o.order_amount is not None else None,
+                payment_method=pm,
+                cod_amount=float(o.cod_amount or 0),
+                cod_settled_at=o.cod_settled_at,
+                external_order_id=o.external_order_id,
+                currency=rider_currency,
             )
         )
     return results
+
+
+@router.get("/float", response_model=DriverFloatOut)
+def get_driver_float(
+    db: Session = Depends(get_db),
+    current_rider: Courier = Depends(get_current_rider),
+):
+    """
+    Returns the driver's current open COD cash float and delivered unsettled cash orders.
+    Single source of truth via app.services.cash_float.
+    """
+    rider_currency = "SAR"
+    if current_rider.tenant_id:
+        t = db.get(Tenant, current_rider.tenant_id)
+        if t and t.currency:
+            rider_currency = t.currency
+
+    summary = open_cod_summary(db, rider_id=current_rider.id)
+    orders_out = [
+        DriverFloatOrderOut(
+            id=o.id,
+            external_order_id=o.external_order_id,
+            order_amount=float(o.order_amount) if o.order_amount is not None else None,
+            cod_amount=float(o.cod_amount or 0),
+            payment_method=o.payment_method.value if hasattr(o.payment_method, "value") else str(o.payment_method or "unknown"),
+            delivered_at=o.delivered_at,
+            cod_settled_at=o.cod_settled_at,
+        )
+        for o in summary["orders"]
+    ]
+    return DriverFloatOut(
+        unsettled_amount=summary["unsettled_amount"],
+        currency=rider_currency,
+        delivered_orders_count=summary["delivered_orders_count"],
+        orders=orders_out,
+    )
 
 
 def _record_delivery_to_daily_log(

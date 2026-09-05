@@ -1,5 +1,7 @@
+import os
 from calendar import monthrange
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Optional
 
 import jwt as pyjwt
@@ -102,30 +104,31 @@ async def require_admin(
     db: Session = Depends(get_db),
 ):
     """بوابة لوحة التحكم: تقبل المفتاح الإداري (X-Admin-Key) أو توكن JWT لدور أدمن."""
-    if ADMIN_KEY and x_admin_key and x_admin_key == ADMIN_KEY:
+    effective_admin_key = os.getenv("ADMIN_KEY", ADMIN_KEY)
+    if effective_admin_key and x_admin_key and x_admin_key == effective_admin_key:
         admin_user = (
             db.query(User)
             .filter(User.role == UserRole.DOU_ADMIN, User.is_active)
             .first()
         )
         if not admin_user:
-            raise HTTPException(403, "No active DOU_ADMIN account configured")
+            raise HTTPException(403, "غير مصرح: لا يوجد حساب مدير نظام نشط مهيأ")
         return admin_user
     if authorization and authorization.startswith("Bearer "):
         token = authorization[7:]
         try:
             payload = pyjwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         except pyjwt.InvalidTokenError:
-            raise HTTPException(401, "Access denied")
+            raise HTTPException(401, "جلسة الدخول غير صالحة أو منتهية")
         if payload.get("role") not in ("DOU_ADMIN", "DOU_OPS"):
-            raise HTTPException(403, "Not an admin account")
+            raise HTTPException(403, "غير مصرح: هذا الإجراء مخصص لمديري نظام DOU فقط")
         user = db.get(User, int(payload["sub"]))
         if not user or not user.is_active:
-            raise HTTPException(401, "Access denied")
+            raise HTTPException(401, "جلسة الدخول غير صالحة أو منتهية")
         if int(payload.get("ver", 0)) != (user.token_version or 0):
-            raise HTTPException(401, "Access denied")
+            raise HTTPException(401, "جلسة الدخول غير صالحة أو منتهية")
         return user
-    raise HTTPException(401, "Access denied")
+    raise HTTPException(401, "جلسة الدخول غير صالحة أو منتهية")
 
 
 router = APIRouter(
@@ -587,8 +590,70 @@ def finance_summary(
         }
         for p in payments[:20]
     ]
+    totals_by_currency = {}
+    all_currencies = set(
+        list(expected_by_currency.keys())
+        + list(actual_by_currency.keys())
+        + list(outstanding_by_currency.keys())
+    )
+    if not all_currencies:
+        all_currencies = {"SAR"}
+    for c in all_currencies:
+        totals_by_currency[c] = {
+            "collected": round(actual_by_currency.get(c, 0.0), 2),
+            "expected": round(expected_by_currency.get(c, 0.0), 2),
+            "overdue": round(outstanding_by_currency.get(c, 0.0), 2),
+        }
+
+    # 6-Month History calculation
+    history = []
+    cur_y = now.year
+    cur_m = now.month
+    months_sequence = []
+    for i in range(5, -1, -1):
+        m_calc = cur_m - i
+        y_calc = cur_y
+        while m_calc <= 0:
+            m_calc += 12
+            y_calc -= 1
+        months_sequence.append((y_calc, m_calc))
+
+    for y, m in months_sequence:
+        m_start = datetime(y, m, 1)
+        _, last_day = monthrange(y, m)
+        m_end = datetime(y, m, last_day, 23, 59, 59)
+        m_str = f"{y:04d}-{m:02d}"
+
+        m_payments = (
+            db.query(SubscriptionPayment)
+            .filter(
+                SubscriptionPayment.paid_at >= m_start,
+                SubscriptionPayment.paid_at <= m_end,
+            )
+            .all()
+        )
+        m_collected = round(sum(p.amount or 0 for p in m_payments), 2)
+        m_expected = round(
+            sum(
+                (t.monthly_fee or 0)
+                for t in tenants
+                if (t.subscription_status == "ACTIVE" or not t.due_date or t.due_date <= m_end)
+            ),
+            2,
+        )
+        if m_expected < m_collected:
+            m_expected = m_collected
+
+        history.append({
+            "month": m_str,
+            "collected": m_collected,
+            "expected": m_expected,
+            "payments_count": len(m_payments),
+        })
+
     return {
         "month": month_start.strftime("%Y-%m"),
+        "totals_by_currency": totals_by_currency,
         "actual_revenue": actual_by_currency,
         "expected_revenue": expected_by_currency,
         "outstanding": outstanding_by_currency,
@@ -596,8 +661,77 @@ def finance_summary(
         "paid_companies": sum(r["paid_this_month"] for r in rows),
         "unpaid_this_month": sum(not r["paid_this_month"] for r in rows),
         "overdue_companies": sum(r["months_overdue"] > 0 for r in rows),
+        "unconfigured_companies": sum(r["collection_status"] == "UNCONFIGURED" for r in rows),
+        "history": history,
         "rows": rows,
         "recent_payments": recent,
+    }
+
+
+def _measure_backup_status() -> dict:
+    backup_dir = Path(os.getenv("BACKUP_DIR", "./backups"))
+    s3_bucket = os.getenv("BACKUP_S3_BUCKET", "").strip()
+
+    files = (
+        sorted(backup_dir.glob("dou_*"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if backup_dir.exists()
+        else []
+    )
+
+    if not files:
+        return {
+            "status": "NO_BACKUPS_FOUND",
+            "is_healthy": False,
+            "has_backups": False,
+            "last_backup_at": None,
+            "last_backup_file": None,
+            "size_bytes": 0,
+            "size_formatted": "0 B",
+            "storage_destination": "REMOTE_S3" if s3_bucket else "LOCAL_ONLY",
+            "is_offsite": False,
+            "age_hours": None,
+            "message": "تحذير: لا توجد أي نسخ احتياطية مسجلة للنظام في مجلد النسخ الاحتياطي.",
+        }
+
+    latest = files[0]
+    stat = latest.stat()
+    mtime = datetime.fromtimestamp(stat.st_mtime, timezone.utc)
+    size = stat.st_size
+    if size < 1024:
+        size_fmt = f"{size} B"
+    elif size < 1024 * 1024:
+        size_fmt = f"{size / 1024:.1f} KB"
+    else:
+        size_fmt = f"{size / (1024 * 1024):.1f} MB"
+
+    is_offsite = bool(s3_bucket)
+    dest = f"S3 ({s3_bucket})" if s3_bucket else "LOCAL_ONLY"
+
+    now = datetime.now(timezone.utc)
+    age_hours = (now - mtime).total_seconds() / 3600.0
+
+    if not is_offsite:
+        status_code = "LOCAL_ONLY_WARNING"
+        msg = f"النسخ الاحتياطي يعمل محلياً فقط ({latest.name} بحجم {size_fmt})، لم يتم ضبط التخزين السحابي S3."
+    elif age_hours > 36:
+        status_code = "STALE_BACKUP"
+        msg = f"النسخة الاحتياطية الأخيرة قديمة ({mtime.strftime('%Y-%m-%d %H:%M UTC')}). يرجى التحقق من مهام Cron."
+    else:
+        status_code = "HEALTHY"
+        msg = f"النسخ الاحتياطي سليم ومحدث سحابياً ({latest.name})."
+
+    return {
+        "status": status_code,
+        "is_healthy": status_code == "HEALTHY",
+        "has_backups": True,
+        "last_backup_at": mtime.isoformat(),
+        "last_backup_file": latest.name,
+        "size_bytes": size,
+        "size_formatted": size_fmt,
+        "storage_destination": dest,
+        "is_offsite": is_offsite,
+        "age_hours": round(age_hours, 1),
+        "message": msg,
     }
 
 
@@ -608,13 +742,13 @@ def system_status(db: Session = Depends(get_db)):
         database_ok = True
     except Exception:
         database_ok = False
+    backup_info = _measure_backup_status()
     return {
-        "api": "ONLINE",
         "database": "ONLINE" if database_ok else "ERROR",
         "public_company_signup": ENABLE_PUBLIC_COMPANY_SIGNUP,
         "legacy_delivery_modules": ENABLE_LEGACY_DELIVERY,
-        "subscription_payments": "ADMIN_RECORDED",
-        "backup_status": "MANAGED_EXTERNALLY",
+        "backup_status": backup_info["status"],
+        "backup_details": backup_info,
     }
 
 
@@ -641,12 +775,42 @@ def admin_dashboard(country: Optional[str] = Query(None), db: Session = Depends(
     total_riders = c_q.count()
     month_start = datetime(now.year, now.month, 1)
     payments = p_q.filter(SubscriptionPayment.paid_at >= month_start).all()
-    monthly_revenue = round(sum(p.amount or 0 for p in payments), 2)
+    subscription_revenue = round(sum(p.amount or 0 for p in payments), 2)
+
+    # Dedicated shift flex margin calculation
+    from app.models.merchant import BookingStatus, DedicatedShiftBooking
+    b_q = db.query(DedicatedShiftBooking).filter(
+        DedicatedShiftBooking.status == BookingStatus.active
+    )
+    if country:
+        c_code = country.strip().upper()
+        gc = db.query(GeoCountry).filter(func.upper(GeoCountry.code) == c_code).first()
+        if gc:
+            b_q = b_q.join(
+                MerchantBranch, DedicatedShiftBooking.merchant_branch_id == MerchantBranch.id
+            ).filter(MerchantBranch.country_id == gc.id)
+
+    active_bookings = b_q.all()
+    flex_margin_revenue = round(
+        sum(
+            float(
+                b.dou_margin
+                if b.dou_margin is not None
+                else ((b.monthly_fee_to_merchant or 0) - (b.monthly_payout_to_logistics or 0))
+            )
+            for b in active_bookings
+        ),
+        2,
+    )
+    total_monthly_revenue = round(subscription_revenue + flex_margin_revenue, 2)
+
     return {
         "total_tenants": total_tenants,
         "active_tenants": active_tenants,
         "total_riders": total_riders,
-        "monthly_revenue": monthly_revenue,
+        "monthly_revenue": total_monthly_revenue,
+        "subscription_revenue": subscription_revenue,
+        "flex_margin_revenue": flex_margin_revenue,
     }
 
 
@@ -1737,14 +1901,16 @@ def health_detailed(db: Session = Depends(get_db)):
         .scalar()
         or 0
     )
+    backup_info = _measure_backup_status()
     return {
-        "api": "ONLINE",
         "database": "ONLINE" if database_ok else "ERROR",
         "data_health": data_health,
         "recent_import_failures_24h": recent_failures,
         "pending_attendance_corrections": pending_corrections,
         "public_company_signup": ENABLE_PUBLIC_COMPANY_SIGNUP,
         "legacy_delivery_modules": ENABLE_LEGACY_DELIVERY,
+        "backup_status": backup_info["status"],
+        "backup_details": backup_info,
     }
 
 

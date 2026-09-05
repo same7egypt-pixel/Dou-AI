@@ -8,7 +8,7 @@
 // The API refuses both endpoints to an account without MANAGE_OPERATORS, so
 // this screen never has to guess at permission.
 import { api } from '../../shared/api/client.js';
-import { el, loadingState, emptyState, errorState, metricCard, badge, table, modal } from '../../shared/components/ui.js';
+import { el, loadingState, emptyState, errorState, metricCard, badge, table, modal, showToast } from '../../shared/components/ui.js';
 import { getLang } from '../../shared/i18n/i18n.js';
 import { go } from '../shell.js';
 
@@ -172,7 +172,7 @@ async function renderCompliance(pane, isAr) {
 
 async function renderPartners(pane, isAr) {
   pane.innerHTML = '';
-  const data = await api.get('/enterprise/operators?active_only=false').catch(() => []);
+  const data = await api.get('/enterprise/operators?active_only=false');
   const partners = Array.isArray(data) ? data : (data.operators || []);
 
   const totalPartners = partners.length;
@@ -233,7 +233,7 @@ async function renderPartners(pane, isAr) {
     {
       key: 'invited_at',
       label: isAr ? 'تاريخ الدعوة' : 'Invited Date',
-      render: (v) => el('span', { style: 'font-variant-numeric:tabular-nums;' }, v ? new Date(v).toLocaleDateString(isAr ? 'ar-SA' : 'en-US') : '—')
+      render: (v) => el('span', { style: 'font-variant-numeric:tabular-nums;' }, v ? new Date(v).toLocaleDateString('en-GB') : '—')
     },
   ], partners));
 }
@@ -280,7 +280,7 @@ function openInviteModal(pane, isAr) {
   submitBtn.onclick = async () => {
     const phone = phoneInput.value.trim();
     if (!phone) {
-      alert(isAr ? 'يرجى إدخال رقم جوال المشغل' : 'Please enter phone number');
+      showToast(isAr ? 'يرجى إدخال رقم جوال المشغل' : 'Please enter phone number', 'info');
       return;
     }
     submitBtn.disabled = true;
@@ -291,10 +291,10 @@ function openInviteModal(pane, isAr) {
         relationship_type: typeSelect.value
       });
       m.close();
-      alert(isAr ? 'تم إرسال دعوة الشراكة بنجاح! ستظهر في لوحة تحكم المشغل للموافقة.' : 'Invitation sent successfully!');
+      showToast(isAr ? 'تم إرسال دعوة الشراكة بنجاح! ستظهر في لوحة تحكم المشغل للموافقة.' : 'Invitation sent successfully!', 'success');
       renderPartners(pane, isAr);
     } catch (err) {
-      alert((isAr ? 'خطأ في إرسال الدعوة: ' : 'Error: ') + (err.message || err));
+      showToast((isAr ? 'خطأ في إرسال الدعوة: ' : 'Error: ') + (err.message || err), 'error');
       submitBtn.disabled = false;
       submitBtn.textContent = isAr ? 'إرسال دعوة الشراكة والربط' : 'Send Partnership Invitation';
     }

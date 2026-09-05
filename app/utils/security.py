@@ -4,7 +4,7 @@ from typing import Optional
 
 import bcrypt
 import jwt
-from fastapi import HTTPException, Security
+from fastapi import HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.config import SECRET_KEY
@@ -60,7 +60,11 @@ def verify_merchant_api_key(raw_key: str, hashed_key: str) -> bool:
         return False
 
 
-def create_branch_token(branch_id: int, expires_hours: int = 8) -> str:
+def create_branch_token(
+    branch_id: int,
+    expires_hours: int = 8,
+    merchant_account_id: Optional[int] = None,
+) -> str:
     """Generate a branch-scoped JWT for the cashier portal."""
     now = datetime.now(timezone.utc)
     payload = {
@@ -70,6 +74,8 @@ def create_branch_token(branch_id: int, expires_hours: int = 8) -> str:
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(hours=expires_hours)).timestamp()),
     }
+    if merchant_account_id is not None:
+        payload["merchant_account_id"] = merchant_account_id
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -127,27 +133,55 @@ def create_merchant_account_token(merchant_account_id: int, expires_hours: int =
 
 
 def decode_merchant_account_token(token: str) -> int:
-    """Decode and validate a merchant account token. Returns merchant_account_id."""
+    """Decode and validate a merchant account token. Returns merchant_account_id.
+
+    Strictly separates branch cashier PIN tokens from merchant account owner tokens.
+    Branch cashier tokens receive HTTP 403 guiding them to the cashier portal.
+    Expired or invalid tokens receive HTTP 401 prompting re-login.
+    """
     if not token:
-        raise HTTPException(status_code=401, detail="Authentication required.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="تسجيل الدخول مطلوب. يرجى تسجيل الدخول بحساب مالك المطعم.",
+        )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="انتهت صلاحية جلسة الدخول. يرجى إعادة تسجيل الدخول لمتابعة العمل.",
+        )
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="رمز الدخول غير صالح. يرجى تسجيل الدخول من جديد.",
+        )
 
     sub = str(payload.get("sub", ""))
     scope = payload.get("scope")
+
+    # Strict isolation: A branch cashier token must NEVER read chain-wide account statements
+    if scope == "merchant_branch" or sub.startswith("merchant_branch:"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="عذراً، هذا القسم مخصص لمالك المجموعة التجارية فقط. كاشير الفرع غير مصرح له بالاطلاع على الفواتير المجمعة أو كشوف الحساب. يرجى التوجه لبوابة كاشير الفرع عبر /merchant.",
+        )
+
     if not sub.startswith("merchant_account:") or scope != "merchant_account":
-        raise HTTPException(status_code=403, detail="Forbidden: merchant account token required.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="غير مصرح: هذا الإجراء يتطلب توكن مالك الحساب التجاري المعتمد.",
+        )
 
     account_id = payload.get("merchant_account_id")
     if account_id is None:
         try:
             account_id = int(sub.split(":")[1])
         except (IndexError, ValueError):
-            raise HTTPException(status_code=401, detail="Invalid token structure.")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="رمز الدخول غير صالح في بنيته. يرجى إعادة تسجيل الدخول.",
+            )
     return int(account_id)
 
 

@@ -1,3 +1,4 @@
+import calendar
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional
@@ -8,17 +9,28 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.entities import Courier, GeoCity, GeoCountry, Tenant, User, UserRole
+from app.models.entities import (
+    AppSetting,
+    Courier,
+    GeoCity,
+    GeoCountry,
+    Tenant,
+    User,
+    UserRole,
+)
 from app.models.merchant import (
     BookingStatus,
     DedicatedShiftBooking,
     MerchantAccount,
     MerchantBranch,
+    MonthlySettlementLedger,
+    SettlementStatus,
     ShiftType,
     compute_and_set_margin,
 )
 from app.routers.admin import require_admin
 from app.services.operating_structure import active_tenant_city_ids
+from app.utils.finance import prorate
 from app.utils.security import generate_merchant_api_key, hash_pin
 
 router = APIRouter(prefix="/admin/dedicated", tags=["admin_dedicated"])
@@ -118,9 +130,11 @@ class AdminBookingOut(BaseModel):
 class CreateBookingPayload(BaseModel):
     merchant_branch_id: Optional[int] = None
     branch_id: Optional[int] = None
+    merchant_id: Optional[int] = None
     logistics_company_tenant_id: Optional[int] = None
     tenant_id: Optional[int] = None
     rider_id: Optional[int] = None
+    seats_count: int = 1
     supervisor_id: Optional[int] = None
     shift_type: ShiftType = ShiftType.full_day_8h
     shift_start_time: Optional[str] = None
@@ -139,6 +153,16 @@ class UpdateBookingPayload(BaseModel):
     monthly_fee_to_merchant: Optional[float] = None
     monthly_payout_to_logistics: Optional[float] = None
     effective_until: Optional[date] = None
+
+
+class GenerateSettlementsPayload(BaseModel):
+    month: Optional[str] = None  # "YYYY-MM"
+    merchant_id: Optional[int] = None
+
+
+class PaySettlementPayload(BaseModel):
+    bank_transfer_reference: str
+    paid_at: Optional[datetime] = None
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -502,20 +526,7 @@ def create_booking_admin(
                 detail="الشركة اللوجستية لا تخدم مدينة هذا الفرع. يجب تفعيل مدينة التشغيل أولاً للشركة.",
             )
 
-    rider = db.get(Courier, payload.rider_id) if payload.rider_id else None
-    if payload.rider_id and (not rider or rider.tenant_id != tenant.id):
-        raise HTTPException(
-            status_code=400,
-            detail="المندوب المحدد غير مسجل لدى هذه الشركة اللوجستية.",
-        )
-    if not rider:
-        rider = (
-            db.query(Courier)
-            .filter(Courier.tenant_id == tenant.id, Courier.employment_status == "ACTIVE")
-            .first()
-        )
-        if not rider:
-            raise HTTPException(status_code=400, detail="لا يوجد مناديب متاحين لدى هذه الشركة اللوجستية للتسكين.")
+    seats_count = max(1, payload.seats_count or 1)
 
     if payload.shift_type == ShiftType.peak_3h:
         start_str = payload.shift_start_time or "19:00"
@@ -528,7 +539,10 @@ def create_booking_admin(
         t_start = datetime.strptime(start_str.strip(), "%H:%M").time()
         t_end = datetime.strptime(end_str.strip(), "%H:%M").time()
     except ValueError:
-        raise HTTPException(status_code=400, detail="صيغة وقت الوردية غير صالحة. استخدم HH:MM (مثال: 19:00).")
+        raise HTTPException(
+            status_code=400,
+            detail="صيغة وقت الوردية غير صالحة. استخدم HH:MM (مثال: 19:00).",
+        )
 
     fee_dec = Decimal(str(payload.monthly_fee_to_merchant))
     payout_dec = Decimal(str(payload.monthly_payout_to_logistics))
@@ -550,10 +564,58 @@ def create_booking_admin(
                 detail="المستخدم المحدد ليس له صلاحية مشرف (SUPERVISOR).",
             )
 
+    if seats_count > 1:
+        created_bookings = []
+        for _ in range(seats_count):
+            b = DedicatedShiftBooking(
+                merchant_branch_id=branch.id,
+                logistics_company_tenant_id=tenant.id,
+                rider_id=None,
+                supervisor_id=supervisor_id,
+                shift_type=payload.shift_type,
+                shift_start_time=t_start,
+                shift_end_time=t_end,
+                effective_from=eff_from,
+                effective_until=payload.effective_until,
+                monthly_fee_to_merchant=fee_dec,
+                monthly_payout_to_logistics=payout_dec,
+                dou_margin=margin_dec,
+                status=BookingStatus.active,
+            )
+            compute_and_set_margin(b)
+            db.add(b)
+            created_bookings.append(b)
+        db.commit()
+        for b in created_bookings:
+            db.refresh(b)
+        booking_ids = [b.id for b in created_bookings]
+        return {
+            "ok": True,
+            "id": booking_ids[0],
+            "booking_id": booking_ids[0],
+            "created_count": len(booking_ids),
+            "booking_ids": booking_ids,
+            "monthly_fee_to_merchant": float(fee_dec),
+            "monthly_payout_to_logistics": float(payout_dec),
+            "dou_margin": float(margin_dec),
+            "dou_net_margin": float(margin_dec),
+            "message": f"تم إنشاء {len(booking_ids)} مقاعد تعاقدية بنجاح.",
+        }
+
+    assigned_rider_id = None
+    if payload.rider_id:
+        rider = db.get(Courier, payload.rider_id)
+        if not rider or rider.tenant_id != tenant.id:
+            raise HTTPException(
+                status_code=400,
+                detail="المندوب المحدد غير مسجل لدى هذه الشركة اللوجستية.",
+            )
+        assigned_rider_id = rider.id
+
     booking = DedicatedShiftBooking(
         merchant_branch_id=branch.id,
         logistics_company_tenant_id=tenant.id,
-        rider_id=rider.id,
+        rider_id=assigned_rider_id,
         supervisor_id=supervisor_id,
         shift_type=payload.shift_type,
         shift_start_time=t_start,
@@ -575,6 +637,8 @@ def create_booking_admin(
         "ok": True,
         "id": booking.id,
         "booking_id": booking.id,
+        "created_count": 1,
+        "booking_ids": [booking.id],
         "monthly_fee_to_merchant": float(booking.monthly_fee_to_merchant),
         "monthly_payout_to_logistics": float(booking.monthly_payout_to_logistics),
         "dou_margin": float(booking.dou_margin),
@@ -648,4 +712,315 @@ def update_booking_admin(
         "monthly_payout_to_logistics": float(booking.monthly_payout_to_logistics),
         "dou_margin": float(booking.dou_margin),
         "dou_net_margin": float(booking.dou_margin),
+    }
+
+
+# ─── Monthly Settlement Closing Pipeline (Rule 6: Immutability) ─────────────
+
+@router.get("/settlements")
+def list_settlements_admin(
+    month: Optional[str] = Query(None),
+    merchant_id: Optional[int] = Query(None),
+    status_filter: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    _: User = Depends(_require_superadmin),
+):
+    """
+    Lists monthly B2B reconciliation statements for restaurant accounts.
+    """
+    q = db.query(MonthlySettlementLedger)
+    if month:
+        try:
+            m_date = datetime.strptime(month.strip(), "%Y-%m").date().replace(day=1)
+            q = q.filter(MonthlySettlementLedger.settlement_month == m_date)
+        except ValueError:
+            pass
+    if merchant_id:
+        q = q.filter(MonthlySettlementLedger.merchant_account_id == merchant_id)
+    if status_filter:
+        q = q.filter(MonthlySettlementLedger.settlement_status == status_filter)
+
+    rows = q.order_by(
+        MonthlySettlementLedger.settlement_month.desc(),
+        MonthlySettlementLedger.id.desc(),
+    ).all()
+
+    results = []
+    tot_gross = 0.0
+    tot_payout = 0.0
+    tot_margin = 0.0
+    status_counts = {"draft": 0, "issued": 0, "paid": 0}
+
+    for s in rows:
+        acct = db.get(MerchantAccount, s.merchant_account_id)
+        m_name = acct.trade_name if acct else "مطعم"
+        st_val = s.settlement_status.value if hasattr(s.settlement_status, "value") else str(s.settlement_status)
+        status_counts[st_val] = status_counts.get(st_val, 0) + 1
+
+        gross_f = float(s.gross_fee_charged_to_merchant or 0)
+        payout_f = float(s.total_payout_to_logistics or 0)
+        margin_f = float(s.dou_net_margin or 0)
+
+        tot_gross += gross_f
+        tot_payout += payout_f
+        tot_margin += margin_f
+
+        results.append({
+            "id": s.id,
+            "merchant_account_id": s.merchant_account_id,
+            "merchant_name": m_name,
+            "settlement_month": s.settlement_month.strftime("%Y-%m") if s.settlement_month else "",
+            "total_rider_shift_months": float(s.total_rider_shift_months or 0),
+            "gross_fee_charged_to_merchant": gross_f,
+            "total_payout_to_logistics": payout_f,
+            "dou_net_margin": margin_f,
+            "settlement_status": st_val,
+            "issued_at": s.issued_at.isoformat() if s.issued_at else None,
+            "paid_at": s.paid_at.isoformat() if s.paid_at else None,
+            "bank_transfer_reference": s.bank_transfer_reference,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        })
+
+    return {
+        "settlements": results,
+        "totals": {
+            "gross_fee": round(tot_gross, 2),
+            "payouts": round(tot_payout, 2),
+            "dou_net_margin": round(tot_margin, 2),
+            "count": len(results),
+            "status_counts": status_counts,
+        },
+    }
+
+
+@router.post("/settlements/generate")
+def generate_settlements_admin(
+    payload: GenerateSettlementsPayload,
+    db: Session = Depends(get_db),
+    _: User = Depends(_require_superadmin),
+):
+    """
+    Generates or refreshes draft settlement statements for merchant accounts for the given month.
+    Does NOT modify issued or paid statements (Rule 6: Immutability).
+    """
+    month_str = payload.month or datetime.utcnow().strftime("%Y-%m")
+    try:
+        m_date = datetime.strptime(month_str.strip(), "%Y-%m").date().replace(day=1)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="صيغة الشهر غير صالحة. استخدم YYYY-MM (مثال: 2026-09).",
+        )
+
+    merchants_q = db.query(MerchantAccount).filter(MerchantAccount.is_active.is_(True))
+    if payload.merchant_id:
+        merchants_q = merchants_q.filter(MerchantAccount.id == payload.merchant_id)
+    merchants = merchants_q.all()
+
+    created_or_updated = []
+    for m in merchants:
+        # Check if existing settlement exists
+        existing = (
+            db.query(MonthlySettlementLedger)
+            .filter(
+                MonthlySettlementLedger.merchant_account_id == m.id,
+                MonthlySettlementLedger.settlement_month == m_date,
+            )
+            .first()
+        )
+        if existing and existing.settlement_status in (SettlementStatus.issued, SettlementStatus.paid):
+            # Immutable! Skip modification
+            created_or_updated.append(existing)
+            continue
+
+        # Get active bookings for this merchant's branches
+        branch_ids = [b.id for b in m.branches]
+        if not branch_ids:
+            continue
+
+        bookings = (
+            db.query(DedicatedShiftBooking)
+            .filter(
+                DedicatedShiftBooking.merchant_branch_id.in_(branch_ids),
+                DedicatedShiftBooking.status == BookingStatus.active,
+            )
+            .all()
+        )
+        if not bookings:
+            continue
+
+        # A seat that started on the 25th is a week of service, not a month of
+        # it. The merchant's own statement has always prorated by active days;
+        # summing the full monthly rate here gave the same month two different
+        # answers — the restaurant billed ~1,580 and the fleet settled at 7,000.
+        # Same window, same helper, so the two surfaces cannot drift again.
+        days_in_month = calendar.monthrange(m_date.year, m_date.month)[1]
+        month_end_date = m_date.replace(day=days_in_month)
+
+        gross_fee = Decimal("0.00")
+        total_payout = Decimal("0.00")
+        shift_months = Decimal("0.0000")
+
+        for b in bookings:
+            start_active = max(b.effective_from, m_date)
+            end_active = min(b.effective_until or month_end_date, month_end_date)
+            active_days = (
+                (end_active - start_active).days + 1 if end_active >= start_active else 0
+            )
+            gross_fee += prorate(b.monthly_fee_to_merchant, active_days, m_date)
+            total_payout += prorate(b.monthly_payout_to_logistics, active_days, m_date)
+            shift_months += (Decimal(active_days) / Decimal(days_in_month)).quantize(
+                Decimal("0.0001")
+            )
+
+        # What DOU keeps is what is left, not the figure written on the contract.
+        # Proration rounds each side to the halala, and on a 31-day month there
+        # are day counts where an independently prorated margin differs by 0.01 —
+        # enough to stop the three parties reconciling. Taking the residual keeps
+        # them exact and puts the rounding on DOU, which is the right party.
+        net_margin = gross_fee - total_payout
+
+        if existing:
+            # Update draft
+            existing.total_rider_shift_months = shift_months
+            existing.gross_fee_charged_to_merchant = gross_fee
+            existing.total_payout_to_logistics = total_payout
+            existing.dou_net_margin = net_margin
+            ledger_item = existing
+        else:
+            ledger_item = MonthlySettlementLedger(
+                merchant_account_id=m.id,
+                settlement_month=m_date,
+                total_rider_shift_months=shift_months,
+                gross_fee_charged_to_merchant=gross_fee,
+                total_payout_to_logistics=total_payout,
+                dou_net_margin=net_margin,
+                settlement_status=SettlementStatus.draft,
+            )
+            db.add(ledger_item)
+
+        created_or_updated.append(ledger_item)
+
+    db.commit()
+    for item in created_or_updated:
+        db.refresh(item)
+
+    # Return serialized
+    results = []
+    for s in created_or_updated:
+        acct = db.get(MerchantAccount, s.merchant_account_id)
+        results.append({
+            "id": s.id,
+            "merchant_account_id": s.merchant_account_id,
+            "merchant_name": acct.trade_name if acct else "مطعم",
+            "settlement_month": s.settlement_month.strftime("%Y-%m") if s.settlement_month else "",
+            "total_rider_shift_months": float(s.total_rider_shift_months or 0),
+            "gross_fee_charged_to_merchant": float(s.gross_fee_charged_to_merchant or 0),
+            "total_payout_to_logistics": float(s.total_payout_to_logistics or 0),
+            "dou_net_margin": float(s.dou_net_margin or 0),
+            "settlement_status": s.settlement_status.value if hasattr(s.settlement_status, "value") else str(s.settlement_status),
+            "issued_at": s.issued_at.isoformat() if s.issued_at else None,
+            "paid_at": s.paid_at.isoformat() if s.paid_at else None,
+            "bank_transfer_reference": s.bank_transfer_reference,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        })
+
+    return {
+        "ok": True,
+        "message": f"تم توليد/تحديث {len(results)} كشوف تسوية لشهر {month_str}.",
+        "settlements": results,
+    }
+
+
+@router.post("/settlements/{settlement_id}/issue")
+def issue_settlement_admin(
+    settlement_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(_require_superadmin),
+):
+    """
+    Issues and finalizes a settlement ledger draft, locking it from future modifications (Rule 6).
+    """
+    ledger = db.get(MonthlySettlementLedger, settlement_id)
+    if not ledger:
+        raise HTTPException(status_code=404, detail="كشف التسوية غير موجود.")
+
+    if ledger.settlement_status in (SettlementStatus.issued, SettlementStatus.paid):
+        raise HTTPException(
+            status_code=400,
+            detail="كشف التسوية معتمد أو مدفوع مسبقاً ولا يمكن إعادة إصداره (سجل مالي مقفل).",
+        )
+
+    ledger.settlement_status = SettlementStatus.issued
+    ledger.issued_at = datetime.now(timezone.utc)
+
+    # Stamp VAT rate and amount based on platform VAT registration
+    dou_vat_setting = (
+        db.query(AppSetting).filter(AppSetting.key == "dou_vat_number").first()
+    )
+    if dou_vat_setting and dou_vat_setting.value and dou_vat_setting.value.strip():
+        ledger.vat_rate = Decimal("0.1500")
+        ledger.vat_amount = round(
+            ledger.gross_fee_charged_to_merchant * Decimal("0.1500"), 2
+        )
+    else:
+        ledger.vat_rate = Decimal("0.0000")
+        ledger.vat_amount = Decimal("0.00")
+
+    db.commit()
+    db.refresh(ledger)
+
+    acct = db.get(MerchantAccount, ledger.merchant_account_id)
+    return {
+        "ok": True,
+        "id": ledger.id,
+        "merchant_name": acct.trade_name if acct else "مطعم",
+        "settlement_status": "issued",
+        "issued_at": ledger.issued_at.isoformat(),
+        "gross_fee_charged_to_merchant": float(ledger.gross_fee_charged_to_merchant),
+        "total_payout_to_logistics": float(ledger.total_payout_to_logistics),
+        "dou_net_margin": float(ledger.dou_net_margin),
+        "message": "تم اعتماد وإصدار كشف التسوية الشهرية بنجاح.",
+    }
+
+
+@router.post("/settlements/{settlement_id}/pay")
+def pay_settlement_admin(
+    settlement_id: int,
+    payload: PaySettlementPayload,
+    db: Session = Depends(get_db),
+    _: User = Depends(_require_superadmin),
+):
+    """
+    Records B2B bank payment confirmation for an issued settlement ledger.
+    """
+    ledger = db.get(MonthlySettlementLedger, settlement_id)
+    if not ledger:
+        raise HTTPException(status_code=404, detail="كشف التسوية غير موجود.")
+
+    if ledger.settlement_status == SettlementStatus.draft:
+        raise HTTPException(
+            status_code=400,
+            detail="يجب اعتماد وإصدار كشف التسوية أولاً قبل تسجيل سداد الحوالة البنكية.",
+        )
+
+    ref = (payload.bank_transfer_reference or "").strip()
+    if not ref:
+        raise HTTPException(status_code=400, detail="رقم مرجع الحوالة البنكية مطلوب.")
+
+    ledger.settlement_status = SettlementStatus.paid
+    ledger.paid_at = payload.paid_at or datetime.now(timezone.utc)
+    ledger.bank_transfer_reference = ref
+    db.commit()
+    db.refresh(ledger)
+
+    acct = db.get(MerchantAccount, ledger.merchant_account_id)
+    return {
+        "ok": True,
+        "id": ledger.id,
+        "merchant_name": acct.trade_name if acct else "مطعم",
+        "settlement_status": "paid",
+        "paid_at": ledger.paid_at.isoformat(),
+        "bank_transfer_reference": ledger.bank_transfer_reference,
+        "message": "تم تسجيل سداد كشف التسوية بنجاح وإغلاق الدورة المالية.",
     }

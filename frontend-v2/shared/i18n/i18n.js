@@ -271,6 +271,9 @@ const DICTIONARY = {
   'إجراءات': 'Actions',
 
   // Login Screen
+  'تعذّر فتح نموذج العقد': 'Could not open the contract form',
+  'لم تُحمّل قائمة مدن التشغيل، ولا يمكن إنشاء عقد بدونها. حدّث الصفحة وحاول تاني.': 'The operating cities did not load, and a contract cannot be created without them. Refresh and try again.',
+  'دخول شركات الأساطيل': 'Fleet Partners',
   'سجل دخول شركتك اللوجستية': 'Sign in to your logistics company',
   'دخول الشركة': 'Company Sign In',
   'رقم الجوال (بمفتاح الدولة)': 'Mobile Number (with country code)',
@@ -1906,7 +1909,7 @@ function buildAllRules() {
   });
 }
 
-// toLocaleString('ar-SA') renders Arabic-Indic digits, so "499" reached an
+// toLocaleString('en-US') renders Arabic-Indic digits, so "499" reached an
 // English screen as "٤٩٩". Normalising here covers every call site at once.
 const AR_DIGITS = '\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669';
 const EXT_AR_DIGITS = '\u06F0\u06F1\u06F2\u06F3\u06F4\u06F5\u06F6\u06F7\u06F8\u06F9';

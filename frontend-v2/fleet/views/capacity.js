@@ -1,7 +1,7 @@
 // Modern Capacity, Commercial Contracts & Platform Ecosystem Operations — Frontend V2
 import { api } from '../../shared/api/client.js';
 import { appStore, isDeliveryPlatform, can } from '../../shared/state/store.js';
-import { el, loadingState, emptyState, errorState, metricCard, button, modal, formRow, inputField, selectField, table, badge, searchableSelect } from '../../shared/components/ui.js';
+import { el, loadingState, emptyState, errorState, metricCard, button, modal, formRow, inputField, selectField, table, badge, searchableSelect, showToast } from '../../shared/components/ui.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
 import { go } from '../shell.js';
 
@@ -132,8 +132,8 @@ async function loadCapacityMetrics(container, isPlatform) {
 
   try {
     const [capData, healthData] = await Promise.all([
-      api.get('/analytics/capacity/status' + (params.toString() ? '?' + params : '')).catch(() => ({})),
-      isPlatform ? api.get('/analytics/operators/health').catch(() => null) : Promise.resolve(null),
+      api.get('/analytics/capacity/status' + (params.toString() ? '?' + params : '')),
+      isPlatform ? api.get('/analytics/operators/health') : Promise.resolve(null),
     ]);
 
     result.innerHTML = '';
@@ -175,7 +175,7 @@ async function renderContractsManagement(contentArea, mainContainer, isAdmin) {
   contentArea.append(loadingState('جاري تحميل العقود وفروع التشغيل...'));
 
   try {
-    const contracts = await api.get('/hr/contracts').catch(() => ({ rows: [] }));
+    const contracts = await api.get('/hr/contracts');
     const rows = contracts.rows || [];
 
     contentArea.innerHTML = '';
@@ -226,10 +226,10 @@ async function renderContractsManagement(contentArea, mainContainer, isAdmin) {
                 if (!confirm(`هل تريد بالتأكيد حذف فرع (${b.city}) من هذا العقد؟`)) return;
                 try {
                   await api.delete(`/hr/contract-branches/${b.id}`);
-                  alert('✅ تم حذف الفرع بنجاح.');
+                  showToast('✅ تم حذف الفرع بنجاح.', 'success');
                   loadCapacity(mainContainer);
                 } catch (err) {
-                  alert('❌ تعذر الحذف: ' + err.message);
+                  showToast('❌ تعذر الحذف: ' + err.message, 'error');
                 }
               }
             }, '🗑️') : null
@@ -250,10 +250,10 @@ async function renderContractsManagement(contentArea, mainContainer, isAdmin) {
               if (!confirm(`هل تريد بالتأكيد حذف / تعطيل العقد (${ct.name})؟`)) return;
               try {
                 await api.delete(`/hr/contracts/${ct.id}`);
-                alert('✅ تم تعطيل / حذف العقد بنجاح.');
+                showToast('✅ تم تعطيل / حذف العقد بنجاح.', 'success');
                 loadCapacity(mainContainer);
               } catch (err) {
-                alert('❌ تعذر الحذف: ' + err.message);
+                showToast('❌ تعذر الحذف: ' + err.message, 'error');
               }
             }
           }, '🗑️ حذف')
@@ -308,8 +308,8 @@ async function renderPlatformOperators(contentArea, mainContainer, isAdmin) {
     // per-vendor figure resolved to `{}` and rendered as a dash however much
     // real data the platform had.
     const [operatorsData, healthData] = await Promise.all([
-      api.get('/enterprise/operators').catch(() => []),
-      api.get('/analytics/operators/health').catch(() => ({ operators: [] }))
+      api.get('/enterprise/operators'),
+      api.get('/analytics/operators/health')
     ]);
 
     const operators = operatorsData || [];
@@ -430,11 +430,11 @@ async function togglePortal(mainContainer, op, isOpen) {
     loadCapacity(mainContainer);
   } catch (err) {
     if (err.status === 402) {
-      alert('🔒 بوابة المورّدين إضافة مدفوعة غير مفعّلة على باقة حسابك.\n\n' +
-            'تواصل مع إدارة DOU لتفعيلها على الحساب.');
+      showToast('🔒 بوابة المورّدين إضافة مدفوعة غير مفعّلة على باقة حسابك.\n\n' +
+            'تواصل مع إدارة DOU لتفعيلها على الحساب.', 'error');
       return;
     }
-    alert('❌ تعذر ' + verb + ' البوابة: ' + err.message);
+    showToast('❌ تعذر ' + verb + ' البوابة: ' + err.message, 'error');
   }
 }
 
@@ -447,11 +447,11 @@ async function openAssignRiderModal(mainContainer, op) {
     const page = await api.get('/fleet/couriers/page?page=1&page_size=200');
     couriers = page.rows || [];
   } catch (err) {
-    alert('❌ تعذر تحميل قائمة المناديب: ' + err.message);
+    showToast('❌ تعذر تحميل قائمة المناديب: ' + err.message, 'error');
     return;
   }
   if (!couriers.length) {
-    alert('لا يوجد مناديب في حسابك بعد. أضف مندوبًا أولًا من شاشة المناديب.');
+    showToast('لا يوجد مناديب في حسابك بعد. أضف مندوبًا أولًا من شاشة المناديب.', 'info');
     return;
   }
 
@@ -549,7 +549,7 @@ export async function openAddOperatorModal(mainContainer) {
   try {
     sources = await api.get('/enterprise/source-platforms');
   } catch (err) {
-    alert('❌ تعذر تحميل بيانات المنصة: ' + err.message);
+    showToast('❌ تعذر تحميل بيانات المنصة: ' + err.message, 'error');
     return;
   }
 
@@ -624,19 +624,23 @@ export async function openAddOperatorModal(mainContainer) {
 export async function openCreateContractModal(mainContainer) {
   try {
     const [citiesData, supervisorsData] = await Promise.all([
-      api.get('/hr/operating-cities').catch(() => []),
-      api.get('/hr/supervisors').catch(() => []),
+      api.get('/hr/operating-cities'),
+      api.get('/hr/supervisors'),
     ]);
 
     const cities = citiesData.cities || citiesData || [];
     const supervisors = supervisorsData || [];
 
-    const defaultCityOptions = cities.length ? cities : [
-      { id: 1, name: 'الرياض' },
-      { id: 2, name: 'جدة' },
-      { id: 3, name: 'الدمام' },
-      { id: 4, name: 'مكة المكرمة' },
-    ];
+    // A contract is written against a city id. Falling back to a made-up list
+    // let someone pick "جدة" and store id 2 — a number that may belong to a
+    // different city or to nothing at all. If the cities did not load, say so
+    // rather than offering four inventions.
+    if (!cities.length) {
+      modal('تعذّر فتح نموذج العقد', el('p', {},
+        'لم تُحمّل قائمة مدن التشغيل، ولا يمكن إنشاء عقد بدونها. حدّث الصفحة وحاول تاني.'));
+      return;
+    }
+    const defaultCityOptions = cities;
 
     let branchesList = [
       { city_id: defaultCityOptions[0]?.id || 1, city: defaultCityOptions[0]?.name || 'الرياض', supervisor_ids: [] }
@@ -764,16 +768,16 @@ export async function openCreateContractModal(mainContainer) {
           }))
         });
 
-        alert('✅ تم إنشاء العقد وفروع التشغيل بنجاح.');
+        showToast('✅ تم إنشاء العقد وفروع التشغيل بنجاح.', 'success');
         m.remove();
         loadCapacity(mainContainer);
       } catch (err) {
-        alert('❌ تعذر إنشاء العقد: ' + err.message);
+        showToast('❌ تعذر إنشاء العقد: ' + err.message, 'error');
       }
     };
 
   } catch (e) {
-    alert('❌ خطأ في فتح نموذج العقد: ' + e.message);
+    showToast('❌ خطأ في فتح نموذج العقد: ' + e.message, 'error');
   }
 }
 
@@ -800,11 +804,11 @@ async function openRenewContractModal(contract, mainContainer) {
     const months = parseInt(document.getElementById('renew-months').value);
     try {
       await api.post(`/hr/contracts/${contract.id}/renew`, { months });
-      alert('✅ تم تجديد العقد بنجاح.');
+      showToast('✅ تم تجديد العقد بنجاح.', 'success');
       m.remove();
       loadCapacity(mainContainer);
     } catch (err) {
-      alert('❌ تعذر تجديد العقد: ' + err.message);
+      showToast('❌ تعذر تجديد العقد: ' + err.message, 'error');
     }
   };
 }
@@ -812,8 +816,8 @@ async function openRenewContractModal(contract, mainContainer) {
 async function openAddBranchToContractModal(contract, mainContainer) {
   try {
     const [citiesData, supervisorsData] = await Promise.all([
-      api.get('/hr/operating-cities').catch(() => []),
-      api.get('/hr/supervisors').catch(() => []),
+      api.get('/hr/operating-cities'),
+      api.get('/hr/supervisors'),
     ]);
 
     const cities = citiesData.cities || citiesData || [];
@@ -872,12 +876,12 @@ async function openAddBranchToContractModal(contract, mainContainer) {
       const existingBranch = updatedBranches.find(b => Number(b.city_id) === Number(cityId));
       if (existingBranch) {
         if (!supId) {
-          alert('هذا الفرع موجود بالفعل. اختر المشرف الجديد المراد إضافته.');
+          showToast('هذا الفرع موجود بالفعل. اختر المشرف الجديد المراد إضافته.', 'info');
           return;
         }
         const supervisorId = Number(supId);
         if (existingBranch.supervisor_ids.includes(supervisorId)) {
-          alert('هذا المشرف معيّن بالفعل على الفرع.');
+          showToast('هذا المشرف معيّن بالفعل على الفرع.', 'info');
           return;
         }
         existingBranch.supervisor_ids.push(supervisorId);
@@ -894,16 +898,16 @@ async function openAddBranchToContractModal(contract, mainContainer) {
         await api.patch(`/hr/contracts/${contract.id}`, {
           branches: updatedBranches
         });
-        alert(existingBranch ? '✅ تم إضافة المشرف إلى نفس الفرع بنجاح.' : '✅ تم إضافة الفرع بنجاح.');
+        showToast(existingBranch ? '✅ تم إضافة المشرف إلى نفس الفرع بنجاح.' : '✅ تم إضافة الفرع بنجاح.', 'success');
         m.remove();
         loadCapacity(mainContainer);
       } catch (err) {
-        alert('❌ تعذر إضافة الفرع: ' + err.message);
+        showToast('❌ تعذر إضافة الفرع: ' + err.message, 'error');
       }
     };
 
   } catch (err) {
-    alert('❌ خطأ: ' + err.message);
+    showToast('❌ خطأ: ' + err.message, 'error');
   }
 }
 
@@ -935,11 +939,11 @@ export async function openAddSupervisorModal(mainContainer) {
     const password = document.getElementById('sup-password').value || '123456';
     try {
       await api.post('/hr/supervisors', { name, phone, password });
-      alert('✅ تم إنشاء حساب المشرف بنجاح.');
+      showToast('✅ تم إنشاء حساب المشرف بنجاح.', 'success');
       m.remove();
       loadCapacity(mainContainer);
     } catch (err) {
-      alert('❌ تعذر إنشاء المشرف: ' + err.message);
+      showToast('❌ تعذر إنشاء المشرف: ' + err.message, 'error');
     }
   };
 }
@@ -999,18 +1003,18 @@ export async function openEditContractModal(contract, mainContainer) {
         start_date: document.getElementById('ect-start').value || undefined,
         end_date: document.getElementById('ect-end').value || undefined,
       });
-      alert('✅ تم تعديل بيانات العقد بنجاح.');
+      showToast('✅ تم تعديل بيانات العقد بنجاح.', 'success');
       m.remove();
       loadCapacity(mainContainer);
     } catch (err) {
-      alert('❌ تعذر التعديل: ' + err.message);
+      showToast('❌ تعذر التعديل: ' + err.message, 'error');
     }
   };
 }
 
 export async function openSupervisorsManagementModal(mainContainer) {
   try {
-    const supervisors = await api.get('/hr/supervisors').catch(() => []);
+    const supervisors = await api.get('/hr/supervisors');
 
     const content = el('div', { style: 'display:grid;gap:14px;min-width:650px;direction:rtl' }, [
       el('div', { style: 'display:flex;justify-content:space-between;align-items:center' }, [
@@ -1040,12 +1044,12 @@ export async function openSupervisorsManagementModal(mainContainer) {
               if (!confirm(`هل تريد بالتأكيد حذف المشرف (${s.name})؟`)) return;
               try {
                 await api.delete(`/hr/supervisors/${s.id}`);
-                alert('✅ تم حذف المشرف بنجاح.');
+                showToast('✅ تم حذف المشرف بنجاح.', 'success');
                 m.remove();
                 openSupervisorsManagementModal(mainContainer);
                 loadCapacity(mainContainer);
               } catch (err) {
-                alert('❌ تعذر الحذف: ' + err.message);
+                showToast('❌ تعذر الحذف: ' + err.message, 'error');
               }
             }
           }, '🗑️ حذف'),
@@ -1055,7 +1059,7 @@ export async function openSupervisorsManagementModal(mainContainer) {
 
     const m = modal('👔 إدارة المشرفين الميدانيين', content);
   } catch (err) {
-    alert('❌ خطأ في تحميل المشرفين: ' + err.message);
+    showToast('❌ خطأ في تحميل المشرفين: ' + err.message, 'error');
   }
 }
 
@@ -1084,11 +1088,11 @@ async function openEditSupervisorModal(supervisor, onUpdated) {
         name: document.getElementById('esup-name').value.trim(),
         phone: document.getElementById('esup-phone').value.trim(),
       });
-      alert('✅ تم تعديل بيانات المشرف بنجاح.');
+      showToast('✅ تم تعديل بيانات المشرف بنجاح.', 'success');
       m.remove();
       onUpdated();
     } catch (err) {
-      alert('❌ تعذر التعديل: ' + err.message);
+      showToast('❌ تعذر التعديل: ' + err.message, 'error');
     }
   };
 }
@@ -1116,7 +1120,7 @@ async function saveRequirement(container) {
 async function renderPlatformSettlements(contentArea, container, isAdmin) {
   contentArea.append(loadingState('جاري تحميل تسويات المشغلين...'));
   try {
-    const settlements = await api.get('/analytics/operators/settlements').catch(() => []);
+    const settlements = await api.get('/analytics/operators/settlements');
     contentArea.innerHTML = '';
     contentArea.append(el('div', { class: 'card', style: 'margin-top:10px' }, [
       el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px' }, [

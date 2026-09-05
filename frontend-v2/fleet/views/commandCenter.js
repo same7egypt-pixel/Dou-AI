@@ -27,12 +27,15 @@ export async function loadCommandCenter(container) {
 
   try {
     const [overview, needsAttention] = await Promise.all([
-      api.get('/fleet/overview').catch(() => ({ total_riders: 0, online_riders: 0, active_riders: 0, absent_today: 0, present_today: 0, ready_riders: 0, not_ready_riders: 0, on_leave: 0, pending_leaves: 0, expired_docs: 0, expiring_30: 0, expiring_60: 0 })),
-      api.get('/analytics/needs-attention/deterministic').catch(() => ({ items: [] })),
+      api.get('/fleet/overview'),
+      api.get('/analytics/needs-attention/deterministic'),
     ]);
     state.replaceWith(renderDashboard(overview, needsAttention));
   } catch (e) {
-    state.replaceWith(errorState((isAr ? 'تعذر تحميل البيانات: ' : 'Failed to load data: ') + e.message, () => loadCommandCenter(container)));
+    state.replaceWith(errorState(
+      (isAr ? 'تعذر تحميل بيانات مركز القيادة والعمليات — تحقق من الاتصال بالخادم وأعد المحاولة: ' : 'Failed to load Command Center data — check server connection and retry: ') + (e.message || ''),
+      () => loadCommandCenter(container)
+    ));
   }
 }
 
@@ -106,7 +109,7 @@ function renderDashboard(overview, needsAttention) {
   
   // 1. Live Operational Status Bar
   const now = new Date();
-  const timeStr = now.toLocaleTimeString(isAr ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   const dateStr = now.toISOString().slice(0, 10);
   
   let statusClass = 'healthy';
@@ -160,105 +163,9 @@ function renderDashboard(overview, needsAttention) {
   });
   if (promptBar) wrap.append(promptBar);
 
-  // 3. MASTER PLAN & HR QUICK LAUNCHPAD
-  wrap.append(el('div', { class: 'card', style: 'background: linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(124,58,237,0.08) 100%); border: 1px solid rgba(124,58,237,0.25); margin-bottom: 22px; padding: 18px 22px;' }, [
-    el('div', { style: 'display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px; flex-wrap:wrap; gap:8px;' }, [
-      el('div', { style: 'display:flex; align-items:center; gap:10px;' }, [
-        el('span', { style: 'font-size:22px;' }, '🚀'),
-        el('h3', { style: 'margin:0; font-size:16px; font-weight:800; color:var(--text);' }, isAr ? 'مركز إطلاق ميزات DOU التشغيلية والمالية' : 'DOU Operational & Financial Launchpad'),
-        el('span', { class: 'badge badge-green', style: 'font-size:11px;' }, isAr ? 'جاهزة ومكتملة 100%' : '100% Ready & Live'),
-      ]),
-      el('span', { style: 'font-size:12px; color:var(--muted); font-weight:600;' }, isAr ? 'الوصول المباشر بنقرة واحدة لجميع مسارات العمليات' : 'One-click direct access to all operational workflows'),
-    ]),
-    el('div', { style: 'display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;' }, [
-      // Card 1: Bulk Ingestion
-      el('div', { class: 'card', style: 'margin:0; padding:14px; cursor:pointer; border:1px solid var(--border); transition:transform 0.15s, border-color 0.15s; background:var(--card)', onclick: () => { go('riders'); setTimeout(() => { const btn = document.getElementById('btn-bulk-import'); if (btn) btn.click(); }, 300); } }, [
-        el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:6px;' }, [
-          el('span', { style: 'font-size:20px;' }, '📥'),
-          el('b', { style: 'font-size:13px; color:var(--text);' }, isAr ? 'الاستيراد الجماعي وقوالب CSV' : 'Bulk Ingestion & CSV Templates'),
-        ]),
-        el('p', { style: 'font-size:12px; color:var(--muted); margin:0 0 8px 0; line-height:1.4;' }, isAr ? 'تنزيل قوالب السائقين والأداء، ومعاينة الملفات وفحص البصمة SHA-256.' : 'Download driver and performance templates, preview files, and verify SHA-256 checksums.'),
-        el('div', { style: 'font-size:11px; font-weight:700; color:var(--primary);' }, isAr ? 'فتح نافذة الاستيراد ➔' : 'Open Import Window ➔'),
-      ]),
-      // Card 2: Payroll Ledger
-      el('div', { class: 'card', style: 'margin:0; padding:14px; cursor:pointer; border:1px solid var(--border); transition:transform 0.15s, border-color 0.15s; background:var(--card)', onclick: () => go('payroll') }, [
-        el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:6px;' }, [
-          el('span', { style: 'font-size:20px;' }, '💰'),
-          el('b', { style: 'font-size:13px; color:var(--text);' }, isAr ? 'كشف الرواتب والسلف والمخالفات' : 'Payroll, Advances & Deductions Ledger'),
-        ]),
-        el('p', { style: 'font-size:12px; color:var(--muted); margin:0 0 8px 0; line-height:1.4;' }, isAr ? 'احتساب الرواتب التلقائي، السلف، خطط البونص، وإقفال الشهر المعتمد.' : 'Automated payroll calculation, advances, bonus plans, and approved month closing.'),
-        el('div', { style: 'font-size:11px; font-weight:700; color:var(--primary);' }, isAr ? 'فتح كشف الرواتب ➔' : 'Open Payroll Ledger ➔'),
-      ]),
-      // Card 3: Platform Delivery Facts (19 KPIs)
-      el('div', { class: 'card', style: 'margin:0; padding:14px; cursor:pointer; border:1px solid var(--border); transition:transform 0.15s, border-color 0.15s; background:var(--card)', onclick: () => go('reports') }, [
-        el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:6px;' }, [
-          el('span', { style: 'font-size:20px;' }, '🛵'),
-          el('b', { style: 'font-size:13px; color:var(--text);' }, isAr ? 'تحليل تقارير المنصات (19 مؤشر)' : 'Platform Reports Analysis (19 KPIs)'),
-        ]),
-        el('p', { style: 'font-size:12px; color:var(--muted); margin:0 0 8px 0; line-height:1.4;' }, isAr ? 'قمع التوصيل، استغلال الساعات، الأوردرات المجمعة، وسجلات شهر كامل.' : 'Delivery funnel, hour utilization, batched orders, and full-month logs.'),
-        el('div', { style: 'font-size:11px; font-weight:700; color:var(--primary);' }, isAr ? 'استعراض تحليل الأداء ➔' : 'View Performance Analysis ➔'),
-      ]),
-      // Card 4: Readiness & Driver 360
-      el('div', { class: 'card', style: 'margin:0; padding:14px; cursor:pointer; border:1px solid var(--border); transition:transform 0.15s, border-color 0.15s; background:var(--card)', onclick: () => go('riders') }, [
-        el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:6px;' }, [
-          el('span', { style: 'font-size:20px;' }, '🚦'),
-          el('b', { style: 'font-size:13px; color:var(--text);' }, isAr ? 'محرك الجاهزية وإسناد المركبات' : 'Readiness Engine & Vehicle Assignment'),
-        ]),
-        el('p', { style: 'font-size:12px; color:var(--muted); margin:0 0 8px 0; line-height:1.4;' }, isAr ? 'تقييم الأبعاد الـ 8، تفعيل السائق، وإسناد المركبات والورديات.' : '8-dimension assessment, driver activation, and vehicle/shift assignment.'),
-        el('div', { style: 'font-size:11px; font-weight:700; color:var(--primary);' }, isAr ? 'فتح ملف السائق 360 ➔' : 'Open Driver 360 Profile ➔'),
-      ]),
-      // Card 5: DOU AI & Advanced Reports
-      el('div', { class: 'card', style: 'margin:0; padding:14px; cursor:pointer; border:1px solid var(--border); transition:transform 0.15s, border-color 0.15s; background:var(--card)', onclick: () => go('reports') }, [
-        el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:6px;' }, [
-          el('span', { style: 'font-size:20px;' }, '📊'),
-          el('b', { style: 'font-size:13px; color:var(--text);' }, isAr ? 'لوحات DOU AI الذكية وكتالوج 31 تقرير' : 'DOU AI Dashboards & 31-Report Catalog'),
-        ]),
-        el('p', { style: 'font-size:12px; color:var(--muted); margin:0 0 8px 0; line-height:1.4;' }, isAr ? 'تضمين لوحات DOU AI المشفرة بـ JWT، وتصدير CSV لكافة المجالات.' : 'Embedded JWT-signed DOU AI dashboards and CSV export across all domains.'),
-        el('div', { style: 'font-size:11px; font-weight:700; color:var(--primary);' }, isAr ? 'استعراض التقارير ➔' : 'Explore Reports ➔'),
-      ]),
-      // Card 6: Needs Attention Queue
-      el('div', { class: 'card', style: 'margin:0; padding:14px; cursor:pointer; border:1px solid var(--border); transition:transform 0.15s, border-color 0.15s; background:var(--card)', onclick: () => go('needsAttention') }, [
-        el('div', { style: 'display:flex; align-items:center; gap:8px; margin-bottom:6px;' }, [
-          el('span', { style: 'font-size:20px;' }, '⚡'),
-          el('b', { style: 'font-size:13px; color:var(--text);' }, isAr ? 'طابور استثناءات يحتاج انتباه' : 'Needs Attention Exceptions Queue'),
-        ]),
-        el('p', { style: 'font-size:12px; color:var(--muted); margin:0 0 8px 0; line-height:1.4;' }, isAr ? 'رصد حتمي مباشر للغياب، الوثائق المنتهية، عجز السعة، وروابط الحل السريع.' : 'Deterministic monitoring of absences, expired docs, capacity deficits, and quick-fix links.'),
-        el('div', { style: 'font-size:11px; font-weight:700; color:var(--primary);' }, isAr ? 'معالجة الاستثناءات ➔' : 'Resolve Exceptions ➔'),
-      ]),
-    ]),
-  ]));
-
-  // 4. Clickable KPI Metrics Groups
-  // Group 1: Workforce & Active Attendance
-  wrap.append(el('div', { style: 'margin-bottom:8px;font-size:12px;font-weight:700;color:var(--muted)' }, isAr ? 'القوى العاملة والحضور اللحظي' : 'Workforce & Real-time Attendance'));
-  wrap.append(el('div', { class: 'cards' }, [
-    metricCard(overview.couriers_total, isAr ? 'إجمالي السائقين' : 'Total Drivers', 'blue', () => go('riders'), isAr ? 'استعراض الفريق' : 'View Team'),
-    metricCard(overview.couriers_online, isAr ? 'متصلون الآن' : 'Online Now', 'trend', () => go('riders'), isAr ? 'جاهزية الاتصال' : 'Online Readiness'),
-    metricCard(overview.shifts_running, isAr ? 'نشطون بالورديات' : 'Active in Shifts', 'trend', () => go('shifts'), isAr ? 'مسندون لورديات' : 'Assigned to Shifts'),
-    metricCard(overview.absent_today, isAr ? 'غائبون اليوم' : 'Absent Today', 'alert', () => go('shifts'), isAr ? 'مراجعة الحضور' : 'Review Attendance'),
-    metricCard(overview.present_today, isAr ? 'حاضرون اليوم' : 'Present Today', 'trend', () => go('shifts'), isAr ? 'حضور مؤكد' : 'Confirmed Present'),
-  ]));
-
-  // Group 2: Operational Readiness & Leaves
-  wrap.append(el('div', { style: 'margin-bottom:8px;font-size:12px;font-weight:700;color:var(--muted)' }, isAr ? 'الجاهزية التشغيلية والإجازات' : 'Operational Readiness & Leaves'));
-  wrap.append(el('div', { class: 'cards' }, [
-    metricCard(Math.max((overview.couriers_total || 0) - (overview.not_ready || 0), 0), isAr ? 'جاهز للعمل' : 'Operationally Ready', 'trend', () => go('riders'), isAr ? 'مكتمل الوثائق والمركبة' : 'Valid Docs & Vehicle'),
-    metricCard(overview.not_ready, isAr ? 'غير جاهز' : 'Not Ready', 'alert', () => go('riders'), isAr ? 'يوجد موانع تشغيلية' : 'Operational Blockers'),
-    metricCard(overview.on_leave, isAr ? 'في إجازة معتمدة' : 'On Approved Leave', 'blue', () => go('shifts'), isAr ? 'إجازة سارية' : 'Active Leave'),
-    metricCard(overview.pending_leaves, isAr ? 'إجازات معلّقة' : 'Pending Leaves', overview.pending_leaves > 0 ? 'alert' : 'blue', () => go('shifts'), isAr ? 'طابور الاعتمادات' : 'Approvals Queue'),
-  ]));
-
-  // Group 3: Document Compliance
-  wrap.append(el('div', { style: 'margin-bottom:8px;font-size:12px;font-weight:700;color:var(--muted)' }, isAr ? 'امتثال الوثائق والمستندات' : 'Document Compliance'));
-  wrap.append(el('div', { class: 'cards' }, [
-    metricCard(overview.documents_expired, isAr ? '🔴 مستندات منتهية' : '🔴 Expired Documents', 'alert', () => go('needsAttention'), isAr ? 'تحتاج تجديد فوري' : 'Needs Immediate Renewal'),
-    metricCard(overview.documents_30, isAr ? '🟠 تنتهي خلال 30 يوم' : '🟠 Expiring in 30 Days', 'warning', () => go('needsAttention'), isAr ? 'تنبيه استباقي' : 'Proactive Alert'),
-    metricCard(overview.documents_60, isAr ? '🟡 تنتهي خلال 60 يوم' : '🟡 Expiring in 60 Days', 'blue', () => go('needsAttention'), isAr ? 'متابعة دورية' : 'Regular Follow-up'),
-  ]));
-
-  // 5. Prioritized Action Queue
-  wrap.append(el('div', { style: 'margin:24px 0 12px 0;display:flex;justify-content:space-between;align-items:center' }, [
-    el('h3', { style: 'margin:0;font-size:16px' }, isAr ? '⚡ أهم الإجراءات المطلوبة الآن' : '⚡ Top Priority Actions Now'),
+  // 3. Prioritized Action Queue — Operational Actions First
+  wrap.append(el('div', { style: 'margin:20px 0 12px 0;display:flex;justify-content:space-between;align-items:center' }, [
+    el('h3', { style: 'margin:0;font-size:16px;font-weight:800;color:var(--text)' }, isAr ? '⚡ أهم الإجراءات المطلوبة الآن' : '⚡ Top Priority Actions Now'),
     badge(isAr ? `${attentionItems.length} إجراء` : `${attentionItems.length} Actions`, attentionItems.length > 0 ? 'amber' : 'green'),
   ]));
 
@@ -273,17 +180,58 @@ function renderDashboard(overview, needsAttention) {
         count: item.count,
         actionLabel: isAr ? 'معالجة ➔' : 'Resolve ➔',
         onAction: () => {
-          if (item.signal.includes('DOC') || item.signal.includes('EXPIRED')) {
-            go('needsAttention');
-          } else if (item.signal.includes('ABSENCE') || item.signal.includes('SHIFT') || item.signal.includes('LEAVE')) {
+          if (item.signal === 'pending_attendance_corrections') {
+            window.__shiftsInitialTab = 'corrections';
             go('shifts');
-          } else {
+          } else if (item.signal === 'overtime') {
+            window.__shiftsInitialTab = 'overtime';
+            go('shifts');
+          } else if (item.signal === 'absent_riders') {
+            window.__shiftsInitialTab = 'attendance';
+            go('shifts');
+          } else if (item.signal === 'capacity_shortage') {
+            go('capacity');
+          } else if (item.signal === 'below_target') {
+            go('reports');
+          } else if (item.signal === 'incomplete_onboarding') {
             go('riders');
+          } else if (item.signal.includes('DOC') || item.signal.includes('EXPIRED') || item.signal === 'expiring_documents') {
+            go('needsAttention');
+          } else {
+            go('needsAttention');
           }
         }
       }));
     });
   }
+
+  // 4. Clickable KPI Metrics Groups
+  // Group 1: Workforce & Active Attendance
+  wrap.append(el('div', { style: 'margin:24px 0 8px 0;font-size:12px;font-weight:700;color:var(--muted)' }, isAr ? 'القوى العاملة والحضور اللحظي' : 'Workforce & Real-time Attendance'));
+  wrap.append(el('div', { class: 'cards' }, [
+    metricCard(overview.couriers_total, isAr ? 'إجمالي السائقين' : 'Total Drivers', 'blue', () => go('riders'), isAr ? 'استعراض الفريق' : 'View Team'),
+    metricCard(overview.couriers_online, isAr ? 'متصلون الآن' : 'Online Now', 'trend', () => go('riders'), isAr ? 'جاهزية الاتصال' : 'Online Readiness'),
+    metricCard(overview.shifts_running, isAr ? 'نشطون بالورديات' : 'Active in Shifts', 'trend', () => go('shifts'), isAr ? 'مسندون لورديات' : 'Assigned to Shifts'),
+    metricCard(overview.absent_today, isAr ? 'غائبون اليوم' : 'Absent Today', 'alert', () => { window.__shiftsInitialTab = 'attendance'; go('shifts'); }, isAr ? 'مراجعة الحضور' : 'Review Attendance'),
+    metricCard(overview.present_today, isAr ? 'حاضرون اليوم' : 'Present Today', 'trend', () => { window.__shiftsInitialTab = 'attendance'; go('shifts'); }, isAr ? 'حضور مؤكد' : 'Confirmed Present'),
+  ]));
+
+  // Group 2: Operational Readiness & Leaves
+  wrap.append(el('div', { style: 'margin-bottom:8px;font-size:12px;font-weight:700;color:var(--muted)' }, isAr ? 'الجاهزية التشغيلية والإجازات' : 'Operational Readiness & Leaves'));
+  wrap.append(el('div', { class: 'cards' }, [
+    metricCard(Math.max((overview.couriers_total || 0) - (overview.not_ready || 0), 0), isAr ? 'جاهز للعمل' : 'Operationally Ready', 'trend', () => go('riders'), isAr ? 'مكتمل الوثائق والمركبة' : 'Valid Docs & Vehicle'),
+    metricCard(overview.not_ready, isAr ? 'غير جاهز' : 'Not Ready', 'alert', () => go('riders'), isAr ? 'يوجد موانع تشغيلية' : 'Operational Blockers'),
+    metricCard(overview.on_leave, isAr ? 'في إجازة معتمدة' : 'On Approved Leave', 'blue', () => { window.__shiftsInitialTab = 'leaves'; go('shifts'); }, isAr ? 'إجازة سارية' : 'Active Leave'),
+    metricCard(overview.pending_leaves, isAr ? 'إجازات معلّقة' : 'Pending Leaves', overview.pending_leaves > 0 ? 'alert' : 'blue', () => { window.__shiftsInitialTab = 'leaves'; go('shifts'); }, isAr ? 'طابور الاعتمادات' : 'Approvals Queue'),
+  ]));
+
+  // Group 3: Document Compliance
+  wrap.append(el('div', { style: 'margin-bottom:8px;font-size:12px;font-weight:700;color:var(--muted)' }, isAr ? 'امتثال الوثائق والمستندات' : 'Document Compliance'));
+  wrap.append(el('div', { class: 'cards' }, [
+    metricCard(overview.documents_expired, isAr ? '🔴 مستندات منتهية' : '🔴 Expired Documents', 'alert', () => go('needsAttention'), isAr ? 'تحتاج تجديد فوري' : 'Needs Immediate Renewal'),
+    metricCard(overview.documents_30, isAr ? '🟠 تنتهي خلال 30 يوم' : '🟠 Expiring in 30 Days', 'warning', () => go('needsAttention'), isAr ? 'تنبيه استباقي' : 'Proactive Alert'),
+    metricCard(overview.documents_60, isAr ? '🟡 تنتهي خلال 60 يوم' : '🟡 Expiring in 60 Days', 'blue', () => go('needsAttention'), isAr ? 'متابعة دورية' : 'Regular Follow-up'),
+  ]));
 
   return wrap;
 }

@@ -68,11 +68,33 @@ def _refresh_status(tenant: Tenant, db: Session):
         db.commit()
 
 
+# What the company owes DOU is a commercial matter between the account owner
+# and DOU. A rider, a supervisor or a dispatcher has no business in it, and a
+# courier could read the invoice — amount, due date, subscription state — from
+# any authenticated session.
+BILLING_READER_ROLES = (
+    UserRole.COMPANY,
+    UserRole.COMPANY_ADMIN,
+    UserRole.ACCOUNTANT,
+    UserRole.DOU_ADMIN,
+    UserRole.DOU_OPS,
+)
+
+
+def _require_billing_reader(user: User) -> None:
+    if user.role not in BILLING_READER_ROLES:
+        raise HTTPException(
+            403,
+            "بيانات الاشتراك والفواتير تُفتح بحساب مدير الشركة أو المحاسب.",
+        )
+
+
 @router.get("/status")
 def billing_status(
     user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """حالة اشتراك الشركة الحالية."""
+    _require_billing_reader(user)
     tenant = _tenant_for(user, db)
     _refresh_status(tenant, db)
     now = datetime.utcnow()
@@ -93,6 +115,7 @@ def billing_invoice(
     user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """فاتورة الشركة الحالية: الفترة، المبلغ، الحالة."""
+    _require_billing_reader(user)
     tenant = _tenant_for(user, db)
     _refresh_status(tenant, db)
     now = datetime.utcnow()

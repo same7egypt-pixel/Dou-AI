@@ -1,6 +1,6 @@
 // Reports screen — Catalog, Metabase Interactive Dashboards, Platform Raw Facts (19 KPIs) & Full Exports
 import { api } from '../../shared/api/client.js';
-import { el, loadingState, emptyState, errorState, metricCard, badge, table, modal } from '../../shared/components/ui.js';
+import { el, loadingState, emptyState, errorState, metricCard, badge, table, modal, showToast } from '../../shared/components/ui.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
 
 let activeSubTab = 'driver_targets'; // 'driver_targets' | 'platform_facts' | 'dashboards'
@@ -245,8 +245,8 @@ function renderDriverTargetsLayout(data, container) {
 
   // 3. Summary KPI Cards
   const cards = el('div', { class: 'cards', style: 'margin-bottom:16px' }, [
-    metricCard(`${(summary.total_month_orders || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`, isAr ? 'إجمالي طلبات الشهر (الأسطول)' : 'Fleet Monthly Orders', 'blue', null, isAr ? 'المسجل تراكمياً من السائقين' : 'Month-to-date total'),
-    metricCard(`${(summary.total_today_orders || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`, isAr ? 'طلبات اليوم المنجزة' : 'Today Orders', 'trend', null, isAr ? 'من تطبيق السائق الميداني' : 'Logged today'),
+    metricCard(`${(summary.total_month_orders || 0).toLocaleString('en-US')} طلب`, isAr ? 'إجمالي طلبات الشهر (الأسطول)' : 'Fleet Monthly Orders', 'blue', null, isAr ? 'المسجل تراكمياً من السائقين' : 'Month-to-date total'),
+    metricCard(`${(summary.total_today_orders || 0).toLocaleString('en-US')} طلب`, isAr ? 'طلبات اليوم المنجزة' : 'Today Orders', 'trend', null, isAr ? 'من تطبيق السائق الميداني' : 'Logged today'),
     metricCard(`${summary.avg_orders_per_courier || 0} طلب`, isAr ? 'متوسط إنجاز السائق' : 'Avg Orders / Rider', 'purple', null, isAr ? 'إنتاجية السائق التراكمية' : 'Average per rider'),
     metricCard(`${summary.on_track_count + summary.achieved_count} من ${summary.total_couriers}`, isAr ? 'سائقين على وتيرة التارجت' : 'On-Track Riders', 'green', null, isAr ? 'ملتزمون بالمعدل اليومي' : 'Meeting daily pace'),
     metricCard(`${summary.at_risk_count} سائق`, isAr ? 'سائقين متأخرين عن التارجت' : 'At-Risk Riders', summary.at_risk_count > 0 ? 'alert' : 'blue', null, isAr ? 'يحتاجون دعم وتوجيه ميداني' : 'Behind target pace'),
@@ -321,7 +321,7 @@ function renderDriverTargetsLayout(data, container) {
         el('span', { class: 'badge badge-blue', style: 'font-weight:700;font-size:12px;padding:3px 8px' }, `📱 ${v || 0}`),
       ]) },
       { key: 'month_orders', label: isAr ? 'إجمالي الشهر' : 'Month Total', render: (v) => el('div', { style: 'text-align:center' }, [
-        el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+        el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString('en-US')} طلب`),
       ]) },
       // `|| 400` printed a target for a rider nobody had set one for — beside an
       // achievement percentage computed against the real (absent) target, so the
@@ -403,10 +403,10 @@ function renderDriverTargetsLayout(data, container) {
         el('span', { class: 'badge badge-blue', style: 'font-weight:700;font-size:12px;padding:3px 8px' }, `📱 ${v || 0}`),
       ]) },
       { key: 'month_orders', label: isAr ? 'إجمالي طلبات الشهر' : 'Month Orders', render: (v) => el('div', { style: 'text-align:center' }, [
-        el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+        el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString('en-US')} طلب`),
       ]) },
       { key: 'monthly_target', label: isAr ? 'تارجت الفريق' : 'Team Target', render: (v) => el('div', { style: 'text-align:center' }, [
-        el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+        el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${(v || 0).toLocaleString('en-US')} طلب`),
       ]) },
       { key: 'achievement_pct', label: isAr ? 'نسبة إنجاز الفريق' : 'Achievement %', render: (v) => {
         const pct = Math.min(100, Math.max(0, v || 0));
@@ -476,10 +476,10 @@ function renderDriverTargetsLayout(data, container) {
         el('span', { class: 'badge badge-blue', style: 'font-weight:700;font-size:12px;padding:3px 8px' }, `📱 ${v || 0}`),
       ]) },
       { key: 'month_orders', label: isAr ? 'إجمالي الشهر' : 'Month Orders', render: (v) => el('div', { style: 'text-align:center' }, [
-        el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+        el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString('en-US')} طلب`),
       ]) },
       { key: 'monthly_target', label: isAr ? 'تارجت المدينة/الفرع' : 'Branch Target', render: (v) => el('div', { style: 'text-align:center' }, [
-        el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+        el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${(v || 0).toLocaleString('en-US')} طلب`),
       ]) },
       { key: 'achievement_pct', label: isAr ? 'نسبة الإنجاز' : 'Achievement %', render: (v) => {
         const pct = Math.min(100, Math.max(0, v || 0));
@@ -549,10 +549,10 @@ function renderDriverTargetsLayout(data, container) {
         el('span', { class: 'badge badge-blue', style: 'font-weight:700;font-size:12px;padding:3px 8px' }, `📱 ${v || 0}`),
       ]) },
       { key: 'month_orders', label: isAr ? 'إجمالي طلبات الشهر' : 'Total Month Orders', render: (v) => el('div', { style: 'text-align:center' }, [
-        el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+        el('b', { style: 'color:var(--primary);font-size:14px' }, `${(v || 0).toLocaleString('en-US')} طلب`),
       ]) },
       { key: 'monthly_target', label: isAr ? 'تارجت العقد المستهدف' : 'Contract Target', render: (v) => el('div', { style: 'text-align:center' }, [
-        el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')} طلب`),
+        el('span', { style: 'font-weight:700;color:var(--text);font-size:13px' }, `${(v || 0).toLocaleString('en-US')} طلب`),
       ]) },
       { key: 'achievement_pct', label: isAr ? 'نسبة إنجاز العقد' : 'Achievement %', render: (v) => {
         const pct = Math.min(100, Math.max(0, v || 0));
@@ -683,7 +683,7 @@ function exportActiveLevelCsv(data) {
     });
   }
 
-  if (csvRows.length <= 1) return alert('لا توجد بيانات للتصدير.');
+  if (csvRows.length <= 1) return showToast('لا توجد بيانات للتصدير.', 'info');
   const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -774,9 +774,9 @@ function renderPlatformFactsLayout(data, container, contracts) {
 
   // Top KPI Metric Cards
   wrap.append(el('div', { class: 'cards', style: 'margin-bottom:18px' }, [
-    metricCard(`${(summary.total_completed ?? 0).toLocaleString('ar-SA')} طلب`, 'إجمالي الطلبات المكتملة', 'trend', null, `نسبة الإنجاز: ${summary.completion_rate ?? 0}%`),
-    metricCard(`${(summary.total_stacked ?? 0).toLocaleString('ar-SA')} طلب`, 'الطلبات المجمعة (Stacked)', 'blue', null, `معدل التكديس: ${summary.stacked_rate ?? 0}%`),
-    metricCard(`${(summary.total_actual_hours ?? 0).toLocaleString('ar-SA')} ساعة`, 'ساعات العمل الفعلية', 'blue', null, `استغلال الساعات: ${summary.hours_utilization ?? 0}%`),
+    metricCard(`${(summary.total_completed ?? 0).toLocaleString('en-US')} طلب`, 'إجمالي الطلبات المكتملة', 'trend', null, `نسبة الإنجاز: ${summary.completion_rate ?? 0}%`),
+    metricCard(`${(summary.total_stacked ?? 0).toLocaleString('en-US')} طلب`, 'الطلبات المجمعة (Stacked)', 'blue', null, `معدل التكديس: ${summary.stacked_rate ?? 0}%`),
+    metricCard(`${(summary.total_actual_hours ?? 0).toLocaleString('en-US')} ساعة`, 'ساعات العمل الفعلية', 'blue', null, `استغلال الساعات: ${summary.hours_utilization ?? 0}%`),
     metricCard(`${summary.avg_acceptance_rate ?? 0}%`, 'معدل قبول الطلبات', 'trend', null, 'استجابة السائقين'),
     metricCard(summary.total_no_shows || 0, 'عدم الحضور (No Shows)', summary.total_no_shows > 0 ? 'alert' : 'blue', null, 'حالات بحاجة لمتابعة'),
   ]));
@@ -838,7 +838,7 @@ function renderPlatformFactsLayout(data, container, contracts) {
 function funnelStep(title, value, color, rate) {
   return el('div', { class: 'card', style: 'margin:0;padding:10px 16px;min-width:140px;background:var(--card);border:1px solid var(--border)' }, [
     el('div', { style: 'font-size:11px;color:var(--muted);margin-bottom:4px' }, title),
-    el('div', { style: `font-size:18px;font-weight:800;color:${color}` }, (value || 0).toLocaleString('ar-SA')),
+    el('div', { style: `font-size:18px;font-weight:800;color:${color}` }, (value || 0).toLocaleString('en-US')),
     el('small', { style: 'display:block;font-size:10px;color:var(--muted);margin-top:2px' }, `المعدل: ${rate}`)
   ]);
 }
@@ -848,7 +848,7 @@ async function openContractUploadModal(onSuccess) {
     const data = await api.get('/analytics/reports/platform-facts/contracts');
     openUploadPlatformCsvModal(data.contracts || [], onSuccess);
   } catch (e) {
-    alert(`تعذر تحميل عقود الشركة: ${e.message}`);
+    showToast(`تعذر تحميل عقود الشركة: ${e.message}`, 'error');
   }
 }
 
@@ -864,10 +864,10 @@ function openUploadPlatformCsvModal(contracts, onSuccess) {
   const form = el('form', { onsubmit: async (e) => {
     e.preventDefault();
     const contractId = document.getElementById('platform-upload-contract')?.value;
-    if (!contractId) return alert('اختر العقد المرتبط بالتقرير أولاً.');
+    if (!contractId) return showToast('اختر العقد المرتبط بالتقرير أولاً.', 'info');
     const fileInput = document.getElementById('platform-csv-file');
     const files = Array.from(fileInput.files || []);
-    if (!files.length) return alert('الرجاء اختيار ملف CSV واحد على الأقل.');
+    if (!files.length) return showToast('الرجاء اختيار ملف CSV واحد على الأقل.', 'info');
 
     totalFiles = files.length;
     doneFiles = 0;
@@ -908,21 +908,21 @@ function openUploadPlatformCsvModal(contracts, onSuccess) {
     if (errors.length) {
       statusEl.style.color = 'var(--red)';
       statusEl.textContent = `❌ لم يتم استيراد الملف: ${errors.join(' | ')}`;
-      alert(statusEl.textContent);
+      showToast(statusEl.textContent, 'info');
       return;
     }
 
     if (totalImported + totalUpdated === 0) {
       statusEl.style.color = 'var(--red)';
       statusEl.textContent = '❌ لم يتم استيراد أو تحديث أي يوم. راجع نوع التقرير ومحتواه.';
-      alert(statusEl.textContent);
+      showToast(statusEl.textContent, 'info');
       return;
     }
 
     const msg = totalFiles === 1
       ? `✅ تم استيراد التقرير بنجاح!\nجديد: ${totalImported} يوم · محدث: ${totalUpdated} يوم`
       : `✅ تم استيراد ${totalFiles} ملف!\nإجمالي جديد: ${totalImported} يوم · إجمالي محدث: ${totalUpdated} يوم`;
-    alert(msg);
+    showToast(msg, 'info');
 
     platformContractFilter = String(contractId);
     platformDateFilter = '';
@@ -1115,7 +1115,7 @@ async function exportReport(format, reportType, group) {
     link.remove();
     URL.revokeObjectURL(url);
   } catch (e) {
-    alert(`تعذر تصدير التقرير: ${e.message}`);
+    showToast(`تعذر تصدير التقرير: ${e.message}`, 'error');
   }
 }
 
@@ -1215,8 +1215,8 @@ async function openMetabaseEmbed(dashboard, container) {
 
   try {
     const [factsData, overviewData] = await Promise.all([
-      api.get('/analytics/reports/platform-facts').catch(() => ({ summary: {}, rows: [] })),
-      api.get('/fleet/overview').catch(() => ({})),
+      api.get('/analytics/reports/platform-facts'),
+      api.get('/fleet/overview'),
     ]);
 
     body.replaceWith(renderNativeDashboardContent(dashboard, factsData, overviewData));
@@ -1232,7 +1232,7 @@ function renderNativeDashboardContent(dashboard, factsData, overviewData) {
   const ov = overviewData || {};
   const isAr = getLang() === 'ar';
 
-  const formatNum = (v) => Number(v || 0).toLocaleString('ar-SA');
+  const formatNum = (v) => Number(v || 0).toLocaleString('en-US');
 
   // KPI Metrics Grid
   let kpis = [];

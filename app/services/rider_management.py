@@ -31,6 +31,25 @@ def canonical_phone(value: Any) -> str:
     return phone if phone.startswith("966") else "966" + phone.lstrip("0")
 
 
+def enforce_courier_plan_cap(db: Session, tenant_id: int) -> None:
+    """Raise if the tenant's subscription plan caps couriers and is already at the limit."""
+    tenant = db.get(Tenant, tenant_id)
+    if not tenant:
+        return
+    plan = (
+        db.query(SubscriptionPlan)
+        .filter(SubscriptionPlan.code == tenant.plan)
+        .first()
+    )
+    if (
+        plan
+        and plan.max_couriers
+        and db.query(Courier).filter(Courier.tenant_id == tenant_id).count()
+        >= plan.max_couriers
+    ):
+        raise ValueError("تم الوصول للحد الأقصى من المندوبين في الباقة")
+
+
 def create_rider_record(
     db: Session, user: User, payload: dict, enforce_plan: bool = True
 ) -> tuple[Courier, User]:
@@ -61,20 +80,8 @@ def create_rider_record(
         bonus_target = float(payload.get("bonus_target") or 0)
     except (TypeError, ValueError):
         raise ValueError("قيم المندوب الرقمية أو نوعه غير صالحة")
-    tenant = db.get(Tenant, tenant_id)
-    if enforce_plan and tenant:
-        plan = (
-            db.query(SubscriptionPlan)
-            .filter(SubscriptionPlan.code == tenant.plan)
-            .first()
-        )
-        if (
-            plan
-            and plan.max_couriers
-            and db.query(Courier).filter(Courier.tenant_id == tenant_id).count()
-            >= plan.max_couriers
-        ):
-            raise ValueError("تم الوصول للحد الأقصى من المندوبين في الباقة")
+    if enforce_plan:
+        enforce_courier_plan_cap(db, tenant_id)
     contract, branch, city, project, supervisor = require_branch_assignment(
         db,
         tenant_id,

@@ -10,7 +10,7 @@
 // This screen is an addition, not a replacement, so a platform closing the
 // portal takes away a view and not a subscription.
 import { api } from '../../shared/api/client.js';
-import { el, loadingState, emptyState, errorState, metricCard, badge, table } from '../../shared/components/ui.js';
+import { el, loadingState, emptyState, errorState, metricCard, badge, table, showToast } from '../../shared/components/ui.js';
 import { getLang } from '../../shared/i18n/i18n.js';
 import { go } from '../shell.js';
 
@@ -37,7 +37,7 @@ export async function renderPlatformLink(container) {
 
   // 1. Check for incoming partnership invitations from delivery platforms
   try {
-    const invites = await api.get('/enterprise/operators/invitations/incoming').catch(() => []);
+    const invites = await api.get('/enterprise/operators/invitations/incoming');
     const incomingList = Array.isArray(invites) ? invites : (invites.invitations || []);
     if (incomingList.length > 0) {
       const inviteCards = incomingList.map(inv => el('div', {
@@ -50,7 +50,7 @@ export async function renderPlatformLink(container) {
             el('span', { text: isAr ? `دعوة شراكة رسمية من منصة: ${inv.platform_name || ('منصة #' + inv.platform_tenant_id)}` : `Official Partnership Invitation: ${inv.platform_name || ('Platform #' + inv.platform_tenant_id)}` })
           ]),
           el('div', { style: 'color:var(--muted);font-size:13px;margin-top:6px;' },
-            isAr ? `نوع الشراكة: ${inv.relationship_type || 'مشغل لوجستي'} · تاريخ الإرسال: ${inv.invited_at ? new Date(inv.invited_at).toLocaleDateString('ar-SA') : 'اليوم'}`
+            isAr ? `نوع الشراكة: ${inv.relationship_type || 'مشغل لوجستي'} · تاريخ الإرسال: ${inv.invited_at ? new Date(inv.invited_at).toLocaleDateString('en-GB') : 'اليوم'}`
                  : `Relationship: ${inv.relationship_type || 'Operator'} · Invited: ${inv.invited_at ? new Date(inv.invited_at).toLocaleDateString() : 'Today'}`)
         ]),
         el('div', { style: 'display:flex;gap:10px;' }, [
@@ -60,10 +60,10 @@ export async function renderPlatformLink(container) {
             onclick: async () => {
               try {
                 await api.post(`/enterprise/operators/invitations/${inv.id}/respond`, { action: 'ACCEPT' });
-                alert(isAr ? 'تم قبول الشراكة وتفعيل الربط بنجاح!' : 'Partnership accepted and activated!');
+                showToast(isAr ? 'تم قبول الشراكة وتفعيل الربط بنجاح!' : 'Partnership accepted and activated!', 'success');
                 renderPlatformLink(container);
               } catch (err) {
-                alert((isAr ? 'خطأ في قبول الدعوة: ' : 'Error: ') + (err.message || err));
+                showToast((isAr ? 'خطأ في قبول الدعوة: ' : 'Error: ') + (err.message || err), 'error');
               }
             }
           }, isAr ? '✅ قبول الشراكة' : '✅ Accept Partnership'),
@@ -76,7 +76,7 @@ export async function renderPlatformLink(container) {
                   await api.post(`/enterprise/operators/invitations/${inv.id}/respond`, { action: 'REJECT' });
                   renderPlatformLink(container);
                 } catch (err) {
-                  alert((isAr ? 'خطأ: ' : 'Error: ') + (err.message || err));
+                  showToast((isAr ? 'خطأ: ' : 'Error: ') + (err.message || err), 'error');
                 }
               }
             }

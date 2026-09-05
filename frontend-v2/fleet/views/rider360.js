@@ -1,7 +1,7 @@
 // Rider 360 — unified 8-tab profile workspace
 import { api } from '../../shared/api/client.js';
 import { appStore } from '../../shared/state/store.js';
-import { el, loadingState, emptyState, errorState, metricCard, badge, table, button, escapeHtml, modal, formRow, inputField, selectField, searchableSelect } from '../../shared/components/ui.js';
+import { el, loadingState, emptyState, errorState, metricCard, badge, table, button, escapeHtml, modal, formRow, inputField, selectField, searchableSelect, money, showToast } from '../../shared/components/ui.js';
 import { go } from '../shell.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
 
@@ -144,7 +144,7 @@ async function renderProfile() {
   const [profile, readiness, vehicle] = await Promise.all([
     api.get(`/analytics/riders/${id}/profile`),
     api.get(`/readiness/${id}`),
-    api.get(`/vehicles/riders/${id}/readiness?as_of=${new Date().toISOString().slice(0,10)}`).catch(() => null),
+    api.get(`/vehicles/riders/${id}/readiness?as_of=${new Date().toISOString().slice(0,10)}`),
   ]);
   const wrap = el('div', {});
   wrap.append(el('div', { class: 'cards' }, [
@@ -285,7 +285,7 @@ async function viewRiderDocument(documentId) {
   try {
     const doc = await api.get(`/hr/documents/${documentId}/content`);
     const win = window.open('', '_blank');
-    if (!win) { alert(isAr ? 'اسمح بالنوافذ المنبثقة لعرض المستند' : 'Allow pop-ups to view the document'); return; }
+    if (!win) { showToast(isAr ? 'اسمح بالنوافذ المنبثقة لعرض المستند' : 'Allow pop-ups to view the document', 'info'); return; }
     if (doc.mime_type === 'application/pdf') {
       win.location.href = doc.file_data;
     } else {
@@ -295,7 +295,7 @@ async function viewRiderDocument(documentId) {
       );
     }
   } catch (err) {
-    alert((isAr ? '❌ تعذر عرض المستند: ' : '❌ Could not open the document: ') + err.message);
+    showToast((isAr ? '❌ تعذر عرض المستند: ' : '❌ Could not open the document: ') + err.message, 'error');
   }
 }
 
@@ -306,7 +306,7 @@ async function decideRiderDocument(documentId, action) {
     await api.post(`/hr/documents/${documentId}/decide`, { action, note });
     switchTab('documents');
   } catch (err) {
-    alert((isAr ? '❌ تعذر حفظ القرار: ' : '❌ Could not save the decision: ') + err.message);
+    showToast((isAr ? '❌ تعذر حفظ القرار: ' : '❌ Could not save the decision: ') + err.message, 'error');
   }
 }
 
@@ -322,8 +322,8 @@ function uploadRiderDocument(riderId) {
     // The endpoint caps the encoded payload at 1 MB; check before encoding so
     // the operator gets told the size, not a rejection after a slow upload.
     if (file.size > 1_000_000) {
-      alert(isAr ? '❌ الملف أكبر من 1 ميجابايت. اضغطه ثم أعد المحاولة.'
-                 : '❌ The file is larger than 1 MB. Compress it and try again.');
+      showToast(isAr ? '❌ الملف أكبر من 1 ميجابايت. اضغطه ثم أعد المحاولة.'
+                 : '❌ The file is larger than 1 MB. Compress it and try again.', 'error');
       return;
     }
     const button = document.getElementById('btn-upload-doc');
@@ -343,7 +343,7 @@ function uploadRiderDocument(riderId) {
       });
       switchTab('documents');
     } catch (err) {
-      alert((isAr ? '❌ تعذر رفع المستند: ' : '❌ Could not upload the document: ') + err.message);
+      showToast((isAr ? '❌ تعذر رفع المستند: ' : '❌ Could not upload the document: ') + err.message, 'error');
       if (button) { button.disabled = false; button.textContent = isAr ? '📎 رفع مستند للسائق' : '📎 Upload a document'; }
     }
   };
@@ -375,8 +375,8 @@ async function renderAttendance() {
   wrap.append(table([
     { key: 'date', label: 'التاريخ', render: (v, r) => r.check_in ? String(r.check_in).slice(0, 10) : '—' },
     { key: 'shift', label: 'الوردية' },
-    { key: 'check_in', label: 'الدخول', render: (v) => v ? new Date(v).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—' },
-    { key: 'check_out', label: 'الخروج', render: (v) => v ? new Date(v).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—' },
+    { key: 'check_in', label: 'الدخول', render: (v) => v ? new Date(v).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—' },
+    { key: 'check_out', label: 'الخروج', render: (v) => v ? new Date(v).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—' },
     { key: 'status', label: 'الحالة', render: (v) => badge(v, v === 'PRESENT' ? 'green' : v === 'LATE' ? 'amber' : 'red') },
     { key: 'actions', label: 'تصحيح', render: (_, r) => el('button', { class: 'btn btn-ghost btn-small', onclick: () => window.correctAtt(r.id) }, 'تصحيح') },
   ], rows));
@@ -425,7 +425,6 @@ async function renderPayroll() {
   const id = currentRiderId;
   const month = new Date().toISOString().slice(0, 7);
   const isAr = getLang() === 'ar';
-  const money = (v) => `${Number(v || 0).toFixed(2)} ${isAr ? 'ر.س' : 'SAR'}`;
 
   let data;
   try {
@@ -513,8 +512,8 @@ async function renderLeave() {
 
   try {
     const [entitlements, leaves] = await Promise.all([
-      api.get(`/leave/entitlements/${id}`).catch(() => []),
-      api.get(`/leave/requests?courier_id=${id}`).catch(() => []),
+      api.get(`/leave/entitlements/${id}`),
+      api.get(`/leave/requests?courier_id=${id}`),
     ]);
 
     const ent = entitlements?.[0] || { entitled_days: 21, used_days: 0, pending_days: 0, available_days: 21 };
@@ -565,7 +564,7 @@ window.openRequestLeaveModal = async (courierId) => {
         : t.name_ar,
     }));
     if (!typeOptions.length) {
-      alert('لم تُعرَّف أنواع الإجازات لهذه الشركة بعد. أضفها من الإعدادات أولًا.');
+      showToast('لم تُعرَّف أنواع الإجازات لهذه الشركة بعد. أضفها من الإعدادات أولًا.', 'info');
       return;
     }
 
@@ -797,7 +796,7 @@ window.decideDoc = async (docId, decision) => {
     const pane = document.querySelector('.tab-pane');
     if (pane) loadTabContent('documents', pane);
   } catch (err) {
-    alert('تعذر تحديث حالة المستند: ' + err.message);
+    showToast('تعذر تحديث حالة المستند: ' + err.message, 'error');
   }
 };
 

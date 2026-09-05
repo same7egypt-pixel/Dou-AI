@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
 import time
 import uuid
 from contextlib import contextmanager
@@ -10,6 +11,29 @@ from typing import Optional
 
 SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
 APP_ENV = os.getenv("APP_ENV", "development").strip()
+
+
+def _resolve_commit() -> str:
+    env_commit = os.getenv("GIT_COMMIT", "").strip()
+    if env_commit:
+        return env_commit
+    try:
+        repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        return (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=repo_root,
+                stderr=subprocess.DEVNULL,
+                timeout=5,
+            )
+            .decode()
+            .strip()
+        )
+    except Exception:
+        return "unknown"
+
+
+COMMIT = _resolve_commit()
 
 
 def init_sentry():

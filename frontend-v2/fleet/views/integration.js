@@ -10,7 +10,7 @@
 // Five tabs, in the order the operator needs them: what feeds us, what key it
 // uses, who the riders are on the other side, what arrived, and what it became.
 import { api } from '../../shared/api/client.js';
-import { el, loadingState, emptyState, errorState, metricCard, modal, table, badge } from '../../shared/components/ui.js';
+import { el, loadingState, emptyState, errorState, metricCard, modal, table, badge, showToast } from '../../shared/components/ui.js';
 import { getLang } from '../../shared/i18n/i18n.js';
 
 let activeTab = 'sources';
@@ -89,7 +89,7 @@ async function renderSources(area, container) {
   try {
     const [platforms, connections] = await Promise.all([
       api.get('/sources/platforms'),
-      api.get('/sources/connections').catch(() => []),
+      api.get('/sources/connections'),
     ]);
     area.innerHTML = '';
 
@@ -174,8 +174,8 @@ async function renderRiderMappings(area, container) {
   try {
     const [mappings, couriersPage, platforms] = await Promise.all([
       api.get('/sources/rider-mappings'),
-      api.get('/fleet/couriers/page?page=1&page_size=200').catch(() => ({ rows: [] })),
-      api.get('/sources/platforms').catch(() => []),
+      api.get('/fleet/couriers/page?page=1&page_size=200'),
+      api.get('/sources/platforms'),
     ]);
     const couriers = couriersPage.rows || [];
     const byId = new Map(couriers.map(c => [c.id, c]));
@@ -278,7 +278,7 @@ async function renderFacts(area, container) {
   try {
     const [facts, couriersPage] = await Promise.all([
       api.get('/sources/delivery-facts'),
-      api.get('/fleet/couriers/page?page=1&page_size=200').catch(() => ({ rows: [] })),
+      api.get('/fleet/couriers/page?page=1&page_size=200'),
     ]);
     const byId = new Map((couriersPage.rows || []).map(c => [c.id, c]));
     area.innerHTML = '';
@@ -315,7 +315,7 @@ async function renderReconcile(area, container) {
   try {
     const [results, platforms] = await Promise.all([
       api.get('/sources/reconcile'),
-      api.get('/sources/platforms').catch(() => []),
+      api.get('/sources/platforms'),
     ]);
     area.innerHTML = '';
 
@@ -367,13 +367,13 @@ async function renderReconcile(area, container) {
 async function runReconcile(area, container) {
   const platformId = Number(area.querySelector('#rc-platform').value);
   const day = area.querySelector('#rc-date').value;
-  if (!platformId || !day) { alert('اختر المصدر واليوم.'); return; }
+  if (!platformId || !day) { showToast('اختر المصدر واليوم.', 'info'); return; }
   try {
     const res = await api.post('/sources/reconcile', {
       source_platform_id: platformId, reconciliation_date: day,
     });
     const balanced = res.status === 'COMPLETED';
-    alert(AR()
+    showToast(AR()
       ? (balanced
         ? `✅ اليوم متطابق.\n\nأرسلت المنصة ${res.source_total_count} واحتُسب ${res.accepted_count}.`
         : `⚠️ يوجد فرق.\n\nأرسلت المنصة ${res.source_total_count} واحتُسب ${res.accepted_count}` +
@@ -383,10 +383,10 @@ async function runReconcile(area, container) {
         ? `✅ The day balances.\n\nThe platform sent ${res.source_total_count} and ${res.accepted_count} were counted.`
         : `⚠️ There is a gap.\n\nThe platform sent ${res.source_total_count} and ${res.accepted_count} were counted` +
           `\nMissing: ${res.missing_count} — ${res.unmapped_count} of them from an unmapped rider` +
-          `\nRevenue gap: ${res.revenue_gap} SAR`));
+          `\nRevenue gap: ${res.revenue_gap} SAR`), 'success');
     renderIntegration(container);
   } catch (e) {
-    alert('❌ تعذر تشغيل المطابقة: ' + e.message);
+    showToast('❌ تعذر تشغيل المطابقة: ' + e.message, 'error');
   }
 }
 
@@ -396,12 +396,12 @@ async function reprocess(container) {
     'الصفوف المعتمدة لا تُمس — إعادة المعالجة لا يمكن أن تحتسب توصيلة مرتين.')) return;
   try {
     const res = await api.post('/sources/raw-rows/reprocess');
-    alert(AR()
+    showToast(AR()
       ? `✅ تمت إعادة المعالجة.\n\nاعتُمد: ${res.normalized}\nما زال مرفوضًا: ${res.rejected}`
-      : `✅ Reprocessing done.\n\nAccepted: ${res.normalized}\nStill rejected: ${res.rejected}`);
+      : `✅ Reprocessing done.\n\nAccepted: ${res.normalized}\nStill rejected: ${res.rejected}`, 'success');
     renderIntegration(container);
   } catch (e) {
-    alert('❌ تعذرت إعادة المعالجة: ' + e.message);
+    showToast('❌ تعذرت إعادة المعالجة: ' + e.message, 'error');
   }
 }
 
@@ -505,13 +505,13 @@ async function rotateKey(container, key) {
     ]);
     modal('🔄 المفتاح الجديد', content);
   } catch (e) {
-    alert('❌ تعذر التدوير: ' + e.message);
+    showToast('❌ تعذر التدوير: ' + e.message, 'error');
   }
 }
 
 function openMappingModal(container, platforms, couriers) {
-  if (!platforms.length) { alert('أضف مصدر بيانات أولًا من تبويب «المصادر والاتصالات».'); return; }
-  if (!couriers.length) { alert('لا يوجد مناديب في حسابك بعد.'); return; }
+  if (!platforms.length) { showToast('أضف مصدر بيانات أولًا من تبويب «المصادر والاتصالات».', 'info'); return; }
+  if (!couriers.length) { showToast('لا يوجد مناديب في حسابك بعد.', 'info'); return; }
   const today = new Date().toISOString().slice(0, 10);
   const content = el('form', { style: 'display:grid;gap:14px;direction:rtl' }, [
     el('div', {}, [

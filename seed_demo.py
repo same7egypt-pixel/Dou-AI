@@ -5,8 +5,17 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from app.database import Base, engine, SessionLocal
 from app.models.entities import *
 from app.models import intelligence  # noqa: F401
+from app.models.merchant import (
+    BookingStatus,
+    DedicatedShiftBooking,
+    MerchantAccount,
+    MerchantBranch,
+    ShiftType,
+)
 from app.routers.auth import hash_password
-from datetime import datetime, date, timedelta
+from app.utils.security import generate_merchant_api_key, hash_pin
+from datetime import datetime, date, timedelta, time
+from decimal import Decimal
 
 DB_PATH = './dou_final_demo/db.sqlite3'
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -74,6 +83,12 @@ for rd in riders_data:
         documents_valid=(rd['docs'] == 'VERIFIED'),
     )
     db.add(c); db.flush()
+    db.add(User(
+        name=rd['name'], phone=rd['phone'], password_hash=hash_password('Rider1234!'),
+        role=UserRole.COURIER, tenant_id=tenant.id, courier_id=c.id,
+        country='SA', is_active=True
+    ))
+    db.flush()
     courier_objs.append(c)
 
 # ── Shifts ──
@@ -239,11 +254,54 @@ for i, c in enumerate(courier_objs[:2]):
     )
     db.add(evt)
 
+# ── DOU Flex (Merchant & Branch Pilot) ──
+_, prefix, key_hash = generate_merchant_api_key("shawarma")
+merchant = MerchantAccount(
+    trade_name="شاورما كلاسيك (Shawarma Classic)",
+    vat_number="310123456700003",
+    billing_contact_email="pilot@shawarmaclassic.com",
+    billing_contact_phone="0551234567",
+    payment_terms_days=30,
+    api_key_prefix=prefix,
+    api_key_hash=key_hash,
+    is_active=True,
+)
+db.add(merchant); db.flush()
+
+branch = MerchantBranch(
+    merchant_account_id=merchant.id,
+    branch_name="فرع السليمانية - الرياض",
+    city="الرياض",
+    district="السليمانية",
+    latitude=Decimal("24.7085000"),
+    longitude=Decimal("46.6970000"),
+    geofence_radius_meters=150,
+    cashier_access_pin=hash_pin("2026"),
+    is_active=True,
+)
+db.add(branch); db.flush()
+
+booking = DedicatedShiftBooking(
+    merchant_branch_id=branch.id,
+    logistics_company_tenant_id=tenant.id,
+    rider_id=courier_objs[0].id,
+    shift_type=ShiftType.full_day_8h,
+    shift_start_time=time(12, 0),
+    shift_end_time=time(20, 0),
+    effective_from=today,
+    monthly_fee_to_merchant=Decimal("7000.00"),
+    monthly_payout_to_logistics=Decimal("5500.00"),
+    dou_margin=Decimal("1500.00"),
+    status=BookingStatus.active,
+)
+db.add(booking); db.flush()
+
+branch_id = branch.id
 db.commit()
 db.close()
 
 print('✅ Complete demo data created!')
-print('Database: /tmp/dou_final_demo/db.sqlite3')
+print('Database: ./dou_final_demo/db.sqlite3')
 print('')
 print('Demo accounts:')
 print('  DOU Admin:      966500000001 / SuperAdmin123!')
@@ -251,3 +309,6 @@ print('  Company Admin:  966511111111 / Company123!')
 print('  Operations:     966522222222 / Ops123456!')
 print('  Finance:        966577777777 / Finance123!')
 print('  Supervisor:     966533333333 / Super1234!')
+print('  Rider / Driver: 966500001111 / Rider1234!')
+print(f'  Cashier Portal: Branch: فرع السليمانية - الرياض (ID: {branch_id}) / PIN: 2026')
+print('  Merchant Pilot: شاورما كلاسيك (Shawarma Classic) / 7,000 SAR monthly statement')

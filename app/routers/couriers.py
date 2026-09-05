@@ -17,6 +17,7 @@ from ..models.entities import (
 )
 from ..schemas.dou import CourierCreate, CourierOut, TaskActionIn
 from ..services.dispatch_engine import dispatch_order
+from ..services.rider_management import enforce_courier_plan_cap
 from .auth import get_current_user
 
 router = APIRouter(prefix="/couriers", tags=["couriers"])
@@ -70,6 +71,11 @@ def create_courier(
         )
         if not fleet:
             raise HTTPException(404, "Fleet not found")
+    if data.get("tenant_id") is not None:
+        try:
+            enforce_courier_plan_cap(db, data["tenant_id"])
+        except ValueError as e:
+            raise HTTPException(422, str(e))
     courier = Courier(**data)
     db.add(courier)
     db.commit()

@@ -1,7 +1,7 @@
 // Modern Payroll & Financial HR Operations — Frontend V2
 import { api } from '../../shared/api/client.js';
 import { appStore, isDeliveryPlatform } from '../../shared/state/store.js';
-import { el, loadingState, emptyState, errorState, metricCard, table, button, modal, formRow, inputField, selectField, searchableSelect, aiPromptBar, escapeHtml } from '../../shared/components/ui.js';
+import { el, loadingState, emptyState, errorState, metricCard, table, button, modal, formRow, inputField, selectField, searchableSelect, aiPromptBar, escapeHtml, showToast } from '../../shared/components/ui.js';
 import { openAIDrawer, getContextualPrompts } from '../shell.js';
 import { t, getLang } from '../../shared/i18n/i18n.js';
 
@@ -123,6 +123,8 @@ async function renderPayrollLedger(container, mainContainer) {
         renderStepBadge(isAr ? '3. اعتماد الإدارة (APPROVED)' : '3. Final Approval', status === 'APPROVED' || status === 'FINALIZED', status === 'APPROVED'),
         el('span', { style: 'color:var(--muted)' }, '➔'),
         renderStepBadge(isAr ? '4. إقفال وحفظ اللقطة (LOCKED)' : '4. Locked Snapshot', status === 'FINALIZED', status === 'FINALIZED'),
+        el('span', { style: 'color:var(--muted)' }, '➔'),
+        renderStepBadge(isAr ? '5. تصدير WPS البنكي (WPS)' : '5. Bank WPS', isFinalized, isFinalized),
       ])
     ]);
     container.append(stepperCard);
@@ -173,9 +175,9 @@ async function renderPayrollLedger(container, mainContainer) {
 
         el('button', {
           class: 'btn btn-ghost btn-small',
-          style: 'color:#0284c7;font-weight:700',
-          onclick: () => exportWpsFile(selectedPayrollMonth)
-        }, isAr ? '🏦 ملف التحضير البنكي' : '🏦 Bank WPS File'),
+          style: `color:${isFinalized ? '#0284c7' : 'var(--muted)'};font-weight:700`,
+          onclick: () => exportWpsFile(selectedPayrollMonth, isFinalized)
+        }, isAr ? '🏦 ملف التحضير البنكي (WPS)' : '🏦 Bank WPS File'),
 
         appStore.get().role !== 'SUPERVISOR' ? el('button', {
           class: 'btn btn-ghost btn-small',
@@ -202,14 +204,14 @@ async function renderPayrollLedger(container, mainContainer) {
     const ridersInDebt = data.riders_in_debt ?? rows.filter((r) => r.is_in_debt).length;
 
     const netSubtext = carriedDebt > 0
-      ? (isAr ? `صرف بنكي: ${bankDisbursement.toLocaleString('ar-SA')} ر.س · مديونية مرحّلة على ${ridersInDebt} مندوب: ${carriedDebt.toLocaleString('ar-SA')} ر.س` : `Bank Payable: ${bankDisbursement} SAR · Debt carried for ${ridersInDebt} riders: ${carriedDebt} SAR`)
+      ? (isAr ? `صرف بنكي: ${bankDisbursement.toLocaleString('en-US')} ر.س · مديونية مرحّلة على ${ridersInDebt} مندوب: ${carriedDebt.toLocaleString('en-US')} ر.س` : `Bank Payable: ${bankDisbursement} SAR · Debt carried for ${ridersInDebt} riders: ${carriedDebt} SAR`)
       : (isAr ? 'جاهز للتحويل والصرف البنكي' : 'Ready for bank disbursement');
 
     container.append(el('div', { class: 'cards' }, [
-      metricCard(`${(grossTotal || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`, isAr ? 'إجمالي الاستحقاقات (Gross)' : 'Gross Earnings', 'blue', null, isAr ? 'أساسي + إنتاجية طلبات + بونص' : 'Base + Delivery Pay + Bonus'),
+      metricCard(`${(grossTotal || 0).toLocaleString('en-US')}${curr}`, isAr ? 'إجمالي الاستحقاقات (Gross)' : 'Gross Earnings', 'blue', null, isAr ? 'أساسي + إنتاجية طلبات + بونص' : 'Base + Delivery Pay + Bonus'),
       metricCard(data.couriers_count || rows.length || 0, isAr ? 'مناديب المسير المكتمل' : 'Total Eligible Drivers', 'blue', null, isAr ? 'كافة السائقين المسجلين' : 'All active registered drivers'),
-      metricCard(`${(deductionsTotal || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`, isAr ? 'إجمالي الاستقطاعات' : 'Total Deductions', deductionsTotal > 0 ? 'alert' : 'blue', null, isAr ? 'غياب + تأخير + سلف + مخالفات' : 'Absence + Late + Advances + Penalties'),
-      metricCard(`${(netTotal || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`, isAr ? 'صافي حساب المسير (Net)' : 'Net Settlement', netTotal < 0 ? 'alert' : 'trend', null, netSubtext),
+      metricCard(`${(deductionsTotal || 0).toLocaleString('en-US')}${curr}`, isAr ? 'إجمالي الاستقطاعات' : 'Total Deductions', deductionsTotal > 0 ? 'alert' : 'blue', null, isAr ? 'غياب + تأخير + سلف + مخالفات' : 'Absence + Late + Advances + Penalties'),
+      metricCard(`${(netTotal || 0).toLocaleString('en-US')}${curr}`, isAr ? 'صافي حساب المسير (Net)' : 'Net Settlement', netTotal < 0 ? 'alert' : 'trend', null, netSubtext),
     ]));
 
     if (!rows.length) {
@@ -266,27 +268,27 @@ async function renderPayrollLedger(container, mainContainer) {
           isDiff ? el('small', { style: 'color:#0284c7;font-size:10px;font-weight:600' }, isAr ? 'معدل بالفاتورة' : 'Invoice Verified') : null
         ]);
       }},
-      { key: 'fixed', label: isAr ? 'الأساسي والبدلات' : 'Base & Allowances', render: (v) => `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}` },
+      { key: 'fixed', label: isAr ? 'الأساسي والبدلات' : 'Base & Allowances', render: (v) => `${(v || 0).toLocaleString('en-US')}${curr}` },
       { key: 'delivery', label: isAr ? 'أجر الطلبات' : 'Delivery Earnings', render: (v, r) => {
         const orders = r.approved_orders ?? r.orders ?? 0;
         const rate = r.per_delivery_rate || (orders > 0 ? Math.round((v / orders) * 100) / 100 : 0);
         return el('div', {}, [
-          el('b', { style: 'color:var(--primary)' }, `${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`),
+          el('b', { style: 'color:var(--primary)' }, `${(v || 0).toLocaleString('en-US')}${curr}`),
           el('small', { style: 'display:block;color:var(--muted);font-size:10px' }, `${orders} ${isAr ? 'طلب' : 'orders'} × ${rate}${curr}`)
         ]);
       }},
-      { key: 'bonus', label: isAr ? 'حافز التارجت' : 'Target Bonus', render: (v) => (v > 0 ? el('span', { style: 'color:#16a34a;font-weight:700' }, `+${(v || 0).toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`) : `0${curr}`) },
+      { key: 'bonus', label: isAr ? 'حافز التارجت' : 'Target Bonus', render: (v) => (v > 0 ? el('span', { style: 'color:#16a34a;font-weight:700' }, `+${(v || 0).toLocaleString('en-US')}${curr}`) : `0${curr}`) },
       { key: 'gross', label: isAr ? 'إجمالي الاستحقاق' : 'Gross Total', render: (v, r) => {
         const val = v || (r.fixed || 0) + (r.delivery || 0) + (r.bonus || 0) + (r.additions || 0);
-        return el('b', { style: 'color:#059669;font-size:12px' }, `${val.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`);
+        return el('b', { style: 'color:#059669;font-size:12px' }, `${val.toLocaleString('en-US')}${curr}`);
       }},
       { key: 'absences_late', label: isAr ? 'خصم حضور (غياب/تأخير)' : 'Attendance Deductions', render: (_, r) => {
         const abs = (r.absence_deduction || 0) + (r.late_deduction || 0);
-        return abs > 0 ? el('span', { style: 'color:#dc2626;font-weight:600' }, `-${abs.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`) : `0${curr}`;
+        return abs > 0 ? el('span', { style: 'color:#dc2626;font-weight:600' }, `-${abs.toLocaleString('en-US')}${curr}`) : `0${curr}`;
       }},
       { key: 'advances_other', label: isAr ? 'سلف وخصومات' : 'Advances & Penalties', render: (_, r) => {
         const adv = (r.advance_deduction || 0) + (r.other_deductions || 0);
-        return adv > 0 ? el('span', { style: 'color:#e11d48;font-weight:600' }, `-${adv.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`) : `0${curr}`;
+        return adv > 0 ? el('span', { style: 'color:#e11d48;font-weight:600' }, `-${adv.toLocaleString('en-US')}${curr}`) : `0${curr}`;
       }},
       { key: 'total', label: isAr ? 'صافي حساب المندوب' : 'Net Settlement', render: (v, r) => {
         // Net is never negative: a shortfall is paid as zero and carried as debt.
@@ -294,18 +296,18 @@ async function renderPayrollLedger(container, mainContainer) {
         const balance = r.debt_balance || 0;
         if (r.is_in_debt || balance > 0) {
           return el('div', { style: 'background:rgba(220,38,38,0.08);padding:4px 8px;border-radius:6px;display:inline-block;border:1px solid rgba(220,38,38,0.25)' }, [
-            el('b', { style: 'color:#dc2626;font-size:13px' }, `${net.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`),
+            el('b', { style: 'color:#dc2626;font-size:13px' }, `${net.toLocaleString('en-US')}${curr}`),
             el('small', { style: 'display:block;color:#dc2626;font-size:10px;font-weight:700' },
-              isAr ? `مدين — مرحّل ${balance.toLocaleString('ar-SA')} ر.س للشهر التالي`
+              isAr ? `مدين — مرحّل ${balance.toLocaleString('en-US')} ر.س للشهر التالي`
                    : `In debt — ${balance} SAR carried to next month`)
           ]);
         }
         const recovered = r.carried_debt_applied || 0;
         return el('div', { style: 'background:rgba(2,132,199,0.08);padding:4px 8px;border-radius:6px;display:inline-block' }, [
-          el('b', { style: 'color:#0284c7;font-size:13px' }, `${net.toLocaleString(isAr ? 'ar-SA' : 'en-US')}${curr}`),
+          el('b', { style: 'color:#0284c7;font-size:13px' }, `${net.toLocaleString('en-US')}${curr}`),
           recovered > 0
             ? el('small', { style: 'display:block;color:#0f766e;font-size:10px;font-weight:700' },
-                isAr ? `بعد سداد مديونية ${recovered.toLocaleString('ar-SA')} ر.س`
+                isAr ? `بعد سداد مديونية ${recovered.toLocaleString('en-US')} ر.س`
                      : `after settling ${recovered} SAR of debt`)
             : null
         ].filter(Boolean));
@@ -333,10 +335,10 @@ async function renderPayrollLedger(container, mainContainer) {
             month: selectedPayrollMonth,
             overrides
           });
-          alert(isAr ? `✅ تم حفظ وتحديث طلبات (${overrides.length}) مندوب وإعادة احتساب المسير فوراً!` : `✅ Saved (${overrides.length}) rider overrides and recalculated ledger!`);
+          showToast(isAr ? `✅ تم حفظ وتحديث طلبات (${overrides.length}) مندوب وإعادة احتساب المسير فوراً!` : `✅ Saved (${overrides.length}) rider overrides and recalculated ledger!`, 'success');
           renderPayrollLedger(container, mainContainer);
         } catch (err) {
-          alert('❌ فشل حفظ التعديلات: ' + err.message);
+          showToast('❌ فشل حفظ التعديلات: ' + err.message, 'error');
         }
       }
     }, isAr ? '💾 حفظ تعديل الطلبات' : '💾 Save Approved Orders');
@@ -371,10 +373,10 @@ function renderStepBadge(title, isPassed, isCurrent) {
 async function changePayrollStatus(month, status, container, mainContainer) {
   try {
     await api.post('/hr/payroll/status', { month, status });
-    alert(`✅ تم تحديث حالة مسير شهر (${month}) إلى: ${status}`);
+    showToast(`✅ تم تحديث حالة مسير شهر (${month}) إلى: ${status}`, 'success');
     renderPayrollLedger(container, mainContainer);
   } catch (e) {
-    alert('❌ تعذر تحديث حالة المسير: ' + e.message);
+    showToast('❌ تعذر تحديث حالة المسير: ' + e.message, 'error');
   }
 }
 
@@ -382,10 +384,10 @@ async function finalizePayroll(month, container, mainContainer) {
   if (!confirm(`هل أنت متأكد من إقفال مسير رواتب شهر (${month}) نهائياً؟\n\nبمجرد الإقفال سيتم أخذ لقطة مالية ثابتة (Snapshot) تمنع أي تغيير بأثر رجعي، وستُسجل أي تعديلات مستقبلية كتسويات مستقلة.`)) return;
   try {
     const res = await api.post('/hr/payroll/finalize', { month });
-    alert(`🔒 تم إقفال واعتماد مسير الرواتب لشهر (${month}) بنجاح!\nتم حفظ ${res.snapshots || 0} لقطة مالية للمناديب.`);
+    showToast(`🔒 تم إقفال واعتماد مسير الرواتب لشهر (${month}) بنجاح!\nتم حفظ ${res.snapshots || 0} لقطة مالية للمناديب.`, 'error');
     renderPayrollLedger(container, mainContainer);
   } catch (e) {
-    alert('❌ تعذر إقفال المسير: ' + e.message);
+    showToast('❌ تعذر إقفال المسير: ' + e.message, 'error');
   }
 }
 
@@ -431,7 +433,7 @@ export async function openRiderStatementModal(courierId, month) {
         el('div', { style: 'background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:14px' }, [
           el('div', { style: 'font-weight:800;color:#059669;font-size:14px;margin-bottom:10px;display:flex;justify-content:space-between' }, [
             el('span', {}, '🟢 الاستحقاقات (Earnings)'),
-            el('span', {}, `${(s.gross_pay || 0).toLocaleString('ar-SA')} ر.س`)
+            el('span', {}, `${(s.gross_pay || 0).toLocaleString('en-US')} ر.س`)
           ]),
           el('div', { style: 'display:flex;flex-direction:column;gap:6px' }, [
             statementRowItem('راتب أساسي وبدلات ثابته', s.base_salary, false),
@@ -445,7 +447,7 @@ export async function openRiderStatementModal(courierId, month) {
         el('div', { style: 'background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:14px' }, [
           el('div', { style: 'font-weight:800;color:#dc2626;font-size:14px;margin-bottom:10px;display:flex;justify-content:space-between' }, [
             el('span', {}, '🔴 الاستقطاعات (Deductions)'),
-            el('span', {}, `-${(s.total_deductions || 0).toLocaleString('ar-SA')} ر.س`)
+            el('span', {}, `-${(s.total_deductions || 0).toLocaleString('en-US')} ر.س`)
           ]),
           el('div', { style: 'display:flex;flex-direction:column;gap:6px' }, [
             statementRowItem('خصم غياب غير مبرر', s.absence_deduction, true),
@@ -460,9 +462,9 @@ export async function openRiderStatementModal(courierId, month) {
       el('div', { style: 'background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);color:#fff;padding:16px 20px;border-radius:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center' }, [
         el('div', {}, [
           el('div', { style: 'font-size:12px;color:#94a3b8;font-weight:600' }, 'صافي حساب المندوب النهائي المستحق للصرف (Net Pay)'),
-          el('div', { style: 'font-size:11px;color:#cbd5e1;margin-top:2px' }, `معادلة المسير: [${(s.gross_pay || 0).toLocaleString('ar-SA')} استحقاقات] - [${(s.total_deductions || 0).toLocaleString('ar-SA')} استقطاعات]`)
+          el('div', { style: 'font-size:11px;color:#cbd5e1;margin-top:2px' }, `معادلة المسير: [${(s.gross_pay || 0).toLocaleString('en-US')} استحقاقات] - [${(s.total_deductions || 0).toLocaleString('en-US')} استقطاعات]`)
         ]),
-        el('div', { style: 'font-size:24px;font-weight:900;color:#38bdf8' }, `${(s.net_pay || 0).toLocaleString('ar-SA')} ر.س`)
+        el('div', { style: 'font-size:24px;font-weight:900;color:#38bdf8' }, `${(s.net_pay || 0).toLocaleString('en-US')} ر.س`)
       ]),
 
       // Adjustments / Advances list if present
@@ -502,7 +504,7 @@ export async function openRiderStatementModal(courierId, month) {
     const m = modal(`كشف حساب ومسير المندوب — شهر ${p.month || month}`, content);
   } catch (err) {
     if (loadingM && loadingM.remove) loadingM.remove();
-    alert('تعذر تحميل كشف حساب المندوب: ' + err.message);
+    showToast('تعذر تحميل كشف حساب المندوب: ' + err.message, 'error');
   }
 }
 
@@ -512,7 +514,7 @@ function statementRowItem(label, amount, isDeduction = false, extra = '') {
   const sign = isDeduction && val > 0 ? '-' : '';
   return el('div', { style: 'display:flex;justify-content:space-between;align-items:center;font-size:12px' }, [
     el('span', { style: 'color:var(--text)' }, `${label} ${extra ? `<small style="color:#0284c7">(${extra})</small>` : ''}`),
-    el('b', { style: `color:${color};font-family:monospace` }, `${sign}${val.toLocaleString('ar-SA')} ر.س`)
+    el('b', { style: `color:${color};font-family:monospace` }, `${sign}${val.toLocaleString('en-US')} ر.س`)
   ]);
 }
 
@@ -522,7 +524,7 @@ function downloadPayslip(rider, month, statement = null) {
 
 function exportPayrollCsv(month, rows) {
   if (!rows || !rows.length) {
-    alert('لا توجد بيانات لتصديرها.');
+    showToast('لا توجد بيانات لتصديرها.', 'info');
     return;
   }
   const headers = ['اسم السائق', 'الجوال', 'المدينة', 'الأساسي', 'الطلبات', 'أجر التوصيل', 'البونص', 'إجمالي الاستحقاق', 'الخصومات', 'صافي الراتب', 'رقم الآيبان IBAN'];
@@ -552,13 +554,60 @@ function exportPayrollCsv(month, rows) {
   document.body.removeChild(a);
 }
 
-async function exportWpsFile(month) {
+async function exportWpsFile(month, isFinalized = false) {
+  const isAr = getLang() === 'ar';
+  if (!isFinalized) {
+    const confirmModal = modal(isAr ? 'تنبيه: ملف التحضير البنكي (WPS)' : 'Notice: Bank WPS Export', [
+      el('div', { style: 'padding:10px 4px;font-size:13px;line-height:1.7' }, [
+        el('p', { style: 'margin:0 0 12px;color:var(--text)' },
+          isAr
+            ? 'تصدير مسير الرواتب بصيغة التحضير البنكي (WPS) يتطلب إقفال المسير المالي وتجميده نهائياً (Finalize & Lock) أولاً لضمان عدم حدوث أي تغييرات بأثر رجعي.'
+            : 'Exporting the Bank Preparation file (WPS) requires finalizing and locking the payroll period first to prevent retrospective changes.'
+        ),
+        el('div', { style: 'background:var(--card-subtle, #f8fafc);padding:10px 14px;border-radius:8px;border:1px solid var(--border);margin-bottom:14px' }, [
+          el('b', { style: 'display:block;margin-bottom:4px;color:var(--ink)' }, isAr ? 'دورة الإقفال النظامية:' : 'Standard Closing Cycle:'),
+          el('div', { style: 'font-size:12px;color:var(--muted)' },
+            isAr ? '١. احتساب المسير ➔ ٢. التدقيق ➔ ٣. اعتماد الإدارة ➔ ٤. إقفال وحفظ اللقطة ➔ ٥. تصدير WPS' : '1. Calculate ➔ 2. Review ➔ 3. Approve ➔ 4. Finalize & Lock ➔ 5. Export WPS'
+          )
+        ]),
+        el('div', { style: 'display:flex;justify-content:flex-end;gap:8px' }, [
+          el('button', { class: 'btn btn-ghost', onclick: () => confirmModal.close() }, isAr ? 'إغلاق' : 'Close'),
+          el('button', {
+            class: 'btn btn-primary',
+            onclick: async () => {
+              confirmModal.close();
+              await finalizePayroll(month, document.getElementById('payroll-tab-content'), document.getElementById('app'));
+            }
+          }, isAr ? 'إقفال المسير الآن وتصدير الملف ➔' : 'Finalize & Export ➔')
+        ])
+      ])
+    ]);
+    return;
+  }
+
   try {
-    const token = localStorage.getItem('dou_token_v2');
+    const token = api.getToken();
     const res = await fetch(`/hr/payroll/wps-export?month=${month}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error('فشل تحميل ملف التحضير البنكي');
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ detail: res.statusText }));
+      const detail = errData.detail || errData.message || (isAr ? 'فشل تحميل ملف التحضير البنكي' : 'Failed to export WPS file');
+
+      let hint = '';
+      if (detail.includes('commercial registration')) {
+        hint = isAr ? '\n\n💡 السجل التجاري للشركة مطلوب في إعدادات المنشأة لتصدير ملف البنك.' : '\n\n💡 Company commercial registration (CR) is required in company settings.';
+      } else if (detail.includes('Missing identity or IBAN')) {
+        hint = isAr ? '\n\n💡 يرجى استكمال بيانات الهوية/الإقامة وأرقام الآيبان (IBAN) للمناديب قبل التصدير.' : '\n\n💡 Please ensure all riders have valid National ID / Iqama and bank IBAN numbers.';
+      } else if (detail.includes('finalized')) {
+        hint = isAr ? '\n\n💡 يجب إقفال واعتماد المسير أولاً.' : '\n\n💡 Payroll must be finalized first.';
+      }
+
+      showToast(`❌ تعذر تصدير ملف التحضير البنكي:\n${detail}${hint}`, 'error');
+      return;
+    }
+
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -567,16 +616,17 @@ async function exportWpsFile(month) {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   } catch (e) {
-    alert('❌ تعذر تصدير ملف التحضير البنكي: ' + e.message);
+    showToast(isAr ? '❌ تعذر تصدير ملف التحضير البنكي: ' + e.message : 'Failed to export bank file: ' + e.message, 'error');
   }
 }
 
 async function openCreateSalaryStructureModal() {
   try {
     const [contractsRes, citiesRes] = await Promise.all([
-      api.get('/hr/contract-structure').catch(() => []),
-      api.get('/hr/operating-cities').catch(() => ({ cities: [] }))
+      api.get('/hr/contract-structure'),
+      api.get('/hr/operating-cities')
     ]);
 
     const contracts = contractsRes || [];
@@ -659,7 +709,7 @@ async function openCreateSalaryStructureModal() {
           <span>📍 نطاق المدينة: <b>${escapeHtml(cityObj ? cityObj.name : 'كل المدن والفروع')}</b></span>
         </div>
         <div style="border-top:1px dashed var(--border);padding-top:6px">
-          💵 إجمالي الراتب الثابت مع البدلات: <b>${totalFixed.toLocaleString('ar-SA')} ر.س</b> 
+          💵 إجمالي الراتب الثابت مع البدلات: <b>${totalFixed.toLocaleString('en-US')} ر.س</b> 
           (أساسي: ${base} + سكن: ${housing} + نقل: ${transport})
           ${rate > 0 ? `<br>⚡ عمولة التوصيل المعتمدة: <b>${rate} ر.س</b> لكل طلب منجز.` : ''}
         </div>
@@ -779,20 +829,20 @@ async function openCreateSalaryStructureModal() {
             code: 'PER_ORDER', name_ar: 'أجر التوصيل لكل طلب', category: 'COMMISSION', calculation: 'PER_DELIVERY', amount: rate
           });
         }
-        alert(`✅ تم حفظ هيكل الرواتب بنجاح وربطه بالمشروع (${projObj ? projObj.name : 'عام'}) والمدينة (${cityObj ? cityObj.name : 'كل المدن'}).`);
+        showToast(`✅ تم حفظ هيكل الرواتب بنجاح وربطه بالمشروع (${projObj ? projObj.name : 'عام'}) والمدينة (${cityObj ? cityObj.name : 'كل المدن'}).`, 'success');
         m.remove();
       } catch (err) {
-        alert('❌ تعذر حفظ هيكل الرواتب: ' + err.message);
+        showToast('❌ تعذر حفظ هيكل الرواتب: ' + err.message, 'error');
       }
     };
   } catch (err) {
-    alert('❌ خطأ في تحميل بيانات المشاريع والمدن: ' + err.message);
+    showToast('❌ خطأ في تحميل بيانات المشاريع والمدن: ' + err.message, 'error');
   }
 }
 
 async function openSalaryStructuresListModal() {
   try {
-    const structures = await api.get('/salary/structures').catch(() => []);
+    const structures = await api.get('/salary/structures');
     const body = el('div', { style: 'display:grid;gap:14px;direction:rtl' });
 
     if (!structures.length) {
@@ -816,7 +866,7 @@ async function openSalaryStructuresListModal() {
             el('div', { style: 'font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:14px;margin-top:6px' }, [
               el('span', {}, [el('span', {}, '🏢 المشروع: '), el('b', { style: 'color:var(--text)' }, meta.project_name || 'عام')]),
               el('span', {}, [el('span', {}, '📍 المدينة: '), el('b', { style: 'color:var(--text)' }, meta.city_name || 'كل المدن')]),
-              el('span', {}, [el('span', {}, '💵 الإجمالي: '), el('b', { style: 'color:var(--text)' }, `${(baseComp + housingComp + transComp).toLocaleString('ar-SA')} ر.س`)]),
+              el('span', {}, [el('span', {}, '💵 الإجمالي: '), el('b', { style: 'color:var(--text)' }, `${(baseComp + housingComp + transComp).toLocaleString('en-US')} ر.س`)]),
               perOrderComp > 0 ? el('span', {}, [el('span', {}, '⚡ عمولة الطلب: '), el('b', { style: 'color:var(--primary)' }, `${perOrderComp} ر.س`)]) : null
             ].filter(Boolean))
           ]),
@@ -835,7 +885,7 @@ async function openSalaryStructuresListModal() {
 
     const m = modal('📋 دليل هياكل الرواتب والبدلات المعتمدة بالمشاريع والمدن', body);
   } catch (err) {
-    alert('❌ تعذر تحميل قائمة هياكل الرواتب: ' + err.message);
+    showToast('❌ تعذر تحميل قائمة هياكل الرواتب: ' + err.message, 'error');
   }
 }
 
@@ -847,11 +897,8 @@ async function renderAdjustments(container) {
 
   try {
     const [adjustments, couriers] = await Promise.all([
-      api.get('/hr/adjustments').catch(() => []),
-      api.get('/hr/couriers').catch(async () => {
-        const p = await api.get('/fleet/couriers/page?page=1&page_size=100');
-        return p.rows || [];
-      })
+      api.get('/hr/adjustments'),
+      api.get('/hr/couriers')
     ]);
 
     container.innerHTML = '';
@@ -906,16 +953,16 @@ async function renderAdjustments(container) {
           const note = document.getElementById('adj-note-input').value;
 
           if (!courierId || !amount || isNaN(amount) || amount <= 0) {
-            alert('الرجاء اختيار السائق وإدخال مبلغ صحيح.');
+            showToast('الرجاء اختيار السائق وإدخال مبلغ صحيح.', 'info');
             return;
           }
 
           try {
             await api.post('/hr/adjustments', { courier_id: parseInt(courierId), kind, amount, month, note });
-            alert('✅ تم حفظ القيد المالي بنجاح.');
+            showToast('✅ تم حفظ القيد المالي بنجاح.', 'success');
             renderAdjustments(container);
           } catch (e) {
-            alert('❌ تعذر حفظ القيد: ' + e.message);
+            showToast('❌ تعذر حفظ القيد: ' + e.message, 'error');
           }
         }
       }, 'حفظ القيد المالي')
@@ -938,7 +985,7 @@ async function renderAdjustments(container) {
     const columns = [
       { key: 'courier', label: 'السائق', render: (v) => el('b', { style: 'color:var(--text)' }, v) },
       { key: 'kind', label: 'نوع القيد', render: (v) => el('span', { class: `badge badge-${kindMap[v]?.badge || 'gray'}` }, kindMap[v]?.label || v) },
-      { key: 'amount', label: 'المبلغ', render: (v) => el('b', { style: 'font-size:13px;color:var(--text)' }, `${(v || 0).toLocaleString('ar-SA')} ر.س`) },
+      { key: 'amount', label: 'المبلغ', render: (v) => el('b', { style: 'font-size:13px;color:var(--text)' }, `${(v || 0).toLocaleString('en-US')} ر.س`) },
       { key: 'month', label: 'شهر الاستحقاق' },
       { key: 'note', label: 'السبب / الملاحظات', render: (v) => v || '—' },
     ];
@@ -955,128 +1002,368 @@ async function renderAdjustments(container) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // TAB 3: خطط البونص والمتصدرين (BONUS PLANS & LEADERBOARD)
 // ─────────────────────────────────────────────────────────────────────────────
+let leaderboardViewMode = 'top'; // 'top' | 'under_target' | 'plans'
+
 async function renderBonusAndLeaderboard(container) {
-  container.append(loadingState('جاري تحميل خطط البونص ولوحة المتصدرين...'));
+  const isAr = getLang() === 'ar';
+  container.innerHTML = '';
+  container.append(loadingState(isAr ? 'جاري تحميل خطط البونص ولوحة المتصدرين...' : 'Loading bonus plans & leaderboard...'));
 
   try {
     const [bonusPlans, leaderboard] = await Promise.all([
-      api.get('/hr/bonus').catch(() => []),
-      api.get('/hr/leaderboard').catch(() => ({ rows: [] }))
+      api.get('/hr/bonus'),
+      api.get('/hr/leaderboard')
     ]);
 
     container.innerHTML = '';
 
-    // 1. Leaderboard Cards
-    const lbRows = leaderboard.rows || [];
-    if (lbRows.length > 0) {
-      container.append(el('div', { class: 'card', style: 'padding:18px;margin-bottom:18px;background:linear-gradient(135deg, rgba(37,99,235,0.05) 0%, rgba(16,185,129,0.05) 100%);border:1px solid rgba(16,185,129,0.2);border-radius:12px' }, [
-        el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px' }, [
-          el('h3', { style: 'margin:0;font-size:16px;color:var(--text)' }, '🏆 لوحة متصدري التوصيل والأداء لهذا الشهر'),
-          el('span', { class: 'badge badge-green' }, 'أداء تنافسي مباشر')
-        ]),
-        table([
-          { key: 'rank', label: 'الترتيب', render: (v) => el('b', { style: `font-size:14px;color:${v===1?'#eab308':(v===2?'#94a3b8':'#b45309')}` }, `#${v}`) },
-          { key: 'name', label: 'السائق', render: (v, r) => el('div', {}, [
-            el('b', { style: 'color:var(--text)' }, v),
-            el('small', { style: 'display:block;color:var(--muted);font-size:11px' }, r.supervisor || 'بدون مشرف')
-          ])},
-          { key: 'month_orders', label: 'أوردرات الشهر', render: (v) => el('b', { style: 'color:var(--primary)' }, (v || 0).toLocaleString('ar-SA')) },
-          { key: 'bonus', label: 'البونص المستحق', render: (v) => el('span', { style: 'color:#16a34a;font-weight:700' }, `+${(v || 0).toLocaleString('ar-SA')} ر.س`) },
-          { key: 'estimated_pay', label: 'إجمالي الأرباح التقديرية', render: (v) => el('b', { style: 'color:var(--text)' }, `${(v || 0).toLocaleString('ar-SA')} ر.س`) },
-          { key: 'avg_rating', label: 'التقييم', render: (v) => el('span', { style: 'color:#f59e0b;font-weight:700' }, `★ ${v ? Number(v).toFixed(1) : '5.0'}`) },
-        ], lbRows.slice(0, 10))
-      ]));
-    }
+    const allRows = leaderboard.rows || [];
+    const activePlan = (bonusPlans || []).find(p => p.is_active) || (bonusPlans || [])[0] || null;
+    const targetThreshold = activePlan?.target_orders || 500;
 
-    // 2. Bonus Plans Manager
-    const isAdmin = appStore.get().role !== 'SUPERVISOR';
-    const bonusColumns = [
-      { key: 'plan_type', label: 'نوع الخطة', render: (v) => {
-        const isFlat = v === 'FLAT_PER_ORDER';
-        return el('span', { class: `badge badge-${isFlat ? 'green' : 'blue'}`, style: 'font-size:11.5px;padding:4px 8px' }, isFlat ? '⚡ سعر طلب مباشر' : '🎯 خطة تارجت وحافز');
-      }},
-      { key: 'contract', label: 'العقد والفرع', render: (v, r) => el('div', {}, [
-        el('b', { style: 'display:block;color:var(--ink);font-size:12.5px' }, v || 'عام (لكل عقود الشركة)'),
-        el('small', { style: 'color:var(--muted);font-size:11px' }, `فرع: ${r.city || 'الرياض'}`)
-      ]) },
-      { key: 'courier', label: 'نطاق التطبيق', render: (v) => el('span', { class: 'badge badge-gray' }, v || 'كل مناديب العقد') },
-      { key: 'details', label: 'تفاصيل وشروط الخطة', render: (_, r) => {
-        if (r.plan_type === 'FLAT_PER_ORDER') {
-          return el('div', { style: 'display:flex;align-items:center;gap:6px' }, [
-            el('span', { style: 'font-weight:700;color:var(--primary);font-size:13px;background:rgba(37,99,235,0.08);padding:2px 8px;border-radius:6px' }, `${r.flat_order_rate || 0} ر.س`),
-            el('span', { style: 'color:var(--muted);font-size:11px' }, 'عن كل طلب منجز')
-          ]);
+    // Calculate expected bonus and targets for each rider
+    const enrichedRows = allRows.map(r => {
+      const orders = r.month_orders || 0;
+      let calculatedBonus = 0;
+      if (activePlan) {
+        if (activePlan.plan_type === 'FLAT_PER_ORDER') {
+          calculatedBonus = orders * (activePlan.flat_order_rate || 0);
+        } else if (activePlan.plan_type === 'TARGET_TIER') {
+          if (orders >= targetThreshold) {
+            calculatedBonus = (activePlan.bonus_amount || 0) + ((orders - targetThreshold) * (activePlan.over_target_rate || 0));
+          } else if (activePlan.below_target_rate > 0) {
+            calculatedBonus = orders * activePlan.below_target_rate;
+          }
         }
-        return el('div', { style: 'font-size:12px;line-height:1.4' }, [
-          el('div', { style: 'display:flex;align-items:center;gap:6px;flex-wrap:wrap' }, [
-            el('span', { style: 'color:var(--muted);font-size:11px' }, 'المستهدف:'),
-            el('b', { style: 'color:var(--ink)' }, `${(r.target_orders || 0).toLocaleString('ar-SA')} طلب`),
-            el('span', { style: 'color:var(--muted);font-size:11px' }, '➔ الحافز:'),
-            el('b', { style: 'color:#16a34a;background:rgba(22,163,74,0.1);padding:1px 6px;border-radius:4px' }, `${(r.bonus_amount || 0).toLocaleString('ar-SA')} ر.س`)
-          ]),
-          el('div', { style: 'color:var(--muted);font-size:11px;margin-top:3px;display:flex;gap:6px;align-items:center' }, [
-            el('span', {}, `أجر الزيادة: +${r.over_target_rate || 0} ر.س/طلب`),
-            el('span', { style: 'opacity:0.4' }, '|'),
-            el('span', {}, `دون المستهدف: ${r.below_target_rate || 0} ر.س/طلب`)
-          ])
-        ]);
-      }},
-      { key: 'is_active', label: 'الحالة', render: (v) => el('span', { class: `badge badge-${v ? 'green' : 'gray'}` }, v ? '● نشطة ومطبقة' : '○ معطلة') },
-    ];
+      }
+      const isAchieved = orders >= targetThreshold;
+      const shortfall = Math.max(0, targetThreshold - orders);
+      const progressPct = targetThreshold > 0 ? Math.min(100, Math.round((orders / targetThreshold) * 100)) : 0;
+      return {
+        ...r,
+        calculatedBonus,
+        isAchieved,
+        shortfall,
+        progressPct
+      };
+    });
 
-    if (isAdmin) {
-      bonusColumns.push({
-        key: 'actions',
-        label: 'إجراءات التحكم',
-        render: (_, r) => el('div', { style: 'display:flex;gap:4px' }, [
-          el('button', {
-            class: 'btn btn-ghost btn-small',
-            style: 'color:var(--primary);border-color:rgba(37,99,235,0.2);padding:2px 8px;font-size:11.5px',
-            onclick: () => openEditBonusPlanModal(r, () => renderBonusAndLeaderboard(container))
-          }, '✏️ تعديل'),
-          el('button', {
-            class: 'btn btn-ghost btn-small',
-            style: 'color:var(--red);border-color:rgba(220,38,38,0.2);padding:2px 8px;font-size:11.5px',
-            onclick: async () => {
-              if (!confirm('هل تريد حذف/تعطيل خطة البونص هذه؟')) return;
-              try {
-                await api.del(`/hr/bonus/${r.id}`);
-                alert('✅ تم حذف خطة البونص.');
-                renderBonusAndLeaderboard(container);
-              } catch (err) {
-                alert('❌ تعذر الحذف: ' + err.message);
-              }
+    // Subsets
+    const topPerformers = [...enrichedRows].sort((a, b) => (b.month_orders || 0) - (a.month_orders || 0));
+    const underTarget = enrichedRows.filter(r => !r.isAchieved).sort((a, b) => (a.month_orders || 0) - (b.month_orders || 0));
+    const achievedTarget = enrichedRows.filter(r => r.isAchieved);
+
+    const topRider = topPerformers[0] || null;
+    const totalBonusPool = enrichedRows.reduce((sum, r) => sum + (r.calculatedBonus || r.bonus || 0), 0);
+
+    // 1. KPI Summary Cards
+    const kpiGrid = el('div', {
+      style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px;margin-bottom:18px;'
+    }, [
+      metricCard(
+        topRider ? `${topRider.name} (${topRider.month_orders})` : '—',
+        isAr ? '🥇 المتصدر الأول للأسطول' : 'Top Performer',
+        'green',
+        null,
+        topRider ? (isAr ? `${topRider.month_orders} طلب منجز` : `${topRider.month_orders} orders`) : null
+      ),
+      metricCard(
+        achievedTarget.length,
+        isAr ? '🎯 حققوا التارجت المعتمد' : 'Target Achieved',
+        'green',
+        () => { leaderboardViewMode = 'top'; renderModeContent(); },
+        isAr ? `تارجت: ${targetThreshold} طلب` : `Target: ${targetThreshold} orders`
+      ),
+      metricCard(
+        underTarget.length,
+        isAr ? '⚠️ دون التارجت (متابعة)' : 'Below Target',
+        underTarget.length > 0 ? 'red' : 'blue',
+        () => { leaderboardViewMode = 'under_target'; renderModeContent(); },
+        isAr ? 'بحاجة لدعم ميداني وتوزيع ورديات' : 'Requires field support'
+      ),
+      metricCard(
+        `${Math.round(totalBonusPool).toLocaleString('en-US')} ${isAr ? 'ر.س' : 'SAR'}`,
+        isAr ? '💰 إجمالي البونص المتوقع' : 'Expected Bonus Pool',
+        'trend',
+        null,
+        isAr ? 'بناءً على خطة البونص النشطة' : 'Based on active bonus plan'
+      )
+    ]);
+    container.append(kpiGrid);
+
+    // 2. View Mode Toggle Navigation
+    const modeNav = el('div', {
+      class: 'card',
+      style: 'padding:8px 12px;margin-bottom:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;'
+    }, [
+      el('div', { style: 'display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;' }, [
+        createModeButton('top', '🥇', isAr ? 'لوحة المتصدرين (الأعلى أداءً)' : 'Top Performers', topPerformers.length),
+        createModeButton('under_target', '⚠️', isAr ? 'مناديب دون التارجت (متابعة ميدانية)' : 'Below Target & Follow-up', underTarget.length),
+        createModeButton('plans', '🎯', isAr ? 'خطط البونص وقواعد الحوافز' : 'Bonus Plans & Rules', (bonusPlans || []).length),
+      ]),
+      appStore.get().role !== 'SUPERVISOR' ? el('button', {
+        class: 'btn btn-primary btn-small',
+        style: 'font-weight:700',
+        onclick: () => openCreateBonusPlanModal(() => renderBonusAndLeaderboard(container))
+      }, isAr ? '➕ خطة بونص جديدة' : '➕ New Bonus Plan') : null
+    ]);
+    container.append(modeNav);
+
+    function createModeButton(mode, icon, label, count) {
+      const isActive = leaderboardViewMode === mode;
+      return el('button', {
+        type: 'button',
+        class: `btn ${isActive ? 'btn-primary' : 'btn-ghost'} btn-small`,
+        style: 'min-height:36px;font-weight:700;display:flex;align-items:center;gap:6px;',
+        onclick: () => {
+          leaderboardViewMode = mode;
+          modeNav.querySelectorAll('button').forEach(b => {
+            if (b.classList.contains('btn-primary') && !b.textContent.includes('خطة بونص')) {
+              b.className = 'btn btn-ghost btn-small';
             }
-          }, '🗑️ حذف')
-        ])
-      });
+          });
+          renderModeContent();
+        }
+      }, [
+        el('span', {}, icon),
+        el('span', {}, label),
+        count !== undefined ? el('span', { class: `badge badge-${isActive ? 'white' : 'gray'}`, style: 'font-size:11px;margin-right:4px' }, String(count)) : null
+      ]);
     }
 
-    container.append(el('div', { class: 'card', style: 'padding:18px;background:var(--card);border:1px solid var(--border);border-radius:12px' }, [
-      el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px' }, [
-        el('div', {}, [
-          el('h3', { style: 'margin:0;font-size:15.5px;color:var(--text)' }, '🎯 خطط الحوافز والبونص التشغيلي'),
-          el('p', { style: 'margin:4px 0 0 0;font-size:12px;color:var(--muted)' }, 'تُطبق تلقائياً في نهاية الشهر عند حساب كشف الرواتب والتحضير البنكي')
-        ]),
-        isAdmin ? el('button', {
-          class: 'btn btn-primary btn-small',
-          onclick: () => openCreateBonusPlanModal(() => renderBonusAndLeaderboard(container))
-        }, '➕ إضافة خطة بونص جديدة') : null
-      ]),
-      bonusPlans.length ? table(bonusColumns, bonusPlans) : emptyState('لا توجد خطط بونص مفعلة حالياً.')
-    ]));
+    const dynamicContentArea = el('div', { id: 'leaderboard-mode-content' });
+    container.append(dynamicContentArea);
+
+    function renderModeContent() {
+      dynamicContentArea.innerHTML = '';
+
+      if (leaderboardViewMode === 'top') {
+        renderTopPerformers(dynamicContentArea, topPerformers, targetThreshold, isAr);
+      } else if (leaderboardViewMode === 'under_target') {
+        renderUnderTarget(dynamicContentArea, underTarget, targetThreshold, isAr);
+      } else if (leaderboardViewMode === 'plans') {
+        renderBonusPlansManager(dynamicContentArea, bonusPlans, isAr, container);
+      }
+    }
+
+    renderModeContent();
 
   } catch (e) {
     container.innerHTML = '';
-    container.append(errorState('تعذر تحميل خطط البونص: ' + e.message, () => renderBonusAndLeaderboard(container)));
+    container.append(errorState((isAr ? 'تعذر تحميل خطط البونص ولوحة المتصدرين: ' : 'Failed to load bonus & leaderboard: ') + e.message, () => renderBonusAndLeaderboard(container)));
   }
+}
+
+function renderTopPerformers(container, rows, targetThreshold, isAr) {
+  if (!rows || rows.length === 0) {
+    container.append(emptyState(isAr ? 'لا توجد بيانات طلبات مسجلة لهذا الشهر حتى الآن.' : 'No completed orders logged this month yet.'));
+    return;
+  }
+
+  const columns = [
+    { key: 'rank', label: isAr ? 'الترتيب' : 'Rank', render: (v) => {
+      const icon = v === 1 ? '🥇' : (v === 2 ? '🥈' : (v === 3 ? '🥉' : `#${v}`));
+      return el('b', { style: `font-size:15px;font-weight:800;color:${v===1?'#eab308':(v===2?'#94a3b8':(v===3?'#b45309':'var(--ink)'))}` }, icon);
+    }},
+    { key: 'name', label: isAr ? 'السائق والبيانات' : 'Rider', render: (v, r) => el('div', {}, [
+      el('b', { style: 'color:var(--text);font-size:13px' }, v),
+      el('div', { style: 'color:var(--muted);font-size:11px;display:flex;gap:6px' }, [
+        el('span', {}, r.phone || '—'),
+        el('span', {}, '•'),
+        el('span', {}, r.supervisor ? `المشرف: ${r.supervisor}` : (isAr ? 'بدون مشرف' : 'No supervisor'))
+      ])
+    ])},
+    { key: 'month_orders', label: isAr ? 'الطلبات المنجزة' : 'Orders', render: (v, r) => el('div', { style: 'text-align:center' }, [
+      el('b', { style: 'color:var(--primary);font-size:14px;font-weight:800' }, (v || 0).toLocaleString('en-US')),
+      el('div', { style: 'font-size:10px;color:var(--muted)' }, `${r.progressPct}% من التارجت`)
+    ])},
+    { key: 'progress', label: isAr ? 'نسبة تحقيق التارجت' : 'Target Progress', render: (_, r) => {
+      return el('div', { style: 'min-width:120px' }, [
+        el('div', { style: 'background:var(--border);height:8px;border-radius:4px;overflow:hidden' }, [
+          el('div', { style: `background:${r.isAchieved ? '#22c55e' : '#3b82f6'};width:${r.progressPct}%;height:100%;border-radius:4px` })
+        ]),
+        el('span', { style: `font-size:11px;font-weight:700;color:${r.isAchieved ? '#16a34a' : 'var(--muted)'}` },
+          r.isAchieved ? (isAr ? '✅ حقق التارجت' : 'Achieved') : (isAr ? `${r.month_orders} / ${targetThreshold}` : `${r.month_orders} / ${targetThreshold}`)
+        )
+      ]);
+    }},
+    { key: 'bonus', label: isAr ? 'البونص المحتسب' : 'Bonus', render: (_, r) => {
+      const val = r.calculatedBonus || r.bonus || 0;
+      return el('span', {
+        style: `font-weight:800;font-size:13px;color:${val > 0 ? '#16a34a' : 'var(--muted)'}`
+      }, val > 0 ? `+${val.toLocaleString('en-US')} ${isAr ? 'ر.س' : 'SAR'}` : '—');
+    }},
+    { key: 'estimated_pay', label: isAr ? 'إجمالي الأرباح التقديرية' : 'Estimated Pay', render: (v) => el('b', {
+      style: 'color:var(--ink);font-size:13px'
+    }, `${(v || 0).toLocaleString('en-US')} ${isAr ? 'ر.س' : 'SAR'}`)},
+    { key: 'avg_rating', label: isAr ? 'التقييم' : 'Rating', render: (v) => el('span', {
+      style: 'color:#f59e0b;font-weight:700;font-size:12px'
+    }, `★ ${v ? Number(v).toFixed(1) : '5.0'}`)},
+  ];
+
+  container.append(el('div', { class: 'card', style: 'padding:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;' }, [
+    el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px' }, [
+      el('h3', { style: 'margin:0;font-size:15px;color:var(--ink);font-weight:800' }, isAr ? '🏆 صدارة مناديب التوصيل لهذا الشهر' : 'Top Delivery Riders this Month'),
+      el('span', { class: 'badge badge-green' }, isAr ? 'أداء حي مباشر' : 'Live Real-time')
+    ]),
+    table(columns, rows)
+  ]));
+}
+
+function renderUnderTarget(container, rows, targetThreshold, isAr) {
+  if (!rows || rows.length === 0) {
+    container.append(el('div', {
+      class: 'card',
+      style: 'padding:24px;text-align:center;background:#f0fdf4;border:1px solid #86efac;border-radius:12px'
+    }, [
+      el('div', { style: 'font-size:32px;margin-bottom:8px' }, '🎉'),
+      el('h3', { style: 'margin:0;color:#166534;font-size:16px;font-weight:800' }, isAr ? 'جميع مناديب الأسطول حققوا التارجت المعتمد!' : 'All riders have reached the required target!'),
+      el('p', { style: 'margin:4px 0 0;font-size:13px;color:#15803d' }, isAr ? 'لا يوجد أي مندوب تحت التارجت حالياً.' : 'No underperforming riders at this time.')
+    ]));
+    return;
+  }
+
+  const columns = [
+    { key: 'name', label: isAr ? 'السائق والبيانات' : 'Rider Details', render: (v, r) => el('div', {}, [
+      el('b', { style: 'color:var(--text);font-size:13px' }, v),
+      el('div', { style: 'color:var(--muted);font-size:11px;display:flex;gap:6px' }, [
+        el('span', {}, r.phone || '—'),
+        el('span', {}, '•'),
+        el('span', {}, r.supervisor ? `المشرف: ${r.supervisor}` : (isAr ? 'بدون مشرف' : 'No supervisor'))
+      ])
+    ])},
+    { key: 'orders', label: isAr ? 'الطلبات المنجزة' : 'Orders', render: (_, r) => el('div', { style: 'text-align:center' }, [
+      el('b', { style: 'color:var(--ink);font-size:14px;font-weight:800' }, `${r.month_orders || 0}`),
+      el('span', { style: 'color:var(--muted);font-size:11px' }, ` / ${targetThreshold}`)
+    ])},
+    { key: 'shortfall', label: isAr ? 'المتبقي لتحقيق التارجت' : 'Orders Shortfall', render: (_, r) => el('div', {}, [
+      el('span', { class: 'badge badge-amber', style: 'font-weight:800;font-size:12px' },
+        isAr ? `متبقي ${r.shortfall} طلب` : `${r.shortfall} orders remaining`
+      )
+    ])},
+    { key: 'progress', label: isAr ? 'نسبة الإنجاز' : 'Progress', render: (_, r) => el('div', { style: 'min-width:110px' }, [
+      el('div', { style: 'background:var(--border);height:8px;border-radius:4px;overflow:hidden' }, [
+        el('div', { style: `background:#f59e0b;width:${r.progressPct}%;height:100%;border-radius:4px` })
+      ]),
+      el('span', { style: 'font-size:11px;font-weight:700;color:var(--muted)' }, `${r.progressPct}%`)
+    ])},
+    { key: 'action', label: isAr ? 'الإجراء الميداني' : 'Action', render: (_, r) => {
+      return r.phone ? el('a', {
+        href: `tel:${r.phone}`,
+        class: 'btn btn-secondary btn-small',
+        style: 'font-weight:700;display:inline-flex;align-items:center;gap:6px;text-decoration:none'
+      }, [
+        el('span', {}, '📞'),
+        el('span', {}, isAr ? 'اتصال بالمندوب' : 'Call Rider')
+      ]) : el('span', { style: 'color:var(--muted);font-size:12px' }, '—');
+    }}
+  ];
+
+  container.append(el('div', { class: 'card', style: 'padding:16px;background:var(--card);border:1px solid #f59e0b;border-radius:12px;' }, [
+    el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px' }, [
+      el('div', {}, [
+        el('h3', { style: 'margin:0;font-size:15px;color:var(--ink);font-weight:800' },
+          isAr ? `⚠️ مناديب دون التارجت المطلوب (${rows.length})` : `⚠️ Drivers Below Target (${rows.length})`
+        ),
+        el('p', { style: 'margin:2px 0 0;font-size:12px;color:var(--muted)' },
+          isAr ? `مستهدف الشهر: ${targetThreshold} طلب. تتطلب هذه الفئة دعماً ميدانياً وجدولة ورديات إضافية.` : `Target is ${targetThreshold} orders. Follow-up is advised.`
+        )
+      ]),
+      el('span', { class: 'badge badge-amber' }, isAr ? 'يحتاج متابعة' : 'Follow-up Needed')
+    ]),
+    table(columns, rows)
+  ]));
+}
+
+function renderBonusPlansManager(container, bonusPlans, isAr, parentContainer) {
+  const isAdmin = appStore.get().role !== 'SUPERVISOR';
+  const bonusColumns = [
+    { key: 'plan_type', label: isAr ? 'نوع الخطة' : 'Plan Type', render: (v) => {
+      const isFlat = v === 'FLAT_PER_ORDER';
+      return el('span', { class: `badge badge-${isFlat ? 'green' : 'blue'}`, style: 'font-size:11.5px;padding:4px 8px' },
+        isFlat ? (isAr ? '⚡ سعر طلب مباشر' : 'Flat Per Order') : (isAr ? '🎯 خطة تارجت وحافز' : 'Target Tier')
+      );
+    }},
+    { key: 'contract', label: isAr ? 'العقد والفرع' : 'Contract & Branch', render: (v, r) => el('div', {}, [
+      el('b', { style: 'display:block;color:var(--ink);font-size:12.5px' }, v || (isAr ? 'عام (لكل عقود الشركة)' : 'All Contracts')),
+      el('small', { style: 'color:var(--muted);font-size:11px' }, `${isAr ? 'فرع:' : 'Branch:'} ${r.city || (isAr ? 'الرياض' : 'Riyadh')}`)
+    ]) },
+    { key: 'courier', label: isAr ? 'نطاق التطبيق' : 'Scope', render: (v) => el('span', { class: 'badge badge-gray' }, v || (isAr ? 'كل مناديب العقد' : 'All contract riders')) },
+    { key: 'details', label: isAr ? 'تفاصيل وشروط الخطة' : 'Plan Details', render: (_, r) => {
+      if (r.plan_type === 'FLAT_PER_ORDER') {
+        return el('div', { style: 'display:flex;align-items:center;gap:6px' }, [
+          el('span', { style: 'font-weight:700;color:var(--primary);font-size:13px;background:rgba(37,99,235,0.08);padding:2px 8px;border-radius:6px' }, `${r.flat_order_rate || 0} ${isAr ? 'ر.س' : 'SAR'}`),
+          el('span', { style: 'color:var(--muted);font-size:11px' }, isAr ? 'عن كل طلب منجز' : 'per completed order')
+        ]);
+      }
+      return el('div', { style: 'font-size:12px;line-height:1.4' }, [
+        el('div', { style: 'display:flex;align-items:center;gap:6px;flex-wrap:wrap' }, [
+          el('span', { style: 'color:var(--muted);font-size:11px' }, isAr ? 'المستهدف:' : 'Target:'),
+          el('b', { style: 'color:var(--ink)' }, `${(r.target_orders || 0).toLocaleString('en-US')} ${isAr ? 'طلب' : 'orders'}`),
+          el('span', { style: 'color:var(--muted);font-size:11px' }, '➔'),
+          el('b', { style: 'color:#16a34a;background:rgba(22,163,74,0.1);padding:1px 6px;border-radius:4px' }, `${(r.bonus_amount || 0).toLocaleString('en-US')} ${isAr ? 'ر.س' : 'SAR'}`)
+        ]),
+        el('div', { style: 'color:var(--muted);font-size:11px;margin-top:3px;display:flex;gap:6px;align-items:center' }, [
+          el('span', {}, `${isAr ? 'أجر الزيادة: +' : 'Over target: +'}${r.over_target_rate || 0} ${isAr ? 'ر.س/طلب' : 'SAR/order'}`),
+          el('span', { style: 'opacity:0.4' }, '|'),
+          el('span', {}, `${isAr ? 'دون المستهدف:' : 'Below target:'} ${r.below_target_rate || 0} ${isAr ? 'ر.س/طلب' : 'SAR/order'}`)
+        ])
+      ]);
+    }},
+    { key: 'is_active', label: isAr ? 'الحالة' : 'Status', render: (v) => el('span', { class: `badge badge-${v ? 'green' : 'gray'}` },
+      v ? (isAr ? '● نشطة ومطبقة' : 'Active') : (isAr ? '○ معطلة' : 'Inactive')
+    )},
+  ];
+
+  if (isAdmin) {
+    bonusColumns.push({
+      key: 'actions',
+      label: isAr ? 'إجراءات التحكم' : 'Actions',
+      render: (_, r) => el('div', { style: 'display:flex;gap:4px' }, [
+        el('button', {
+          class: 'btn btn-ghost btn-small',
+          style: 'color:var(--primary);border-color:rgba(37,99,235,0.2);padding:2px 8px;font-size:11.5px',
+          onclick: () => openEditBonusPlanModal(r, () => renderBonusAndLeaderboard(parentContainer))
+        }, isAr ? '✏️ تعديل' : 'Edit'),
+        el('button', {
+          class: 'btn btn-ghost btn-small',
+          style: 'color:var(--red);border-color:rgba(220,38,38,0.2);padding:2px 8px;font-size:11.5px',
+          onclick: async () => {
+            if (!confirm(isAr ? 'هل تريد حذف/تعطيل خطة البونص هذه؟' : 'Delete/deactivate this bonus plan?')) return;
+            try {
+              await api.del(`/hr/bonus/${r.id}`);
+              showToast(isAr ? '✅ تم حذف خطة البونص.' : 'Bonus plan deleted.', 'success');
+              renderBonusAndLeaderboard(parentContainer);
+            } catch (err) {
+              showToast(isAr ? '❌ تعذر الحذف: ' + err.message : 'Failed to delete: ' + err.message, 'error');
+            }
+          }
+        }, isAr ? '🗑️ حذف' : 'Delete')
+      ])
+    });
+  }
+
+  container.append(el('div', { class: 'card', style: 'padding:18px;background:var(--card);border:1px solid var(--border);border-radius:12px' }, [
+    el('div', { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px' }, [
+      el('div', {}, [
+        el('h3', { style: 'margin:0;font-size:15.5px;color:var(--text)' }, isAr ? '🎯 خطط الحوافز والبونص التشغيلي' : 'Operational Bonus Plans'),
+        el('p', { style: 'margin:4px 0 0 0;font-size:12px;color:var(--muted)' }, isAr ? 'تُطبق تلقائياً في نهاية الشهر عند حساب كشف الرواتب والتحضير البنكي' : 'Applied automatically upon month-end payroll calculation')
+      ]),
+      isAdmin ? el('button', {
+        class: 'btn btn-primary btn-small',
+        onclick: () => openCreateBonusPlanModal(() => renderBonusAndLeaderboard(parentContainer))
+      }, isAr ? '➕ إضافة خطة بونص جديدة' : '➕ Add Bonus Plan') : null
+    ]),
+    (bonusPlans && bonusPlans.length) ? table(bonusColumns, bonusPlans) : emptyState(isAr ? 'لا توجد خطط بونص مفعلة حالياً.' : 'No active bonus plans.')
+  ]));
 }
 
 async function openCreateBonusPlanModal(onCreated) {
   try {
-    const structure = await api.get('/hr/contract-structure').catch(() => []);
+    const structure = await api.get('/hr/contract-structure');
     const contracts = structure || [];
 
     const content = el('form', { style: 'display:grid;gap:14px;direction:rtl' });
@@ -1205,11 +1492,11 @@ async function openCreateBonusPlanModal(onCreated) {
         const u = document.getElementById('bp-below-rate')?.value || 12;
         previewBox.innerHTML = `<b>📊 معادلة الاحتساب:</b><br>
         • عند تحقيق ${t} طلب أو أكثر: <b>${b} ر.س</b> مقطوعة + <b>${o} ر.س</b> عن كل طلب إضافي.<br>
-        • عند عدم تحقيق التارجت (مثال: 150 طلباً): 150 × ${u} ر.س = <b>${(150 * Number(u)).toLocaleString('ar-SA')} ر.س</b>.`;
+        • عند عدم تحقيق التارجت (مثال: 150 طلباً): 150 × ${u} ر.س = <b>${(150 * Number(u)).toLocaleString('en-US')} ر.س</b>.`;
       } else {
         const f = document.getElementById('bp-flat-rate')?.value || 15;
         previewBox.innerHTML = `<b>📊 معادلة الاحتساب المباشر:</b><br>
-        • أجر الطلب الثابت: <b>${f} ر.س</b> عن كل طلب منجز (مثال: 150 طلباً = <b>${(150 * Number(f)).toLocaleString('ar-SA')} ر.س</b>).`;
+        • أجر الطلب الثابت: <b>${f} ر.س</b> عن كل طلب منجز (مثال: 150 طلباً = <b>${(150 * Number(f)).toLocaleString('en-US')} ر.س</b>).`;
       }
     }
 
@@ -1261,16 +1548,16 @@ async function openCreateBonusPlanModal(onCreated) {
 
       try {
         await api.post('/hr/bonus', payload);
-        alert('✅ تم حفظ خطة البونص بنجاح.');
+        showToast('✅ تم حفظ خطة البونص بنجاح.', 'success');
         m.remove();
         if (onCreated) onCreated();
       } catch (err) {
-        alert('❌ تعذر حفظ خطة البونص: ' + err.message);
+        showToast('❌ تعذر حفظ خطة البونص: ' + err.message, 'error');
       }
     };
 
   } catch (e) {
-    alert('تعذر تحميل بيانات العقود: ' + e.message);
+    showToast('تعذر تحميل بيانات العقود: ' + e.message, 'error');
   }
 }
 
@@ -1343,11 +1630,11 @@ async function openEditBonusPlanModal(plan, onUpdated) {
 
     try {
       await api.patch(`/hr/bonus/${plan.id}`, payload);
-      alert('✅ تم تعديل خطة البونص بنجاح.');
+      showToast('✅ تم تعديل خطة البونص بنجاح.', 'success');
       m.remove();
       if (onUpdated) onUpdated();
     } catch (err) {
-      alert('❌ تعذر التعديل: ' + err.message);
+      showToast('❌ تعذر التعديل: ' + err.message, 'error');
     }
   };
 }
@@ -1362,8 +1649,8 @@ async function renderSettlements(container) {
 
   try {
     const [settlements, operators] = await Promise.all([
-      api.get('/analytics/operators/settlements').catch(() => []),
-      api.get('/enterprise/operators').catch(() => [])
+      api.get('/analytics/operators/settlements'),
+      api.get('/enterprise/operators')
     ]);
 
     container.innerHTML = '';
@@ -1385,11 +1672,11 @@ async function renderSettlements(container) {
           return el('b', { style: 'color:var(--text)' }, op?.name || `مشغل #${v}`);
         }},
         { key: 'period_month', label: 'فترة التسوية' },
-        { key: 'eligible_orders', label: 'الطلبات المكتملة', render: (v) => (v || 0).toLocaleString('ar-SA') },
-        { key: 'base_amount', label: 'المبلغ الأساسي', render: (v) => `${(v || 0).toLocaleString('ar-SA')} ر.س` },
-        { key: 'bonus_amount', label: 'البونص', render: (v) => `+${(v || 0).toLocaleString('ar-SA')} ر.س` },
-        { key: 'penalty_amount', label: 'الغرامات', render: (v) => `-${(v || 0).toLocaleString('ar-SA')} ر.س` },
-        { key: 'net_amount', label: 'صافي المستحق للمشغل', render: (v) => el('b', { style: 'color:var(--text);font-size:13px' }, `${(v || 0).toLocaleString('ar-SA')} ر.س`) },
+        { key: 'eligible_orders', label: 'الطلبات المكتملة', render: (v) => (v || 0).toLocaleString('en-US') },
+        { key: 'base_amount', label: 'المبلغ الأساسي', render: (v) => `${(v || 0).toLocaleString('en-US')} ر.س` },
+        { key: 'bonus_amount', label: 'البونص', render: (v) => `+${(v || 0).toLocaleString('en-US')} ر.س` },
+        { key: 'penalty_amount', label: 'الغرامات', render: (v) => `-${(v || 0).toLocaleString('en-US')} ر.س` },
+        { key: 'net_amount', label: 'صافي المستحق للمشغل', render: (v) => el('b', { style: 'color:var(--text);font-size:13px' }, `${(v || 0).toLocaleString('en-US')} ر.س`) },
         { key: 'status', label: 'الحالة', render: (v) => el('span', { class: `badge badge-${v === 'APPROVED' ? 'green' : 'amber'}` }, v === 'APPROVED' ? '✅ معتمد للصرف' : '✏️ مسودة') },
       ], settlements) : emptyState('لا توجد تسويات تجارية مسجلة. اضغط "حساب تسوية مشغل جديدة" لاحتساب مستحقات 3PL.')
     ]));
@@ -1405,14 +1692,14 @@ function openCalculateSettlementModal(operators, onSaved) {
     e.preventDefault();
     const opId = document.getElementById('calc-op-id').value;
     const month = document.getElementById('calc-op-month').value;
-    if (!opId || !month) return alert('اختر المشغل والشهر.');
+    if (!opId || !month) return showToast('اختر المشغل والشهر.', 'info');
     try {
       await api.post(`/analytics/operators/settlement/save?operator_id=${opId}&period_month=${month}`);
-      alert('✅ تم حساب وحفظ مسودة التسوية بنجاح.');
+      showToast('✅ تم حساب وحفظ مسودة التسوية بنجاح.', 'success');
       if (m && m.remove) m.remove();
       onSaved();
     } catch (err) {
-      alert('❌ فشل الحساب: ' + err.message);
+      showToast('❌ فشل الحساب: ' + err.message, 'error');
     }
   }}, [
     el('div', { style: 'display:grid;gap:12px;margin-bottom:16px' }, [

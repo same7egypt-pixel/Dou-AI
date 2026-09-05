@@ -54,7 +54,7 @@ export function renderLogin(error = null) {
   card.appendChild(logo);
 
   const h1 = document.createElement('h1');
-  h1.textContent = 'Fleet Partners';
+  h1.textContent = t('دخول شركات الأساطيل');
   card.appendChild(h1);
 
   const sub = document.createElement('p');
