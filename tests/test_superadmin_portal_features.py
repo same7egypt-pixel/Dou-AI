@@ -172,11 +172,29 @@ def test_unified_monthly_revenue_combines_subscriptions_and_flex_margin():
         is_active=True,
     )
     db.merge(merchant)
+    from app.models.entities import GeoCity, GeoCountry, TenantOperatingCity
+    country = db.query(GeoCountry).filter(GeoCountry.code == "SA").first()
+    if not country:
+        country = GeoCountry(name="المملكة العربية السعودية", code="SA", flag="🇸🇦", active=True)
+        db.add(country)
+        db.flush()
+    city1 = db.query(GeoCity).filter(GeoCity.id == 1).first()
+    if not city1:
+        city1 = GeoCity(id=1, country_id=country.id, name="الرياض", active=True)
+        db.add(city1)
+        db.flush()
+    top1 = db.query(TenantOperatingCity).filter(TenantOperatingCity.tenant_id == 10, TenantOperatingCity.geo_city_id == 1).first()
+    if not top1:
+        top1 = TenantOperatingCity(tenant_id=10, geo_city_id=1, is_active=True)
+        db.add(top1)
+        db.flush()
+
     branch = MerchantBranch(
         id=101,
         merchant_account_id=101,
         branch_name="Malaz",
         city="الرياض",
+        city_id=1,
         latitude=Decimal("24.7136"),
         longitude=Decimal("46.6753"),
         cashier_access_pin=hash_pin("1234"),

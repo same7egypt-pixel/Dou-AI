@@ -206,3 +206,52 @@ def test_fix_4_subscription_null_due_date_surfaced_in_alerts():
     finally:
         db.close()
 
+
+def test_fix_5_branch_without_city_cannot_be_booked():
+    from fastapi import HTTPException
+    from app.models.entities import User, UserRole
+    from app.models.merchant import MerchantAccount, MerchantBranch
+    from app.routers.admin_dedicated import create_booking_admin, CreateBookingPayload
+
+    db = TestingSession()
+    try:
+        tenant = Tenant(name="Fast Logistics", country=Country.SA, plan="GROWTH")
+        db.add(tenant)
+        db.flush()
+
+        merchant = MerchantAccount(
+            trade_name="Tasty Burger",
+            billing_contact_email="test@burger.com",
+            billing_contact_phone="966500000001",
+        )
+        db.add(merchant)
+        db.flush()
+
+        # Branch with city_id = None
+        branch = MerchantBranch(
+            merchant_account_id=merchant.id,
+            branch_name="Unmapped Branch",
+            city="Riyadh",
+            latitude=24.7136,
+            longitude=46.6753,
+            cashier_access_pin="1234",
+            city_id=None,
+        )
+        db.add(branch)
+        db.commit()
+
+        admin_user = User(name="Super Admin", role=UserRole.DOU_ADMIN, phone="966500000099")
+
+        payload = CreateBookingPayload(
+            merchant_branch_id=branch.id,
+            logistics_company_tenant_id=tenant.id,
+        )
+
+        with pytest.raises(HTTPException) as exc_info:
+            create_booking_admin(payload=payload, db=db, _=admin_user)
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail == "الفرع غير مرتبط بمدينة معتمدة — حدد مدينة الفرع قبل إسناد العقد."
+    finally:
+        db.close()
+

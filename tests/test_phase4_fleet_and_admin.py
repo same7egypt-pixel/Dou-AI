@@ -110,11 +110,27 @@ def setup_phase4_db():
     db.add(merchant)
     db.flush()
 
+    from app.models.entities import GeoCity, GeoCountry, TenantOperatingCity
+    db.query(TenantOperatingCity).delete()
+    db.query(GeoCity).delete()
+    db.query(GeoCountry).delete()
+    country = GeoCountry(name="المملكة العربية السعودية", code="SA", flag="🇸🇦", active=True)
+    db.add(country)
+    db.flush()
+    city1 = GeoCity(id=1, country_id=country.id, name="Riyadh", active=True)
+    db.add(city1)
+    db.flush()
+    top1 = TenantOperatingCity(tenant_id=10, geo_city_id=city1.id, is_active=True)
+    top2 = TenantOperatingCity(tenant_id=20, geo_city_id=city1.id, is_active=True)
+    db.add_all([top1, top2])
+    db.flush()
+
     branch = MerchantBranch(
         id=10,
         merchant_account_id=10,
         branch_name="Sulimaniyah Branch",
         city="Riyadh",
+        city_id=1,
         district="Sulimaniyah",
         latitude=Decimal("24.7085000"),
         longitude=Decimal("46.6970000"),

@@ -517,14 +517,18 @@ def create_booking_admin(
     if not tenant:
         raise HTTPException(status_code=404, detail="الشركة اللوجستية المحددة غير موجودة.")
 
-    # 1. Enforce operating city validation if branch has a designated city_id
-    if branch.city_id:
-        active_cities = active_tenant_city_ids(db, tenant.id)
-        if branch.city_id not in active_cities:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="الشركة اللوجستية لا تخدم مدينة هذا الفرع. يجب تفعيل مدينة التشغيل أولاً للشركة.",
-            )
+    # 1. Enforce operating city validation
+    if not branch.city_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="الفرع غير مرتبط بمدينة معتمدة — حدد مدينة الفرع قبل إسناد العقد.",
+        )
+    active_cities = active_tenant_city_ids(db, tenant.id)
+    if branch.city_id not in active_cities:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="الشركة اللوجستية لا تخدم مدينة هذا الفرع. يجب تفعيل مدينة التشغيل أولاً للشركة.",
+        )
 
     seats_count = max(1, payload.seats_count or 1)
 
