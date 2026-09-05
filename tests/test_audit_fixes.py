@@ -493,6 +493,74 @@ def test_fix_8_get_endpoints_do_not_commit_db():
         # 2. GET /documents/kyc/{courier_id}
         res_kyc = get_kyc_status(courier_id=courier.id, user=user, db=db)
         assert res_kyc["courier_id"] == courier.id
+
+        # 3. GET /account/{merchant_account_id}/statement
+        from app.models.merchant import MerchantAccount
+        from app.routers.merchant import get_monthly_statement
+
+        merchant_acc = MerchantAccount(
+            trade_name="Zero Commit Merchant",
+            billing_contact_email="zerocommit@test.com",
+            billing_contact_phone="966500000088",
+        )
+        # unmock temporarily for setup
+        db.commit = MagicMock()
+        db.add(merchant_acc)
+        db.flush()
+        db.commit = MagicMock(side_effect=AssertionError("db.commit() was called inside GET statement!"))
+
+        res_stmt = get_monthly_statement(
+            merchant_account_id=merchant_acc.id,
+            billing_month="2026-08",
+            db=db,
+            auth_account_id=merchant_acc.id,
+        )
+        assert res_stmt.merchant_name == "Zero Commit Merchant"
+
+        # 4. GET /daily-report/export
+        from app.routers.hr import daily_report_export
+
+        db.commit = MagicMock(side_effect=AssertionError("db.commit() was called inside GET daily report export!"))
+        res_export = daily_report_export(user=user, db=db)
+        assert res_export.status_code == 200
+
+        # 5. GET /billing/current with past due tenant
+        from datetime import datetime, timedelta
+        from app.routers.billing import billing_status
+
+        tenant.due_date = datetime.now() - timedelta(days=5)
+        res_billing = billing_status(user=user, db=db)
+        assert res_billing["status"] == "OVERDUE"
+
+        # 6. Global AST audit across all router files verifying zero db.commit in all GET endpoints
+        import ast
+        import glob
+
+        violations = []
+        for fpath in sorted(glob.glob("app/routers/*.py")):
+            with open(fpath) as f:
+                tree = ast.parse(f.read(), filename=fpath)
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    is_get = False
+                    for dec in node.decorator_list:
+                        if (
+                            isinstance(dec, ast.Call)
+                            and isinstance(dec.func, ast.Attribute)
+                            and dec.func.attr == "get"
+                        ):
+                            is_get = True
+                            break
+                    if is_get:
+                        for sub in ast.walk(node):
+                            if (
+                                isinstance(sub, ast.Call)
+                                and isinstance(sub.func, ast.Attribute)
+                                and sub.func.attr == "commit"
+                            ):
+                                violations.append(f"{fpath}:{sub.lineno} in {node.name}")
+
+        assert len(violations) == 0, f"Found db.commit() calls inside GET endpoints: {violations}"
     finally:
         db.close()
 

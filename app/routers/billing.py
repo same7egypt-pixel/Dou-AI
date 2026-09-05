@@ -51,7 +51,7 @@ def check_active(user: User, db: Session):
         raise HTTPException(403, "تم تعطيل حسابك لعدم سداد الاشتراك — تواصل مع DOU")
 
 
-def _refresh_status(tenant: Tenant, db: Session):
+def _refresh_status(tenant: Tenant, db: Session = None):
     """يراجع الاستحقاق: ACTIVE→OVERDUE بعد الموعد، ثم SUSPENDED بعد فترة السماح."""
     now = datetime.utcnow()
     if tenant.subscription_status == "SUSPENDED":
@@ -62,10 +62,8 @@ def _refresh_status(tenant: Tenant, db: Session):
     past_grace = now > tenant.due_date + timedelta(days=GRACE_DAYS)
     if past_grace:
         tenant.subscription_status = "SUSPENDED"
-        db.commit()
     elif past_due:
         tenant.subscription_status = "OVERDUE"
-        db.commit()
 
 
 # What the company owes DOU is a commercial matter between the account owner
