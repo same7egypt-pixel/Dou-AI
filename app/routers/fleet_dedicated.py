@@ -22,7 +22,7 @@ from app.models.merchant import (
 )
 from app.routers.auth import get_current_user
 from app.services.financial_calculations import month_bounds
-from app.utils.finance import prorate
+from app.utils.finance import calculate_booking_active_days, prorate
 
 router = APIRouter(prefix="/fleet/dedicated", tags=["fleet_dedicated"])
 
@@ -501,18 +501,26 @@ def get_fleet_monthly_settlement(
     line_items: list[FleetSettlementLineItem] = []
     total_payout = Decimal("0.00")
 
+    booking_ids = [b.id for b in bookings]
+    approvals = (
+        db.query(RiderAssignmentApproval)
+        .filter(RiderAssignmentApproval.booking_id.in_(booking_ids))
+        .all()
+        if booking_ids
+        else []
+    )
+    approvals_by_booking: dict[int, list[RiderAssignmentApproval]] = {}
+    for a in approvals:
+        approvals_by_booking.setdefault(a.booking_id, []).append(a)
+
     for b in bookings:
         branch = db.get(MerchantBranch, b.merchant_branch_id)
         account = db.get(MerchantAccount, branch.merchant_account_id) if branch else None
         rider = db.get(Courier, b.rider_id) if b.rider_id else None
 
-        start_active = max(b.effective_from, start_date)
-        end_active = min(b.effective_until or month_end_date, month_end_date)
-
-        if end_active >= start_active:
-            active_days = (end_active - start_active).days + 1
-        else:
-            active_days = 0
+        active_days = calculate_booking_active_days(
+            b, start_date, approvals=approvals_by_booking.get(b.id, [])
+        )
 
         payout_prorated = prorate(b.monthly_payout_to_logistics, active_days, start_date)
         total_payout += payout_prorated

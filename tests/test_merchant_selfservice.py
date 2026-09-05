@@ -754,6 +754,126 @@ def test_22_freelancer_and_company_rider_billing_identical_to_the_penny(client, 
     )
 
 
+def test_22b_pending_approval_days_deducted_symmetrically(client, test_data):
+    """Test 22b: Days waiting for merchant rider approval are deducted symmetrically from both merchant and fleet.
+
+    - Seat requested on Aug 10, approved on Aug 15 -> 5 days deducted (26/31 active days).
+    - Vacant seat without any approval request -> 100% billable (31/31 active days) preserving SLA.
+    - Symmetrical finances: merchant fee, fleet payout, and DOU margin reconcile to the penny.
+    """
+    from datetime import time
+    from decimal import Decimal
+    from app.models.merchant import BookingStatus, DedicatedShiftBooking, MerchantBranch, RiderAssignmentApproval, ShiftType
+    from app.utils.finance import prorate
+
+    ma_id = test_data["merchant_account_id"]
+    m_token = test_data["merchant_token"]
+    tenant_a_id = test_data["tenant_a_id"]
+    fleet_a_token = test_data["fleet_a_token"]
+
+    db = TestingSessionLocal()
+    branch = db.query(MerchantBranch).filter_by(merchant_account_id=ma_id).first()
+    if not branch:
+        branch = MerchantBranch(
+            merchant_account_id=ma_id,
+            branch_name="فرع الصحافة للخصم",
+            city="الرياض",
+            latitude=Decimal("24.7"),
+            longitude=Decimal("46.6"),
+            cashier_access_pin="1234",
+            verification_status="VERIFIED",
+        )
+        db.add(branch)
+        db.commit()
+        db.refresh(branch)
+
+    # 1. Booking with 5 days pending approval (Aug 10 to Aug 15)
+    b_pending = DedicatedShiftBooking(
+        merchant_branch_id=branch.id,
+        logistics_company_tenant_id=tenant_a_id,
+        shift_type=ShiftType.full_day_8h,
+        shift_start_time=time(10, 0),
+        shift_end_time=time(18, 0),
+        effective_from=date(2026, 8, 1),
+        effective_until=None,
+        monthly_fee_to_merchant=Decimal("7000.00"),
+        monthly_payout_to_logistics=Decimal("5500.00"),
+        dou_margin=Decimal("1500.00"),
+        status=BookingStatus.active,
+    )
+    # 2. Completely vacant seat (no approval request)
+    b_vacant = DedicatedShiftBooking(
+        merchant_branch_id=branch.id,
+        logistics_company_tenant_id=tenant_a_id,
+        shift_type=ShiftType.full_day_8h,
+        shift_start_time=time(10, 0),
+        shift_end_time=time(18, 0),
+        effective_from=date(2026, 8, 1),
+        effective_until=None,
+        monthly_fee_to_merchant=Decimal("7000.00"),
+        monthly_payout_to_logistics=Decimal("5500.00"),
+        dou_margin=Decimal("1500.00"),
+        status=BookingStatus.active,
+    )
+    db.add_all([b_pending, b_vacant])
+    db.commit()
+    db.refresh(b_pending)
+    db.refresh(b_vacant)
+
+    # Add approval for b_pending: requested Aug 10, decided Aug 15 (5 days pending)
+    appr = RiderAssignmentApproval(
+        booking_id=b_pending.id,
+        merchant_branch_id=branch.id,
+        merchant_account_id=ma_id,
+        logistics_company_tenant_id=tenant_a_id,
+        courier_id=1,
+        courier_name="مندوب اختبار الخصم",
+        courier_phone="+966550009988",
+        status="APPROVED",
+        requested_at=datetime(2026, 8, 10, 10, 0, tzinfo=timezone.utc),
+        decided_at=datetime(2026, 8, 15, 12, 0, tzinfo=timezone.utc),
+    )
+    db.add(appr)
+    db.commit()
+    b_pending_id = b_pending.id
+    b_vacant_id = b_vacant.id
+    db.close()
+
+    # Query merchant statement
+    resp = client.get(
+        f"/merchant/account/{ma_id}/statement?month=2026-08",
+        headers={"Authorization": f"Bearer {m_token}"},
+    )
+    assert resp.status_code == 200
+    st = resp.json()
+
+    # In August (31 days):
+    # b_pending active days must be 31 - 5 = 26 days
+    # b_vacant active days must be 31 days
+    line_pending = next(item for item in st["line_items"] if item.get("rider_name") == "مقعد شاغر (غير معيّن)" and item.get("active_days") == 26)
+    assert line_pending["active_days"] == 26, f"Expected 26 active days for b_pending, got {line_pending['active_days']}"
+    assert line_pending["prorated_fee"] == float(prorate(Decimal("7000.00"), 26, date(2026, 8, 1)))
+
+    line_vacant = next(item for item in st["line_items"] if item.get("rider_name") == "مقعد شاغر (غير معيّن)" and item.get("active_days") == 31)
+    assert line_vacant["active_days"] == 31
+    assert line_vacant["prorated_fee"] == 7000.0
+
+    # Query fleet settlement
+    f_resp = client.get(
+        "/fleet/dedicated/settlement?month=2026-08",
+        headers={"Authorization": f"Bearer {fleet_a_token}"},
+    )
+    assert f_resp.status_code == 200
+    fst = f_resp.json()
+    f_pending = next(item for item in fst["line_items"] if item["booking_id"] == b_pending_id)
+    f_vacant = next(item for item in fst["line_items"] if item["booking_id"] == b_vacant_id)
+
+    assert f_pending["active_days"] == 26
+    assert f_pending["prorated_payout"] == float(prorate(Decimal("5500.00"), 26, date(2026, 8, 1)))
+    assert f_vacant["active_days"] == 31
+    assert f_vacant["prorated_payout"] == 5500.0
+
+
 def test_23_fleet_performance_breakdown_compares_freelancer_vs_company(client, test_data):
     """Test 23: Fleet portal performance breakdown returns metrics comparing freelancer vs company riders."""
     fleet_a_token = test_data["fleet_a_token"]

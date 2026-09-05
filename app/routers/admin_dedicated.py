@@ -25,12 +25,17 @@ from app.models.merchant import (
     MerchantBranch,
     MerchantCapacityRequest,
     MonthlySettlementLedger,
+    RiderAssignmentApproval,
     SettlementStatus,
     ShiftType,
     compute_and_set_margin,
 )
 from app.services.operating_structure import active_tenant_city_ids
-from app.utils.finance import billable_booking_filters, prorate
+from app.utils.finance import (
+    billable_booking_filters,
+    calculate_booking_active_days,
+    prorate,
+)
 from app.utils.security import generate_merchant_api_key, hash_pin
 
 router = APIRouter(prefix="/admin/dedicated", tags=["admin_dedicated"])
@@ -1046,17 +1051,26 @@ def generate_settlements_admin(
         # answers — the restaurant billed ~1,580 and the fleet settled at 7,000.
         # Same window, same helper, so the two surfaces cannot drift again.
         days_in_month = calendar.monthrange(m_date.year, m_date.month)[1]
-        month_end_date = m_date.replace(day=days_in_month)
 
         gross_fee = Decimal("0.00")
         total_payout = Decimal("0.00")
         shift_months = Decimal("0.0000")
 
+        booking_ids = [b.id for b in bookings]
+        approvals = (
+            db.query(RiderAssignmentApproval)
+            .filter(RiderAssignmentApproval.booking_id.in_(booking_ids))
+            .all()
+            if booking_ids
+            else []
+        )
+        approvals_by_booking: dict[int, list[RiderAssignmentApproval]] = {}
+        for a in approvals:
+            approvals_by_booking.setdefault(a.booking_id, []).append(a)
+
         for b in bookings:
-            start_active = max(b.effective_from, m_date)
-            end_active = min(b.effective_until or month_end_date, month_end_date)
-            active_days = (
-                (end_active - start_active).days + 1 if end_active >= start_active else 0
+            active_days = calculate_booking_active_days(
+                b, m_date, approvals=approvals_by_booking.get(b.id, [])
             )
             gross_fee += prorate(b.monthly_fee_to_merchant, active_days, m_date)
             total_payout += prorate(b.monthly_payout_to_logistics, active_days, m_date)

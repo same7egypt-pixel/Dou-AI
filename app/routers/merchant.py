@@ -36,7 +36,11 @@ from app.models.merchant import (
 )
 from app.routers.auth import verify_password
 from app.services.cash_float import open_cod_float, open_cod_orders
-from app.utils.finance import billable_booking_filters, prorate
+from app.utils.finance import (
+    billable_booking_filters,
+    calculate_booking_active_days,
+    prorate,
+)
 from app.utils.security import (
     create_branch_token,
     create_merchant_account_token,
@@ -1190,7 +1194,6 @@ def _build_statement_line_items(
     target_year = target_month_date.year
     target_month = target_month_date.month
     days_in_month = calendar.monthrange(target_year, target_month)[1]
-    month_end_date = date(target_year, target_month, days_in_month)
 
     bookings = (
         db.query(DedicatedShiftBooking)
@@ -1206,6 +1209,18 @@ def _build_statement_line_items(
     gross_fee_total = Decimal("0.00")
     total_payout_total = Decimal("0.00")
 
+    booking_ids = [b.id for b in bookings]
+    approvals = (
+        db.query(RiderAssignmentApproval)
+        .filter(RiderAssignmentApproval.booking_id.in_(booking_ids))
+        .all()
+        if booking_ids
+        else []
+    )
+    approvals_by_booking: dict[int, list[RiderAssignmentApproval]] = {}
+    for a in approvals:
+        approvals_by_booking.setdefault(a.booking_id, []).append(a)
+
     for b in bookings:
         branch = db.get(MerchantBranch, b.merchant_branch_id)
         rider = db.get(Courier, b.rider_id) if b.rider_id else None
@@ -1217,13 +1232,9 @@ def _build_statement_line_items(
             else None
         )
 
-        start_active = max(b.effective_from, target_month_date)
-        end_active = min(b.effective_until or month_end_date, month_end_date)
-
-        if end_active >= start_active:
-            active_days = (end_active - start_active).days + 1
-        else:
-            active_days = 0
+        active_days = calculate_booking_active_days(
+            b, target_month_date, approvals=approvals_by_booking.get(b.id, [])
+        )
 
         fee_prorated = prorate(b.monthly_fee_to_merchant, active_days, target_month_date)
         payout_prorated = prorate(b.monthly_payout_to_logistics, active_days, target_month_date)
