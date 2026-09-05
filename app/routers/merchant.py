@@ -146,6 +146,7 @@ class StatementLineItem(BaseModel):
     prorated_fee: float
     logistics_company_name: Optional[str] = None
     courier_type: Optional[str] = None
+    pending_approval: bool = False
 
 
 class FleetSubtotal(BaseModel):
@@ -1246,7 +1247,21 @@ def _build_statement_line_items(
         gross_fee_total += fee_prorated
         total_payout_total += payout_prorated
 
-        rider_display_name = _masked_name(rider.id, db) if rider else "مقعد شاغر (غير معيّن)"
+        # A seat waiting on this merchant's own approval is not a vacant seat.
+        # Both carry rider_id=None, and labelling them the same way told the
+        # merchant a driver was missing when the merchant was the one holding
+        # it up — the days are already deducted from the charge, so the row
+        # would otherwise read as an unexplained 0.00.
+        awaiting_merchant = any(
+            a.status == "PENDING" for a in approvals_by_booking.get(b.id, [])
+        )
+
+        if rider:
+            rider_display_name = _masked_name(rider.id, db)
+        elif awaiting_merchant:
+            rider_display_name = "بانتظار موافقتك على المندوب"
+        else:
+            rider_display_name = "مقعد شاغر (غير معيّن)"
 
         line_items.append(
             StatementLineItem(
@@ -1258,6 +1273,7 @@ def _build_statement_line_items(
                 prorated_fee=float(fee_prorated),
                 logistics_company_name=fleet_name,
                 courier_type=courier_type_val,
+                pending_approval=awaiting_merchant,
             )
         )
 

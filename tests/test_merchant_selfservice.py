@@ -738,25 +738,97 @@ def test_21_pending_rider_approval_over_24h_flags_delayed_alert(client, test_dat
 
 
 def test_22_freelancer_and_company_rider_billing_identical_to_the_penny(client, test_data):
-    """Test 22: Both company and freelancer riders generate identical line item fees to the penny."""
+    """Test 22: rider type never changes the money.
+
+    Builds both seats itself — same branch, same fleet, same terms, same active
+    window, both filled, neither awaiting approval. The only difference is
+    courier_type, so any gap in prorated_fee is a branch on rider type inside
+    the billing math, which is exactly what must never exist.
+    """
+    from datetime import time
+    from decimal import Decimal
+
+    from app.models.entities import Country, Courier, CourierType
+    from app.models.merchant import (
+        BookingStatus,
+        DedicatedShiftBooking,
+        MerchantBranch,
+        ShiftType,
+    )
+
     ma_id = test_data["merchant_account_id"]
     m_token = test_data["merchant_token"]
+    tenant_a_id = test_data["tenant_a_id"]
+
+    db = TestingSessionLocal()
+    branch = MerchantBranch(
+        merchant_account_id=ma_id,
+        branch_name="فرع مقارنة نوع المندوب",
+        city="الرياض",
+        latitude=Decimal("24.7"),
+        longitude=Decimal("46.6"),
+        cashier_access_pin="7788",
+        verification_status="VERIFIED",
+    )
+    db.add(branch)
+    db.commit()
+    db.refresh(branch)
+
+    seats = {}
+    for label, ctype in (("company", CourierType.COMPANY), ("freelancer", CourierType.FREELANCER)):
+        rider = Courier(
+            name=f"مندوب {label} للمقارنة",
+            phone=f"05555{'1' if label == 'company' else '2'}0001",
+            courier_type=ctype,
+            country=Country.SA,
+            tenant_id=tenant_a_id,
+        )
+        db.add(rider)
+        db.commit()
+        db.refresh(rider)
+
+        booking = DedicatedShiftBooking(
+            merchant_branch_id=branch.id,
+            logistics_company_tenant_id=tenant_a_id,
+            rider_id=rider.id,
+            shift_type=ShiftType.full_day_8h,
+            shift_start_time=time(10, 0),
+            shift_end_time=time(18, 0),
+            effective_from=date(2026, 8, 1),
+            effective_until=None,
+            monthly_fee_to_merchant=Decimal("7000.00"),
+            monthly_payout_to_logistics=Decimal("5500.00"),
+            dou_margin=Decimal("1500.00"),
+            status=BookingStatus.active,
+        )
+        db.add(booking)
+        db.commit()
+        db.refresh(booking)
+        seats[label] = booking.id
+    db.close()
 
     resp = client.get(
         f"/merchant/account/{ma_id}/statement?month={MONTH_STR}",
         headers={"Authorization": f"Bearer {m_token}"},
     )
-    assert resp.status_code == 200
-    statement = resp.json()
+    assert resp.status_code == 200, resp.text
+    rows = [
+        it
+        for it in resp.json()["line_items"]
+        if it["branch_name"] == "فرع مقارنة نوع المندوب"
+    ]
 
-    company_items = [it for it in statement["line_items"] if it.get("courier_type") in ("COMPANY", "company")]
-    freelancer_items = [it for it in statement["line_items"] if it.get("courier_type") in ("FREELANCER", "freelancer")]
+    company_items = [it for it in rows if (it.get("courier_type") or "").upper() == "COMPANY"]
+    freelancer_items = [it for it in rows if (it.get("courier_type") or "").upper() == "FREELANCER"]
 
-    assert len(company_items) >= 1, "Must have at least one company line item"
-    assert len(freelancer_items) >= 1, "Must have at least one freelancer line item"
+    assert len(company_items) == 1, f"expected one company seat on this branch, got {rows}"
+    assert len(freelancer_items) == 1, f"expected one freelancer seat on this branch, got {rows}"
 
-    assert company_items[0]["prorated_fee"] == freelancer_items[0]["prorated_fee"], (
-        f"Billing must be identical to the penny! Company={company_items[0]['prorated_fee']}, Freelancer={freelancer_items[0]['prorated_fee']}"
+    company, freelancer = company_items[0], freelancer_items[0]
+    assert company["active_days"] == freelancer["active_days"]
+    assert company["prorated_fee"] == freelancer["prorated_fee"], (
+        "Rider type must not change the money — "
+        f"company={company['prorated_fee']} freelancer={freelancer['prorated_fee']}"
     )
 
 
@@ -1050,3 +1122,114 @@ def test_25_full_lifecycle_selfservice_to_multi_fleet_end_to_end(client, test_da
     assert r_a["logistics_company_name"] == "Golden Logistics Phase2"
     assert r_b["logistics_company_name"] == "Wefaq Logistics Phase2"
     assert r_b["courier_type"] in ("FREELANCER", "freelancer")
+
+
+def test_22c_pending_seat_is_labelled_not_shown_as_vacant(client, test_data):
+    """Test 22c: a seat awaiting this merchant's approval must say so on the statement.
+
+    Both a vacant seat and a seat pending approval carry rider_id=None. Their
+    money already differs — pending days are deducted, vacant days are not —
+    so showing both as "مقعد شاغر" told the merchant a driver was missing when
+    the merchant was the one holding it up.
+    """
+    from datetime import time
+    from decimal import Decimal
+
+    from app.models.entities import Country, Courier, CourierType
+    from app.models.merchant import (
+        BookingStatus,
+        DedicatedShiftBooking,
+        MerchantBranch,
+        RiderAssignmentApproval,
+        ShiftType,
+    )
+
+    ma_id = test_data["merchant_account_id"]
+    m_token = test_data["merchant_token"]
+    tenant_a_id = test_data["tenant_a_id"]
+
+    db = TestingSessionLocal()
+    branch = MerchantBranch(
+        merchant_account_id=ma_id,
+        branch_name="فرع وسم الانتظار",
+        city="الرياض",
+        latitude=Decimal("24.7"),
+        longitude=Decimal("46.6"),
+        cashier_access_pin="9911",
+        verification_status="VERIFIED",
+    )
+    db.add(branch)
+    db.commit()
+    db.refresh(branch)
+
+    def _seat():
+        b = DedicatedShiftBooking(
+            merchant_branch_id=branch.id,
+            logistics_company_tenant_id=tenant_a_id,
+            shift_type=ShiftType.full_day_8h,
+            shift_start_time=time(10, 0),
+            shift_end_time=time(18, 0),
+            effective_from=date(2026, 8, 1),
+            effective_until=None,
+            monthly_fee_to_merchant=Decimal("7000.00"),
+            monthly_payout_to_logistics=Decimal("5500.00"),
+            dou_margin=Decimal("1500.00"),
+            status=BookingStatus.active,
+        )
+        db.add(b)
+        db.commit()
+        db.refresh(b)
+        return b
+
+    b_pending, b_vacant = _seat(), _seat()
+
+    rider = Courier(
+        name="مندوب ينتظر موافقة المطعم",
+        phone="0555590909",
+        courier_type=CourierType.COMPANY,
+        country=Country.SA,
+        tenant_id=tenant_a_id,
+    )
+    db.add(rider)
+    db.commit()
+    db.refresh(rider)
+
+    db.add(
+        RiderAssignmentApproval(
+            booking_id=b_pending.id,
+            merchant_branch_id=branch.id,
+            merchant_account_id=ma_id,
+            logistics_company_tenant_id=tenant_a_id,
+            courier_id=rider.id,
+            courier_name=rider.name,
+            courier_phone=rider.phone,
+            status="PENDING",
+            requested_at=datetime(2026, 8, 10, 9, 0, tzinfo=timezone.utc),
+        )
+    )
+    db.commit()
+    db.close()
+
+    resp = client.get(
+        f"/merchant/account/{ma_id}/statement?month={MONTH_STR}",
+        headers={"Authorization": f"Bearer {m_token}"},
+    )
+    assert resp.status_code == 200, resp.text
+    rows = [
+        it for it in resp.json()["line_items"] if it["branch_name"] == "فرع وسم الانتظار"
+    ]
+    assert len(rows) == 2, f"both seats must appear on the statement, got {rows}"
+
+    pending = [it for it in rows if it["pending_approval"]]
+    vacant = [it for it in rows if not it["pending_approval"]]
+
+    assert len(pending) == 1, "the seat awaiting merchant approval must be flagged"
+    assert len(vacant) == 1, "the genuinely vacant seat must not be flagged"
+
+    assert "موافقتك" in pending[0]["rider_name"], (
+        f"pending seat must name the merchant as the blocker, got {pending[0]['rider_name']}"
+    )
+    assert "شاغر" in vacant[0]["rider_name"]
+
+    # The vacant seat still carries full SLA billing; the pending one does not.
+    assert vacant[0]["active_days"] > pending[0]["active_days"]
