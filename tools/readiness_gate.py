@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -50,9 +51,13 @@ def _run(cmd: list[str], cwd: Path = ROOT, timeout: int = 600) -> tuple[int, str
         return 1, str(e)
 
 
-def _get_json(url: str, timeout: int = 15) -> dict | None:
+def _get_json(url: str, timeout: int = 15, admin_key: str | None = None) -> dict | None:
+    """`/admin/system-status` محمي — من غير مفتاح بيرد 401 والفحص بيتقال إنه يدوي."""
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as r:
+        req = urllib.request.Request(url)
+        if admin_key:
+            req.add_header("X-Admin-Key", admin_key)
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode())
     except (urllib.error.URLError, ValueError, TimeoutError, OSError):
         return None
@@ -60,7 +65,7 @@ def _get_json(url: str, timeout: int = 15) -> dict | None:
 
 # ─── ١ · النسخ الاحتياطية ─────────────────────────────────────────────────────
 
-def check_backups(url: str | None) -> Check:
+def check_backups(url: str | None, admin_key: str | None = None) -> Check:
     """نسخة موجودة، حديثة، وخرجت من الجهاز.
 
     «استرجعت وطابقت» مش بيتقاس من هنا — لازم يتشغّل على السيرفر نفسه.
@@ -70,11 +75,12 @@ def check_backups(url: str | None) -> Check:
         return Check("١", "النسخ الاحتياطية", MANUAL,
                      "محتاج --url", "شغّله على السيرفر عشان تتأكد من الاسترجاع كمان")
 
-    data = _get_json(f"{url}/admin/system-status")
+    data = _get_json(f"{url}/admin/system-status", admin_key=admin_key)
     if not data:
-        return Check("١", "النسخ الاحتياطية", MANUAL,
-                     "الحالة محمية بتوكن أدمن",
-                     "شغّل الفحص من داخل السيرفر أو مرّر X-Admin-Key")
+        hint = ("المفتاح المُمرَّر مرفوض أو الخدمة لا ترد"
+                if admin_key else "الحالة محمية — مرّر --admin-key أو ADMIN_KEY في البيئة")
+        return Check("١", "النسخ الاحتياطية", MANUAL, hint,
+                     "شغّله من داخل السيرفر: --url http://127.0.0.1:8000 --admin-key \"$ADMIN_KEY\"")
 
     b = data.get("backup_details") or {}
     if not b:
@@ -117,32 +123,54 @@ def check_ci() -> Check:
 # ─── ٣ · تعرف إيه الشغال ──────────────────────────────────────────────────────
 
 def check_deploy_drift(url: str | None) -> Check:
-    """الكوميت المنشور = المحلي، ومفيش شغل على الرف."""
+    """الكوميت المنشور = المحلي، ومفيش شغل على الرف.
+
+    ملف غير متتبَّع مش دايمًا شغل ضايع — ممكن يبقى إعدادات جهاز أو استثناء
+    مقصود. الفرق بيتقال بالاسم، مش بالعدد، عشان البوابة ما تصرخش من غير سبب.
+    """
     _, head = _run(["git", "rev-parse", "--short", "HEAD"])
     head = head.strip()
-    _, dirty = _run(["git", "status", "--porcelain"])
-    uncommitted = len([ln for ln in dirty.splitlines() if ln.strip()])
+    _, porcelain = _run(["git", "status", "--porcelain"])
 
-    deployed = None
+    modified, untracked = [], []
+    for line in porcelain.splitlines():
+        if not line.strip():
+            continue
+        name = line[3:].strip()
+        (untracked if line.startswith("??") else modified).append(name)
+
+    # المحلي مقابل الريموت — ده الانحراف الحقيقي
+    _run(["git", "fetch", "origin", "--quiet"])
+    _, ahead = _run(["git", "rev-list", "--count", "origin/main..HEAD"])
+    _, behind = _run(["git", "rev-list", "--count", "HEAD..origin/main"])
+    ahead, behind = ahead.strip() or "0", behind.strip() or "0"
+
+    deployed, version = None, None
     if url:
         h = _get_json(f"{url}/health") or {}
         deployed = h.get("commit") or h.get("revision") or h.get("git_sha")
         version = h.get("version")
-    else:
-        version = None
 
-    problems = []
-    if uncommitted:
-        problems.append(f"{uncommitted} ملف غير مرفوع")
+    problems, notes = [], []
+    if modified:
+        problems.append(f"{len(modified)} ملف معدّل بلا commit")
+    if ahead != "0":
+        problems.append(f"{ahead} كوميت محلي مش مرفوع")
+    if behind != "0":
+        notes.append(f"متأخر {behind} كوميت عن الريموت")
     if url and not deployed:
-        problems.append(f"/health ما بيرجّعش الكوميت (بيرجّع version={version})")
+        problems.append(f"/health ما بيرجّعش الكوميت (version={version})")
     elif deployed and not deployed.startswith(head[:7]):
         problems.append(f"المنشور {deployed} · المحلي {head}")
+    if untracked:
+        notes.append("غير متتبَّع: " + " · ".join(untracked[:4]))
 
+    detail = " · ".join(notes) if notes else ""
     if problems:
         return Check("٣", "تعرف إيه الشغال", FAIL, " · ".join(problems),
-                     "لما حاجة تقع، أول سؤال هو «إيه الشغال؟»")
-    return Check("٣", "تعرف إيه الشغال", PASS, f"المنشور = المحلي = {head} · الشجرة نضيفة")
+                     detail or "لما حاجة تقع، أول سؤال هو «إيه الشغال؟»")
+    return Check("٣", "تعرف إيه الشغال", PASS,
+                 f"المحلي = الريموت = {head} · مفيش شغل بلا commit", detail)
 
 
 # ─── ٤ · العطل بيوصلك ─────────────────────────────────────────────────────────
@@ -338,10 +366,12 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="بوابة الجاهزية التقنية لـ DOU OS")
     ap.add_argument("--url", help="عنوان الإنتاج، مثال https://dou.delivery")
     ap.add_argument("--fast", action="store_true", help="من غير تشغيل الاختبارات")
+    ap.add_argument("--admin-key", default=os.getenv("ADMIN_KEY", "").strip() or None,
+                    help="مفتاح الأدمن لقراءة حالة النظام (افتراضيًا من ADMIN_KEY)")
     args = ap.parse_args()
 
     checks = [
-        check_backups(args.url),
+        check_backups(args.url, args.admin_key),
         check_ci(),
         check_deploy_drift(args.url),
         check_error_reporting(args.url),
