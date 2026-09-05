@@ -520,9 +520,8 @@ def get_kyc_status(
     )
 
     if not kyc:
-        # Compute on the fly
+        # Compute on the fly without persisting to DB on GET
         kyc = _recompute_kyc_status(db, tenant_id, courier_id)
-        db.commit()
 
     missing = json.loads(kyc.missing_documents) if kyc.missing_documents else []
 

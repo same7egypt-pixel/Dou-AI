@@ -291,7 +291,6 @@ def get_readiness(
             raise HTTPException(404, "Courier not found")
 
     state = _compute_readiness(db, tenant_id, courier_id)
-    db.commit()
 
     blockers = json.loads(state.blockers) if state.blockers else []
 

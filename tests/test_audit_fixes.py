@@ -432,4 +432,51 @@ def test_fix_7_claim_pool_order_enforces_tenant_isolation(monkeypatch):
         db.close()
 
 
+def test_fix_8_get_endpoints_do_not_commit_db():
+    from unittest.mock import MagicMock
+    from app.models.entities import User, UserRole
+    from app.routers.readiness import get_readiness
+    from app.routers.documents import get_kyc_status
+
+    db = TestingSession()
+    try:
+        tenant = Tenant(name="Fleet Read-Only Test", country=Country.SA, plan="GROWTH")
+        db.add(tenant)
+        db.flush()
+
+        courier = Courier(
+            tenant_id=tenant.id,
+            name="Courier Readonly",
+            phone="966500000088",
+            courier_type=CourierType.COMPANY,
+            country=Country.SA,
+        )
+        db.add(courier)
+        db.flush()
+
+        user = User(
+            name="Admin User",
+            phone="966500000089",
+            password_hash="dummy_hash_12345",
+            role=UserRole.COMPANY_ADMIN,
+            tenant_id=tenant.id,
+        )
+        db.add(user)
+        db.commit()
+
+        # Intercept db.commit to verify GET endpoints do not commit transactions
+        db.commit = MagicMock(side_effect=AssertionError("db.commit() was called inside a GET endpoint!"))
+
+        # 1. GET /readiness/{courier_id}
+        res_readiness = get_readiness(courier_id=courier.id, user=user, db=db)
+        assert res_readiness["courier_id"] == courier.id
+
+        # 2. GET /documents/kyc/{courier_id}
+        res_kyc = get_kyc_status(courier_id=courier.id, user=user, db=db)
+        assert res_kyc["courier_id"] == courier.id
+    finally:
+        db.close()
+
+
+
 
