@@ -531,6 +531,85 @@ def test_fix_9_issued_invoice_preserves_stamped_vat():
         db.close()
 
 
+def test_fix_10_courier_attendance_corrections_tracking():
+    """Fix 10: static/courier.html must fetch GET /timekeeping/corrections and render
+    a tracking card for courier attendance disputes showing PENDING / APPROVED / REJECTED
+    with decision note/reason, and refresh after submission.
+    """
+    from datetime import datetime
+    import pathlib
+    from app.models.entities import Tenant, Courier, User, UserRole, AttendanceCorrectionRequest
+    from app.routers.timekeeping import list_corrections
 
+    db = TestingSession()
+    try:
+        tenant = Tenant(name="Fleet Tenant 10", country=Country.SA, plan="GROWTH")
+        db.add(tenant)
+        db.flush()
 
+        courier = Courier(
+            tenant_id=tenant.id,
+            name="Ahmad Courier",
+            phone="966512345678",
+            courier_type=CourierType.COMPANY,
+            country=Country.SA,
+        )
+        db.add(courier)
+        db.flush()
 
+        user = User(
+            tenant_id=tenant.id,
+            courier_id=courier.id,
+            phone=courier.phone,
+            role=UserRole.COURIER,
+            name=courier.name,
+            password_hash="dummy_hash_12345",
+        )
+        db.add(user)
+        db.flush()
+
+        # 1. Backend: create correction request and verify courier can fetch it via GET
+        req = AttendanceCorrectionRequest(
+            tenant_id=tenant.id,
+            courier_id=courier.id,
+            reason="اعتراض على وقت الانصراف لتعطل التطبيق",
+            status="PENDING",
+            requested_check_in=datetime(2026, 8, 15, 9, 0),
+            requested_check_out=datetime(2026, 8, 15, 17, 0),
+        )
+        db.add(req)
+        db.commit()
+
+        results = list_corrections(status_filter=None, user=user, db=db)
+        assert len(results) == 1
+        assert results[0]["id"] == req.id
+        assert results[0]["status"] == "PENDING"
+        assert results[0]["reason"] == "اعتراض على وقت الانصراف لتعطل التطبيق"
+
+        # Update to APPROVED with decision note
+        req.status = "APPROVED"
+        req.decision_note = "تم التحقق واعتماد الوقت من الفرع"
+        db.commit()
+
+        results2 = list_corrections(status_filter=None, user=user, db=db)
+        assert results2[0]["status"] == "APPROVED"
+        assert results2[0]["decision_note"] == "تم التحقق واعتماد الوقت من الفرع"
+
+        # 2. Frontend: verify static/courier.html fetches GET /timekeeping/corrections and renders tracking card
+        html_path = pathlib.Path(__file__).parent.parent / "static" / "courier.html"
+        html_content = html_path.read_text(encoding="utf-8")
+
+        # Must call GET /timekeeping/corrections (not just POST)
+        assert "api('/timekeeping/corrections')" in html_content or 'api("/timekeeping/corrections")' in html_content, (
+            "static/courier.html must call GET /timekeeping/corrections to fetch corrections"
+        )
+        # Must track state.corrections
+        assert "state.corrections" in html_content, "static/courier.html must maintain corrections in state"
+        # Must render card with review status labels
+        assert "تحت المراجعة" in html_content, "static/courier.html must display 'تحت المراجعة' for PENDING"
+        assert "مقبول" in html_content, "static/courier.html must display 'مقبول' for APPROVED"
+        assert "مرفوض" in html_content, "static/courier.html must display 'مرفوض' for REJECTED"
+        assert "decision_note" in html_content, "static/courier.html must display decision note / reason"
+
+    finally:
+        db.close()
