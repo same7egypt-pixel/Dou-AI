@@ -30,7 +30,7 @@ from app.models.merchant import (
 )
 from app.routers.admin import require_admin
 from app.services.operating_structure import active_tenant_city_ids
-from app.utils.finance import prorate
+from app.utils.finance import billable_booking_filters, prorate
 from app.utils.security import generate_merchant_api_key, hash_pin
 
 router = APIRouter(prefix="/admin/dedicated", tags=["admin_dedicated"])
@@ -846,7 +846,7 @@ def generate_settlements_admin(
             db.query(DedicatedShiftBooking)
             .filter(
                 DedicatedShiftBooking.merchant_branch_id.in_(branch_ids),
-                DedicatedShiftBooking.status == BookingStatus.active,
+                *billable_booking_filters(m_date),
             )
             .all()
         )

@@ -255,3 +255,86 @@ def test_fix_5_branch_without_city_cannot_be_booked():
     finally:
         db.close()
 
+
+def test_fix_6_unified_billable_bookings_filter():
+    from datetime import time
+    from app.models.entities import User, UserRole
+    from app.models.merchant import (
+        BookingStatus,
+        DedicatedShiftBooking,
+        MerchantAccount,
+        MerchantBranch,
+        ShiftType,
+    )
+    from app.routers.merchant import _build_statement_line_items
+    from app.routers.admin_dedicated import (
+        generate_settlements_admin,
+        GenerateSettlementsPayload,
+    )
+
+    db = TestingSession()
+    try:
+        tenant = Tenant(name="Logistics One", country=Country.SA, plan="GROWTH")
+        db.add(tenant)
+        db.flush()
+
+        merchant = MerchantAccount(
+            trade_name="Pizza House",
+            billing_contact_email="pizza@house.com",
+            billing_contact_phone="966500000002",
+        )
+        db.add(merchant)
+        db.flush()
+
+        branch = MerchantBranch(
+            merchant_account_id=merchant.id,
+            branch_name="Branch 1",
+            city="Riyadh",
+            latitude=24.7,
+            longitude=46.6,
+            cashier_access_pin="1234",
+            city_id=1,
+        )
+        db.add(branch)
+        db.flush()
+
+        target_month = date(2026, 8, 1)
+
+        booking = DedicatedShiftBooking(
+            merchant_branch_id=branch.id,
+            logistics_company_tenant_id=tenant.id,
+            shift_type=ShiftType.full_day_8h,
+            shift_start_time=time(10, 0),
+            shift_end_time=time(18, 0),
+            effective_from=target_month,
+            effective_until=None,
+            monthly_fee_to_merchant=Decimal("6000.00"),
+            monthly_payout_to_logistics=Decimal("5000.00"),
+            dou_margin=Decimal("1000.00"),
+            status=BookingStatus.paused,
+        )
+        db.add(booking)
+        db.commit()
+
+        admin_user = User(name="Admin", role=UserRole.DOU_ADMIN, phone="966500000099")
+
+        # Merchant statement query
+        line_items, gross_fee, _ = _build_statement_line_items(db, merchant.id, target_month)
+
+        # Admin settlements generator
+        ledgers = generate_settlements_admin(
+            payload=GenerateSettlementsPayload(month="2026-08"),
+            db=db,
+            _=admin_user,
+        )
+
+        # Both must treat billable bookings consistently through unified filter
+        # On buggy code: merchant returns 1 item, admin returns 0 ledgers!
+        assert len(line_items) == len(ledgers["settlements"]), (
+            f"Divergence detected! Merchant statement found {len(line_items)} bookings, "
+            f"but admin settlement found {len(ledgers['settlements'])} bookings for paused status."
+        )
+    finally:
+        db.close()
+
+

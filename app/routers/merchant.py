@@ -28,7 +28,7 @@ from app.models.merchant import (
 )
 from app.routers.auth import verify_password
 from app.services.cash_float import open_cod_float, open_cod_orders
-from app.utils.finance import prorate
+from app.utils.finance import billable_booking_filters, prorate
 from app.utils.security import (
     create_branch_token,
     create_merchant_account_token,
@@ -1103,12 +1103,7 @@ def _build_statement_line_items(
         .join(MerchantBranch, DedicatedShiftBooking.merchant_branch_id == MerchantBranch.id)
         .filter(
             MerchantBranch.merchant_account_id == merchant_account_id,
-            DedicatedShiftBooking.status != BookingStatus.terminated,
-            DedicatedShiftBooking.effective_from <= month_end_date,
-            or_(
-                DedicatedShiftBooking.effective_until.is_(None),
-                DedicatedShiftBooking.effective_until >= target_month_date,
-            ),
+            *billable_booking_filters(target_month_date),
         )
         .all()
     )
