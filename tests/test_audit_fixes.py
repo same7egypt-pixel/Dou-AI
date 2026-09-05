@@ -63,3 +63,35 @@ def test_fix_1_record_delivery_increments_orders_count():
         assert daily_log.variance == 1
     finally:
         db.close()
+
+
+def test_fix_2_cash_order_requires_positive_amount():
+    from fastapi import HTTPException
+    from app.models.merchant import PaymentMethod
+    from app.routers.merchant import dispatch_order, DispatchOrderRequest
+
+    db = TestingSession()
+    try:
+        # Case 1: order_amount is None
+        req1 = DispatchOrderRequest(
+            delivery_address="Riyadh, Olaya",
+            payment_method=PaymentMethod.cash,
+            order_amount=None,
+        )
+        with pytest.raises(HTTPException) as exc_info1:
+            dispatch_order(branch_id=1, payload=req1, db=db, branch_id_from_token=1)
+        assert exc_info1.value.status_code == 422
+        assert exc_info1.value.detail == "طلب الدفع كاش يلزمه مبلغ التحصيل — لا يمكن إرسال المندوب بمبلغ صفر."
+
+        # Case 2: order_amount <= 0
+        req2 = DispatchOrderRequest(
+            delivery_address="Riyadh, Olaya",
+            payment_method=PaymentMethod.cash,
+            order_amount=Decimal("0.00"),
+        )
+        with pytest.raises(HTTPException) as exc_info2:
+            dispatch_order(branch_id=1, payload=req2, db=db, branch_id_from_token=1)
+        assert exc_info2.value.status_code == 422
+        assert exc_info2.value.detail == "طلب الدفع كاش يلزمه مبلغ التحصيل — لا يمكن إرسال المندوب بمبلغ صفر."
+    finally:
+        db.close()

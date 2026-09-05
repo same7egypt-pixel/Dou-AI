@@ -710,7 +710,12 @@ def dispatch_order(
             raise HTTPException(status_code=422, detail="يلزم إدخال عنوان التوصيل أو رقم الفاتورة.")
 
     # COD calculation
-    if payload.payment_method == PaymentMethod.cash and payload.order_amount is not None and payload.order_amount > 0:
+    if payload.payment_method == PaymentMethod.cash:
+        if payload.order_amount is None or payload.order_amount <= 0:
+            raise HTTPException(
+                status_code=422,
+                detail="طلب الدفع كاش يلزمه مبلغ التحصيل — لا يمكن إرسال المندوب بمبلغ صفر.",
+            )
         cod_amount = payload.order_amount
     else:
         cod_amount = Decimal("0.00")
