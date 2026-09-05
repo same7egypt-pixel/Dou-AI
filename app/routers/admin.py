@@ -44,6 +44,7 @@ from ..services.metabase_adapter import (
     to_structured_response,
 )
 from ..services.metabase_registry import APPROVED_QUESTIONS, get_question
+from ..services.rider_management import enforce_courier_plan_cap
 from .auth import ALGORITHM, SECRET_KEY, get_current_user, hash_password
 
 MARKETS = {
@@ -1425,6 +1426,7 @@ class CourierIn(BaseModel):
     phone: str
     courier_type: str = "FREELANCER"
     country: str = "SA"
+    tenant_id: Optional[int] = None
 
 
 class CourierPatch(BaseModel):
@@ -1454,7 +1456,17 @@ def list_couriers(db: Session = Depends(get_db)):
 
 @router.post("/couriers")
 def add_courier(payload: CourierIn, db: Session = Depends(get_db)):
+    if payload.tenant_id is not None:
+        tenant = db.get(Tenant, payload.tenant_id)
+        if not tenant:
+            raise HTTPException(404, "المستأجر غير موجود")
+        try:
+            enforce_courier_plan_cap(db, payload.tenant_id)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc))
+
     c = Courier(
+        tenant_id=payload.tenant_id,
         name=payload.name,
         phone=payload.phone,
         courier_type=CourierType(payload.courier_type)
@@ -1474,6 +1486,7 @@ def add_courier(payload: CourierIn, db: Session = Depends(get_db)):
         "courier_type": c.courier_type.value,
         "country": c.country.value,
         "is_active": True,
+        "tenant_id": c.tenant_id,
     }
 
 

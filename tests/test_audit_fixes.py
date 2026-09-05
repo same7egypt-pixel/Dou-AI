@@ -95,3 +95,63 @@ def test_fix_2_cash_order_requires_positive_amount():
         assert exc_info2.value.detail == "طلب الدفع كاش يلزمه مبلغ التحصيل — لا يمكن إرسال المندوب بمبلغ صفر."
     finally:
         db.close()
+
+
+def test_fix_3_admin_add_courier_enforces_plan_cap():
+    from fastapi import HTTPException
+    from app.models.entities import SubscriptionPlan
+    from app.routers.admin import add_courier, CourierIn
+
+    db = TestingSession()
+    try:
+        plan = SubscriptionPlan(
+            code="CAP1",
+            name="Cap 1 Rider",
+            monthly_price=100.0,
+            max_couriers=1,
+        )
+        db.add(plan)
+        db.flush()
+
+        tenant = Tenant(name="Small Fleet", country=Country.SA, plan="CAP1")
+        db.add(tenant)
+        db.commit()
+
+        # First courier should succeed
+        c1 = add_courier(
+            payload=CourierIn(
+                name="Rider One",
+                phone="966500000011",
+                tenant_id=tenant.id,
+            ),
+            db=db,
+        )
+        assert c1["id"] is not None
+
+        # Non-existent tenant must raise 404
+        with pytest.raises(HTTPException) as exc_info404:
+            add_courier(
+                payload=CourierIn(
+                    name="Rider Ghost",
+                    phone="966500000099",
+                    tenant_id=999999,
+                ),
+                db=db,
+            )
+        assert exc_info404.value.status_code == 404
+
+        # Second courier must raise 422 because cap is 1
+        with pytest.raises(HTTPException) as exc_info:
+            add_courier(
+                payload=CourierIn(
+                    name="Rider Two",
+                    phone="966500000012",
+                    tenant_id=tenant.id,
+                ),
+                db=db,
+            )
+        assert exc_info.value.status_code in (422, 400)
+        assert "الأقصى" in exc_info.value.detail
+    finally:
+        db.close()
+
