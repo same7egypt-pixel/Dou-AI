@@ -159,6 +159,8 @@ def billing_subscribe(
     else:
         tenant.plan = payload.plan
         tenant.monthly_fee = payload.monthly_fee
+        if not tenant.due_date:
+            tenant.due_date = now + timedelta(days=MONTH_DAYS * payload.months)
     db.commit()
     return {
         "ok": True,
@@ -221,6 +223,8 @@ def billing_admin_subscribe(
     else:
         tenant.plan = payload.plan
         tenant.monthly_fee = payload.monthly_fee
+        if not tenant.due_date:
+            tenant.due_date = now + timedelta(days=MONTH_DAYS * payload.months)
     db.commit()
     return {
         "ok": True,

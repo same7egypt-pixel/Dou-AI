@@ -155,3 +155,54 @@ def test_fix_3_admin_add_courier_enforces_plan_cap():
     finally:
         db.close()
 
+
+def test_fix_4_subscription_null_due_date_surfaced_in_alerts():
+    from app.routers.admin import subscription_alerts
+
+    db = TestingSession()
+    try:
+        tenant = Tenant(
+            name="Escape Due Date Co",
+            country=Country.SA,
+            plan="PRO",
+            subscription_status="ACTIVE",
+            due_date=None,
+        )
+        db.add(tenant)
+        db.commit()
+
+        alerts = subscription_alerts(db=db)
+        alert_tenants = [a for a in alerts if a["tenant_id"] == tenant.id]
+
+        assert len(alert_tenants) == 1, "Tenant with due_date=None must be surfaced in subscription_alerts"
+        assert alert_tenants[0]["due_date"] is None
+        assert alert_tenants[0]["badge"] == "بلا تاريخ استحقاق"
+
+        # 2. list_tenants surfaces badge
+        from app.routers.admin import list_tenants, usage_summary
+        tenants_list = list_tenants(db=db)
+        matched = [t for t in tenants_list if t["id"] == tenant.id]
+        assert len(matched) == 1
+        assert matched[0]["due_date_badge"] == "بلا تاريخ استحقاق"
+
+        # 3. usage_summary counts tenants without due_date
+        usage = usage_summary(db=db)
+        assert usage["no_due_date_tenants"] >= 1
+
+        # 4. billing subscription update ensures due_date is assigned
+        from app.routers.billing import billing_admin_subscribe, SubscriptionPayload
+        from app.models.entities import User, UserRole
+        admin_user = User(name="Admin", role=UserRole.DOU_ADMIN, phone="966500000000")
+        res = billing_admin_subscribe(
+            tid=tenant.id,
+            payload=SubscriptionPayload(plan="PRO", monthly_fee=500.0, set_active=False),
+            user=admin_user,
+            db=db,
+        )
+        assert res["ok"] is True
+        assert res["due_date"] is not None
+        db.refresh(tenant)
+        assert tenant.due_date is not None
+    finally:
+        db.close()
+

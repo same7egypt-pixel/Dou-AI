@@ -405,7 +405,7 @@ def list_admin_active_countries(db: Session = Depends(get_db), _: User = Depends
 def list_tenants(country: Optional[str] = Query(None), db: Session = Depends(get_db)):
     """الشركات المشتركة في DOU مع أعداد السائقين والمستخدمين، مع إمكانية التصفية بالدولة."""
     q = db.query(Tenant)
-    if country:
+    if country and isinstance(country, str):
         c_upper = country.strip().upper()
         q = q.filter(
             or_(
@@ -459,6 +459,7 @@ def list_tenants(country: Optional[str] = Query(None), db: Session = Depends(get
                 "monthly_fee": tenant.monthly_fee or 0,
                 "subscription_status": tenant.subscription_status or "ACTIVE",
                 "due_date": tenant.due_date.isoformat() if tenant.due_date else None,
+                "due_date_badge": "بلا تاريخ استحقاق" if tenant.due_date is None else None,
                 "couriers_count": db.query(Courier)
                 .filter(Courier.tenant_id == tenant.id)
                 .count(),
@@ -1341,7 +1342,18 @@ def subscription_alerts(db: Session = Depends(get_db)):
     rows = []
     for t in db.query(Tenant).all():
         days = (t.due_date - now).days if t.due_date else None
-        if t.subscription_status in ("OVERDUE", "SUSPENDED") or (
+        if t.due_date is None:
+            rows.append(
+                {
+                    "tenant_id": t.id,
+                    "company": t.name,
+                    "status": t.subscription_status,
+                    "days_left": None,
+                    "due_date": None,
+                    "badge": "بلا تاريخ استحقاق",
+                }
+            )
+        elif t.subscription_status in ("OVERDUE", "SUSPENDED") or (
             days is not None and days <= 15
         ):
             rows.append(
@@ -1351,6 +1363,7 @@ def subscription_alerts(db: Session = Depends(get_db)):
                     "status": t.subscription_status,
                     "days_left": days,
                     "due_date": t.due_date.isoformat() if t.due_date else None,
+                    "badge": None,
                 }
             )
     return rows
@@ -1821,6 +1834,12 @@ def usage_summary(db: Session = Depends(get_db)):
         .scalar()
         or 0
     )
+    no_due_date_tenants = (
+        db.query(func.count(Tenant.id))
+        .filter(Tenant.due_date.is_(None))
+        .scalar()
+        or 0
+    )
     total_couriers = db.query(func.count(Courier.id)).scalar() or 0
     total_users = (
         db.query(func.count(User.id)).filter(User.role != UserRole.COURIER).scalar()
@@ -1856,6 +1875,7 @@ def usage_summary(db: Session = Depends(get_db)):
         "active_tenants": active_tenants,
         "suspended_tenants": suspended_tenants,
         "overdue_tenants": overdue_tenants,
+        "no_due_date_tenants": no_due_date_tenants,
         "total_couriers": total_couriers,
         "total_users": total_users,
         "tenants_near_limit": near_limit,
