@@ -497,6 +497,8 @@ def test_16_fleet_assigns_company_rider_creates_pending_approval_seat_vacant(cli
         courier_type=CourierType.COMPANY,
         country=Country.SA,
         employment_status="ACTIVE",
+        photo_url="https://dou.sa/photos/khaled.jpg",
+        vehicle_plate="1234-XYZ",
     )
     db.add(company_courier)
     db.commit()
@@ -586,6 +588,10 @@ def test_18_merchant_lists_pending_rider_approvals_with_privacy_redacted_phone(c
     assert "***" in appr["courier_phone_masked"] or "•••" in appr["courier_phone_masked"] or appr["courier_phone_masked"] != "+966551234567"
     assert "national_id" not in appr or appr["national_id"] is None
     assert "payout" not in appr
+    assert "courier_photo_url" in appr, "Must include courier_photo_url in approval schema"
+    assert "vehicle_plate" in appr, "Must include vehicle_plate in approval schema"
+    assert appr["courier_photo_url"] == "https://dou.sa/photos/khaled.jpg"
+    assert appr["vehicle_plate"] == "1234-XYZ"
 
 
 def test_19_merchant_approves_company_rider_seat_becomes_assigned(client, test_data):

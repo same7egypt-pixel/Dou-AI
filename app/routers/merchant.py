@@ -16,9 +16,11 @@ from app.models.entities import (
     AppSetting,
     Courier,
     GeoCity,
+    RiderVehicleAssignment,
     Tenant,
     User,
     UserRole,
+    Vehicle,
 )
 from app.models.merchant import (
     BookingStatus,
@@ -322,6 +324,8 @@ class RiderApprovalOut(BaseModel):
     courier_id: int
     courier_name: str
     courier_phone_masked: str
+    courier_photo_url: Optional[str] = None
+    vehicle_plate: Optional[str] = None
     status: str
     rejection_reason: Optional[str] = None
     requested_at: datetime
@@ -1920,6 +1924,23 @@ def list_rider_approvals_merchant(
             req_time = req_time.replace(tzinfo=timezone.utc)
         is_delayed = bool(a.status == "PENDING" and req_time and (now_utc - req_time) > timedelta(hours=24))
 
+        courier = db.get(Courier, a.courier_id)
+        photo_url = courier.photo_url if courier else None
+        vehicle_plate = courier.vehicle_plate if courier else None
+        if not vehicle_plate and courier:
+            assign = (
+                db.query(RiderVehicleAssignment)
+                .filter(
+                    RiderVehicleAssignment.courier_id == courier.id,
+                    RiderVehicleAssignment.effective_to.is_(None),
+                )
+                .first()
+            )
+            if assign:
+                veh = db.get(Vehicle, assign.vehicle_id)
+                if veh:
+                    vehicle_plate = veh.plate_number
+
         results.append(
             RiderApprovalOut(
                 id=a.id,
@@ -1931,6 +1952,8 @@ def list_rider_approvals_merchant(
                 courier_id=a.courier_id,
                 courier_name=a.courier_name,
                 courier_phone_masked=masked_phone,
+                courier_photo_url=photo_url,
+                vehicle_plate=vehicle_plate,
                 status=a.status,
                 rejection_reason=a.rejection_reason,
                 requested_at=a.requested_at,
@@ -1992,6 +2015,23 @@ def decide_rider_approval_merchant(
     phone = approval.courier_phone or ""
     masked_phone = phone[:4] + "***" + phone[-3:] if len(phone) >= 7 else "***"
 
+    courier = db.get(Courier, approval.courier_id)
+    photo_url = courier.photo_url if courier else None
+    vehicle_plate = courier.vehicle_plate if courier else None
+    if not vehicle_plate and courier:
+        assign = (
+            db.query(RiderVehicleAssignment)
+            .filter(
+                RiderVehicleAssignment.courier_id == courier.id,
+                RiderVehicleAssignment.effective_to.is_(None),
+            )
+            .first()
+        )
+        if assign:
+            veh = db.get(Vehicle, assign.vehicle_id)
+            if veh:
+                vehicle_plate = veh.plate_number
+
     return RiderApprovalOut(
         id=approval.id,
         booking_id=approval.booking_id,
@@ -2002,6 +2042,8 @@ def decide_rider_approval_merchant(
         courier_id=approval.courier_id,
         courier_name=approval.courier_name,
         courier_phone_masked=masked_phone,
+        courier_photo_url=photo_url,
+        vehicle_plate=vehicle_plate,
         status=approval.status,
         rejection_reason=approval.rejection_reason,
         requested_at=approval.requested_at,
