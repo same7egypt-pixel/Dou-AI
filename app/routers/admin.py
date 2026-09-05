@@ -1444,7 +1444,7 @@ class CourierIn(BaseModel):
     phone: str
     courier_type: str = "FREELANCER"
     country: str = "SA"
-    tenant_id: Optional[int] = None
+    tenant_id: int
 
 
 class CourierPatch(BaseModel):
@@ -1474,14 +1474,13 @@ def list_couriers(db: Session = Depends(get_db)):
 
 @router.post("/couriers")
 def add_courier(payload: CourierIn, db: Session = Depends(get_db)):
-    if payload.tenant_id is not None:
-        tenant = db.get(Tenant, payload.tenant_id)
-        if not tenant:
-            raise HTTPException(404, "المستأجر غير موجود")
-        try:
-            enforce_courier_plan_cap(db, payload.tenant_id)
-        except ValueError as exc:
-            raise HTTPException(422, str(exc))
+    tenant = db.get(Tenant, payload.tenant_id)
+    if not tenant:
+        raise HTTPException(404, "المستأجر غير موجود")
+    try:
+        enforce_courier_plan_cap(db, payload.tenant_id)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
 
     c = Courier(
         tenant_id=payload.tenant_id,

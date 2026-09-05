@@ -159,6 +159,17 @@ def test_fix_3_admin_add_courier_enforces_plan_cap():
         db.close()
 
 
+def test_fix_3b_courier_in_requires_tenant_id():
+    """Verify tenant_id is strictly required on CourierIn and cannot be omitted to bypass plan caps."""
+    from pydantic import ValidationError
+    from app.routers.admin import CourierIn
+
+    with pytest.raises(ValidationError) as exc_info:
+        CourierIn(name="Orphan Rider", phone="966500000099")
+    errors = exc_info.value.errors()
+    assert any("tenant_id" in err["loc"] for err in errors), "tenant_id must be a required field"
+
+
 def test_fix_4_subscription_null_due_date_surfaced_in_alerts():
     from app.routers.admin import subscription_alerts
 
