@@ -1578,7 +1578,10 @@ def get_tax_invoice(
         vat_amount = float(ledger.vat_amount) if ledger.vat_amount is not None else 0.0
         is_tax_invoice = bool(vat_amount > 0 or vat_rate > 0)
         if is_tax_invoice and not dou_vat_number:
-            dou_vat_number = "300000000000003"
+            raise HTTPException(
+                status_code=409,
+                detail="هذه التسوية مختومة بضريبة ولا يوجد رقم تسجيل ضريبي مسجّل للمنصة — لا يمكن إصدار فاتورة ضريبية. راجع إعدادات المنصة.",
+            )
     elif has_dou_vat:
         vat_rate = float(ledger.vat_rate) if ledger.vat_rate is not None else 0.15
         vat_amount = (

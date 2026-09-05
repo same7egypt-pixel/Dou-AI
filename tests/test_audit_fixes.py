@@ -1,11 +1,12 @@
 from datetime import date
 from decimal import Decimal
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
-from app.models.entities import Courier, DailyLog, Tenant, Country, CourierType
+from app.models.entities import Country, Courier, CourierType, DailyLog, Tenant
 from app.routers.driver_dedicated import _record_delivery_to_daily_log
 
 TEST_DB_URL = "sqlite:///./test_audit_db.db"
@@ -67,8 +68,9 @@ def test_fix_1_record_delivery_increments_orders_count():
 
 def test_fix_2_cash_order_requires_positive_amount():
     from fastapi import HTTPException
+
     from app.models.merchant import PaymentMethod
-    from app.routers.merchant import dispatch_order, DispatchOrderRequest
+    from app.routers.merchant import DispatchOrderRequest, dispatch_order
 
     db = TestingSession()
     try:
@@ -99,8 +101,9 @@ def test_fix_2_cash_order_requires_positive_amount():
 
 def test_fix_3_admin_add_courier_enforces_plan_cap():
     from fastapi import HTTPException
+
     from app.models.entities import SubscriptionPlan
-    from app.routers.admin import add_courier, CourierIn
+    from app.routers.admin import CourierIn, add_courier
 
     db = TestingSession()
     try:
@@ -190,8 +193,8 @@ def test_fix_4_subscription_null_due_date_surfaced_in_alerts():
         assert usage["no_due_date_tenants"] >= 1
 
         # 4. billing subscription update ensures due_date is assigned
-        from app.routers.billing import billing_admin_subscribe, SubscriptionPayload
         from app.models.entities import User, UserRole
+        from app.routers.billing import SubscriptionPayload, billing_admin_subscribe
         admin_user = User(name="Admin", role=UserRole.DOU_ADMIN, phone="966500000000")
         res = billing_admin_subscribe(
             tid=tenant.id,
@@ -209,9 +212,10 @@ def test_fix_4_subscription_null_due_date_surfaced_in_alerts():
 
 def test_fix_5_branch_without_city_cannot_be_booked():
     from fastapi import HTTPException
+
     from app.models.entities import User, UserRole
     from app.models.merchant import MerchantAccount, MerchantBranch
-    from app.routers.admin_dedicated import create_booking_admin, CreateBookingPayload
+    from app.routers.admin_dedicated import CreateBookingPayload, create_booking_admin
 
     db = TestingSession()
     try:
@@ -258,6 +262,7 @@ def test_fix_5_branch_without_city_cannot_be_booked():
 
 def test_fix_6_unified_billable_bookings_filter():
     from datetime import time
+
     from app.models.entities import User, UserRole
     from app.models.merchant import (
         BookingStatus,
@@ -266,11 +271,11 @@ def test_fix_6_unified_billable_bookings_filter():
         MerchantBranch,
         ShiftType,
     )
-    from app.routers.merchant import _build_statement_line_items
     from app.routers.admin_dedicated import (
-        generate_settlements_admin,
         GenerateSettlementsPayload,
+        generate_settlements_admin,
     )
+    from app.routers.merchant import _build_statement_line_items
 
     db = TestingSession()
     try:
@@ -341,7 +346,9 @@ def test_fix_6_unified_billable_bookings_filter():
 def test_fix_7_claim_pool_order_enforces_tenant_isolation(monkeypatch):
     monkeypatch.setattr("app.routers.driver_dedicated.ENABLE_OPEN_POOL", True)
     from datetime import time
+
     from fastapi import HTTPException
+
     from app.models.merchant import (
         BookingStatus,
         BranchDispatchOrder,
@@ -434,9 +441,10 @@ def test_fix_7_claim_pool_order_enforces_tenant_isolation(monkeypatch):
 
 def test_fix_8_get_endpoints_do_not_commit_db():
     from unittest.mock import MagicMock
+
     from app.models.entities import User, UserRole
-    from app.routers.readiness import get_readiness
     from app.routers.documents import get_kyc_status
+    from app.routers.readiness import get_readiness
 
     db = TestingSession()
     try:
@@ -513,6 +521,24 @@ def test_fix_9_issued_invoice_preserves_stamped_vat():
         db.commit()
 
         # No AppSetting for dou_vat_number exists in this test DB!
+        from fastapi import HTTPException
+        with pytest.raises(HTTPException) as exc_info:
+            get_tax_invoice(
+                merchant_account_id=merchant.id,
+                billing_month="2026-07",
+                settlement_id=ledger.id,
+                month="2026-07",
+                db=db,
+                auth_account_id=merchant.id,
+            )
+        assert exc_info.value.status_code == 409
+        assert "لا يوجد رقم تسجيل ضريبي مسجّل للمنصة" in exc_info.value.detail
+
+        # Now when dou_vat_number IS configured, issuance succeeds with that number
+        from app.models.entities import AppSetting
+        db.add(AppSetting(key="dou_vat_number", value="311111111111113"))
+        db.commit()
+
         invoice = get_tax_invoice(
             merchant_account_id=merchant.id,
             billing_month="2026-07",
@@ -521,9 +547,9 @@ def test_fix_9_issued_invoice_preserves_stamped_vat():
             db=db,
             auth_account_id=merchant.id,
         )
-
-        # On buggy code: has_dou_vat is False, so is_tax_invoice=False, vat_rate=0.0, vat_amount=0.0
-        assert invoice.is_tax_invoice is True, "Issued settlement with stamped VAT must remain a tax invoice"
+        assert invoice.is_tax_invoice is True
+        assert invoice.seller.vat_number == "311111111111113"
+        assert "300000000000003" not in str(invoice.dict())
         assert invoice.vat_rate == 0.15
         assert invoice.vat_amount == 1500.0
         assert invoice.total_amount == 11500.0
@@ -536,9 +562,16 @@ def test_fix_10_courier_attendance_corrections_tracking():
     a tracking card for courier attendance disputes showing PENDING / APPROVED / REJECTED
     with decision note/reason, and refresh after submission.
     """
-    from datetime import datetime
     import pathlib
-    from app.models.entities import Tenant, Courier, User, UserRole, AttendanceCorrectionRequest
+    from datetime import datetime
+
+    from app.models.entities import (
+        AttendanceCorrectionRequest,
+        Courier,
+        Tenant,
+        User,
+        UserRole,
+    )
     from app.routers.timekeeping import list_corrections
 
     db = TestingSession()
