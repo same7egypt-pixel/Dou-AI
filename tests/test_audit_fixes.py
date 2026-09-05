@@ -100,64 +100,56 @@ def test_fix_2_cash_order_requires_positive_amount():
 
 
 def test_fix_3_admin_add_courier_enforces_plan_cap():
+    """The plan cap holds on the admin path, and a rider still needs a real branch.
+
+    add_courier now goes through create_rider_record, so it needs the same
+    operating structure the fleet path needs — a live contract branch is what
+    gives a rider their supervisor, project and city. The cap itself is
+    enforced inside that shared path.
+    """
     from fastapi import HTTPException
 
     from app.models.entities import SubscriptionPlan
     from app.routers.admin import CourierIn, add_courier
 
-    db = TestingSession()
+    db, admin, tenant, contract, branch = _admin_ctx()
     try:
-        plan = SubscriptionPlan(
-            code="CAP1",
-            name="Cap 1 Rider",
-            monthly_price=100.0,
-            max_couriers=1,
+        db.add(
+            SubscriptionPlan(
+                code="CAP1", name="Cap 1 Rider", monthly_price=100.0, max_couriers=1
+            )
         )
-        db.add(plan)
-        db.flush()
-
-        tenant = Tenant(name="Small Fleet", country=Country.SA, plan="CAP1")
-        db.add(tenant)
+        tenant.plan = "CAP1"
         db.commit()
 
-        # First courier should succeed
-        c1 = add_courier(
-            payload=CourierIn(
-                name="Rider One",
-                phone="966500000011",
-                tenant_id=tenant.id,
-            ),
-            db=db,
-        )
-        assert c1["id"] is not None
-
-        # Non-existent tenant must raise 404
-        with pytest.raises(HTTPException) as exc_info404:
-            add_courier(
-                payload=CourierIn(
-                    name="Rider Ghost",
-                    phone="966500000099",
-                    tenant_id=999999,
-                ),
-                db=db,
+        def _payload(name, phone, tenant_id=None):
+            return CourierIn(
+                name=name,
+                phone=phone,
+                tenant_id=tenant_id or tenant.id,
+                password="RiderPass123!",
+                contract_id=contract.id,
+                contract_branch_id=branch.id,
             )
-        assert exc_info404.value.status_code == 404
 
-        # Second courier must raise 422 because cap is 1
-        with pytest.raises(HTTPException) as exc_info:
+        first = add_courier(payload=_payload("Rider One", "966500000011"), db=db, user=admin)
+        db.commit()
+        assert first["id"] is not None
+
+        with pytest.raises(HTTPException) as ghost:
             add_courier(
-                payload=CourierIn(
-                    name="Rider Two",
-                    phone="966500000012",
-                    tenant_id=tenant.id,
-                ),
+                payload=_payload("Rider Ghost", "966500000099", tenant_id=999999),
                 db=db,
+                user=admin,
             )
-        assert exc_info.value.status_code in (422, 400)
-        assert "الأقصى" in exc_info.value.detail
+        assert ghost.value.status_code == 404
+
+        with pytest.raises(HTTPException) as capped:
+            add_courier(payload=_payload("Rider Two", "966500000012"), db=db, user=admin)
+        assert capped.value.status_code in (422, 400)
+        assert "الأقصى" in capped.value.detail
     finally:
         db.close()
-
 
 def test_fix_3b_courier_in_requires_tenant_id():
     """Verify tenant_id is strictly required on CourierIn and cannot be omitted to bypass plan caps."""
@@ -725,3 +717,139 @@ def test_fix_10_courier_attendance_corrections_tracking():
 
     finally:
         db.close()
+
+
+# ─── Codex field-trial findings ───────────────────────────────────────────────
+
+
+def _admin_ctx():
+    """A tenant with a real operating structure, plus the DOU admin acting on it.
+
+    add_courier now goes through create_rider_record, which insists on a live
+    contract branch — that branch is what gives a rider their supervisor,
+    project and city. Reusing the import tests' builder keeps one definition of
+    "a fully set up tenant" instead of a second one drifting here.
+    """
+    from tests.test_w6_imports import (
+        make_branch,
+        make_contract,
+        make_country,
+        make_city,
+        make_operating_city,
+        make_project,
+        make_supervisor,
+        make_tenant,
+        make_admin,
+    )
+
+    db = TestingSession()
+    tenant = make_tenant(db)
+    admin = make_admin(db, tenant_id=tenant.id)
+    country = make_country(db)
+    city = make_city(db, country_id=country.id)
+    make_operating_city(db, tenant_id=tenant.id, geo_city_id=city.id)
+    project = make_project(db, tenant_id=tenant.id)
+    contract = make_contract(db, tenant_id=tenant.id)
+    sup = make_supervisor(db, tenant_id=tenant.id)
+    branch = make_branch(
+        db,
+        tenant_id=tenant.id,
+        contract_id=contract.id,
+        city_id=city.id,
+        supervisor_id=sup.id,
+        project_id=project.id,
+    )
+    return db, admin, tenant, contract, branch
+
+
+def test_fix_11_admin_created_courier_can_actually_log_in():
+    """A rider DOU support adds must be able to sign in to the driver app.
+
+    add_courier used to insert a bare Courier row with no User, so every rider
+    created from the admin console needed a hand-written SQL insert before they
+    could work. It now goes through create_rider_record, the same path the fleet
+    uses, which creates the courier and its login together.
+    """
+    from app.models.entities import User, UserRole
+    from app.routers.admin import CourierIn, add_courier
+
+    db, admin, tenant, contract, branch = _admin_ctx()
+    payload = CourierIn(
+        name="مندوب أنشأته الإدارة",
+        phone="0555512340",
+        courier_type="COMPANY",
+        country="SA",
+        tenant_id=tenant.id,
+        password="RiderPass123!",
+        contract_id=contract.id,
+        contract_branch_id=branch.id,
+        photo_url="https://cdn.example/r.jpg",
+        vehicle_plate="ABC 1234",
+    )
+    created = add_courier(payload=payload, db=db, user=admin)
+    db.commit()
+
+    account = (
+        db.query(User)
+        .filter(User.courier_id == created["id"], User.role == UserRole.COURIER)
+        .first()
+    )
+    assert account is not None, "a rider created by DOU admin has no login account"
+    assert account.tenant_id == tenant.id
+    db.close()
+
+
+def test_fix_12_admin_courier_keeps_photo_and_plate():
+    """The plate and photo the merchant approves against must survive creation."""
+    from app.models.entities import Courier
+    from app.routers.admin import CourierIn, add_courier
+
+    db, admin, tenant, contract, branch = _admin_ctx()
+    created = add_courier(
+        payload=CourierIn(
+            name="مندوب بصورة ولوحة",
+            phone="0555512341",
+            courier_type="COMPANY",
+            country="SA",
+            tenant_id=tenant.id,
+            password="RiderPass123!",
+            contract_id=contract.id,
+            contract_branch_id=branch.id,
+            photo_url="https://cdn.example/photo.jpg",
+            vehicle_plate="XYZ 9876",
+        ),
+        db=db,
+        user=admin,
+    )
+    db.commit()
+
+    rider = db.get(Courier, created["id"])
+    assert rider.photo_url == "https://cdn.example/photo.jpg"
+    assert rider.vehicle_plate == "XYZ 9876"
+    db.close()
+
+
+def test_fix_13_duplicate_courier_phone_is_a_message_not_a_500():
+    """A phone already on file must come back as a sentence, not an IntegrityError."""
+    from fastapi import HTTPException
+
+    from app.routers.admin import CourierIn, add_courier
+
+    db, admin, tenant, contract, branch = _admin_ctx()
+    base = dict(
+        name="مندوب مكرر",
+        courier_type="COMPANY",
+        country="SA",
+        tenant_id=tenant.id,
+        password="RiderPass123!",
+        contract_id=contract.id,
+        contract_branch_id=branch.id,
+    )
+    add_courier(payload=CourierIn(phone="0555512342", **base), db=db, user=admin)
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        add_courier(payload=CourierIn(phone="0555512342", **base), db=db, user=admin)
+    assert exc.value.status_code == 422
+    assert "مستخدم بالفعل" in str(exc.value.detail)
+    db.close()

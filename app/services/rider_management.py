@@ -6,7 +6,7 @@ weaken when an operation is applied to many riders.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
@@ -51,10 +51,22 @@ def enforce_courier_plan_cap(db: Session, tenant_id: int) -> None:
 
 
 def create_rider_record(
-    db: Session, user: User, payload: dict, enforce_plan: bool = True
+    db: Session,
+    user: User,
+    payload: dict,
+    enforce_plan: bool = True,
+    tenant_id: Optional[int] = None,
 ) -> tuple[Courier, User]:
-    """Create a courier and its login without committing the surrounding transaction."""
-    tenant_id = user.tenant_id
+    """Create a courier and its login without committing the surrounding transaction.
+
+    A fleet user creates riders inside their own tenant, so tenant_id comes from
+    the caller's account. A DOU admin has no tenant of their own and names the
+    fleet explicitly — that is what tenant_id overrides, and it is the only
+    difference between the two callers. Everything else (the login, the phone
+    uniqueness check, the plan cap) stays identical, because a rider created by
+    DOU support and a rider created by the fleet are the same rider.
+    """
+    tenant_id = tenant_id if tenant_id is not None else user.tenant_id
     if not tenant_id:
         raise ValueError("حساب الشركة غير مرتبط بكيان تشغيلي")
     name = str(payload.get("name") or "").strip()
@@ -110,6 +122,7 @@ def create_rider_record(
         emergency_phone=(payload.get("emergency_phone") or None),
         vehicle_type=(payload.get("vehicle_type") or None),
         vehicle_plate=(payload.get("vehicle_plate") or None),
+        photo_url=(payload.get("photo_url") or None),
         employment_status=payload.get("employment_status") or "ACTIVE",
         employment_model=payload.get("employment_model") or "DIRECT_HIRE",
         operator_tenant_id=payload.get("operator_tenant_id"),

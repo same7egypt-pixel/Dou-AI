@@ -347,6 +347,65 @@
     .seat-status-badge.vacant-tag { background: var(--amber); color: #000; font-weight: 800; }
 
     /* SCREEN 2: CAPACITY REQUESTS */
+    /* Rider approvals */
+    .approval-badge {
+      display: inline-block; min-width: 20px; padding: 1px 7px; margin-inline-start: 6px;
+      border-radius: 999px; background: #dc2626; color: #fff;
+      font-size: 12px; font-weight: 800; line-height: 18px;
+    }
+    .approvals-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px; margin-top: 18px;
+    }
+    .approvals-empty, .approvals-error {
+      margin-top: 24px; padding: 28px; text-align: center; border-radius: 12px;
+      background: rgba(148,163,184,0.08); color: #64748b; font-weight: 600;
+    }
+    .approvals-error { background: rgba(220,38,38,0.08); color: #b91c1c; }
+    .approval-card {
+      border: 1px solid rgba(148,163,184,0.28); border-radius: 14px; padding: 16px;
+      background: #fff; display: flex; flex-direction: column; gap: 12px;
+    }
+    .approval-card.approval-busy { opacity: 0.5; pointer-events: none; }
+    .approval-delayed {
+      background: rgba(245,158,11,0.14); color: #b45309; border-radius: 8px;
+      padding: 7px 10px; font-size: 13px; font-weight: 700;
+    }
+    .approval-head { display: flex; gap: 12px; align-items: center; }
+    .approval-photo {
+      width: 60px; height: 60px; border-radius: 12px; object-fit: cover; flex: none;
+      background: rgba(148,163,184,0.15);
+    }
+    .approval-photo-none {
+      display: flex; align-items: center; justify-content: center; text-align: center;
+      font-size: 10px; color: #94a3b8; font-weight: 700; padding: 4px;
+    }
+    .approval-name { font-size: 16px; font-weight: 800; color: #0f172a; }
+    .approval-fleet { font-size: 13px; font-weight: 700; color: #2563eb; }
+    .approval-branch { font-size: 12px; color: #64748b; }
+    .approval-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .approval-plate, .approval-phone {
+      padding: 4px 10px; border-radius: 7px; font-size: 13px; font-weight: 700;
+      background: rgba(148,163,184,0.14); color: #334155;
+    }
+    .approval-plate-none { color: #b45309; background: rgba(245,158,11,0.14); }
+    .approval-actions { display: flex; gap: 10px; margin-top: 2px; }
+    .approval-btn {
+      flex: 1; padding: 10px; border: 0; border-radius: 9px; cursor: pointer;
+      font-family: inherit; font-size: 14px; font-weight: 800;
+    }
+    .approval-approve { background: #16a34a; color: #fff; }
+    .approval-cancel { background: rgba(148,163,184,0.18); color: #475569; }
+    .approval-reason { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .approval-reason-label { font-size: 12px; font-weight: 700; color: #64748b; }
+    .approval-reason-input {
+      width: 100%; box-sizing: border-box; padding: 9px 11px; resize: vertical;
+      border: 1px solid rgba(148,163,184,0.4); border-radius: 8px;
+      font-family: inherit; font-size: 14px; background: rgba(148,163,184,0.08); color: inherit;
+    }
+    .approval-reason-actions { display: flex; gap: 10px; }
+    .approval-reject { background: rgba(220,38,38,0.1); color: #b91c1c; }
+
     .capacity-banner {
       background: var(--surface);
       border: 1px solid var(--line);
@@ -899,6 +958,9 @@
       <button class="tab-btn" data-target="screenCapacity">
         ⚡ طلبات تعديل السعة
       </button>
+      <button class="tab-btn" data-target="screenApprovals">
+        ✅ اعتماد المناديب <span class="approval-badge" id="approvalCountBadge" hidden>0</span>
+      </button>
       <button class="tab-btn" data-target="screenInvoice">
         🧾 الفاتورة الضريبية ZATCA
       </button>
@@ -951,6 +1013,27 @@
           </tbody>
         </table>
       </div>
+    </main>
+
+    <!-- ========================================== -->
+    <!-- SCREEN: RIDER APPROVALS                    -->
+    <!-- ========================================== -->
+    <main class="screen" id="screenApprovals">
+      <div class="capacity-banner">
+        <div class="capacity-banner-text">
+          <span class="capacity-banner-title">مناديب بانتظار موافقتك</span>
+          <span class="capacity-banner-sub">
+            المندوب لا ينزل الفرع ولا يستلم أي طلب قبل موافقتك. والأيام التي يقضيها المقعد
+            بانتظار قرارك لا تُحتسب عليك ولا تُدفع للأسطول.
+          </span>
+        </div>
+      </div>
+
+      <div id="approvalsEmpty" class="approvals-empty" hidden>
+        لا توجد طلبات اعتماد معلقة حالياً.
+      </div>
+
+      <div class="approvals-grid" id="approvalsContainer"></div>
     </main>
 
     <!-- ========================================== -->
@@ -1269,6 +1352,7 @@
       currentMonth: getCurrentMonthString(), // 'YYYY-MM'
       branches: [],
       capacityRequests: [],
+      riderApprovals: [],
       invoice: null,
       sla: null
     };
@@ -1328,6 +1412,7 @@
 
       if (screenId === 'screenBranches') loadBranchesOverview();
       if (screenId === 'screenCapacity') loadCapacityRequests();
+      if (screenId === 'screenApprovals') loadRiderApprovals();
       if (screenId === 'screenInvoice') loadTaxInvoice();
       if (screenId === 'screenSla') loadSlaIndicators();
     }
@@ -1565,6 +1650,141 @@
     // =========================================================================
     // SCREEN 2: CAPACITY REQUESTS
     // =========================================================================
+    // =========================================================================
+    // RIDER APPROVALS — the fleet proposes a rider, the merchant decides
+    // =========================================================================
+    async function loadRiderApprovals() {
+      const wrap = document.getElementById('approvalsContainer');
+      const empty = document.getElementById('approvalsEmpty');
+      const badge = document.getElementById('approvalCountBadge');
+      try {
+        const res = await apiCall('/merchant/account/' + state.accountId + '/rider-approvals?status=PENDING');
+        if (!res.ok) {
+          wrap.innerHTML = '<div class="approvals-error">تعذّر تحميل طلبات الاعتماد. حدّث الصفحة أو حاول بعد قليل.</div>';
+          empty.hidden = true;
+          return;
+        }
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.approvals || []);
+        state.riderApprovals = list;
+
+        if (badge) {
+          badge.textContent = list.length;
+          badge.hidden = list.length === 0;
+        }
+
+        if (!list.length) {
+          wrap.innerHTML = '';
+          empty.hidden = false;
+          return;
+        }
+        empty.hidden = true;
+        wrap.innerHTML = list.map(renderApprovalCard).join('');
+      } catch (err) {
+        console.error('Error loading rider approvals:', err);
+        wrap.innerHTML = '<div class="approvals-error">تعذّر تحميل طلبات الاعتماد.</div>';
+        empty.hidden = true;
+      }
+    }
+
+    function renderApprovalCard(a) {
+      const esc = (v) => String(v == null ? '' : v)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const photo = a.courier_photo_url
+        ? '<img class="approval-photo" src="' + esc(a.courier_photo_url) + '" alt="">'
+        : '<div class="approval-photo approval-photo-none">لا توجد صورة</div>';
+      const plate = a.vehicle_plate
+        ? '<span class="approval-plate mono">' + esc(a.vehicle_plate) + '</span>'
+        : '<span class="approval-plate approval-plate-none">لوحة غير مسجّلة</span>';
+      const delayed = a.is_delayed_over_24h
+        ? '<div class="approval-delayed">⏳ معلّق أكثر من ٢٤ ساعة — الأسطول ينتظر قرارك</div>'
+        : '';
+      return '' +
+        '<div class="approval-card" data-approval-id="' + a.id + '">' +
+          delayed +
+          '<div class="approval-head">' +
+            photo +
+            '<div class="approval-id">' +
+              '<div class="approval-name">' + esc(a.courier_name) + '</div>' +
+              '<div class="approval-fleet">' + esc(a.logistics_company_name || '') + '</div>' +
+              '<div class="approval-branch">' + esc(a.branch_name || '') + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="approval-meta">' + plate +
+            '<span class="approval-phone mono">' + esc(a.courier_phone_masked || '') + '</span>' +
+          '</div>' +
+          '<div class="approval-actions">' +
+            '<button class="approval-btn approval-approve" data-act="approve" data-id="' + a.id + '">موافقة</button>' +
+            '<button class="approval-btn approval-reject" data-act="reject" data-id="' + a.id + '">رفض</button>' +
+          '</div>' +
+        '</div>';
+    }
+
+    function openRejectReason(approvalId) {
+      const card = document.querySelector('.approval-card[data-approval-id="' + approvalId + '"]');
+      if (!card || card.querySelector('.approval-reason')) return;
+      const box = document.createElement('div');
+      box.className = 'approval-reason';
+      box.innerHTML =
+        '<label class="approval-reason-label">سبب الرفض — يصل للأسطول كما كتبته</label>' +
+        '<textarea class="approval-reason-input" rows="2" placeholder="مثال: اللوحة غير مطابقة للمركبة"></textarea>' +
+        '<div class="approval-reason-actions">' +
+          '<button class="approval-btn approval-reject" data-act="reject-confirm" data-id="' + approvalId + '">تأكيد الرفض</button>' +
+          '<button class="approval-btn approval-cancel" data-act="reject-cancel" data-id="' + approvalId + '">تراجع</button>' +
+        '</div>';
+      card.appendChild(box);
+      const ta = box.querySelector('.approval-reason-input');
+      if (ta) ta.focus();
+    }
+
+    async function decideRiderApproval(approvalId, decision) {
+      let reason = null;
+      if (decision === 'REJECTED') {
+        const card0 = document.querySelector('.approval-card[data-approval-id="' + approvalId + '"]');
+        const ta = card0 ? card0.querySelector('.approval-reason-input') : null;
+        reason = ta ? ta.value.trim() : '';
+        if (!reason) {
+          showToast('اكتب سبب الرفض حتى يعرف الأسطول ماذا يصحّح', 'error');
+          if (ta) ta.focus();
+          return;
+        }
+      }
+      const card = document.querySelector('.approval-card[data-approval-id="' + approvalId + '"]');
+      if (card) card.classList.add('approval-busy');
+      try {
+        const res = await apiCall(
+          '/merchant/account/' + state.accountId + '/rider-approvals/' + approvalId + '/decide',
+          { method: 'POST', body: JSON.stringify({ action: decision, rejection_reason: reason }) }
+        );
+        if (!res.ok) {
+          let msg = 'تعذّر تنفيذ القرار.';
+          try { const e = await res.json(); if (e && e.detail) msg = e.detail; } catch (_) {}
+          showToast(msg, 'error');
+          if (card) card.classList.remove('approval-busy');
+          return;
+        }
+        showToast(decision === 'APPROVED' ? 'تمت الموافقة — المندوب ينزل الفرع الآن' : 'تم الرفض وأُبلغ الأسطول بالسبب', 'success');
+        loadRiderApprovals();
+      } catch (err) {
+        console.error('Error deciding approval:', err);
+        showToast('تعذّر الاتصال بالخادم.', 'error');
+        if (card) card.classList.remove('approval-busy');
+      }
+    }
+
+    document.addEventListener('click', function (ev) {
+      const btn = ev.target.closest('.approval-btn');
+      if (!btn) return;
+      const act = btn.dataset.act;
+      if (act === 'approve') return decideRiderApproval(btn.dataset.id, 'APPROVED');
+      if (act === 'reject') return openRejectReason(btn.dataset.id);
+      if (act === 'reject-confirm') return decideRiderApproval(btn.dataset.id, 'REJECTED');
+      if (act === 'reject-cancel') {
+        const box = btn.closest('.approval-reason');
+        if (box) box.remove();
+      }
+    });
+
     async function loadCapacityRequests() {
       try {
         const res = await apiCall('/merchant/account/' + state.accountId + '/capacity-requests');
@@ -1604,7 +1824,7 @@
           '<td class="mono">#' + r.id + '</td>' +
           '<td><strong>' + (r.branch_name || ('فرع #' + r.merchant_branch_id)) + '</strong></td>' +
           '<td style="color:' + typeColor + '; font-weight:700;">' + typeLabel + '</td>' +
-          '<td class="mono" style="font-weight:800;">' + r.requested_seat_count + ' مقعد</td>' +
+          '<td class="mono" style="font-weight:800;">' + r.requested_capacity + ' مقعد</td>' +
           '<td class="mono">' + (r.effective_month || '—') + '</td>' +
           '<td><span class="status-badge ' + st.cls + '">' + st.label + '</span></td>' +
           '<td class="mono" style="font-size:11px; color:var(--muted);">' + (r.created_at || '').substring(0, 10) + '</td>' +
@@ -1635,10 +1855,9 @@
           method: 'POST',
           body: JSON.stringify({
             merchant_branch_id: branchId,
-            request_type: reqType,
-            requested_seat_count: seatCount,
+            requested_capacity: seatCount,
             effective_month: effectiveMonth,
-            notes: notes
+            reason: notes
           })
         });
 

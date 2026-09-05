@@ -17,7 +17,6 @@ from ..models.entities import (
     Channel,
     Country,
     Courier,
-    CourierType,
     Fleet,
     GeoCountry,
     Merchant,
@@ -44,7 +43,7 @@ from ..services.metabase_adapter import (
     to_structured_response,
 )
 from ..services.metabase_registry import APPROVED_QUESTIONS, get_question
-from ..services.rider_management import enforce_courier_plan_cap
+from ..services.rider_management import create_rider_record
 from .admin_dedicated import (
     AdminCapacityRequestOut,
     list_capacity_requests_admin,
@@ -1445,6 +1444,18 @@ class CourierIn(BaseModel):
     courier_type: str = "FREELANCER"
     country: str = "SA"
     tenant_id: int
+    password: str
+    # A rider's operating branch is the single source for their contract, city,
+    # project and supervisor. Creating one without it produced a rider nothing
+    # could schedule, scope or pay — which is the same orphan the tenant_id fix
+    # closed, one level down.
+    contract_id: int
+    contract_branch_id: int
+    photo_url: Optional[str] = None
+    vehicle_plate: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    nationality: Optional[str] = None
+    supervisor_id: Optional[int] = None
 
 
 class CourierPatch(BaseModel):
@@ -1473,27 +1484,51 @@ def list_couriers(db: Session = Depends(get_db)):
 
 
 @router.post("/couriers")
-def add_courier(payload: CourierIn, db: Session = Depends(get_db)):
+def add_courier(
+    payload: CourierIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Create a rider on behalf of a fleet, through the same path the fleet uses.
+
+    This endpoint used to build a bare Courier row: no login, no duplicate-phone
+    check, no vehicle plate. A rider created here could not sign in to the
+    driver app at all, so every rider DOU support added needed a hand-written
+    SQL insert afterwards to become a working account. It now delegates to
+    create_rider_record — the one path that creates a rider and its login
+    together — with the fleet named explicitly instead of taken from the caller.
+    """
     tenant = db.get(Tenant, payload.tenant_id)
     if not tenant:
         raise HTTPException(404, "المستأجر غير موجود")
+
     try:
-        enforce_courier_plan_cap(db, payload.tenant_id)
+        c, _rider_user = create_rider_record(
+            db,
+            user,
+            {
+                "name": payload.name,
+                "phone": payload.phone,
+                "password": payload.password,
+                "courier_type": payload.courier_type
+                if payload.courier_type in ("COMPANY", "FREELANCER")
+                else "FREELANCER",
+                "country": payload.country if payload.country in ("SA", "EG") else "SA",
+                "photo_url": payload.photo_url,
+                "vehicle_plate": payload.vehicle_plate,
+                "vehicle_type": payload.vehicle_type,
+                "nationality": payload.nationality,
+                "contract_id": payload.contract_id,
+                "contract_branch_id": payload.contract_branch_id,
+                "supervisor_id": payload.supervisor_id,
+            },
+            tenant_id=payload.tenant_id,
+        )
     except ValueError as exc:
+        # Duplicate phone, short password, plan cap — all reach the caller as a
+        # sentence they can act on, not a 500 from an IntegrityError.
         raise HTTPException(422, str(exc))
 
-    c = Courier(
-        tenant_id=payload.tenant_id,
-        name=payload.name,
-        phone=payload.phone,
-        courier_type=CourierType(payload.courier_type)
-        if payload.courier_type in ("COMPANY", "FREELANCER")
-        else CourierType.FREELANCER,
-        country=Country(payload.country)
-        if payload.country in ("SA", "EG")
-        else Country.SA,
-    )
-    db.add(c)
     db.commit()
     db.refresh(c)
     return {

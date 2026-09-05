@@ -52,6 +52,10 @@ from app.utils.security import (
     verify_pin,
 )
 
+# The largest cash a restaurant order plausibly carries in SAR. Well above a
+# family order, well below an invoice number typed into the amount box.
+MAX_CASH_ORDER_AMOUNT = Decimal("5000.00")
+
 router = APIRouter(prefix="/merchant", tags=["merchant"])
 
 
@@ -812,12 +816,48 @@ def dispatch_order(
         else:
             raise HTTPException(status_code=422, detail="يلزم إدخال عنوان التوصيل أو رقم الفاتورة.")
 
+    # An invoice number the cashier already sent is the same order, not a second
+    # one. Without this a double-click — or a retry on a slow connection — put
+    # two dispatches on one meal: the rider drives it twice and carries the cash
+    # for a delivery that never happened, which surfaces later as a shortfall in
+    # their float that nobody can explain.
+    if payload.external_order_id:
+        existing = (
+            db.query(BranchDispatchOrder)
+            .filter(
+                BranchDispatchOrder.merchant_branch_id == branch_id,
+                BranchDispatchOrder.external_order_id == payload.external_order_id,
+            )
+            .first()
+        )
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"الفاتورة رقم {payload.external_order_id} مُرسلة بالفعل "
+                    f"(طلب #{existing.id}) — لا يمكن إرسالها مرتين."
+                ),
+            )
+
     # COD calculation
     if payload.payment_method == PaymentMethod.cash:
         if payload.order_amount is None or payload.order_amount <= 0:
             raise HTTPException(
                 status_code=422,
                 detail="طلب الدفع كاش يلزمه مبلغ التحصيل — لا يمكن إرسال المندوب بمبلغ صفر.",
+            )
+        # A restaurant order is not a five-figure sum. The number that reaches
+        # this field by mistake is usually the invoice number typed into the
+        # amount box, and the rider is the one who ends up holding it: their
+        # float shows an impossible debt and the account locks.
+        if payload.order_amount > MAX_CASH_ORDER_AMOUNT:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"مبلغ التحصيل {payload.order_amount:,.2f} ر.س أكبر من الحد المسموح "
+                    f"({MAX_CASH_ORDER_AMOUNT:,.0f} ر.س) — تأكد أنك لم تُدخل رقم الفاتورة "
+                    "في خانة المبلغ."
+                ),
             )
         cod_amount = payload.order_amount
     else:

@@ -1233,3 +1233,91 @@ def test_22c_pending_seat_is_labelled_not_shown_as_vacant(client, test_data):
 
     # The vacant seat still carries full SLA billing; the pending one does not.
     assert vacant[0]["active_days"] > pending[0]["active_days"]
+
+
+def _cashier_on_verified_branch(client, test_data, pin):
+    """A verified branch and a cashier token for it."""
+    from decimal import Decimal
+
+    ma_id = test_data["merchant_account_id"]
+    db = TestingSessionLocal()
+    branch = MerchantBranch(
+        merchant_account_id=ma_id,
+        branch_name=f"فرع الكاشير {pin}",
+        city="الرياض",
+        latitude=Decimal("24.7"),
+        longitude=Decimal("46.6"),
+        cashier_access_pin=pin,
+        verification_status="VERIFIED",
+    )
+    db.add(branch)
+    db.commit()
+    db.refresh(branch)
+    bid = branch.id
+    db.close()
+    token = create_branch_token(bid, merchant_account_id=ma_id)
+    return bid, {"Authorization": f"Bearer {token}"}
+
+
+def test_26_duplicate_invoice_number_is_refused(client, test_data):
+    """The same invoice sent twice is one order, not two.
+
+    A double-click, or a retry on a slow connection, used to create a second
+    dispatch for one meal: the rider drives it twice and carries cash for a
+    delivery that never happened, which turns up later as a shortfall in their
+    float that nobody can trace. The guard runs before the order is built, so
+    it is asserted here against an invoice the branch already has.
+    """
+    from app.models.merchant import BranchDispatchOrder
+
+    branch_id, headers = _cashier_on_verified_branch(client, test_data, pin="4141")
+
+    db = TestingSessionLocal()
+    db.add(
+        BranchDispatchOrder(
+            merchant_branch_id=branch_id,
+            order_date=date(2026, 8, 12),
+            customer_name="عميل الطلب الأصلي",
+            customer_phone="0500000001",
+            delivery_address_text="حي النخيل",
+            external_order_id="INV-DUP-001",
+        )
+    )
+    db.commit()
+    db.close()
+
+    resp = client.post(
+        f"/merchant/branch/{branch_id}/orders",
+        json={
+            "external_order_id": "INV-DUP-001",
+            "customer_name": "عميل",
+            "customer_phone": "0500000001",
+            "delivery_address": "حي النخيل",
+            "payment_method": "cash",
+            "order_amount": 120.0,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 409, (
+        f"an invoice the branch already sent must be refused, got {resp.status_code}: {resp.text}"
+    )
+    assert "بالفعل" in resp.json()["detail"]
+
+
+def test_27_cash_amount_above_the_ceiling_is_refused(client, test_data):
+    """An invoice number typed into the amount box must not become a rider's debt."""
+    branch_id, headers = _cashier_on_verified_branch(client, test_data, pin="4242")
+    resp = client.post(
+        f"/merchant/branch/{branch_id}/orders",
+        json={
+            "external_order_id": "INV-BIG-001",
+            "customer_name": "عميل",
+            "customer_phone": "0500000002",
+            "delivery_address": "حي النخيل",
+            "payment_method": "cash",
+            "order_amount": 10_000_000.0,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 422, f"expected a refusal, got {resp.status_code}"
+    assert "الحد المسموح" in resp.json()["detail"]
