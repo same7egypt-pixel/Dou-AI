@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import re
+import shutil as _shutil
 import subprocess
 import sys
 import urllib.error
@@ -27,6 +28,15 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# البوابة اتكتبت لجهاز التطوير. جوه حاوية الإنتاج، `.git` و`tests/` و
+# `.github/` مستثنيين من الصورة و`git` مش متثبّت — وده مقصود وصح. أي فحص
+# بيقرا منهم هناك بيرجّع ✗ على حاجة سليمة، والنتيجة المضلّلة أسوأ من مفيش نتيجة.
+IN_CONTAINER = (
+    Path("/.dockerenv").exists()
+    or not (ROOT / ".git").exists()
+    or _shutil.which("git") is None
+)
 
 PASS, FAIL, WARN, MANUAL = "PASS", "FAIL", "WARN", "MANUAL"
 MARK = {PASS: "✓", FAIL: "✗", WARN: "⚠", MANUAL: "◐"}
@@ -106,6 +116,9 @@ def check_ci() -> Check:
     """الكود المكسور ما يوصلش الإنتاج."""
     wf_dir = ROOT / ".github" / "workflows"
     files = list(wf_dir.glob("*.yml")) + list(wf_dir.glob("*.yaml")) if wf_dir.exists() else []
+    if not files and IN_CONTAINER:
+        return Check("٢", "CI", MANUAL, "مش قابل للقياس من جوه الحاوية",
+                     ".github مستثنى من الصورة — شغّل الفحص من المستودع")
     if not files:
         return Check("٢", "CI", FAIL, "مفيش .github/workflows",
                      "لينت مكسور وصل الإنتاج مرتين قبل كده")
@@ -128,6 +141,16 @@ def check_deploy_drift(url: str | None) -> Check:
     ملف غير متتبَّع مش دايمًا شغل ضايع — ممكن يبقى إعدادات جهاز أو استثناء
     مقصود. الفرق بيتقال بالاسم، مش بالعدد، عشان البوابة ما تصرخش من غير سبب.
     """
+    if IN_CONTAINER:
+        deployed = (_get_json(f"{url}/health") or {}).get("commit") if url else None
+        if deployed and deployed != "unknown":
+            return Check("٣", "تعرف إيه الشغال", PASS,
+                         f"المنشور بيقول {deployed}",
+                         "المقارنة بالمستودع مش ممكنة من جوه الحاوية")
+        return Check("٣", "تعرف إيه الشغال", FAIL,
+                     f"/health بيرجّع commit={deployed or 'مفيش'}",
+                     "مرّر GIT_COMMIT وقت البناء")
+
     _, head = _run(["git", "rev-parse", "--short", "HEAD"])
     head = head.strip()
     _, porcelain = _run(["git", "status", "--porcelain"])
@@ -207,6 +230,9 @@ def check_money(fast: bool) -> Check:
         return Check("٥", "الفلوس", MANUAL, "--fast شغّال، الاختبارات ما اتشغلتش")
 
     present = [t for t in MONEY_TESTS if (ROOT / t).exists()]
+    if not present and IN_CONTAINER:
+        return Check("٥", "الفلوس", MANUAL, "مش قابل للقياس من جوه الحاوية",
+                     "tests/ مستثنى من الصورة — شغّلها من المستودع")
     if not present:
         return Check("٥", "الفلوس", FAIL, "ملفات اختبارات الفلوس مش موجودة")
 
