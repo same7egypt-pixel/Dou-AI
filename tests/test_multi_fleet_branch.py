@@ -13,7 +13,7 @@ Guards the eight requirements of Phase 1:
 
 import calendar
 import os
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -39,10 +39,8 @@ from app.models.merchant import (
     DedicatedShiftBooking,
     MerchantAccount,
     MerchantBranch,
-    ShiftType,
 )
 from app.routers.auth import create_token
-from app.utils.finance import prorate
 from app.utils.security import (
     create_branch_token,
     create_merchant_account_token,
@@ -739,7 +737,7 @@ def test_vacant_seat_of_fleet_a_does_not_affect_fleet_b(client, db_session):
         },
         headers=headers,
     )
-    b_ids_a = res_a.json()["booking_ids"]
+    assert len(res_a.json()["booking_ids"]) == 3
     b_ids_b = res_b.json()["booking_ids"]
 
     # In Fleet A: all 3 seats remain completely vacant (rider_id is None)

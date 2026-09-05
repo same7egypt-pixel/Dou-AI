@@ -1,6 +1,6 @@
 import base64
 import calendar
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional, Union
 
@@ -12,7 +12,14 @@ from sqlalchemy.orm import Session
 
 from app.config import ENABLE_OPEN_POOL
 from app.database import get_db
-from app.models.entities import AppSetting, Courier, Tenant, User, UserRole
+from app.models.entities import (
+    AppSetting,
+    Courier,
+    GeoCity,
+    Tenant,
+    User,
+    UserRole,
+)
 from app.models.merchant import (
     BookingStatus,
     BranchDispatchOrder,
@@ -23,6 +30,7 @@ from app.models.merchant import (
     MonthlySettlementLedger,
     OrderStatus,
     PaymentMethod,
+    RiderAssignmentApproval,
     SettlementStatus,
     ShiftAttendanceLog,
 )
@@ -34,6 +42,7 @@ from app.utils.security import (
     create_merchant_account_token,
     get_current_branch_id,
     get_current_merchant_account_id,
+    hash_pin,
     verify_pin,
 )
 
@@ -245,7 +254,8 @@ class TaxInvoiceResponse(BaseModel):
 
 
 class CapacityRequestCreate(BaseModel):
-    merchant_branch_id: int
+    merchant_branch_id: Optional[int] = None
+    branch_id: Optional[int] = None
     requested_capacity: int
     effective_month: str  # e.g. "2026-10"
     reason: Optional[str] = None
@@ -265,6 +275,59 @@ class CapacityRequestOut(BaseModel):
     reviewed_at: Optional[datetime] = None
     review_notes: Optional[str] = None
     created_at: datetime
+
+
+class MerchantAddBranchPayload(BaseModel):
+    branch_name: Optional[str] = None
+    name: Optional[str] = None
+    city: str = "الرياض"
+    city_id: Optional[int] = None
+    country_id: Optional[int] = None
+    district: Optional[str] = None
+    latitude: float
+    longitude: float
+    geofence_radius_meters: int = 150
+    cashier_access_pin: Optional[str] = "1234"
+    cashier_pin: Optional[str] = None
+
+
+class MerchantBranchOut(BaseModel):
+    id: int
+    merchant_account_id: int
+    branch_name: str
+    city: str
+    city_id: Optional[int] = None
+    country_id: Optional[int] = None
+    district: Optional[str] = None
+    latitude: float
+    longitude: float
+    geofence_radius_meters: int
+    created_by_source: str
+    verification_status: str
+    is_active: bool
+    created_at: Optional[datetime] = None
+
+
+class RiderApprovalOut(BaseModel):
+    id: int
+    booking_id: int
+    merchant_branch_id: int
+    branch_name: str
+    logistics_company_tenant_id: int
+    logistics_company_name: str
+    courier_id: int
+    courier_name: str
+    courier_phone_masked: str
+    status: str
+    rejection_reason: Optional[str] = None
+    requested_at: datetime
+    decided_at: Optional[datetime] = None
+    is_delayed_over_24h: bool = False
+
+
+class DecideRiderApprovalPayload(BaseModel):
+    action: str  # APPROVED or REJECTED
+    rejection_reason: Optional[str] = None
 
 
 class SLAIndicatorsResponse(BaseModel):
@@ -1580,6 +1643,91 @@ def get_tax_invoice(
     )
 
 
+# ─── Branch Self-Addition (Merchant Self-Service) ───────────────────────────
+
+@router.post(
+    "/account/{merchant_account_id}/branches",
+    response_model=MerchantBranchOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_branch_by_merchant(
+    merchant_account_id: int,
+    payload: MerchantAddBranchPayload,
+    db: Session = Depends(get_db),
+    auth_account_id: int = Depends(get_current_merchant_account_id),
+):
+    """
+    Allows a merchant account owner to add a new branch to their chain.
+    The branch is marked created_by_source='MERCHANT' and verification_status='PENDING_REVIEW'.
+    """
+    if auth_account_id != merchant_account_id:
+        raise HTTPException(
+            status_code=403,
+            detail="غير مصرح: لا يمكنك إضافة فروع لحساب تاجر آخر.",
+        )
+
+    account = db.get(MerchantAccount, merchant_account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="حساب التاجر غير موجود.")
+
+    b_name = (payload.branch_name or payload.name or "").strip()
+    if not b_name:
+        raise HTTPException(status_code=400, detail="اسم الفرع مطلوب.")
+
+    pin = (payload.cashier_access_pin or payload.cashier_pin or "1234").strip()
+    hashed_pin = hash_pin(pin)
+
+    city_str = payload.city.strip() if payload.city else "الرياض"
+    city_id = payload.city_id
+    country_id = payload.country_id
+    if city_id and not country_id:
+        geo_city = db.get(GeoCity, city_id)
+        if geo_city:
+            country_id = geo_city.country_id
+            city_str = geo_city.name
+    elif not city_id and city_str:
+        geo_city = db.query(GeoCity).filter(GeoCity.name.ilike(city_str)).first()
+        if geo_city:
+            city_id = geo_city.id
+            country_id = geo_city.country_id
+
+    branch = MerchantBranch(
+        merchant_account_id=merchant_account_id,
+        branch_name=b_name,
+        city=city_str,
+        city_id=city_id,
+        country_id=country_id,
+        district=payload.district.strip() if payload.district else None,
+        latitude=Decimal(str(payload.latitude)),
+        longitude=Decimal(str(payload.longitude)),
+        geofence_radius_meters=payload.geofence_radius_meters,
+        cashier_access_pin=hashed_pin,
+        is_active=True,
+        created_by_source="MERCHANT",
+        verification_status="PENDING_REVIEW",
+    )
+    db.add(branch)
+    db.commit()
+    db.refresh(branch)
+
+    return MerchantBranchOut(
+        id=branch.id,
+        merchant_account_id=branch.merchant_account_id,
+        branch_name=branch.branch_name,
+        city=branch.city,
+        city_id=branch.city_id,
+        country_id=branch.country_id,
+        district=branch.district,
+        latitude=float(branch.latitude),
+        longitude=float(branch.longitude),
+        geofence_radius_meters=branch.geofence_radius_meters,
+        created_by_source=branch.created_by_source,
+        verification_status=branch.verification_status,
+        is_active=branch.is_active,
+        created_at=branch.created_at,
+    )
+
+
 # ─── Capacity Change Requests (Screen 2) ──────────────────────────────────────
 
 @router.post(
@@ -1607,7 +1755,11 @@ def create_capacity_request(
     if not account:
         raise HTTPException(status_code=404, detail="حساب التاجر غير موجود.")
 
-    branch = db.get(MerchantBranch, payload.merchant_branch_id)
+    target_branch_id = payload.merchant_branch_id or payload.branch_id
+    if not target_branch_id:
+        raise HTTPException(status_code=400, detail="معرّف الفرع مطلوب.")
+
+    branch = db.get(MerchantBranch, target_branch_id)
     if not branch or branch.merchant_account_id != merchant_account_id:
         raise HTTPException(
             status_code=400,
@@ -1705,6 +1857,143 @@ def list_capacity_requests(
             )
         )
     return res
+
+
+# ─── Company Rider Assignment Approvals (Screen 3) ────────────────────────────
+
+@router.get(
+    "/account/{merchant_account_id}/rider-approvals",
+    response_model=list[RiderApprovalOut],
+)
+def list_rider_approvals_merchant(
+    merchant_account_id: int,
+    status: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    auth_account_id: int = Depends(get_current_merchant_account_id),
+):
+    """
+    Lists company rider assignment approval requests for this restaurant merchant.
+    P0 Privacy: phone numbers are masked and sensitive internal payroll/IDs are never surfaced.
+    Surfaces 24h delay alert if pending approval > 24 hours.
+    """
+    if auth_account_id != merchant_account_id:
+        raise HTTPException(
+            status_code=403,
+            detail="غير مصرح: لا يمكنك الاطلاع على موافقات حساب تاجر آخر.",
+        )
+
+    q = db.query(RiderAssignmentApproval).filter(
+        RiderAssignmentApproval.merchant_account_id == merchant_account_id
+    )
+    if status:
+        q = q.filter(RiderAssignmentApproval.status == status.upper())
+
+    approvals = q.order_by(RiderAssignmentApproval.id.desc()).all()
+    now_utc = datetime.now(timezone.utc)
+    results: list[RiderApprovalOut] = []
+
+    for a in approvals:
+        branch = db.get(MerchantBranch, a.merchant_branch_id)
+        tenant = db.get(Tenant, a.logistics_company_tenant_id)
+
+        # Privacy masking:
+        phone = a.courier_phone or ""
+        masked_phone = phone[:4] + "***" + phone[-3:] if len(phone) >= 7 else "***"
+
+        # 24h delay alert calculation:
+        req_time = a.requested_at
+        if req_time and req_time.tzinfo is None:
+            req_time = req_time.replace(tzinfo=timezone.utc)
+        is_delayed = bool(a.status == "PENDING" and req_time and (now_utc - req_time) > timedelta(hours=24))
+
+        results.append(
+            RiderApprovalOut(
+                id=a.id,
+                booking_id=a.booking_id,
+                merchant_branch_id=a.merchant_branch_id,
+                branch_name=branch.branch_name if branch else f"فرع #{a.merchant_branch_id}",
+                logistics_company_tenant_id=a.logistics_company_tenant_id,
+                logistics_company_name=tenant.name if tenant else f"شركة #{a.logistics_company_tenant_id}",
+                courier_id=a.courier_id,
+                courier_name=a.courier_name,
+                courier_phone_masked=masked_phone,
+                status=a.status,
+                rejection_reason=a.rejection_reason,
+                requested_at=a.requested_at,
+                decided_at=a.decided_at,
+                is_delayed_over_24h=is_delayed,
+            )
+        )
+
+    return results
+
+
+@router.post(
+    "/account/{merchant_account_id}/rider-approvals/{approval_id}/decide",
+    response_model=RiderApprovalOut,
+)
+def decide_rider_approval_merchant(
+    merchant_account_id: int,
+    approval_id: int,
+    payload: DecideRiderApprovalPayload,
+    db: Session = Depends(get_db),
+    auth_account_id: int = Depends(get_current_merchant_account_id),
+):
+    """
+    Approves or rejects a COMPANY courier assignment to a dedicated shift seat.
+    If APPROVED: booking.rider_id is updated to fill the seat officially.
+    If REJECTED: seat remains vacant (booking.rider_id=None) and rejection reason is recorded.
+    """
+    if auth_account_id != merchant_account_id:
+        raise HTTPException(
+            status_code=403,
+            detail="غير مصرح: لا يمكنك اتخاذ قرار لحساب تاجر آخر.",
+        )
+
+    approval = db.get(RiderAssignmentApproval, approval_id)
+    if not approval or approval.merchant_account_id != merchant_account_id:
+        raise HTTPException(status_code=404, detail="طلب الموافقة غير موجود.")
+
+    action = payload.action.strip().upper()
+    if action not in ("APPROVED", "REJECTED"):
+        raise HTTPException(
+            status_code=400,
+            detail="إجراء غير صالح. الخيارات المتاحة: APPROVED أو REJECTED.",
+        )
+
+    approval.status = action
+    approval.decided_at = datetime.now(timezone.utc)
+    if action == "REJECTED":
+        approval.rejection_reason = payload.rejection_reason or "مرفوض من قبل المطعم"
+    elif action == "APPROVED":
+        booking = db.get(DedicatedShiftBooking, approval.booking_id)
+        if booking:
+            booking.rider_id = approval.courier_id
+
+    db.commit()
+    db.refresh(approval)
+
+    branch = db.get(MerchantBranch, approval.merchant_branch_id)
+    tenant = db.get(Tenant, approval.logistics_company_tenant_id)
+    phone = approval.courier_phone or ""
+    masked_phone = phone[:4] + "***" + phone[-3:] if len(phone) >= 7 else "***"
+
+    return RiderApprovalOut(
+        id=approval.id,
+        booking_id=approval.booking_id,
+        merchant_branch_id=approval.merchant_branch_id,
+        branch_name=branch.branch_name if branch else f"فرع #{approval.merchant_branch_id}",
+        logistics_company_tenant_id=approval.logistics_company_tenant_id,
+        logistics_company_name=tenant.name if tenant else f"شركة #{approval.logistics_company_tenant_id}",
+        courier_id=approval.courier_id,
+        courier_name=approval.courier_name,
+        courier_phone_masked=masked_phone,
+        status=approval.status,
+        rejection_reason=approval.rejection_reason,
+        requested_at=approval.requested_at,
+        decided_at=approval.decided_at,
+        is_delayed_over_24h=False,
+    )
 
 
 # ─── SLA Indicators (Screen 4) ────────────────────────────────────────────────

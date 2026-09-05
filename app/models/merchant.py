@@ -106,6 +106,10 @@ class MerchantBranch(Base):
     cashier_access_pin     = Column(String(255), nullable=False)  # bcrypt hash
     tablet_device_id       = Column(String(255), nullable=True)
     is_active              = Column(Boolean, nullable=False, default=True)
+    created_by_source      = Column(String(20), nullable=False, default="ADMIN", server_default="ADMIN")
+    verification_status    = Column(String(20), nullable=False, default="VERIFIED", server_default="VERIFIED")
+    verified_by_admin_id   = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    verified_at            = Column(DateTime(timezone=True), nullable=True)
     created_at             = Column(DateTime(timezone=True), server_default=func.now())
 
     merchant_account = relationship("MerchantAccount", back_populates="branches")
@@ -113,6 +117,7 @@ class MerchantBranch(Base):
     orders           = relationship("BranchDispatchOrder", back_populates="branch")
     geo_city         = relationship("GeoCity", foreign_keys=[city_id])
     geo_country      = relationship("GeoCountry", foreign_keys=[country_id])
+    verified_by      = relationship("User", foreign_keys=[verified_by_admin_id])
 
 
 # ─── DedicatedShiftBooking ────────────────────────────────────────────────────
@@ -288,6 +293,41 @@ class MerchantCapacityRequest(Base):
     merchant_account = relationship("MerchantAccount", backref="capacity_requests")
     branch           = relationship("MerchantBranch", backref="capacity_requests")
     reviewer         = relationship("User", foreign_keys=[reviewed_by])
+
+
+# ─── RiderAssignmentApproval ──────────────────────────────────────────────────
+
+class RiderAssignmentApproval(Base):
+    """
+    Workflow record when a logistics fleet assigns a COMPANY courier to a
+    merchant branch's dedicated shift booking.
+    The restaurant merchant must explicitly approve the rider before the seat
+    is filled.
+    """
+    __tablename__ = "rider_assignment_approvals"
+
+    id                          = Column(Integer, primary_key=True, index=True)
+    booking_id                  = Column(Integer, ForeignKey("dedicated_shift_bookings.id", ondelete="CASCADE"), nullable=False, index=True)
+    merchant_branch_id          = Column(Integer, ForeignKey("merchant_branches.id", ondelete="CASCADE"), nullable=False, index=True)
+    merchant_account_id         = Column(Integer, ForeignKey("merchant_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    logistics_company_tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
+    courier_id                  = Column(Integer, ForeignKey("couriers.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    courier_name                = Column(String(255), nullable=False)
+    courier_phone               = Column(String(50), nullable=False)
+    status                      = Column(String(20), nullable=False, default="PENDING", server_default="PENDING")  # PENDING, APPROVED, REJECTED
+    rejection_reason            = Column(Text, nullable=True)
+
+    requested_at                = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    decided_at                  = Column(DateTime(timezone=True), nullable=True)
+    decided_by_user_id          = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    booking          = relationship("DedicatedShiftBooking", backref="assignment_approvals")
+    branch           = relationship("MerchantBranch", backref="rider_approvals")
+    merchant_account = relationship("MerchantAccount", backref="rider_approvals")
+    courier          = relationship("Courier")
+    tenant           = relationship("Tenant")
+    decided_by       = relationship("User", foreign_keys=[decided_by_user_id])
 
 
 def compute_and_set_margin(booking: DedicatedShiftBooking) -> None:

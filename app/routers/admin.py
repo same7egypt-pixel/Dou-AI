@@ -45,6 +45,11 @@ from ..services.metabase_adapter import (
 )
 from ..services.metabase_registry import APPROVED_QUESTIONS, get_question
 from ..services.rider_management import enforce_courier_plan_cap
+from .admin_dedicated import (
+    AdminCapacityRequestOut,
+    list_capacity_requests_admin,
+    patch_capacity_request_admin,
+)
 from .auth import ALGORITHM, SECRET_KEY, get_current_user, hash_password
 
 MARKETS = {
@@ -2091,3 +2096,20 @@ def metabase_execute(
     params["tenant_id"] = tenant_id
     raw = execute_approved_question(config, question_id, params, scope)
     return to_structured_response(raw, report_link=None)
+
+
+# ─── Capacity Requests Admin Delegation ────────────────────────────────────────
+
+router.add_api_route(
+    "/capacity-requests",
+    list_capacity_requests_admin,
+    methods=["GET"],
+    response_model=list[AdminCapacityRequestOut],
+)
+router.add_api_route(
+    "/capacity-requests/{request_id}",
+    patch_capacity_request_admin,
+    methods=["PATCH"],
+    response_model=AdminCapacityRequestOut,
+)
+

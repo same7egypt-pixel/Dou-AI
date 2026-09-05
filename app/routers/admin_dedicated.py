@@ -3,7 +3,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -23,19 +23,29 @@ from app.models.merchant import (
     DedicatedShiftBooking,
     MerchantAccount,
     MerchantBranch,
+    MerchantCapacityRequest,
     MonthlySettlementLedger,
     SettlementStatus,
     ShiftType,
     compute_and_set_margin,
 )
-from app.routers.admin import require_admin
 from app.services.operating_structure import active_tenant_city_ids
 from app.utils.finance import billable_booking_filters, prorate
 from app.utils.security import generate_merchant_api_key, hash_pin
 
 router = APIRouter(prefix="/admin/dedicated", tags=["admin_dedicated"])
 
-_require_superadmin = require_admin
+
+async def _require_superadmin(
+    x_admin_key: str = Header(default="", alias="X-Admin-Key"),
+    authorization: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    from app.routers.admin import require_admin
+
+    return await require_admin(
+        x_admin_key=x_admin_key, authorization=authorization, db=db
+    )
 
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────
@@ -72,6 +82,8 @@ class AdminBranchOut(BaseModel):
     geofence_radius_meters: int
     is_active: bool
     active_bookings_count: int
+    created_by_source: str = "ADMIN"
+    verification_status: str = "VERIFIED"
     fleets: list[BranchFleetSummary] = Field(default_factory=list)
 
 
@@ -161,6 +173,27 @@ class UpdateBookingPayload(BaseModel):
     status: Optional[BookingStatus] = None
     monthly_fee_to_merchant: Optional[float] = None
     monthly_payout_to_logistics: Optional[float] = None
+
+
+class AdminCapacityRequestOut(BaseModel):
+    id: int
+    merchant_account_id: int
+    merchant_branch_id: int
+    branch_name: str
+    current_capacity: int
+    requested_capacity: int
+    effective_month: str
+    reason: Optional[str] = None
+    status: str
+    reviewed_by: Optional[int] = None
+    reviewed_at: Optional[datetime] = None
+    review_notes: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+class PatchCapacityRequestPayload(BaseModel):
+    status: str
+    review_notes: Optional[str] = None
     effective_until: Optional[date] = None
 
 
@@ -325,6 +358,8 @@ def list_merchants_admin(
                     geofence_radius_meters=br.geofence_radius_meters,
                     is_active=bool(br.is_active),
                     active_bookings_count=active_b_count,
+                    created_by_source=getattr(br, "created_by_source", "ADMIN") or "ADMIN",
+                    verification_status=getattr(br, "verification_status", "VERIFIED") or "VERIFIED",
                     fleets=fleets_summary,
                 )
             )
@@ -460,6 +495,116 @@ def create_branch_admin(
     }
 
 
+@router.post("/branches/{branch_id}/verify")
+def verify_branch_admin(
+    branch_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_superadmin),
+):
+    """
+    Verifies a restaurant branch that was self-added by a merchant.
+    """
+    branch = db.get(MerchantBranch, branch_id)
+    if not branch:
+        raise HTTPException(status_code=404, detail="الفرع غير موجود.")
+
+    branch.verification_status = "VERIFIED"
+    branch.verified_by_admin_id = current_user.id
+    branch.verified_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(branch)
+
+    return {
+        "ok": True,
+        "branch_id": branch.id,
+        "branch_name": branch.branch_name,
+        "verification_status": branch.verification_status,
+        "verified_by_admin_id": branch.verified_by_admin_id,
+        "verified_at": branch.verified_at,
+        "message": f"تم توثيق فرع '{branch.branch_name}' بنجاح.",
+    }
+
+
+@router.get("/capacity-requests", response_model=list[AdminCapacityRequestOut])
+def list_capacity_requests_admin(
+    status: Optional[str] = Query(None),
+    merchant_account_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    _: User = Depends(_require_superadmin),
+):
+    """
+    Lists capacity requests with optional filtering by status and merchant_account_id.
+    """
+    q = db.query(MerchantCapacityRequest)
+    if status:
+        q = q.filter(MerchantCapacityRequest.status == status)
+    if merchant_account_id:
+        q = q.filter(MerchantCapacityRequest.merchant_account_id == merchant_account_id)
+
+    requests = q.order_by(MerchantCapacityRequest.id.desc()).all()
+    results: list[AdminCapacityRequestOut] = []
+    for r in requests:
+        br = db.get(MerchantBranch, r.merchant_branch_id)
+        results.append(
+            AdminCapacityRequestOut(
+                id=r.id,
+                merchant_account_id=r.merchant_account_id,
+                merchant_branch_id=r.merchant_branch_id,
+                branch_name=br.branch_name if br else "الفرع",
+                current_capacity=r.current_capacity,
+                requested_capacity=r.requested_capacity,
+                effective_month=r.effective_month,
+                reason=r.reason,
+                status=r.status,
+                reviewed_by=r.reviewed_by,
+                reviewed_at=r.reviewed_at,
+                review_notes=r.review_notes,
+                created_at=r.created_at,
+            )
+        )
+    return results
+
+
+@router.patch("/capacity-requests/{request_id}", response_model=AdminCapacityRequestOut)
+def patch_capacity_request_admin(
+    request_id: int,
+    payload: PatchCapacityRequestPayload,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(_require_superadmin),
+):
+    """
+    Updates capacity request review status and notes.
+    """
+    req = db.get(MerchantCapacityRequest, request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="طلب السعة غير موجود.")
+
+    req.status = payload.status
+    if payload.review_notes is not None:
+        req.review_notes = payload.review_notes
+    req.reviewed_by = current_user.id
+    req.reviewed_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(req)
+
+    br = db.get(MerchantBranch, req.merchant_branch_id)
+    return AdminCapacityRequestOut(
+        id=req.id,
+        merchant_account_id=req.merchant_account_id,
+        merchant_branch_id=req.merchant_branch_id,
+        branch_name=br.branch_name if br else "الفرع",
+        current_capacity=req.current_capacity,
+        requested_capacity=req.requested_capacity,
+        effective_month=req.effective_month,
+        reason=req.reason,
+        status=req.status,
+        reviewed_by=req.reviewed_by,
+        reviewed_at=req.reviewed_at,
+        review_notes=req.review_notes,
+        created_at=req.created_at,
+    )
+
+
 @router.get("/bookings", response_model=list[AdminBookingOut])
 def list_bookings_admin(
     status_filter: Optional[BookingStatus] = Query(None),
@@ -545,6 +690,12 @@ def create_booking_admin(
     branch = db.get(MerchantBranch, target_branch_id)
     if not branch:
         raise HTTPException(status_code=404, detail="الفرع المحدد غير موجود.")
+
+    if getattr(branch, "verification_status", "VERIFIED") != "VERIFIED":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="لا يمكن إنشاء عقد وردية لفرع غير موثق. يرجى توثيق الفرع أولاً من قبل DOU.",
+        )
 
     target_tenant_id = payload.logistics_company_tenant_id or payload.tenant_id
     if not target_tenant_id:

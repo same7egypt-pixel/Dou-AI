@@ -9,7 +9,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.entities import Courier, Tenant, User, UserRole
+from app.models.entities import Courier, CourierType, Tenant, User, UserRole
 from app.models.merchant import (
     BookingStatus,
     BranchDispatchOrder,
@@ -17,6 +17,7 @@ from app.models.merchant import (
     MerchantAccount,
     MerchantBranch,
     OrderStatus,
+    RiderAssignmentApproval,
     ShiftAttendanceLog,
 )
 from app.routers.auth import get_current_user
@@ -111,6 +112,22 @@ class FleetSettlementOut(BaseModel):
     currency: str
     settlement_status: str
     line_items: list[FleetSettlementLineItem]
+
+
+class CourierTypeMetrics(BaseModel):
+    total_riders: int = 0
+    active_riders: int = 0
+    total_shifts: int = 0
+    attendance_rate: float = 100.0
+    total_deliveries: int = 0
+    avg_deliveries_per_shift: float = 0.0
+
+
+class FleetPerformanceBreakdownOut(BaseModel):
+    tenant_id: int
+    company: CourierTypeMetrics
+    freelancer: CourierTypeMetrics
+    comparison_summary: str = ""
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
@@ -277,18 +294,159 @@ def assign_rider_to_booking(
             detail="المندوب غير مسجل لدى شركتكم اللوجستية.",
         )
 
-    booking.rider_id = rider.id
-    db.commit()
-    db.refresh(booking)
+    c_type_str = str(getattr(rider, "courier_type", "COMPANY") or "COMPANY").upper()
+    is_freelancer = (rider.courier_type == CourierType.FREELANCER or "FREELANCER" in c_type_str)
 
-    return {
-        "ok": True,
-        "success": True,
-        "message": f"تم إسناد المندوب {rider.name} للوردية بنجاح.",
-        "booking_id": booking.id,
-        "rider_id": rider.id,
-        "rider_name": rider.name,
-    }
+    if is_freelancer:
+        booking.rider_id = rider.id
+        db.commit()
+        db.refresh(booking)
+        return {
+            "ok": True,
+            "success": True,
+            "message": f"تم إسناد المندوب الفريلانسر {rider.name} للوردية بنجاح ومباشرة العمل فوراً.",
+            "booking_id": booking.id,
+            "rider_id": rider.id,
+            "rider_name": rider.name,
+            "courier_type": "FREELANCER",
+            "approval_status": "INSTANT_ASSIGNED",
+        }
+    else:
+        # Company rider: requires merchant approval, seat remains vacant
+        branch = db.get(MerchantBranch, booking.merchant_branch_id)
+        account_id = branch.merchant_account_id if branch else 1
+
+        existing_appr = (
+            db.query(RiderAssignmentApproval)
+            .filter(
+                RiderAssignmentApproval.booking_id == booking.id,
+                RiderAssignmentApproval.status == "PENDING",
+            )
+            .first()
+        )
+        if existing_appr:
+            existing_appr.courier_id = rider.id
+            existing_appr.courier_name = rider.name
+            existing_appr.courier_phone = rider.phone or ""
+            existing_appr.requested_at = datetime.now(timezone.utc)
+            approval = existing_appr
+        else:
+            approval = RiderAssignmentApproval(
+                booking_id=booking.id,
+                merchant_branch_id=booking.merchant_branch_id,
+                merchant_account_id=account_id,
+                logistics_company_tenant_id=target_tenant_id,
+                courier_id=rider.id,
+                courier_name=rider.name,
+                courier_phone=rider.phone or "",
+                status="PENDING",
+                requested_at=datetime.now(timezone.utc),
+            )
+            db.add(approval)
+
+        db.commit()
+        db.refresh(approval)
+
+        return {
+            "ok": True,
+            "success": True,
+            "message": f"تم رفع طلب إسناد المندوب (كفالة الشركة) {rider.name} إلى إدارة المطعم للاعتماد.",
+            "booking_id": booking.id,
+            "rider_id": rider.id,
+            "rider_name": rider.name,
+            "courier_type": "COMPANY",
+            "approval_id": approval.id,
+            "approval_status": "PENDING",
+        }
+
+
+@router.get("/performance-breakdown", response_model=FleetPerformanceBreakdownOut)
+def get_fleet_performance_breakdown(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    tenant_id: Optional[int] = Query(None),
+):
+    """
+    Compares operational and delivery performance breakdown between company riders and freelancers.
+    """
+    target_tenant_id = _resolve_tenant_id(current_user, tenant_id)
+
+    couriers = db.query(Courier).filter(Courier.tenant_id == target_tenant_id).all()
+
+    company_riders = [
+        c for c in couriers
+        if c.courier_type == CourierType.COMPANY or "COMPANY" in str(c.courier_type).upper()
+    ]
+    freelancer_riders = [
+        c for c in couriers
+        if c.courier_type == CourierType.FREELANCER or "FREELANCER" in str(c.courier_type).upper()
+    ]
+
+    comp_ids = {c.id for c in company_riders}
+    free_ids = {c.id for c in freelancer_riders}
+
+    bookings = (
+        db.query(DedicatedShiftBooking)
+        .filter(
+            DedicatedShiftBooking.logistics_company_tenant_id == target_tenant_id,
+            DedicatedShiftBooking.status != BookingStatus.terminated,
+        )
+        .all()
+    )
+    booking_ids = [b.id for b in bookings]
+
+    attendance_logs = (
+        db.query(ShiftAttendanceLog)
+        .filter(ShiftAttendanceLog.dedicated_shift_booking_id.in_(booking_ids))
+        .all()
+        if booking_ids
+        else []
+    )
+
+    orders = (
+        db.query(BranchDispatchOrder)
+        .filter(
+            BranchDispatchOrder.dedicated_shift_booking_id.in_(booking_ids),
+            BranchDispatchOrder.status == OrderStatus.delivered,
+        )
+        .all()
+        if booking_ids
+        else []
+    )
+
+    comp_logs = [log for log in attendance_logs if log.rider_id in comp_ids]
+    free_logs = [log for log in attendance_logs if log.rider_id in free_ids]
+
+    comp_orders = [o for o in orders if o.rider_id in comp_ids]
+    free_orders = [o for o in orders if o.rider_id in free_ids]
+
+    def _build(r_list, l_list, o_list):
+        total_r = len(r_list)
+        active_r = len([r for r in r_list if r.employment_status == "ACTIVE"])
+        total_s = len(l_list)
+        valid_s = len([log for log in l_list if log.geofence_validated or log.checkin_at is not None])
+        att_rate = round((valid_s / total_s * 100.0), 1) if total_s > 0 else 100.0
+        total_deliv = len(o_list)
+        avg_deliv = (
+            round((total_deliv / total_s), 1)
+            if total_s > 0
+            else (round(total_deliv / max(1, total_r), 1) if total_deliv > 0 else 0.0)
+        )
+        return CourierTypeMetrics(
+            total_riders=total_r,
+            active_riders=active_r,
+            total_shifts=total_s,
+            attendance_rate=att_rate,
+            total_deliveries=total_deliv,
+            avg_deliveries_per_shift=avg_deliv,
+        )
+
+    return FleetPerformanceBreakdownOut(
+        tenant_id=target_tenant_id,
+        company=_build(company_riders, comp_logs, comp_orders),
+        freelancer=_build(freelancer_riders, free_logs, free_orders),
+        comparison_summary="مقارنة أداء مناديب الكفالة مقارنة بالفريلانسر وفق معدلات الحضور والإنتاجية.",
+    )
 
 
 @router.get("/settlement", response_model=FleetSettlementOut)
