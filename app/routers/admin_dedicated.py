@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -52,6 +52,14 @@ class AdminFlexMetricsOut(BaseModel):
     margin_percentage: float = 0.0
 
 
+class BranchFleetSummary(BaseModel):
+    tenant_id: int
+    tenant_name: str
+    seats: int
+    filled: int
+    vacant: int
+
+
 class AdminBranchOut(BaseModel):
     id: int
     branch_name: str
@@ -64,6 +72,7 @@ class AdminBranchOut(BaseModel):
     geofence_radius_meters: int
     is_active: bool
     active_bookings_count: int
+    fleets: list[BranchFleetSummary] = Field(default_factory=list)
 
 
 class AdminMerchantOut(BaseModel):
@@ -269,14 +278,40 @@ def list_merchants_admin(
         for br in a.branches:
             if c_id and br.country_id != c_id:
                 continue
-            active_b_count = (
+            active_bookings = (
                 db.query(DedicatedShiftBooking)
                 .filter(
                     DedicatedShiftBooking.merchant_branch_id == br.id,
                     DedicatedShiftBooking.status == BookingStatus.active,
                 )
-                .count()
+                .all()
             )
+            active_b_count = len(active_bookings)
+
+            fleets_map: dict[int, dict] = {}
+            for b in active_bookings:
+                t_id = b.logistics_company_tenant_id
+                if t_id not in fleets_map:
+                    tenant = db.get(Tenant, t_id)
+                    t_name = tenant.name if tenant else f"Tenant #{t_id}"
+                    fleets_map[t_id] = {
+                        "tenant_id": t_id,
+                        "tenant_name": t_name,
+                        "seats": 0,
+                        "filled": 0,
+                        "vacant": 0,
+                    }
+                fleets_map[t_id]["seats"] += 1
+                if b.rider_id is not None:
+                    fleets_map[t_id]["filled"] += 1
+                else:
+                    fleets_map[t_id]["vacant"] += 1
+
+            fleets_summary = [
+                BranchFleetSummary(**f_data)
+                for f_data in sorted(fleets_map.values(), key=lambda x: x["tenant_id"])
+            ]
+
             branches_out.append(
                 AdminBranchOut(
                     id=br.id,
@@ -290,6 +325,7 @@ def list_merchants_admin(
                     geofence_radius_meters=br.geofence_radius_meters,
                     is_active=bool(br.is_active),
                     active_bookings_count=active_b_count,
+                    fleets=fleets_summary,
                 )
             )
 

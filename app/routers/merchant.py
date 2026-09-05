@@ -6,13 +6,13 @@ from typing import Optional, Union
 
 import bcrypt
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.config import ENABLE_OPEN_POOL
 from app.database import get_db
-from app.models.entities import AppSetting, Courier, User, UserRole
+from app.models.entities import AppSetting, Courier, Tenant, User, UserRole
 from app.models.merchant import (
     BookingStatus,
     BranchDispatchOrder,
@@ -70,6 +70,8 @@ class ActiveRiderCard(BaseModel):
     active_orders_count: int = 0
     open_float: float = 0.0
     checkin_source: Optional[str] = None  # "gps" | "cashier" | None
+    logistics_company_name: Optional[str] = None
+    courier_type: Optional[str] = None
 
 
 class DispatchOrderRequest(BaseModel):
@@ -127,6 +129,20 @@ class StatementLineItem(BaseModel):
     active_days: int
     days_in_month: int
     prorated_fee: float
+    logistics_company_name: Optional[str] = None
+    courier_type: Optional[str] = None
+
+
+class FleetSubtotal(BaseModel):
+    logistics_company_name: str
+    seats_count: int
+    subtotal: float
+
+
+class BranchStatementGroup(BaseModel):
+    branch_name: str
+    fleets: list[FleetSubtotal]
+    branch_total: float
 
 
 class MonthlyStatementResponse(BaseModel):
@@ -140,6 +156,7 @@ class MonthlyStatementResponse(BaseModel):
     gross_fee_charged_to_merchant: float
     total_payout_to_logistics: float
     dou_net_margin: float
+    branch_groups: list[BranchStatementGroup] = Field(default_factory=list)
 
 
 # ─── Owner Portal Schemas ─────────────────────────────────────────────────────
@@ -596,6 +613,11 @@ def get_active_riders(
 
     cards: list[ActiveRiderCard] = []
     for booking in bookings:
+        fleet_name = None
+        if booking.logistics_company_tenant_id:
+            tenant = db.get(Tenant, booking.logistics_company_tenant_id)
+            fleet_name = tenant.name if tenant else None
+
         if booking.rider_id is None:
             if include_vacant:
                 cards.append(
@@ -612,6 +634,8 @@ def get_active_riders(
                         active_orders_count=0,
                         open_float=0.0,
                         checkin_source=None,
+                        logistics_company_name=fleet_name,
+                        courier_type=None,
                     )
                 )
             continue
@@ -658,6 +682,11 @@ def get_active_riders(
 
         masked_phone = _mask_phone(rider.phone)
         rider_name = _masked_name(rider.id, db) or "Rider"
+        c_type = (
+            rider.courier_type.value
+            if hasattr(rider, "courier_type") and rider.courier_type
+            else None
+        )
 
         cards.append(
             ActiveRiderCard(
@@ -673,6 +702,8 @@ def get_active_riders(
                 active_orders_count=active_orders_count,
                 open_float=open_float,
                 checkin_source=checkin_source,
+                logistics_company_name=fleet_name,
+                courier_type=c_type,
             )
         )
     return cards
@@ -1115,6 +1146,13 @@ def _build_statement_line_items(
     for b in bookings:
         branch = db.get(MerchantBranch, b.merchant_branch_id)
         rider = db.get(Courier, b.rider_id) if b.rider_id else None
+        tenant = db.get(Tenant, b.logistics_company_tenant_id)
+        fleet_name = tenant.name if tenant else None
+        courier_type_val = (
+            rider.courier_type.value
+            if rider and hasattr(rider, "courier_type") and rider.courier_type
+            else None
+        )
 
         start_active = max(b.effective_from, target_month_date)
         end_active = min(b.effective_until or month_end_date, month_end_date)
@@ -1140,6 +1178,8 @@ def _build_statement_line_items(
                 active_days=active_days,
                 days_in_month=days_in_month,
                 prorated_fee=float(fee_prorated),
+                logistics_company_name=fleet_name,
+                courier_type=courier_type_val,
             )
         )
 
@@ -1199,6 +1239,39 @@ def get_monthly_statement(
     statement_month_str = f"{month_name} {target_year}"
     due_date_str = f"{target_year}-{target_month:02d}-{min(account.payment_terms_days, 28):02d}"
 
+    # Build branch -> fleet two-dimensional grouping
+    branch_dict: dict[str, dict[str, list[StatementLineItem]]] = {}
+    for item in line_items:
+        br_name = item.branch_name
+        fl_name = item.logistics_company_name or "الشركة اللوجستية"
+        if br_name not in branch_dict:
+            branch_dict[br_name] = {}
+        if fl_name not in branch_dict[br_name]:
+            branch_dict[br_name][fl_name] = []
+        branch_dict[br_name][fl_name].append(item)
+
+    branch_groups: list[BranchStatementGroup] = []
+    for br_name, fleets_in_br in branch_dict.items():
+        fleet_subtotals: list[FleetSubtotal] = []
+        br_total_dec = Decimal("0.00")
+        for fl_name, items in fleets_in_br.items():
+            fl_subtotal_dec = sum(Decimal(str(it.prorated_fee)) for it in items)
+            br_total_dec += fl_subtotal_dec
+            fleet_subtotals.append(
+                FleetSubtotal(
+                    logistics_company_name=fl_name,
+                    seats_count=len(items),
+                    subtotal=float(fl_subtotal_dec),
+                )
+            )
+        branch_groups.append(
+            BranchStatementGroup(
+                branch_name=br_name,
+                fleets=fleet_subtotals,
+                branch_total=float(br_total_dec),
+            )
+        )
+
     return MonthlyStatementResponse(
         merchant_name=account.trade_name,
         statement_month=statement_month_str,
@@ -1210,6 +1283,7 @@ def get_monthly_statement(
         gross_fee_charged_to_merchant=float(gross_fee_total),
         total_payout_to_logistics=float(total_payout_total),
         dou_net_margin=float(dou_margin_total),
+        branch_groups=branch_groups,
     )
 
 

@@ -591,123 +591,300 @@ async function openNewBookingModal(mainContainer) {
         branchSelect.append(el('option', { value: '' }, isAr ? 'لا توجد فروع مسجلة لهذا المطعم' : 'No branches'));
         return;
       }
+      branchSelect.append(el('option', { value: '' }, isAr ? '-- اختر الفرع --' : '-- Select Branch --'));
       selectedM.branches.forEach(b => {
-        branchSelect.append(el('option', { value: String(b.id) }, `${b.name} (${b.address || ''})`));
+        let fleetLabel = '';
+        if (b.fleets && b.fleets.length > 0) {
+          const parts = b.fleets.map(f => `${f.logistics_company_name}: ${f.seats} ${isAr ? 'مقاعد' : 'seats'}`);
+          fleetLabel = ` — [${parts.join(' | ')}]`;
+        }
+        branchSelect.append(el('option', { value: String(b.id) }, `${b.name} (${b.city || b.address || ''})${fleetLabel}`));
       });
     };
 
-    // Fleet Company Selector
-    const tenantSelect = el('select', {
-      class: 'input-select',
-      style: 'width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text)',
-      required: true
-    }, [
-      el('option', { value: '' }, isAr ? '-- اختر شركة الخدمات اللوجستية الموردة --' : '-- Select Logistics Fleet --'),
-      ...tenantList.map(t => el('option', { value: String(t.id) }, t.name))
-    ]);
+    // Dynamic Fleet Seat Groups (Multi-Fleet branch support)
+    const groupsContainer = el('div', { style: 'display:flex;flex-direction:column;gap:12px' });
+    let groups = [];
 
-    // Shift Type
-    const shiftTypeSelect = el('select', {
-      class: 'input-select',
-      style: 'width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text)'
-    }, [
-      el('option', { value: 'full_day_8h' }, isAr ? '🌟 وردية يومية كاملة (8 ساعات)' : '🌟 Full Day (8 Hours)'),
-      el('option', { value: 'peak_3h' }, isAr ? '⚡ وردية ذروة مسائية (3 ساعات)' : '⚡ Peak Shift (3 Hours)'),
-    ]);
-
-    // Contracted Seats Count (Bulk Generation)
-    const seatsCountInput = el('input', {
-      type: 'number',
-      min: '1',
-      max: '100',
-      value: '1',
-      style: 'width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text)',
-      required: true
+    const totalsDisplay = el('div', {
+      style: 'padding:12px;border-radius:8px;background:rgba(37, 99, 235, 0.08);border:1px solid rgba(37, 99, 235, 0.25);font-size:13px;line-height:1.6'
     });
 
-    const merchantFeeInput = el('input', {
-      type: 'number',
-      step: '100',
-      value: '7000',
-      style: 'width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text)',
-      required: true
-    });
-
-    const fleetPayoutInput = el('input', {
-      type: 'number',
-      step: '100',
-      value: '5500',
-      style: 'width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text)',
-      required: true
-    });
-
-    const marginDisplay = el('div', {
-      style: 'padding:10px;border-radius:8px;background:rgba(37, 99, 235, 0.08);border:1px solid rgba(37, 99, 235, 0.25);font-size:13px;font-weight:700;color:var(--primary)'
-    });
-
-    function updateMarginCalculation() {
-      const fee = parseFloat(merchantFeeInput.value) || 0;
-      const payout = parseFloat(fleetPayoutInput.value) || 0;
-      const seats = parseInt(seatsCountInput.value, 10) || 1;
-      const marginPerSeat = fee - payout;
-      const totalMargin = marginPerSeat * seats;
-      const pct = fee > 0 ? (Math.round((marginPerSeat / fee) * 1000) / 10) : 0;
-      marginDisplay.textContent = isAr
-        ? `🏢 صافي هامش ربح DOU المنصة: ${money(totalMargin, currencyLabel)} (${pct}% | ${seats} مقاعد)`
-        : `DOU Platform Net Margin: ${money(totalMargin, currencyLabel)} (${pct}% | ${seats} seats)`;
+    function updateLiveTotals() {
+      let totalSeats = 0;
+      let totalFee = 0;
+      let totalPayout = 0;
+      groups.forEach(g => {
+        const s = parseInt(g.seatsInput.value, 10) || 0;
+        const f = parseFloat(g.feeInput.value) || 0;
+        const p = parseFloat(g.payoutInput.value) || 0;
+        totalSeats += s;
+        totalFee += (f * s);
+        totalPayout += (p * s);
+      });
+      const totalMargin = totalFee - totalPayout;
+      const pct = totalFee > 0 ? (Math.round((totalMargin / totalFee) * 1000) / 10) : 0;
+      totalsDisplay.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div><strong>${isAr ? 'إجمالي المقاعد:' : 'Total Seats:'}</strong> ${totalSeats}</div>
+          <div><strong>${isAr ? 'إجمالي اشتراك المطعم:' : 'Total Merchant Fee:'}</strong> ${money(totalFee, currencyLabel)}</div>
+          <div><strong>${isAr ? 'إجمالي مستحق الأساطيل:' : 'Total Fleet Payout:'}</strong> ${money(totalPayout, currencyLabel)}</div>
+          <div style="color:var(--primary);font-weight:700"><strong>${isAr ? 'صافي هامش DOU:' : 'DOU Margin:'}</strong> ${money(totalMargin, currencyLabel)} (${pct}%)</div>
+        </div>
+      `;
     }
 
-    merchantFeeInput.oninput = updateMarginCalculation;
-    fleetPayoutInput.oninput = updateMarginCalculation;
-    seatsCountInput.oninput = updateMarginCalculation;
-    updateMarginCalculation();
+    function addGroup(defaults = {}) {
+      const groupIndex = groups.length + 1;
+      const groupCard = el('div', {
+        class: 'fleet-seat-group-card',
+        style: 'padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card);display:grid;gap:10px;position:relative'
+      });
 
-    shiftTypeSelect.onchange = () => {
-      if (shiftTypeSelect.value === 'peak_3h') {
-        merchantFeeInput.value = '3500';
-        fleetPayoutInput.value = '2500';
-      } else {
-        merchantFeeInput.value = '7000';
-        fleetPayoutInput.value = '5500';
-      }
-      updateMarginCalculation();
+      const title = el('div', { style: 'font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px' }, [
+        el('span', {}, '🚚'),
+        el('span', {}, isAr ? `مجموعة أسطول #${groupIndex}` : `Fleet Group #${groupIndex}`)
+      ]);
+
+      const removeBtn = el('button', {
+        type: 'button',
+        class: 'btn btn-outline',
+        style: 'padding:2px 8px;font-size:11px;color:var(--danger, #ef4444);border-color:rgba(239,68,68,0.3)',
+      }, isAr ? '✕ حذف المجموعة' : '✕ Remove');
+
+      const header = el('div', { style: 'display:flex;justify-content:space-between;align-items:center' }, [
+        title,
+        removeBtn
+      ]);
+
+      removeBtn.onclick = () => {
+        if (groups.length <= 1) {
+          showToast(isAr ? 'يجب الإبقاء على أسطول واحد على الأقل' : 'At least one fleet group is required', 'error');
+          return;
+        }
+        const idx = groups.findIndex(g => g.card === groupCard);
+        if (idx !== -1) {
+          groups.splice(idx, 1);
+          groupCard.remove();
+          groups.forEach((g, i) => {
+            g.titleSpan.textContent = isAr ? `مجموعة أسطول #${i + 1}` : `Fleet Group #${i + 1}`;
+          });
+          updateLiveTotals();
+        }
+      };
+
+      const tSelect = el('select', {
+        class: 'input-select',
+        style: 'width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--background, #111);color:var(--text)',
+        required: true
+      }, [
+        el('option', { value: '' }, isAr ? '-- اختر شركة الخدمات اللوجستية --' : '-- Select Logistics Fleet --'),
+        ...tenantList.map(t => el('option', { value: String(t.id) }, t.name))
+      ]);
+      if (defaults.tenant_id) tSelect.value = String(defaults.tenant_id);
+
+      const sTypeSelect = el('select', {
+        class: 'input-select',
+        style: 'width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--background, #111);color:var(--text)'
+      }, [
+        el('option', { value: 'full_day_8h' }, isAr ? '🌟 وردية يومية كاملة (8 ساعات)' : '🌟 Full Day (8 Hours)'),
+        el('option', { value: 'peak_3h' }, isAr ? '⚡ وردية ذروة مسائية (3 ساعات)' : '⚡ Peak Shift (3 Hours)'),
+      ]);
+
+      const seatsInput = el('input', {
+        type: 'number',
+        min: '1',
+        max: '100',
+        value: defaults.seats || '1',
+        style: 'width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--background, #111);color:var(--text)',
+        required: true
+      });
+
+      const feeInput = el('input', {
+        type: 'number',
+        step: '100',
+        value: defaults.fee || '7000',
+        style: 'width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--background, #111);color:var(--text)',
+        required: true
+      });
+
+      const payoutInput = el('input', {
+        type: 'number',
+        step: '100',
+        value: defaults.payout || '5500',
+        style: 'width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--background, #111);color:var(--text)',
+        required: true
+      });
+
+      const errorBox = el('div', {
+        style: 'display:none;color:#ef4444;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:6px;padding:8px;font-size:12px;font-weight:600'
+      });
+
+      sTypeSelect.onchange = () => {
+        if (sTypeSelect.value === 'peak_3h') {
+          feeInput.value = '3500';
+          payoutInput.value = '2500';
+        } else {
+          feeInput.value = '7000';
+          payoutInput.value = '5500';
+        }
+        updateLiveTotals();
+      };
+
+      tSelect.onchange = () => {
+        errorBox.style.display = 'none';
+        errorBox.textContent = '';
+      };
+      seatsInput.oninput = updateLiveTotals;
+      feeInput.oninput = updateLiveTotals;
+      payoutInput.oninput = updateLiveTotals;
+
+      const gridRow = el('div', { style: 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px' }, [
+        el('div', {}, [
+          el('label', { style: 'font-size:11px;font-weight:700;display:block;margin-bottom:4px' }, isAr ? 'عدد المقاعد:' : 'Seats:'),
+          seatsInput
+        ]),
+        el('div', {}, [
+          el('label', { style: 'font-size:11px;font-weight:700;display:block;margin-bottom:4px' }, isAr ? `اشتراك المطعم (${currencyLabel}):` : `Fee (${currencyLabel}):`),
+          feeInput
+        ]),
+        el('div', {}, [
+          el('label', { style: 'font-size:11px;font-weight:700;display:block;margin-bottom:4px' }, isAr ? `مستحق الأسطول (${currencyLabel}):` : `Payout (${currencyLabel}):`),
+          payoutInput
+        ])
+      ]);
+
+      groupCard.append(
+        header,
+        el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:10px' }, [
+          el('div', {}, [
+            el('label', { style: 'font-size:11px;font-weight:700;display:block;margin-bottom:4px' }, isAr ? 'شركة الخدمات اللوجستية:' : 'Logistics Fleet:'),
+            tSelect
+          ]),
+          el('div', {}, [
+            el('label', { style: 'font-size:11px;font-weight:700;display:block;margin-bottom:4px' }, isAr ? 'نوع الوردية:' : 'Shift:'),
+            sTypeSelect
+          ])
+        ]),
+        gridRow,
+        errorBox
+      );
+
+      const groupObj = {
+        card: groupCard,
+        titleSpan: title.children[1],
+        tenantSelect: tSelect,
+        shiftTypeSelect: sTypeSelect,
+        seatsInput,
+        feeInput,
+        payoutInput,
+        errorBox
+      };
+
+      groups.push(groupObj);
+      groupsContainer.append(groupCard);
+      updateLiveTotals();
+      return groupObj;
+    }
+
+    // Add initial fleet group
+    addGroup();
+
+    const addFleetBtn = el('button', {
+      type: 'button',
+      class: 'btn btn-outline',
+      style: 'padding:8px 12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;border-style:dashed;margin:4px 0'
+    }, [
+      el('span', {}, '➕'),
+      el('span', {}, isAr ? 'أضف أسطول آخر لنفس الفرع (توزيع متعدد الأساطيل)' : 'Add Another Fleet for this Branch')
+    ]);
+    addFleetBtn.onclick = () => {
+      addGroup();
     };
 
     const submitBtn = el('button', {
       type: 'submit',
       class: 'btn btn-primary',
       style: 'padding:10px;font-weight:700;margin-top:10px'
-    }, isAr ? 'حفظ وتفعيل العقد والمقاعد 🚀' : 'Save & Activate Contract');
+    }, isAr ? 'حفظ وتفعيل العقود والمقاعد 🚀' : 'Save & Activate Contracts');
 
     form.onsubmit = async (e) => {
       e.preventDefault();
-      if (!merchantSelect.value || !branchSelect.value || !tenantSelect.value) {
-        showToast(isAr ? 'يرجى اختيار المطعم، الفرع، وشركة التوصيل.' : 'Please select restaurant, branch, and fleet company.', 'error');
+      if (!merchantSelect.value || !branchSelect.value) {
+        showToast(isAr ? 'يرجى اختيار المطعم والفرع.' : 'Please select restaurant and branch.', 'error');
         return;
+      }
+
+      if (groups.length === 0) {
+        showToast(isAr ? 'يرجى إضافة أسطول واحد على الأقل.' : 'Please add at least one fleet.', 'error');
+        return;
+      }
+
+      for (let i = 0; i < groups.length; i++) {
+        if (!groups[i].tenantSelect.value) {
+          showToast(isAr ? `يرجى اختيار شركة الخدمات اللوجستية للمجموعة #${i + 1}` : `Please select fleet for group #${i + 1}`, 'error');
+          groups[i].tenantSelect.focus();
+          return;
+        }
       }
 
       submitBtn.disabled = true;
       submitBtn.textContent = isAr ? 'جاري الحفظ…' : 'Saving…';
 
-      try {
-        await api.post('/admin/dedicated/bookings', {
-          merchant_id: parseInt(merchantSelect.value),
-          branch_id: parseInt(branchSelect.value),
-          tenant_id: parseInt(tenantSelect.value),
-          shift_type: shiftTypeSelect.value,
-          seats_count: parseInt(seatsCountInput.value, 10) || 1,
-          monthly_fee_to_merchant: parseFloat(merchantFeeInput.value),
-          monthly_payout_to_logistics: parseFloat(fleetPayoutInput.value),
-          start_date: new Date().toISOString().split('T')[0]
-        });
+      let successCount = 0;
+      const failedGroups = [];
 
-        showToast(isAr ? 'تم إنشاء وحفظ العقد والمقاعد بنجاح! 🚀' : 'Contract and seats created successfully!', 'success');
+      for (let i = 0; i < groups.length; i++) {
+        const g = groups[i];
+        g.errorBox.style.display = 'none';
+        g.errorBox.textContent = '';
+        try {
+          await api.post('/admin/dedicated/bookings', {
+            merchant_id: parseInt(merchantSelect.value),
+            branch_id: parseInt(branchSelect.value),
+            tenant_id: parseInt(g.tenantSelect.value),
+            shift_type: g.shiftTypeSelect.value,
+            seats_count: parseInt(g.seatsInput.value, 10) || 1,
+            monthly_fee_to_merchant: parseFloat(g.feeInput.value),
+            monthly_payout_to_logistics: parseFloat(g.payoutInput.value),
+            start_date: new Date().toISOString().split('T')[0]
+          });
+          successCount++;
+          g._success = true;
+        } catch (err) {
+          g._success = false;
+          const msg = err.message || (isAr ? 'فشل حفظ هذا الأسطول' : 'Failed to save this fleet');
+          g.errorBox.textContent = `❌ ${msg}`;
+          g.errorBox.style.display = 'block';
+          failedGroups.push(g);
+        }
+      }
+
+      if (failedGroups.length === 0) {
+        showToast(isAr ? `تم إنشاء وحفظ ${successCount} عقد/مجموعة مقاعد بنجاح! 🚀` : `Successfully created ${successCount} contracts!`, 'success');
         overlay.close();
         loadFlexBookings(mainContainer);
-      } catch (err) {
-        showToast(err.message || (isAr ? 'فشل حفظ العقد' : 'Failed to save contract'), 'error');
+      } else {
+        // Retain failed groups so user can adjust, remove succeeded groups
+        groups = groups.filter(g => {
+          if (g._success) {
+            g.card.remove();
+            return false;
+          }
+          return true;
+        });
+        groups.forEach((g, i) => {
+          g.titleSpan.textContent = isAr ? `مجموعة أسطول #${i + 1}` : `Fleet Group #${i + 1}`;
+        });
+        updateLiveTotals();
+        showToast(
+          isAr
+            ? `تم حفظ ${successCount} عقد بنجاح، وفشل ${failedGroups.length}. يرجى مراجعة الأخطاء الموضحة أدناه.`
+            : `Saved ${successCount}, failed ${failedGroups.length}. Please check errors below.`,
+          'warning'
+        );
         submitBtn.disabled = false;
-        submitBtn.textContent = isAr ? 'حفظ وتفعيل العقد والمقاعد 🚀' : 'Save & Activate Contract';
+        submitBtn.textContent = isAr ? 'إعادة محاولة حفظ المجموعات المتبقية 🚀' : 'Retry Saving Remaining Groups';
       }
     };
 
@@ -716,23 +893,11 @@ async function openNewBookingModal(mainContainer) {
       merchantSelect,
       el('label', { style: 'font-size:12px;font-weight:700' }, isAr ? 'الفرع المستفيد:' : 'Branch:'),
       branchSelect,
-      el('label', { style: 'font-size:12px;font-weight:700' }, isAr ? 'شركة الخدمات اللوجستية (المشغلة للأسطول):' : 'Logistics Company:'),
-      tenantSelect,
-      el('label', { style: 'font-size:12px;font-weight:700' }, isAr ? 'عدد المقاعد التعاقدية (المناديب المطلوبة):' : 'Number of Contracted Seats:'),
-      seatsCountInput,
-      el('label', { style: 'font-size:12px;font-weight:700' }, isAr ? 'نوع الوردية:' : 'Shift Type:'),
-      shiftTypeSelect,
-      el('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:10px' }, [
-        el('div', {}, [
-          el('label', { style: 'font-size:12px;font-weight:700;display:block;margin-bottom:4px' }, isAr ? `اشتراك المطعم الشهري لكل مقعد لـ DOU (${currencyLabel}):` : `Merchant Fee per seat to DOU (${currencyLabel}):`),
-          merchantFeeInput
-        ]),
-        el('div', {}, [
-          el('label', { style: 'font-size:12px;font-weight:700;display:block;margin-bottom:4px' }, isAr ? `مستحق الشركة اللوجستية لكل مقعد (${currencyLabel}):` : `Logistics Payout per seat (${currencyLabel}):`),
-          fleetPayoutInput
-        ]),
-      ]),
-      marginDisplay,
+      el('div', { style: 'border-top:1px solid var(--border);margin:4px 0' }),
+      el('label', { style: 'font-size:12px;font-weight:700' }, isAr ? 'الأساطيل وتوزيع المقاعد:' : 'Fleets & Seat Distribution:'),
+      groupsContainer,
+      addFleetBtn,
+      totalsDisplay,
       submitBtn
     );
 

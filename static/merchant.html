@@ -1559,29 +1559,68 @@
             </div>
 
             <div>
-              <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:var(--ink)">${isAr ? 'تفاصيل بنود الورديات والمناديب' : 'Shift & Driver Itemization'}</div>
-              <table style="width:100%;border-collapse:collapse;font-size:12.5px;border-radius:10px;overflow:hidden;border:1px solid var(--line)">
-                <thead>
-                  <tr style="background:var(--surface2);text-align:${isAr ? 'right' : 'left'};border-bottom:1px solid var(--line)">
-                    <th style="padding:10px 14px">${isAr ? 'الفرع' : 'Branch'}</th>
-                    <th style="padding:10px 14px">${isAr ? 'نوع الوردية' : 'Shift Type'}</th>
-                    <th style="padding:10px 14px">${isAr ? 'المندوب' : 'Rider'}</th>
-                    <th style="padding:10px 14px">${isAr ? 'الأيام النشطة' : 'Active Days'}</th>
-                    <th style="padding:10px 14px;text-align:${isAr ? 'left' : 'right'}">${isAr ? 'المبلغ المستحق' : 'Prorated Fee'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${items.map(item => `
-                    <tr style="border-bottom:1px solid var(--line)">
-                      <td style="padding:10px 14px;font-weight:700">${item.branch_name || '—'}</td>
-                      <td style="padding:10px 14px"><span class="badge blue">${item.shift_type === 'full_day_8h' ? (isAr ? 'وردية كاملة 8 ساعات' : 'Full Day 8h') : item.shift_type}</span></td>
-                      <td style="padding:10px 14px">${item.rider_name || '—'}</td>
-                      <td style="padding:10px 14px">${item.active_days} / ${item.days_in_month} ${isAr ? 'يوم' : 'days'}</td>
-                      <td style="padding:10px 14px;font-weight:800;color:var(--green);text-align:${isAr ? 'left' : 'right'};font-family:'JetBrains Mono',monospace">${(item.prorated_fee || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${data.currency || 'SAR'}</td>
-                    </tr>
+              <div style="font-size:13px;font-weight:800;margin-bottom:8px;color:var(--ink)">${isAr ? 'تفاصيل بنود الورديات والمناديب (مجمعة حسب الفرع والأسطول)' : 'Shift & Driver Itemization (Grouped by Branch & Fleet)'}</div>
+              ${data.branch_groups && data.branch_groups.length ? data.branch_groups.map(bg => `
+                <div style="margin-bottom:16px;border:1px solid var(--line);border-radius:10px;overflow:hidden;">
+                  <div style="background:var(--surface3);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;font-weight:800;">
+                    <span>📍 ${bg.branch_name || '—'}</span>
+                    <span style="color:var(--orange);font-family:'JetBrains Mono',monospace;">${(bg.branch_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${data.currency || 'SAR'}</span>
+                  </div>
+                  ${(bg.fleets || []).map(f => `
+                    <div style="background:rgba(59,130,246,0.05);padding:6px 14px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;border-top:1px solid var(--line);">
+                      <span>🏢 ${f.logistics_company_name} (${f.seats_count} ${isAr ? 'مقاعد' : 'seats'})</span>
+                      <span style="color:var(--green);font-family:'JetBrains Mono',monospace;">${(f.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${data.currency || 'SAR'}</span>
+                    </div>
                   `).join('')}
-                </tbody>
-              </table>
+                  <table style="width:100%;border-collapse:collapse;font-size:12px;border-top:1px solid var(--line)">
+                    <thead>
+                      <tr style="background:var(--surface2);text-align:${isAr ? 'right' : 'left'};border-bottom:1px solid var(--line);color:var(--muted)">
+                        <th style="padding:8px 12px">${isAr ? 'الأسطول' : 'Fleet'}</th>
+                        <th style="padding:8px 12px">${isAr ? 'نوع الوردية' : 'Shift Type'}</th>
+                        <th style="padding:8px 12px">${isAr ? 'المندوب' : 'Rider'}</th>
+                        <th style="padding:8px 12px">${isAr ? 'الأيام النشطة' : 'Active Days'}</th>
+                        <th style="padding:8px 12px;text-align:${isAr ? 'left' : 'right'}">${isAr ? 'المبلغ المستحق' : 'Prorated Fee'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${items.filter(it => it.branch_name === bg.branch_name).map(item => `
+                        <tr style="border-bottom:1px solid var(--line)">
+                          <td style="padding:8px 12px;font-weight:600;color:var(--blue)">🏢 ${item.logistics_company_name || '—'}</td>
+                          <td style="padding:8px 12px"><span class="badge blue">${item.shift_type === 'full_day_8h' ? (isAr ? 'وردية كاملة 8س' : 'Full Day 8h') : item.shift_type}</span></td>
+                          <td style="padding:8px 12px">${item.rider_name || '—'}${item.courier_type === 'FREELANCER' || item.courier_type === 'freelancer' ? ` <span class="badge amber" style="font-size:9.5px;">🔸 ${isAr ? 'فريلانسر' : 'Freelancer'}</span>` : ''}</td>
+                          <td style="padding:8px 12px">${item.active_days} / ${item.days_in_month} ${isAr ? 'يوم' : 'days'}</td>
+                          <td style="padding:8px 12px;font-weight:800;color:var(--green);text-align:${isAr ? 'left' : 'right'};font-family:'JetBrains Mono',monospace">${(item.prorated_fee || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${data.currency || 'SAR'}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              `).join('') : `
+                <table style="width:100%;border-collapse:collapse;font-size:12.5px;border-radius:10px;overflow:hidden;border:1px solid var(--line)">
+                  <thead>
+                    <tr style="background:var(--surface2);text-align:${isAr ? 'right' : 'left'};border-bottom:1px solid var(--line)">
+                      <th style="padding:10px 14px">${isAr ? 'الفرع' : 'Branch'}</th>
+                      <th style="padding:10px 14px">${isAr ? 'الأسطول' : 'Fleet'}</th>
+                      <th style="padding:10px 14px">${isAr ? 'نوع الوردية' : 'Shift Type'}</th>
+                      <th style="padding:10px 14px">${isAr ? 'المندوب' : 'Rider'}</th>
+                      <th style="padding:10px 14px">${isAr ? 'الأيام النشطة' : 'Active Days'}</th>
+                      <th style="padding:10px 14px;text-align:${isAr ? 'left' : 'right'}">${isAr ? 'المبلغ المستحق' : 'Prorated Fee'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${items.map(item => `
+                      <tr style="border-bottom:1px solid var(--line)">
+                        <td style="padding:10px 14px;font-weight:700">${item.branch_name || '—'}</td>
+                        <td style="padding:10px 14px;color:var(--blue)">🏢 ${item.logistics_company_name || '—'}</td>
+                        <td style="padding:10px 14px"><span class="badge blue">${item.shift_type === 'full_day_8h' ? (isAr ? 'وردية كاملة 8 ساعات' : 'Full Day 8h') : item.shift_type}</span></td>
+                        <td style="padding:10px 14px">${item.rider_name || '—'}</td>
+                        <td style="padding:10px 14px">${item.active_days} / ${item.days_in_month} ${isAr ? 'يوم' : 'days'}</td>
+                        <td style="padding:10px 14px;font-weight:800;color:var(--green);text-align:${isAr ? 'left' : 'right'};font-family:'JetBrains Mono',monospace">${(item.prorated_fee || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} ${data.currency || 'SAR'}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              `}
             </div>
 
             <div style="background:var(--surface3);border-radius:10px;padding:12px 16px;font-size:11.5px;color:var(--muted);line-height:1.6">
@@ -2009,8 +2048,29 @@
           return;
         }
 
+        let currentFleetFilter = window._currentFleetFilter || '';
+        const uniqueFleets = Array.from(new Set(riders.map(r => r.logistics_company_name).filter(Boolean)));
+        window.setFleetFilter = function(val) {
+          window._currentFleetFilter = val;
+          renderActiveRiders(activeRidersData);
+        };
+
         let html = '';
-        riders.forEach(r => {
+        if (uniqueFleets.length > 1) {
+          html += `
+            <div style="grid-column:1/-1;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+              <span style="font-size:12px;font-weight:700;color:var(--muted)">🏢 ${isAr ? 'فلتر الأسطول:' : 'Fleet Filter:'}</span>
+              <select onchange="window.setFleetFilter(this.value)" style="background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 10px;font-size:12px;">
+                <option value="">${isAr ? 'جميع الأساطيل المشغلة' : 'All Fleets'}</option>
+                ${uniqueFleets.map(f => `<option value="${f}" ${currentFleetFilter === f ? 'selected' : ''}>${f}</option>`).join('')}
+              </select>
+            </div>
+          `;
+        }
+
+        const displayedRiders = currentFleetFilter ? riders.filter(r => r.logistics_company_name === currentFleetFilter) : riders;
+
+        displayedRiders.forEach(r => {
           if (r.is_vacant) {
             html += `
               <div class="rider-card vacant">
@@ -2020,6 +2080,7 @@
                     <div class="rider-name-row">
                       <span class="rider-name" style="color:var(--muted)">${isAr ? 'مقعد شاغر (عقد متعاقد)' : 'Vacant Seat (Contracted)'}</span>
                     </div>
+                    ${r.logistics_company_name ? `<div style="font-size:11px;font-weight:700;color:var(--blue);margin-top:2px;">🏢 ${r.logistics_company_name}</div>` : ''}
                     <div class="rider-shift-time">${isAr ? 'وردية: ' : 'Shift: '}<strong>${r.shift_start} - ${r.shift_end}</strong></div>
                     <div style="font-size:10.5px;color:var(--muted);margin-top:2px;">${isAr ? 'بانتظار تسكين مندوب من الشركة' : 'Awaiting driver staffing from logistics'}</div>
                   </div>
@@ -2098,6 +2159,10 @@
                     <div class="rider-name-row">
                       <span class="rider-name">${r.rider_name}</span>
                       <span class="rider-phone mono">${r.rider_phone_masked}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;">
+                      ${r.logistics_company_name ? `<span class="badge blue" style="font-size:10px;padding:2px 6px;">🏢 ${r.logistics_company_name}</span>` : ''}
+                      ${r.courier_type === 'FREELANCER' || r.courier_type === 'freelancer' ? `<span class="badge amber" style="font-size:10px;padding:2px 6px;">🔸 ${isAr ? 'فريلانسر' : 'Freelancer'}</span>` : ''}
                     </div>
                     <div class="rider-shift-time">${isAr ? 'الوردية: ' : 'Shift: '}<strong>${r.shift_start} - ${r.shift_end}</strong></div>
                     <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;">
